@@ -1,0 +1,18 @@
+services:
+  cue:
+    build: .
+    image: cue:latest
+    container_name: cue
+    restart: unless-stopped
+    # Bind to loopback only — the reverse proxy (Caddy/nginx) sits in front and
+    # terminates TLS for cue.celox.io.
+    ports:
+      - "127.0.0.1:8791:8000"
+    env_file:
+      - .env
+    volumes:
+      # Persistent SQLite DB + uploaded imports.
+      - cue-data:/data
+
+volumes:
+  cue-data:

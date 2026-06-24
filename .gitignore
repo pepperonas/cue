@@ -26,6 +26,11 @@ uploads/
 .mypy_cache/
 .vite/
 
+# TS build artifacts (tsc -b composite emit)
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
 # OS / editor
 .DS_Store
 *.swp

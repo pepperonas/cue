@@ -110,7 +110,7 @@ def export_json(
     prompts = session.exec(select(Prompt)).all()
     payload = {
         "version": 1,
-        "exported_at": _now().isoformat() + "Z",
+        "exported_at": _now().isoformat(),
         "projects": [json.loads(p.model_dump_json()) for p in projects],
         "prompts": [json.loads(p.model_dump_json()) for p in prompts],
     }

@@ -1,0 +1,20 @@
+# cue — Caddy reverse proxy with automatic TLS.
+# Drop into your Caddy config (or import it) and reload Caddy.
+#
+#   caddy reload --config /etc/caddy/Caddyfile
+#
+# Caddy fetches + renews the Let's Encrypt cert automatically and sets HSTS.
+
+cue.celox.io {
+	encode zstd gzip
+
+	# The container binds to 127.0.0.1:8791 (see docker-compose.yml).
+	reverse_proxy 127.0.0.1:8791
+
+	# HSTS (the app sets the rest of the security headers itself).
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	log {
+		output file /var/log/caddy/cue.log
+	}
+}
