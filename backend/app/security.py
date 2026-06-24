@@ -129,3 +129,8 @@ class _RateLimiter:
 
 
 login_limiter = _RateLimiter()
+
+# Global backstop: even if an attacker rotates/spoofs IPs, total failed login
+# attempts are capped across all clients. Keyed on a single constant bucket.
+global_login_limiter = _RateLimiter(max_attempts=30, window_seconds=15 * 60)
+_GLOBAL_KEY = "__global__"

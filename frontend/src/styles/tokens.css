@@ -1,0 +1,77 @@
+/* MD3 Expressive design tokens. Color roles (--md-*) are injected at runtime
+   from the seed (see lib/color.ts). This file defines type, shape, motion. */
+
+:root {
+  /* Fallback color roles (overwritten by applyScheme on boot) */
+  --md-primary: #6750a4;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #eaddff;
+  --md-on-primary-container: #21005d;
+  --md-surface: #141218;
+  --md-on-surface: #e6e0e9;
+  --md-surface-container: #211f26;
+  --md-surface-container-high: #2b2930;
+  --md-surface-container-highest: #36343b;
+  --md-surface-container-low: #1d1b20;
+  --md-surface-container-lowest: #0f0d13;
+  --md-on-surface-variant: #cac4d0;
+  --md-outline: #938f99;
+  --md-outline-variant: #49454f;
+  --md-error: #f2b8b5;
+  --md-on-error: #601410;
+  --md-background: #141218;
+  --md-inverse-surface: #e6e0e9;
+  --md-inverse-on-surface: #322f35;
+
+  /* Expressive type scale (Roboto Flex) */
+  --font-sans: 'Roboto Flex', system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, 'SF Mono', monospace;
+
+  --display-l: 700 3.5rem/4rem var(--font-sans);
+  --headline-l: 700 2rem/2.5rem var(--font-sans);
+  --headline-m: 700 1.5rem/2rem var(--font-sans);
+  --title-l: 600 1.375rem/1.75rem var(--font-sans);
+  --title-m: 600 1rem/1.5rem var(--font-sans);
+  --title-s: 600 0.875rem/1.25rem var(--font-sans);
+  --body-l: 400 1rem/1.5rem var(--font-sans);
+  --body-m: 400 0.875rem/1.25rem var(--font-sans);
+  --label-l: 600 0.875rem/1.25rem var(--font-sans);
+  --label-m: 600 0.75rem/1rem var(--font-sans);
+
+  /* Expressive shape scale — generous, partly morphing radii */
+  --shape-xs: 8px;
+  --shape-s: 12px;
+  --shape-m: 16px;
+  --shape-l: 24px;
+  --shape-xl: 28px;
+  --shape-2xl: 36px;
+  --shape-full: 999px;
+
+  /* Spacing */
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+
+  /* Motion */
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dur-short: 200ms;
+  --dur-medium: 400ms;
+
+  /* Elevation via surface tint (no hard shadows) */
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.22);
+  --elev-3: 0 6px 20px rgba(0, 0, 0, 0.28);
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --elev-3: 0 6px 20px rgba(0, 0, 0, 0.14);
+}

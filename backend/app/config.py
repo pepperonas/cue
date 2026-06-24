@@ -34,6 +34,12 @@ class Settings:
         # Allowed browser origin, used for CSP/connect-src and a strict Origin check.
         self.allowed_origin: str = os.environ.get("ALLOWED_ORIGIN", "https://cue.celox.io")
 
+        # Whether to trust the X-Forwarded-For header for the client IP. Only
+        # enable when a trusted reverse proxy sets it (it does on the VPS). When
+        # false, the socket peer is used so XFF cannot be spoofed to dodge the
+        # login rate limit.
+        self.trust_proxy: bool = _bool(os.environ.get("TRUST_PROXY"), default=True)
+
         # SQLite database file. Lives on a persistent volume in production.
         self.db_path: str = os.environ.get("DB_PATH", str(Path("data") / "cue.db"))
 

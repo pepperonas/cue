@@ -10,10 +10,18 @@ _settings = get_settings()
 
 
 def get_client_ip(request: Request) -> str:
-    """Best-effort client IP. Honors X-Forwarded-For from the trusted proxy."""
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """Client IP for rate limiting.
+
+    X-Forwarded-For is client-controllable and is only honored when TRUST_PROXY
+    is set (the proxy on the VPS rewrites it). When trusted, the rightmost entry
+    is the address our own proxy observed and appended — using the leftmost would
+    let a client prepend a spoofed value to rotate buckets. When untrusted, the
+    real socket peer is used.
+    """
+    if _settings.trust_proxy:
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 

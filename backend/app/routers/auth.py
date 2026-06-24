@@ -8,11 +8,13 @@ from ..deps import current_session, get_client_ip, require_csrf
 from ..schemas import ChangePasswordRequest, LoginRequest, MeResponse
 from ..security import (
     csrf_from_session,
+    global_login_limiter,
     hash_password,
     issue_session,
     login_limiter,
     verify_password,
 )
+from ..security import _GLOBAL_KEY  # global backstop bucket key
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 _settings = get_settings()
@@ -45,8 +47,8 @@ def _set_session_cookie(response: Response, token: str, remember: bool) -> None:
 @router.post("/login", response_model=MeResponse)
 def login(payload: LoginRequest, request: Request, response: Response) -> MeResponse:
     ip = get_client_ip(request)
-    if login_limiter.is_blocked(ip):
-        retry = login_limiter.retry_after(ip)
+    if login_limiter.is_blocked(ip) or global_login_limiter.is_blocked(_GLOBAL_KEY):
+        retry = max(login_limiter.retry_after(ip), global_login_limiter.retry_after(_GLOBAL_KEY))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many attempts. Try again later.",
@@ -55,9 +57,11 @@ def login(payload: LoginRequest, request: Request, response: Response) -> MeResp
 
     if not verify_password(payload.password):
         login_limiter.register_failure(ip)
+        global_login_limiter.register_failure(_GLOBAL_KEY)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
     login_limiter.reset(ip)
+    global_login_limiter.reset(_GLOBAL_KEY)
     token = issue_session()
     _set_session_cookie(response, token, payload.remember)
     return MeResponse(authenticated=True, csrf_token=csrf_from_session(token))

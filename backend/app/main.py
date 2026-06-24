@@ -87,7 +87,7 @@ app.mount("/api", api)
 
 
 # ---- Static frontend (SPA) ----
-_static_dir = Path(_settings.static_dir)
+_static_dir = Path(_settings.static_dir).resolve()
 _index = _static_dir / "index.html"
 
 if _static_dir.is_dir():
@@ -97,9 +97,12 @@ if _static_dir.is_dir():
 
     @app.get("/{full_path:path}")
     def spa(full_path: str) -> Response:
-        candidate = _static_dir / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
+        # Guard against path traversal: the resolved candidate must stay inside
+        # the static dir (e.g. "../../etc/passwd" resolves outside -> reject).
+        if full_path:
+            candidate = (_static_dir / full_path).resolve()
+            if candidate.is_file() and candidate.is_relative_to(_static_dir):
+                return FileResponse(candidate)
         if _index.is_file():
             return FileResponse(_index)
         return JSONResponse({"detail": "Frontend not built"}, status_code=404)
