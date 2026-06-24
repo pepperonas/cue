@@ -1,0 +1,8 @@
+# Fallback for environments without uv. Mirrors pyproject.toml dependencies.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+sqlmodel>=0.0.22
+argon2-cffi>=23.1
+itsdangerous>=2.2
+python-multipart>=0.0.12
+pydantic>=2.9

@@ -1,0 +1,30 @@
+[project]
+name = "cue-backend"
+version = "1.0.0"
+description = "cue — Prompt-Queue für Claude-Code-Sessions (backend)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlmodel>=0.0.22",
+    "argon2-cffi>=23.1",
+    "itsdangerous>=2.2",
+    "python-multipart>=0.0.12",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
