@@ -73,6 +73,12 @@ separately and Vite proxies `/api` to `:8000`.
 - **tsconfig**: `tsconfig.node.json` is a composite referenced project and must NOT set `noEmit` (breaks `tsc -b`).
 - **Conventional Commits**. Persist app state lives entirely in the SQLite file (`/data/cue.db` in the container volume).
 
+## Deployment (live: cue.celox.io on VPS 69.62.121.168)
+
+- Code at `/opt/cue` (rsync'd, no git clone). Container `cue` via `docker compose`, binds `127.0.0.1:8791`. nginx block `/etc/nginx/sites-enabled/cue.celox.io` (certbot-managed cert + HTTP→HTTPS redirect). Update: `rsync ./ root@69.62.121.168:/opt/cue/` then `ssh ... 'cd /opt/cue && docker compose up -d --build'`.
+- **Frontend Docker stage pins pnpm@10.2.1** (`corepack prepare pnpm@10.2.1 --activate`); bare `corepack enable` pulls pnpm 11.x which needs Node 22+ and crashes on the Node 20 base.
+- **`$$`-escape gotcha**: docker compose interpolates `env_file`, so every literal `$` in `APP_PASSWORD_HASH` must be doubled to `$$` in `.env`. Running uvicorn directly uses the hash verbatim. Wrong escaping → the hash is mangled to `=19=65536,...` and login always fails with "Invalid password".
+
 ---
 
 © 2026 Martin Pfeffer | celox.io

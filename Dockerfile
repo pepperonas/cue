@@ -1,7 +1,9 @@
 # ---- Stage 1: build the frontend ----
 FROM node:20-slim AS frontend
 WORKDIR /fe
-RUN corepack enable
+# Pin pnpm to match the lockfile; bare `corepack enable` would pull pnpm 11.x,
+# which requires Node 22+ and crashes on this Node 20 base.
+RUN corepack enable && corepack prepare pnpm@10.2.1 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile || pnpm install
 COPY frontend/ ./

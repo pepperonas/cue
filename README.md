@@ -64,6 +64,8 @@ cd frontend && pnpm typecheck        # tsc
 
 ```bash
 # 1) .env anlegen (aus .env.example), Hash + Secret eintragen, COOKIE_SECURE=true.
+#    ACHTUNG: docker compose interpoliert env_file — jedes '$' im Argon2-Hash
+#    MUSS zu '$$' verdoppelt werden (siehe .env.example).
 cp .env.example .env && nano .env
 
 # 2) Bauen + starten (Frontend wird im Multi-Stage-Build mitgebaut).
