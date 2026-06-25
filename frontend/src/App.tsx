@@ -43,8 +43,10 @@ export default function App() {
 
   if (authed === null) {
     return (
-      <div className="login-wrap">
-        <div className="skeleton" style={{ width: 200, height: 60 }} />
+      <div className="app">
+        <div className="login-wrap">
+          <div className="skeleton" style={{ width: 200, height: 60 }} />
+        </div>
       </div>
     )
   }
