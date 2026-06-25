@@ -146,6 +146,13 @@ a {
 .tab .material-symbols-rounded {
   font-size: 20px;
 }
+/* Keep icon + label above the sliding indicator (which is a positioned
+   z-index:0 element and would otherwise paint over the static inline text). */
+.tab > .material-symbols-rounded,
+.tab > .tab-label {
+  position: relative;
+  z-index: 1;
+}
 .tab-indicator {
   position: absolute;
   inset: 4px auto 4px 0;
