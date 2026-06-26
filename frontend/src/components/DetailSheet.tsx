@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
@@ -39,6 +39,34 @@ export function DetailSheet({
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
   const tones = project ? projectTones(project.color, dark) : null
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Cmd/Ctrl+A selects only the prompt content (not the whole page behind the
+  // sheet), so a following Cmd/Ctrl+C copies just the prompt.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const key = e.key.toLowerCase()
+      if (key === 'a') {
+        const node = contentRef.current
+        const sel = window.getSelection()
+        if (!node || !sel) return
+        e.preventDefault()
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        sel.removeAllRanges()
+        sel.addRange(range)
+      } else if (key === 'c') {
+        // Direct Cmd/Ctrl+C with no active selection copies the whole prompt.
+        const sel = window.getSelection()
+        if (sel && sel.toString().length > 0) return
+        e.preventDefault()
+        onCopy(prompt)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCopy, prompt])
 
   return (
     <div className="scrim" onClick={onClose}>
@@ -94,32 +122,34 @@ export function DetailSheet({
           </button>
         </div>
 
-        {showRaw ? (
-          <pre
-            style={{
-              background: 'var(--md-surface-container-lowest)',
-              padding: 'var(--gap-4)',
-              borderRadius: 'var(--shape-s)',
-              overflow: 'auto',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.82rem',
-              whiteSpace: 'pre-wrap',
-              margin: 0,
-            }}
-          >
-            {prompt.body}
-          </pre>
-        ) : (
-          <div
-            className="md-preview"
-            style={{
-              background: 'var(--md-surface-container-lowest)',
-              padding: 'var(--gap-4)',
-              borderRadius: 'var(--shape-s)',
-            }}
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(prompt.body) }}
-          />
-        )}
+        <div ref={contentRef} style={{ userSelect: 'text', cursor: 'text' }}>
+          {showRaw ? (
+            <pre
+              style={{
+                background: 'var(--md-surface-container-lowest)',
+                padding: 'var(--gap-4)',
+                borderRadius: 'var(--shape-s)',
+                overflow: 'auto',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                whiteSpace: 'pre-wrap',
+                margin: 0,
+              }}
+            >
+              {prompt.body}
+            </pre>
+          ) : (
+            <div
+              className="md-preview"
+              style={{
+                background: 'var(--md-surface-container-lowest)',
+                padding: 'var(--gap-4)',
+                borderRadius: 'var(--shape-s)',
+              }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(prompt.body) }}
+            />
+          )}
+        </div>
 
         <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
           <div>Erstellt: {fmt(prompt.created_at)}</div>

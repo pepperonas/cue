@@ -71,6 +71,10 @@ separately and Vite proxies `/api` to `:8000`.
 - **Security headers + CSP** are set in middleware in `main.py`; HSTS is the proxy's job. CSP allows Google Fonts + inline styles (needed for runtime dynamic-color vars).
 - **JSX + German quotes**: a straight `"` inside a `"..."` JSX attribute terminates it — use `{'…„…"…'}` (a JS string expression) for German-quoted attribute text.
 - **tsconfig**: `tsconfig.node.json` is a composite referenced project and must NOT set `noEmit` (breaks `tsc -b`).
+- **Copy interactions**: every prompt is one-click copyable (mini copy button on cards/list rows, big button in the detail) and **double-click** on a board card or list row copies it. A single click opens the detail, so a 200 ms timer in `PromptCard`/`ListView`'s `ListRow` discriminates click-vs-double-click (double click cancels the pending open — no detail flash).
+- **Scoped select-all in dialogs**: `DetailSheet`/`Composer`-preview install a `window` keydown listener so `Cmd/Ctrl+A` selects **only** the prompt content (`Range.selectNodeContents` on a ref'd wrapper), not the whole page behind the scrim; `Cmd/Ctrl+C` then copies just that. In the detail, a bare `Cmd/Ctrl+C` with no active selection copies the full prompt. The composer **edit** textarea keeps native select-all (the listener only attaches in preview). The global shortcut handler in `App.tsx` early-returns on any meta/ctrl/alt combo, so these never collide.
+- **Last-used project**: creating a prompt stores its project in `localStorage` (`cue-last-project`); the next new prompt preselects it (validated against the live project list; an active project filter still wins via `defaultProjectId`).
+- **kbd-in-button legibility**: `.btn kbd` derives its chip background/border from `currentColor` (`color-mix`) so the `⌘↵` hint stays readable on filled/tonal/danger surfaces instead of dark-on-dark.
 - **Conventional Commits**. Persist app state lives entirely in the SQLite file (`/data/cue.db` in the container volume).
 
 ## Deployment (live: cue.celox.io on VPS 69.62.121.168)

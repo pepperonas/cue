@@ -727,6 +727,22 @@ kbd {
   text-align: center;
 }
 
+/* kbd inside a button (e.g. ⌘↵ on the save button): derive the chip from the
+   button's own text color so it stays legible on filled/danger surfaces. */
+.btn kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  color: inherit;
+  font-weight: 600;
+  line-height: 1;
+}
+.btn kbd .material-symbols-rounded {
+  font-size: 16px;
+}
+
 /* ---- Color swatches ---- */
 .swatches {
   display: flex;

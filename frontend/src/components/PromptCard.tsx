@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
@@ -30,6 +31,31 @@ export function PromptCard({ prompt, project, dark, selected, index, onOpen, onC
 
   const tones = project ? projectTones(project.color, dark) : null
 
+  // Single click opens the detail; double click copies. A short timer
+  // discriminates the two so a double click never flashes the detail open.
+  const clickTimer = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      if (clickTimer.current) window.clearTimeout(clickTimer.current)
+    },
+    [],
+  )
+
+  function handleClick() {
+    if (clickTimer.current) window.clearTimeout(clickTimer.current)
+    clickTimer.current = window.setTimeout(() => {
+      clickTimer.current = null
+      onOpen(prompt)
+    }, 200)
+  }
+  function handleDoubleClick() {
+    if (clickTimer.current) {
+      window.clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    onCopy(prompt)
+  }
+
   return (
     <motion.div
       layout="position"
@@ -43,9 +69,11 @@ export function PromptCard({ prompt, project, dark, selected, index, onOpen, onC
         style={style}
         className={`card ${isDragging ? 'dragging' : ''} ${selected ? 'selected' : ''}`}
         data-prompt-id={prompt.id}
+        title="Doppelklick kopiert den Prompt"
         {...attributes}
         {...listeners}
-        onClick={() => onOpen(prompt)}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
       >
         <div className="card-title">{prompt.title || 'Untitled'}</div>
         <div className="card-body-preview">{prompt.body}</div>

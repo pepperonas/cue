@@ -9,6 +9,7 @@ import { useToast } from '../state/toast'
 import { Button, Icon, IconButton } from './ui'
 
 const DRAFT_KEY = 'cue-draft'
+const LAST_PROJECT_KEY = 'cue-last-project'
 
 interface Props {
   projects: Project[]
@@ -27,17 +28,43 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     () => editing?.body ?? localStorage.getItem(DRAFT_KEY) ?? '',
   )
   const [title, setTitle] = useState(editing?.title ?? '')
-  const [projectId, setProjectId] = useState<number | null>(
-    editing?.project_id ?? defaultProjectId,
-  )
+  const [projectId, setProjectId] = useState<number | null>(() => {
+    if (editing) return editing.project_id
+    if (defaultProjectId != null) return defaultProjectId
+    // Preselect the project used for the last created prompt.
+    const raw = localStorage.getItem(LAST_PROJECT_KEY)
+    if (!raw) return null
+    const n = Number(raw)
+    return Number.isFinite(n) && projects.some((p) => p.id === n) ? n : null
+  })
   const [status, setStatus] = useState<Status>(editing?.status ?? 'queued')
   const [tags, setTags] = useState(editing?.tags ?? '')
   const [preview, setPreview] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     taRef.current?.focus()
   }, [])
+
+  // In read-only preview, Cmd/Ctrl+A selects only the rendered prompt (not the
+  // page behind the sheet). In edit mode the textarea handles select-all itself.
+  useEffect(() => {
+    if (!preview) return
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'a') return
+      const node = previewRef.current
+      const sel = window.getSelection()
+      if (!node || !sel) return
+      e.preventDefault()
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [preview])
 
   // Autosave draft (new prompts only).
   useEffect(() => {
@@ -69,6 +96,8 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           tags,
         })
         localStorage.removeItem(DRAFT_KEY)
+        // Remember the project so the next new prompt preselects it.
+        localStorage.setItem(LAST_PROJECT_KEY, projectId == null ? '' : String(projectId))
         toast.show('Prompt angelegt', 'success')
       }
       onClose()
@@ -120,12 +149,15 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
 
         {preview ? (
           <div
+            ref={previewRef}
             className="md-preview"
             style={{
               minHeight: 240,
               background: 'var(--md-surface-container-lowest)',
               borderRadius: 'var(--shape-s)',
               padding: 'var(--gap-4)',
+              userSelect: 'text',
+              cursor: 'text',
             }}
             dangerouslySetInnerHTML={{ __html: renderMarkdown(body || '_Nichts zum Anzeigen_') }}
           />

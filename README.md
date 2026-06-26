@@ -10,8 +10,9 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 ## Features
 
 - **Kanban-Board** mit Drag-zwischen-Spalten (Statuswechsel) + Reorder, optimistisch, Spring-Motion.
-- **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`).
-- **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips.
+- **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
+- **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl.
+- **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips; neuer Prompt übernimmt das zuletzt genutzte Projekt.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft.
 - **Import** von `.txt` (Split an `---`/Leerzeilen/keiner) + **Export** als JSON-Backup oder ZIP (`.txt` pro Prompt).
 - **MD3 Expressive**: Material-You-Dynamic-Color aus Seed, Light/Dark/System, sichtbare Physik, reduced-motion-aware.
