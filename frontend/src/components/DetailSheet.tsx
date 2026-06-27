@@ -6,6 +6,7 @@ import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { BookmarkButton } from './BookmarkButton'
+import { TestedButton } from './TestedButton'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
   onDelete: (p: Prompt) => void
   onStatus: (p: Prompt, s: Status) => void
   onToggleBookmark: (p: Prompt) => void
+  onToggleTested: (p: Prompt) => void
 }
 
 function fmt(iso: string | null): string {
@@ -39,8 +41,10 @@ export function DetailSheet({
   onDelete,
   onStatus,
   onToggleBookmark,
+  onToggleTested,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
+  const canTest = prompt.status === 'running' || prompt.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -82,6 +86,13 @@ export function DetailSheet({
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h2 style={{ margin: 0 }}>{prompt.title || 'Untitled'}</h2>
           <div className="row">
+            {canTest && (
+              <TestedButton
+                variant="icon-btn"
+                tested={prompt.tested}
+                onToggle={() => onToggleTested(prompt)}
+              />
+            )}
             <BookmarkButton
               variant="icon-btn"
               bookmarked={prompt.bookmarked}

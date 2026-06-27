@@ -96,6 +96,11 @@ def test_full_flow(client):
     assert rr.status_code == 200, rr.text
     assert rr.json()[0]["ran_at"] is not None
 
+    # Mark the feature as tested.
+    tj = client.patch(f"/api/prompts/{pid}", json={"tested": True}, headers=headers)
+    assert tj.status_code == 200, tj.text
+    assert tj.json()["tested"] is True
+
     # Search filter.
     found = client.get("/api/prompts", params={"q": "parser"})
     assert found.status_code == 200

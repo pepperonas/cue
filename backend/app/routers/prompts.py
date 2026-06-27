@@ -153,6 +153,9 @@ def update_prompt(
         if payload.bookmarked:
             prompt.bookmark_order = _next_bookmark_order(session, uid)
 
+    if payload.tested is not None:
+        prompt.tested = payload.tested
+
     if payload.status is not None and payload.status != prompt.status:
         prompt.status = payload.status
         prompt.sort_order = _next_sort_order(session, payload.status, uid)

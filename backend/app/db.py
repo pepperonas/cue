@@ -50,6 +50,7 @@ def _migrate(engine: Engine) -> None:
     prompt_additions = {
         "bookmarked": "ALTER TABLE prompt ADD COLUMN bookmarked BOOLEAN NOT NULL DEFAULT 0",
         "bookmark_order": "ALTER TABLE prompt ADD COLUMN bookmark_order INTEGER NOT NULL DEFAULT 0",
+        "tested": "ALTER TABLE prompt ADD COLUMN tested BOOLEAN NOT NULL DEFAULT 0",
         "user_id": "ALTER TABLE prompt ADD COLUMN user_id INTEGER REFERENCES user(id)",
     }
     project_additions = {

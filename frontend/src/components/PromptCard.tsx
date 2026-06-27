@@ -7,6 +7,7 @@ import { springs } from '../lib/motion'
 import type { Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BookmarkButton } from './BookmarkButton'
+import { TestedButton } from './TestedButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
+  onToggleTested?: (p: Prompt) => void
 }
 
 export function PromptCard({
@@ -29,7 +31,9 @@ export function PromptCard({
   onOpen,
   onCopy,
   onToggleBookmark,
+  onToggleTested,
 }: Props) {
+  const canTest = prompt.status === 'running' || prompt.status === 'done'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prompt.id,
     data: { status: prompt.status },
@@ -109,6 +113,9 @@ export function PromptCard({
                 </span>
               ))}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+            {onToggleTested && canTest && (
+              <TestedButton tested={prompt.tested} onToggle={() => onToggleTested(prompt)} />
+            )}
             {onToggleBookmark && (
               <BookmarkButton
                 bookmarked={prompt.bookmarked}

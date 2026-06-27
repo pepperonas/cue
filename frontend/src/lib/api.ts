@@ -77,6 +77,7 @@ export const api = {
       status: Status
       tags: string
       bookmarked: boolean
+      tested: boolean
       unassign_project: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),

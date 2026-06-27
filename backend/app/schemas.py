@@ -56,6 +56,7 @@ class PromptUpdate(BaseModel):
     status: PromptStatus | None = None
     tags: str | None = None
     bookmarked: bool | None = None
+    tested: bool | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
     unassign_project: bool = False
 
@@ -70,6 +71,7 @@ class PromptRead(BaseModel):
     tags: str
     bookmarked: bool
     bookmark_order: int
+    tested: bool
     created_at: datetime
     updated_at: datetime
     ran_at: datetime | None

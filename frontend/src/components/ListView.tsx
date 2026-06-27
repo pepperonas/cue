@@ -5,6 +5,7 @@ import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { BookmarkButton } from './BookmarkButton'
+import { TestedButton } from './TestedButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
+  onToggleTested?: (p: Prompt) => void
 }
 
 const COLLAPSE_KEY = 'cue-list-collapsed'
@@ -38,6 +40,7 @@ export function ListView({
   onOpen,
   onCopy,
   onToggleBookmark,
+  onToggleTested,
 }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
 
@@ -96,6 +99,7 @@ export function ListView({
                           onOpen={onOpen}
                           onCopy={onCopy}
                           onToggleBookmark={onToggleBookmark}
+                          onToggleTested={onToggleTested}
                         />
                       ))
                     )}
@@ -119,6 +123,7 @@ interface RowProps {
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
+  onToggleTested?: (p: Prompt) => void
 }
 
 function ListRow({
@@ -130,7 +135,9 @@ function ListRow({
   onOpen,
   onCopy,
   onToggleBookmark,
+  onToggleTested,
 }: RowProps) {
+  const canTest = p.status === 'running' || p.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
 
   // Single click opens; double click copies (see PromptCard for rationale).
@@ -179,6 +186,9 @@ function ListRow({
       </div>
       {project && tones && (
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
+      )}
+      {onToggleTested && canTest && (
+        <TestedButton tested={p.tested} onToggle={() => onToggleTested(p)} />
       )}
       {onToggleBookmark && (
         <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />

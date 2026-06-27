@@ -168,6 +168,15 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [toast, update],
   )
 
+  const handleToggleTested = useCallback(
+    (p: Prompt) => {
+      update.mutate({ id: p.id, patch: { tested: !p.tested } })
+      vibrate(8)
+      toast.show(p.tested ? 'Als ungetestet markiert' : 'Als getestet markiert', 'success')
+    },
+    [toast, update],
+  )
+
   const anyModalOpen = composerOpen || !!detail || !!confirmDel || shortcuts
 
   // Keyboard shortcuts.
@@ -348,6 +357,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onOpen={openDetail}
                 onCopy={handleCopy}
                 onToggleBookmark={handleToggleBookmark}
+                onToggleTested={handleToggleTested}
                 onReorder={(items) => reorder.mutate(items)}
               />
             ) : (
@@ -360,6 +370,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onOpen={openDetail}
                 onCopy={handleCopy}
                 onToggleBookmark={handleToggleBookmark}
+                onToggleTested={handleToggleTested}
               />
             )}
           </>
@@ -374,6 +385,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onOpen={openDetail}
             onCopy={handleCopy}
             onToggleBookmark={handleToggleBookmark}
+            onToggleTested={handleToggleTested}
             onReorder={(items) => reorderBookmarks.mutate(items)}
           />
         )}
@@ -442,6 +454,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onDelete={(p) => setConfirmDel(p)}
             onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
             onToggleBookmark={handleToggleBookmark}
+            onToggleTested={handleToggleTested}
           />
         )}
         {confirmDel && (

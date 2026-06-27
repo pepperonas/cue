@@ -63,6 +63,8 @@ class Prompt(SQLModel, table=True):
     bookmarked: bool = Field(default=False, index=True)
     # Position within the bookmarks section. Lower = higher up.
     bookmark_order: int = Field(default=0)
+    # Whether the feature this prompt produced has been tested (running/done only).
+    tested: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     # Set when the prompt first enters running/done.
