@@ -56,6 +56,8 @@ separately and Vite proxies `/api` to `:8000`.
 - `lib/motion.ts` — MD3 spring presets; all motion respects `prefers-reduced-motion`.
 - `lib/api.ts` — typed fetch client; reads `cue_csrf` cookie and sends `X-CSRF-Token` on mutations.
 - `lib/markdown.ts` — tiny escape-first Markdown renderer for previews (no DOMPurify needed: HTML is escaped before the markdown subset is applied).
+- `lib/tags.ts` — curated English software-dev tag list (`DEV_TAGS`) backing the tag autocomplete.
+- `components/TagInput.tsx` — comma-separated tag field with type-ahead. Completion targets the token after the last comma; `↑/↓` navigate, `Enter`/`Tab`/click commit, `Esc` closes. The Composer feeds it a pool of tags already used across prompts (via `usePrompts`) first, then `DEV_TAGS`, deduped case-insensitively.
 - `state/queries.ts` — React Query hooks with optimistic updates + rollback (reorder/update/delete).
 - `state/settings.tsx` — theme (light/dark/system), seed color, behavior prefs; persisted to localStorage, applied as CSS vars.
 - `state/toast.tsx` — toast provider.

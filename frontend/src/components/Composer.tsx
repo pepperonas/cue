@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
-import { useCreatePrompt, useUpdatePrompt } from '../state/queries'
+import { useCreatePrompt, usePrompts, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
+import { DEV_TAGS } from '../lib/tags'
 import { Button, Icon, IconButton } from './ui'
+import { TagInput } from './TagInput'
 
 const DRAFT_KEY = 'cue-draft'
 const LAST_PROJECT_KEY = 'cue-last-project'
@@ -23,6 +25,27 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const create = useCreatePrompt()
   const update = useUpdatePrompt()
   const toast = useToast()
+  const { data: allPrompts } = usePrompts()
+
+  // Suggestion pool: tags already used across prompts first (most relevant),
+  // then the curated English dev-tag list — deduped, case-insensitive.
+  const tagSuggestions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    const push = (raw: string) => {
+      const t = raw.trim()
+      const key = t.toLowerCase()
+      if (t && !seen.has(key)) {
+        seen.add(key)
+        out.push(t)
+      }
+    }
+    for (const p of allPrompts ?? []) {
+      for (const t of (p.tags ?? '').split(',')) push(t)
+    }
+    for (const t of DEV_TAGS) push(t)
+    return out
+  }, [allPrompts])
 
   const [body, setBody] = useState(
     () => editing?.body ?? localStorage.getItem(DRAFT_KEY) ?? '',
@@ -211,12 +234,12 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
 
         <div className="field">
           <label htmlFor="c-tags">Tags (kommagetrennt)</label>
-          <input
+          <TagInput
             id="c-tags"
-            className="input"
             value={tags}
-            placeholder="refactor, bug, idee"
-            onChange={(e) => setTags(e.target.value)}
+            placeholder="refactor, bug, idea"
+            suggestions={tagSuggestions}
+            onChange={setTags}
           />
         </div>
 

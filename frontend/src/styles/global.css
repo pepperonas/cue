@@ -504,6 +504,44 @@ a {
   min-height: 240px;
   line-height: 1.5;
 }
+
+/* ---- Tag autocomplete ---- */
+.tag-input {
+  position: relative;
+}
+.tag-suggest {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m, 12px);
+  box-shadow: var(--elev-2);
+  max-height: 180px;
+  overflow: auto;
+}
+.tag-suggest-item {
+  font: var(--label-l);
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-highest);
+  border-radius: var(--shape-full);
+  padding: 6px 12px;
+  white-space: nowrap;
+  transition: background var(--dur-short), color var(--dur-short);
+}
+.tag-suggest-item.active,
+.tag-suggest-item:hover {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
 .row {
   display: flex;
   gap: var(--gap-3);

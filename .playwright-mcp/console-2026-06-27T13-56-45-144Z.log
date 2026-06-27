@@ -1,0 +1,2 @@
+[     407ms] [ERROR] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-GQaVwLu4VsrkyuYpjeGVnLhgpvZGWSp2mXyRlTykBKc='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked. @ https://cue.celox.io/:19
+[     830ms] [VERBOSE] [DOM] Password forms should have (optionally hidden) username fields for accessibility: (More info: https://goo.gl/9p2vKq) %o @ https://cue.celox.io/:0
