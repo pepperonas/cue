@@ -47,15 +47,20 @@ def _migrate(engine: Engine) -> None:
     create_all() only creates missing tables, never new columns, so additive
     schema changes need a manual ALTER TABLE guarded by a column check.
     """
-    additions = {
+    prompt_additions = {
         "bookmarked": "ALTER TABLE prompt ADD COLUMN bookmarked BOOLEAN NOT NULL DEFAULT 0",
         "bookmark_order": "ALTER TABLE prompt ADD COLUMN bookmark_order INTEGER NOT NULL DEFAULT 0",
+        "user_id": "ALTER TABLE prompt ADD COLUMN user_id INTEGER REFERENCES user(id)",
+    }
+    project_additions = {
+        "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
     }
     with engine.begin() as conn:
-        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(prompt)")}
-        for column, ddl in additions.items():
-            if column not in cols:
-                conn.execute(text(ddl))
+        for table, additions in (("prompt", prompt_additions), ("project", project_additions)):
+            cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            for column, ddl in additions.items():
+                if column not in cols:
+                    conn.execute(text(ddl))
 
 
 def get_session() -> Iterator[Session]:

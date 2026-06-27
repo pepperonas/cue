@@ -1,15 +1,10 @@
-"""Smoke tests for the core flows: login -> CRUD -> reorder -> import -> export."""
+"""Smoke tests for the core flows: auth -> CRUD -> reorder -> import -> export."""
 from __future__ import annotations
 
 import io
 import os
 
-# Configure a known password hash + secret before importing the app.
-from argon2 import PasswordHasher
-
-_PW = "test-password-123"
 os.environ["SECRET_KEY"] = "test-secret-key-please-change"
-os.environ["APP_PASSWORD_HASH"] = PasswordHasher().hash(_PW)
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["CUE_DEV"] = "1"
 os.environ["DB_PATH"] = "data/test-cue.db"
@@ -38,18 +33,37 @@ def client(tmp_path):
         yield c
 
 
+def _make_user(email: str = "owner@example.com", sub: str | None = None) -> int:
+    """Create a user directly and return its id (OAuth is mocked out in tests)."""
+    import app.db as db_module
+    from sqlmodel import Session
+
+    from app.models import User
+
+    with Session(db_module.engine) as s:
+        user = User(google_sub=sub or f"sub-{email}", email=email, name="Test")
+        s.add(user)
+        s.commit()
+        s.refresh(user)
+        return user.id
+
+
+def _auth(client, email: str = "owner@example.com", sub: str | None = None) -> str:
+    """Mint a session cookie for a user and return the CSRF token."""
+    from app import security
+
+    uid = _make_user(email, sub)
+    token = security.issue_session(uid)
+    client.cookies.set("cue_session", token)
+    return security.csrf_from_session(token)
+
+
 def _login(client) -> str:
-    resp = client.post("/api/auth/login", json={"password": _PW})
-    assert resp.status_code == 200, resp.text
-    return resp.json()["csrf_token"]
+    return _auth(client)
 
 
 def test_login_required(client):
     assert client.get("/api/prompts").status_code == 401
-
-
-def test_wrong_password(client):
-    assert client.post("/api/auth/login", json={"password": "nope"}).status_code == 401
 
 
 def test_full_flow(client):
@@ -125,6 +139,21 @@ def test_bookmark_flow(client):
     # Un-bookmark.
     ub = client.patch(f"/api/prompts/{ids[0]}", json={"bookmarked": False}, headers=headers)
     assert ub.json()["bookmarked"] is False
+
+
+def test_tenant_isolation(client):
+    # User A creates a prompt.
+    csrf_a = _auth(client, email="a@example.com", sub="sub-a")
+    cp = client.post("/api/prompts", json={"body": "secret of A"}, headers={"X-CSRF-Token": csrf_a})
+    assert cp.status_code == 201, cp.text
+    a_id = cp.json()["id"]
+    assert len(client.get("/api/prompts").json()) == 1
+
+    # Switch to user B: must not see A's prompt, and cannot fetch it by id.
+    client.cookies.clear()
+    _auth(client, email="b@example.com", sub="sub-b")
+    assert client.get("/api/prompts").json() == []
+    assert client.get(f"/api/prompts/{a_id}").status_code == 404
 
 
 def test_import_and_export(client):

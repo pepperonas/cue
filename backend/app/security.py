@@ -1,52 +1,19 @@
-"""Auth & security primitives: password hashing, signed sessions, CSRF, ratelimit."""
+"""Auth & security primitives: signed sessions, CSRF, OAuth-state tokens."""
 from __future__ import annotations
 
 import hmac
 import secrets
 import time
-from collections import defaultdict, deque
-from dataclasses import dataclass
 
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from .config import get_settings
 
 _settings = get_settings()
-_ph = PasswordHasher()
 
-# Namespace/salt for the session signer.
-_SESSION_SALT = "cue.session.v1"
-
-
-def hash_password(password: str) -> str:
-    """Produce an Argon2id hash string for storage in APP_PASSWORD_HASH."""
-    return _ph.hash(password)
-
-
-def verify_password(password: str) -> bool:
-    """Constant-time-ish verification against the configured Argon2id hash.
-
-    argon2-cffi's verify already runs the full KDF (constant work) and raises on
-    mismatch; we additionally guard against an empty/missing hash.
-    """
-    stored = _settings.app_password_hash
-    if not stored:
-        return False
-    try:
-        return _ph.verify(stored, password)
-    except VerifyMismatchError:
-        return False
-    except Exception:
-        return False
-
-
-def needs_rehash() -> bool:
-    try:
-        return _ph.check_needs_rehash(_settings.app_password_hash)
-    except Exception:
-        return False
+# Namespaces/salts for the signers (rotating the salt invalidates old tokens).
+_SESSION_SALT = "cue.session.v2"  # v2: payload now carries the user id
+_STATE_SALT = "cue.oauth-state.v1"
 
 
 # ---- Signed session tokens ----
@@ -54,9 +21,10 @@ def _serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(_settings.secret_key, salt=_SESSION_SALT)
 
 
-def issue_session() -> str:
-    """Create a signed session token. Payload is a random nonce + CSRF secret."""
+def issue_session(user_id: int) -> str:
+    """Create a signed session token bound to a user, with an embedded CSRF secret."""
     payload = {
+        "uid": user_id,
         "nonce": secrets.token_urlsafe(16),
         "csrf": secrets.token_urlsafe(24),
         "iat": int(time.time()),
@@ -92,45 +60,28 @@ def csrf_matches(session_token: str | None, header_token: str | None) -> bool:
     return hmac.compare_digest(expected, header_token)
 
 
-# ---- In-memory login rate limiter (5 attempts / 15 min per IP) ----
-@dataclass
-class _RateLimiter:
-    max_attempts: int = 5
-    window_seconds: int = 15 * 60
-    _hits: dict[str, deque[float]] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        self._hits = defaultdict(deque)
-
-    def _prune(self, ip: str, now: float) -> None:
-        dq = self._hits[ip]
-        cutoff = now - self.window_seconds
-        while dq and dq[0] < cutoff:
-            dq.popleft()
-
-    def is_blocked(self, ip: str) -> bool:
-        now = time.time()
-        self._prune(ip, now)
-        return len(self._hits[ip]) >= self.max_attempts
-
-    def register_failure(self, ip: str) -> None:
-        now = time.time()
-        self._prune(ip, now)
-        self._hits[ip].append(now)
-
-    def reset(self, ip: str) -> None:
-        self._hits.pop(ip, None)
-
-    def retry_after(self, ip: str) -> int:
-        dq = self._hits.get(ip)
-        if not dq:
-            return 0
-        return max(0, int(self.window_seconds - (time.time() - dq[0])))
+# ---- OAuth state tokens (CSRF protection for the Google redirect dance) ----
+_STATE_MAX_AGE = 10 * 60  # 10 minutes to complete the login round-trip
 
 
-login_limiter = _RateLimiter()
+def _state_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(_settings.secret_key, salt=_STATE_SALT)
 
-# Global backstop: even if an attacker rotates/spoofs IPs, total failed login
-# attempts are capped across all clients. Keyed on a single constant bucket.
-global_login_limiter = _RateLimiter(max_attempts=30, window_seconds=15 * 60)
-_GLOBAL_KEY = "__global__"
+
+def issue_oauth_state() -> str:
+    return _state_serializer().dumps({"n": secrets.token_urlsafe(16)})
+
+
+def oauth_state_valid(cookie_value: str | None, returned_value: str | None) -> bool:
+    """The state echoed back by Google must match our freshly-signed cookie."""
+    if not cookie_value or not returned_value:
+        return False
+    if not hmac.compare_digest(cookie_value, returned_value):
+        return False
+    try:
+        _state_serializer().loads(cookie_value, max_age=_STATE_MAX_AGE)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
+    except Exception:
+        return False

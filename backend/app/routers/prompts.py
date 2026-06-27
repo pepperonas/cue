@@ -1,4 +1,4 @@
-"""Prompt CRUD, filtering, and reorder endpoints."""
+"""Prompt CRUD, filtering, and reorder endpoints (scoped to the authenticated user)."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,7 +6,7 @@ from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from ..db import get_session
-from ..deps import current_session, require_csrf
+from ..deps import current_user_id, require_csrf
 from ..models import Project, Prompt, PromptStatus, utcnow
 from ..schemas import (
     BookmarkReorderRequest,
@@ -31,18 +31,36 @@ def _derive_title(title: str, body: str) -> str:
     return cleaned[:120] if cleaned else "Untitled prompt"
 
 
-def _next_sort_order(session: Session, status_value: PromptStatus) -> int:
+def _next_sort_order(session: Session, status_value: PromptStatus, uid: int) -> int:
     current_max = session.exec(
-        select(func.max(Prompt.sort_order)).where(Prompt.status == status_value)
+        select(func.max(Prompt.sort_order)).where(
+            Prompt.status == status_value, Prompt.user_id == uid
+        )
     ).one()
     return (current_max or 0) + 1
 
 
-def _next_bookmark_order(session: Session) -> int:
+def _next_bookmark_order(session: Session, uid: int) -> int:
     current_max = session.exec(
-        select(func.max(Prompt.bookmark_order)).where(Prompt.bookmarked == True)  # noqa: E712
+        select(func.max(Prompt.bookmark_order)).where(
+            Prompt.bookmarked == True, Prompt.user_id == uid  # noqa: E712
+        )
     ).one()
     return (current_max or 0) + 1
+
+
+def _owned(session: Session, prompt_id: int, uid: int) -> Prompt:
+    prompt = session.get(Prompt, prompt_id)
+    if not prompt or prompt.user_id != uid:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    return prompt
+
+
+def _check_project(session: Session, project_id: int | None, uid: int) -> None:
+    if project_id is not None:
+        project = session.get(Project, project_id)
+        if not project or project.user_id != uid:
+            raise HTTPException(status_code=400, detail="Unknown project")
 
 
 @router.get("", response_model=list[PromptRead])
@@ -51,9 +69,9 @@ def list_prompts(
     status_filter: PromptStatus | None = Query(default=None, alias="status"),
     q: str | None = Query(default=None),
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
 ) -> list[Prompt]:
-    statement = select(Prompt)
+    statement = select(Prompt).where(Prompt.user_id == uid)
     if project_id is not None:
         statement = statement.where(Prompt.project_id == project_id)
     if status_filter is not None:
@@ -69,21 +87,21 @@ def list_prompts(
 def create_prompt(
     payload: PromptCreate,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> Prompt:
     if not payload.body.strip():
         raise HTTPException(status_code=400, detail="Body required")
-    if payload.project_id is not None and not session.get(Project, payload.project_id):
-        raise HTTPException(status_code=400, detail="Unknown project")
+    _check_project(session, payload.project_id, uid)
 
     prompt = Prompt(
+        user_id=uid,
         title=_derive_title(payload.title, payload.body),
         body=payload.body,
         project_id=payload.project_id,
         status=payload.status,
         tags=payload.tags.strip(),
-        sort_order=_next_sort_order(session, payload.status),
+        sort_order=_next_sort_order(session, payload.status, uid),
     )
     if payload.status in _RAN_STATUSES:
         prompt.ran_at = utcnow()
@@ -97,12 +115,9 @@ def create_prompt(
 def get_prompt(
     prompt_id: int,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
 ) -> Prompt:
-    prompt = session.get(Prompt, prompt_id)
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Prompt not found")
-    return prompt
+    return _owned(session, prompt_id, uid)
 
 
 @router.patch("/{prompt_id}", response_model=PromptRead)
@@ -110,12 +125,10 @@ def update_prompt(
     prompt_id: int,
     payload: PromptUpdate,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> Prompt:
-    prompt = session.get(Prompt, prompt_id)
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+    prompt = _owned(session, prompt_id, uid)
 
     if payload.body is not None:
         prompt.body = payload.body
@@ -128,8 +141,7 @@ def update_prompt(
     if payload.unassign_project:
         prompt.project_id = None
     elif payload.project_id is not None:
-        if not session.get(Project, payload.project_id):
-            raise HTTPException(status_code=400, detail="Unknown project")
+        _check_project(session, payload.project_id, uid)
         prompt.project_id = payload.project_id
 
     if payload.tags is not None:
@@ -139,11 +151,11 @@ def update_prompt(
         prompt.bookmarked = payload.bookmarked
         # Newly bookmarked prompts append to the end of the bookmarks section.
         if payload.bookmarked:
-            prompt.bookmark_order = _next_bookmark_order(session)
+            prompt.bookmark_order = _next_bookmark_order(session, uid)
 
     if payload.status is not None and payload.status != prompt.status:
         prompt.status = payload.status
-        prompt.sort_order = _next_sort_order(session, payload.status)
+        prompt.sort_order = _next_sort_order(session, payload.status, uid)
         if payload.status in _RAN_STATUSES and prompt.ran_at is None:
             prompt.ran_at = utcnow()
 
@@ -158,12 +170,10 @@ def update_prompt(
 def delete_prompt(
     prompt_id: int,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> None:
-    prompt = session.get(Prompt, prompt_id)
-    if not prompt:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+    prompt = _owned(session, prompt_id, uid)
     session.delete(prompt)
     session.commit()
 
@@ -172,18 +182,19 @@ def delete_prompt(
 def reorder_prompts(
     payload: ReorderRequest,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> list[Prompt]:
     """Apply drag results in a single transaction.
 
     Each item carries its (possibly new) status and sort_order. A status change
     here also stamps ran_at the first time the prompt enters running/done.
+    Only the caller's own prompts are touched.
     """
     touched: list[Prompt] = []
     for item in payload.items:
         prompt = session.get(Prompt, item.id)
-        if not prompt:
+        if not prompt or prompt.user_id != uid:
             continue
         if prompt.status != item.status:
             prompt.status = item.status
@@ -203,14 +214,14 @@ def reorder_prompts(
 def reorder_bookmarks(
     payload: BookmarkReorderRequest,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> list[Prompt]:
     """Apply a drag-sort of the bookmarks section in one transaction."""
     touched: list[Prompt] = []
     for item in payload.items:
         prompt = session.get(Prompt, item.id)
-        if not prompt:
+        if not prompt or prompt.user_id != uid:
             continue
         prompt.bookmark_order = item.bookmark_order
         session.add(prompt)

@@ -1,38 +1,27 @@
-import { useState } from 'react'
 import { motion } from 'motion/react'
-import { api, ApiError } from '../lib/api'
+import { api } from '../lib/api'
 import { springs } from '../lib/motion'
-import { Button, Footer, Icon, Switch } from './ui'
+import { Footer, Icon } from './ui'
 
-export function Login({ onSuccess }: { onSuccess: () => void }) {
-  const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+const AUTH_ERRORS: Record<string, string> = {
+  forbidden: 'Dieser Google-Account ist nicht freigeschaltet.',
+  denied: 'Anmeldung abgebrochen.',
+  state: 'Sitzung abgelaufen — bitte erneut versuchen.',
+  profile: 'Google-Profil unvollständig (E-Mail nicht verifiziert?).',
+  google: 'Google-Anmeldung fehlgeschlagen. Bitte erneut versuchen.',
+  token: 'Google-Anmeldung fehlgeschlagen. Bitte erneut versuchen.',
+}
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await api.login(password, remember)
-      onSuccess()
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        setError('Zu viele Versuche. Bitte später erneut.')
-      } else {
-        setError('Falsches Passwort.')
-      }
-      setBusy(false)
-    }
-  }
+export function Login() {
+  const params = new URLSearchParams(window.location.search)
+  const errKey = params.get('auth_error')
+  const error = errKey ? AUTH_ERRORS[errKey] ?? 'Anmeldung fehlgeschlagen.' : ''
 
   return (
     <div className="app">
       <div className="login-wrap">
-        <motion.form
+        <motion.div
           className="login-card"
-          onSubmit={submit}
           initial={{ opacity: 0, y: 24, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={springs.bouncy}
@@ -44,22 +33,7 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
             <h1 style={{ font: 'var(--headline-l)', margin: 0 }}>cue</h1>
             <p className="muted">Prompt-Queue für Claude-Code-Sessions</p>
           </div>
-          <div className="field" style={{ textAlign: 'left' }}>
-            <label htmlFor="pw">Passwort</label>
-            <input
-              id="pw"
-              className="input"
-              type="password"
-              autoFocus
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="muted">Angemeldet bleiben</span>
-            <Switch on={remember} onChange={setRemember} label="Angemeldet bleiben" />
-          </div>
+
           {error && (
             <motion.p
               initial={{ opacity: 0, x: -6 }}
@@ -69,10 +43,33 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
               {error}
             </motion.p>
           )}
-          <Button type="submit" icon="login" disabled={busy || !password}>
-            {busy ? 'Anmelden…' : 'Anmelden'}
-          </Button>
-        </motion.form>
+
+          <a className="btn btn--filled google-btn" href={api.googleLoginUrl}>
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path
+                fill="#4285F4"
+                d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
+              />
+              <path
+                fill="#34A853"
+                d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.34A9 9 0 0 0 9 18z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.02-2.34z"
+              />
+              <path
+                fill="#EA4335"
+                d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.94l3.02 2.34C4.68 5.16 6.66 3.58 9 3.58z"
+              />
+            </svg>
+            Mit Google anmelden
+          </a>
+
+          <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+            Zugang nur für freigeschaltete Konten.
+          </p>
+        </motion.div>
       </div>
       <Footer />
     </div>

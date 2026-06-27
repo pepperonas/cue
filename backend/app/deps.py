@@ -34,6 +34,14 @@ def current_session(request: Request) -> dict:
     return payload
 
 
+def current_user_id(session: dict = Depends(current_session)) -> int:
+    """The authenticated tenant's user id, taken from the signed session."""
+    uid = session.get("uid")
+    if not isinstance(uid, int):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return uid
+
+
 def require_csrf(
     request: Request,
     x_csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),

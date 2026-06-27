@@ -9,19 +9,16 @@ from .models import PromptStatus
 
 
 # ---- Auth ----
-class LoginRequest(BaseModel):
-    password: str
-    remember: bool = True
-
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+class UserRead(BaseModel):
+    email: str
+    name: str = ""
+    picture: str = ""
 
 
 class MeResponse(BaseModel):
     authenticated: bool
     csrf_token: str | None = None
+    user: UserRead | None = None
 
 
 # ---- Projects ----

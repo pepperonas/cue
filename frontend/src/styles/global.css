@@ -827,6 +827,18 @@ a {
   font-size: 40px;
   margin: 0 auto;
 }
+/* Google sign-in button (overrides .btn--filled with the standard light style). */
+.google-btn {
+  width: 100%;
+  background: #ffffff;
+  color: #1f1f1f;
+  gap: 10px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.google-btn:hover {
+  background: #f2f2f2;
+}
 
 /* ---- Shortcuts overlay ---- */
 .shortcuts {

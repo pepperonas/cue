@@ -9,6 +9,10 @@ import type { Project, Prompt, Status } from '../lib/types'
 const PROMPTS_KEY = ['prompts'] as const
 const PROJECTS_KEY = ['projects'] as const
 
+export function useMe() {
+  return useQuery({ queryKey: ['me'], queryFn: () => api.me() })
+}
+
 export function usePrompts() {
   return useQuery({ queryKey: PROMPTS_KEY, queryFn: () => api.listPrompts() })
 }

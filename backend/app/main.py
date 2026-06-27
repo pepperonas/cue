@@ -44,7 +44,7 @@ def _csp() -> str:
             "base-uri 'self'",
             "frame-ancestors 'none'",
             "form-action 'self'",
-            "img-src 'self' data: blob:",
+            "img-src 'self' data: blob: https://*.googleusercontent.com",
             # Inline style needed for the Material You dynamic-color CSS variables
             # injected at runtime + Google Fonts stylesheet.
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",

@@ -4,13 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`cue` — a single-user prompt-/todo-queue web app for managing Claude-Code-CLI prompts.
+`cue` — a multi-tenant prompt-/todo-queue web app for managing Claude-Code-CLI prompts.
 Capture prompts, group by project, work them through a status workflow (Queued →
 Running → Done, plus Failed/Archived), and copy them into the CLI with one click.
 Deployed at `https://cue.celox.io` behind a reverse proxy. Repo: `pepperonas/cue` (private).
 
-Hard constraints: **single user** (one password, no user table), MD3 Expressive design
-with real spring motion, footer `© 2026 Martin Pfeffer | celox.io` on every page.
+Hard constraints: **multi-tenant** — sign in with **Google OAuth**, each user owns their own
+projects/prompts (`User` table + `user_id` FK on every owned row), access gated by an
+email/domain allowlist. MD3 Expressive design with real spring motion, footer
+`© 2026 Martin Pfeffer | celox.io` on every page.
 
 ## Commands
 
@@ -29,7 +31,7 @@ pnpm typecheck
 
 # Full app (prod): one container serves API + built frontend
 docker compose up -d --build               # listens on 127.0.0.1:8791
-python scripts/gen_password_hash.py        # produce APP_PASSWORD_HASH for .env
+# Auth needs GOOGLE_CLIENT_ID/SECRET + an allowlist in .env (see .env.example).
 ```
 
 After backend or frontend changes, run `uv run pytest` and `pnpm build` before committing.
@@ -43,13 +45,19 @@ separately and Vite proxies `/api` to `:8000`.
 
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).
-- `config.py` — env-driven `Settings` (cached). `validate()` fails fast unless `CUE_DEV=1`.
-- `db.py` — SQLite engine; a `connect` event sets `WAL`, `foreign_keys=ON`, `busy_timeout`. `init_db` runs `_migrate()` — an idempotent `ALTER TABLE` guarded by a `PRAGMA table_info` check, since `create_all` only adds missing *tables*, never columns (the live DB has data, so additive fields like `bookmarked`/`bookmark_order` must be migrated this way; no Alembic).
-- `models.py` — `Project` + `Prompt` (SQLModel tables). `PromptStatus` enum. `Prompt.bookmarked` + `Prompt.bookmark_order` back the bookmarks section.
-- `schemas.py` — Pydantic request/response models (kept separate from table models).
-- `security.py` — Argon2id hashing/verify, itsdangerous session tokens (payload carries the CSRF secret), CSRF double-submit check, in-memory per-IP + global login rate limiters.
-- `deps.py` — `current_session` (401 guard), `require_csrf` (403 guard + Origin check), `get_client_ip` (only trusts XFF when `TRUST_PROXY`, uses rightmost hop).
-- `routers/` — `auth`, `projects`, `prompts`, `importexport`.
+- `config.py` — env-driven `Settings` (cached). `validate()` fails fast (needs `SECRET_KEY` + `GOOGLE_CLIENT_ID`/`SECRET`) unless `CUE_DEV=1`. `is_email_allowed()` enforces the allowlist (empty lists = closed in prod, open in dev). `google_redirect_uri` derives from `ALLOWED_ORIGIN`.
+- `db.py` — SQLite engine; a `connect` event sets `WAL`, `foreign_keys=ON`, `busy_timeout`. `init_db` runs `_migrate()` — idempotent `ALTER TABLE` (PRAGMA-guarded) for additive columns (`bookmarked`, `bookmark_order`, and `user_id` on `prompt`/`project`), since `create_all` only adds missing *tables*, never columns (no Alembic).
+- `models.py` — `User` + `Project` + `Prompt` (SQLModel tables). `PromptStatus` enum. Every owned row has a `user_id` FK to `user`; `Prompt.bookmarked`/`bookmark_order` back the bookmarks section. Project name uniqueness is **per user**, not global.
+- `schemas.py` — Pydantic request/response models (kept separate from table models). `MeResponse` carries `UserRead`.
+- `security.py` — itsdangerous signers: session tokens (payload carries `uid` + the CSRF secret), CSRF double-submit check, and short-lived OAuth-`state` tokens (`issue_oauth_state`/`oauth_state_valid`) to guard the Google redirect. No passwords.
+- `deps.py` — `current_session` (401 guard), `current_user_id` (extracts `uid` from the session — inject this into every data router to scope by tenant), `require_csrf` (403 guard + Origin check), `get_client_ip`.
+- `routers/` — `auth` (Google OAuth), `projects`, `prompts`, `importexport`. **Every data query is filtered by `user_id`; ownership is re-checked on get/update/delete (404 if not owned).**
+
+**Auth (Google OAuth, Authorization Code flow)** — `routers/auth.py`:
+- `GET /auth/google/login` → signs a `state`, sets it as a `SameSite=Lax` cookie (must survive Google's top-level redirect back), 302s to Google's consent screen.
+- `GET /auth/google/callback` → validates `state` vs the cookie, exchanges the `code` for an access token (`oauth2.googleapis.com/token`, with the client secret), fetches the profile (`openidconnect.googleapis.com/v1/userinfo`). Both calls are stdlib `urllib` over TLS, so no id-token signature check and **no extra runtime dependency**. Rejects unverified emails and anyone failing the allowlist. Upserts the `User` by `google_sub`, issues the session, and — for `OWNER_EMAIL`'s first login — claims all `user_id IS NULL` rows (the original single-user data).
+- `GET /auth/me` → `{authenticated, csrf_token, user}`. `POST /auth/logout` clears cookies.
+- The session cookie stays `SameSite=Strict`; only the transient `state` cookie is `Lax`. Session salt is `v2` (carries `uid`), so old single-user sessions are invalidated.
 
 **Frontend (`frontend/src/`)**
 - `lib/color.ts` — Material-You tonal-palette generator from a seed hex (HSL-tone approximation, no heavy dep); `buildSchemes` → light/dark role tokens applied as `--md-*` CSS vars.
@@ -70,7 +78,9 @@ separately and Vite proxies `/api` to `:8000`.
 
 - **Status transitions**: entering `running`/`done` the first time stamps `ran_at` server-side (in both `PATCH /prompts/{id}` and `/prompts/reorder`). Reorder runs in one transaction.
 - **Title derivation**: empty title → derived from the first non-blank body line (leading `#` stripped), server-side in `_derive_title`.
-- **Password change** returns a new Argon2id hash; the operator must put it in `.env` and restart (secrets never touch the DB, the running process won't rewrite `.env`).
+- **Tenant scoping**: every data router depends on `current_user_id` and filters all reads + re-checks ownership on writes (404 if a row isn't the caller's). New rows always set `user_id`. When adding endpoints, never trust a client-supplied id without an ownership check.
+- **Google OAuth secrets**: `GOOGLE_CLIENT_SECRET` (+ `GOOGLE_CLIENT_ID`) live only in `/opt/cue/.env`, never committed, never sent to the browser. The frontend just links to `/api/auth/google/login` (server builds the Google URL). The Google console needs origin `https://cue.celox.io` and redirect URI `https://cue.celox.io/api/auth/google/callback`.
+- **Allowlist**: `GOOGLE_ALLOWED_EMAILS` / `GOOGLE_ALLOWED_DOMAINS` (comma lists). Both empty → nobody can sign in in prod (open access only under `CUE_DEV=1`).
 - **CSRF secret lives inside the signed session token** — there is no separate server-side store; the readable `cue_csrf` cookie just mirrors it for the double-submit header.
 - **Security headers + CSP** are set in middleware in `main.py`; HSTS is the proxy's job. CSP allows Google Fonts + inline styles (needed for runtime dynamic-color vars).
 - **JSX + German quotes**: a straight `"` inside a `"..."` JSX attribute terminates it — use `{'…„…"…'}` (a JS string expression) for German-quoted attribute text.
@@ -85,7 +95,7 @@ separately and Vite proxies `/api` to `:8000`.
 
 - Code at `/opt/cue` (rsync'd, no git clone). Container `cue` via `docker compose`, binds `127.0.0.1:8791`. nginx block `/etc/nginx/sites-enabled/cue.celox.io` (certbot-managed cert + HTTP→HTTPS redirect). Update: `rsync ./ root@69.62.121.168:/opt/cue/` then `ssh ... 'cd /opt/cue && docker compose up -d --build'`.
 - **Frontend Docker stage pins pnpm@10.2.1** (`corepack prepare pnpm@10.2.1 --activate`); bare `corepack enable` pulls pnpm 11.x which needs Node 22+ and crashes on the Node 20 base.
-- **`$$`-escape gotcha**: docker compose interpolates `env_file`, so every literal `$` in `APP_PASSWORD_HASH` must be doubled to `$$` in `.env`. Running uvicorn directly uses the hash verbatim. Wrong escaping → the hash is mangled to `=19=65536,...` and login always fails with "Invalid password".
+- **`$$`-escape gotcha**: docker compose interpolates `env_file`, so any literal `$` in an `.env` value must be doubled to `$$` (relevant if a Google secret ever contains `$`). Running uvicorn directly uses values verbatim.
 
 ---
 

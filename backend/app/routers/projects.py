@@ -1,4 +1,4 @@
-"""Project CRUD endpoints."""
+"""Project CRUD endpoints (scoped to the authenticated user)."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..db import get_session
-from ..deps import current_session, require_csrf
+from ..deps import current_user_id, require_csrf
 from ..models import Project, Prompt
 from ..schemas import ProjectCreate, ProjectRead, ProjectUpdate
 
@@ -23,17 +23,28 @@ def _to_read(project: Project, count: int) -> ProjectRead:
     )
 
 
+def _owned(session: Session, project_id: int, uid: int) -> Project:
+    project = session.get(Project, project_id)
+    if not project or project.user_id != uid:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 @router.get("", response_model=list[ProjectRead])
 def list_projects(
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
 ) -> list[ProjectRead]:
     counts = dict(
         session.exec(
-            select(Prompt.project_id, func.count(Prompt.id)).group_by(Prompt.project_id)
+            select(Prompt.project_id, func.count(Prompt.id))
+            .where(Prompt.user_id == uid)
+            .group_by(Prompt.project_id)
         ).all()
     )
-    projects = session.exec(select(Project).order_by(Project.name)).all()
+    projects = session.exec(
+        select(Project).where(Project.user_id == uid).order_by(Project.name)
+    ).all()
     return [_to_read(p, counts.get(p.id, 0)) for p in projects]
 
 
@@ -41,15 +52,17 @@ def list_projects(
 def create_project(
     payload: ProjectCreate,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> ProjectRead:
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name required")
-    if session.exec(select(Project).where(Project.name == name)).first():
+    if session.exec(
+        select(Project).where(Project.user_id == uid, Project.name == name)
+    ).first():
         raise HTTPException(status_code=409, detail="Project name already exists")
-    project = Project(name=name, color=payload.color)
+    project = Project(name=name, color=payload.color, user_id=uid)
     session.add(project)
     session.commit()
     session.refresh(project)
@@ -61,18 +74,18 @@ def update_project(
     project_id: int,
     payload: ProjectUpdate,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> ProjectRead:
-    project = session.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = _owned(session, project_id, uid)
     if payload.name is not None:
         new_name = payload.name.strip()
         if not new_name:
             raise HTTPException(status_code=400, detail="Name required")
         clash = session.exec(
-            select(Project).where(Project.name == new_name, Project.id != project_id)
+            select(Project).where(
+                Project.user_id == uid, Project.name == new_name, Project.id != project_id
+            )
         ).first()
         if clash:
             raise HTTPException(status_code=409, detail="Project name already exists")
@@ -92,14 +105,14 @@ def update_project(
 def delete_project(
     project_id: int,
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> None:
-    project = session.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = _owned(session, project_id, uid)
     # Unassign prompts rather than deleting them.
-    prompts = session.exec(select(Prompt).where(Prompt.project_id == project_id)).all()
+    prompts = session.exec(
+        select(Prompt).where(Prompt.project_id == project_id, Prompt.user_id == uid)
+    ).all()
     for prompt in prompts:
         prompt.project_id = None
         session.add(prompt)

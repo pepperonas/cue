@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlmodel import Session, select
 
 from ..db import get_session
-from ..deps import current_session, require_csrf
+from ..deps import current_user_id, require_csrf
 from ..models import Project, Prompt, PromptStatus
 from ..schemas import PromptRead
 
@@ -46,7 +46,7 @@ async def import_txt(
     split_delimiter: str = Form(default="none"),
     project_id: int | None = Form(default=None),
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> list[Prompt]:
     """Import one or more .txt files into prompts.
@@ -57,13 +57,15 @@ async def import_txt(
       - "blank" -> split on blank-line-separated paragraph groups
       - any other literal string is used verbatim as the delimiter
     """
-    if project_id is not None and not session.get(Project, project_id):
-        raise HTTPException(status_code=400, detail="Unknown project")
+    if project_id is not None:
+        project = session.get(Project, project_id)
+        if not project or project.user_id != uid:
+            raise HTTPException(status_code=400, detail="Unknown project")
 
     # Resolve the next sort_order for the queued column once, then increment.
     max_order = session.exec(
         select(Prompt.sort_order)
-        .where(Prompt.status == PromptStatus.queued)
+        .where(Prompt.status == PromptStatus.queued, Prompt.user_id == uid)
         .order_by(Prompt.sort_order.desc())
     ).first()
     next_order = (max_order or 0) + 1
@@ -84,6 +86,7 @@ async def import_txt(
             first_line = next((ln.strip() for ln in block.splitlines() if ln.strip()), "")
             title = first_line.lstrip("#").strip()[:120] or (upload.filename or "Imported")
             prompt = Prompt(
+                user_id=uid,
                 title=title,
                 body=block,
                 project_id=project_id,
@@ -103,11 +106,11 @@ async def import_txt(
 @router.get("/export")
 def export_json(
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
 ) -> JSONResponse:
-    """Full JSON backup of projects + prompts."""
-    projects = session.exec(select(Project)).all()
-    prompts = session.exec(select(Prompt)).all()
+    """Full JSON backup of the caller's projects + prompts."""
+    projects = session.exec(select(Project).where(Project.user_id == uid)).all()
+    prompts = session.exec(select(Prompt).where(Prompt.user_id == uid)).all()
     payload = {
         "version": 1,
         "exported_at": _now().isoformat(),
@@ -124,11 +127,13 @@ def export_json(
 @router.get("/export/txt")
 def export_txt_zip(
     session: Session = Depends(get_session),
-    _s: dict = Depends(current_session),
+    uid: int = Depends(current_user_id),
 ) -> StreamingResponse:
     """ZIP archive with one .txt file per prompt, foldered by project."""
-    projects = {p.id: p.name for p in session.exec(select(Project)).all()}
-    prompts = session.exec(select(Prompt).order_by(Prompt.status, Prompt.sort_order)).all()
+    projects = {p.id: p.name for p in session.exec(select(Project).where(Project.user_id == uid)).all()}
+    prompts = session.exec(
+        select(Prompt).where(Prompt.user_id == uid).order_by(Prompt.status, Prompt.sort_order)
+    ).all()
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:

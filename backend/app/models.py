@@ -19,11 +19,26 @@ class PromptStatus(str, enum.Enum):
     archived = "archived"
 
 
+class User(SQLModel, table=True):
+    __tablename__ = "user"
+
+    id: int | None = Field(default=None, primary_key=True)
+    # Google's stable subject identifier (the trusted account key).
+    google_sub: str = Field(index=True, unique=True)
+    email: str = Field(index=True)
+    name: str = Field(default="")
+    picture: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow)
+    last_login_at: datetime = Field(default_factory=utcnow)
+
+
 class Project(SQLModel, table=True):
     __tablename__ = "project"
 
     id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(index=True, unique=True)
+    # Owning tenant. Nullable only for legacy rows pending the owner-claim migration.
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    name: str = Field(index=True)
     # MD3 tonal seed color (hex, e.g. "#6750A4"). Drives the project badge tint.
     color: str = Field(default="#6750A4")
     created_at: datetime = Field(default_factory=utcnow)
@@ -33,6 +48,8 @@ class Prompt(SQLModel, table=True):
     __tablename__ = "prompt"
 
     id: int | None = Field(default=None, primary_key=True)
+    # Owning tenant. Nullable only for legacy rows pending the owner-claim migration.
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
     # Optional title; when empty the client/server derives it from the body.
     title: str = Field(default="")
     body: str = Field(default="")

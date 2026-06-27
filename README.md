@@ -1,6 +1,6 @@
 # cue
 
-**Prompt-Queue für Claude-Code-Sessions** — single-user, Material Design 3 Expressive.
+**Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 `cue` (≈ *queue*, „Stichwort zum Handeln") ist eine durchdachte Prompt-/Todo-Queue:
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
@@ -20,7 +20,8 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **MD3 Expressive**: Material-You-Dynamic-Color aus Seed, Light/Dark/System, sichtbare Physik, reduced-motion-aware.
 - **PWA**, installierbar, letzte Daten offline lesbar.
 - **Tastatur-Shortcuts** (`n` neu · `/` Suche · `c` kopieren · `j/k` Navigation · `e` editieren · `1/2/3` Status · `?` Overlay).
-- **Sicherheit**: Argon2id, signierte HttpOnly/Secure/SameSite=Strict-Session, CSRF-Double-Submit, Login-Ratelimit, strikte CSP + Security-Header.
+- **Multi-Tenant**: Login via **Google OAuth** (Authorization-Code-Flow), jeder Nutzer hat eigene Prompts/Projekte; Zugang per E-Mail-/Domain-Allowlist.
+- **Sicherheit**: signierte HttpOnly/Secure/SameSite=Strict-Session (Client-Secret bleibt serverseitig), CSRF-Double-Submit, OAuth-State-Schutz, strikte CSP + Security-Header.
 
 ## Tech-Stack
 
@@ -44,15 +45,17 @@ pnpm install
 pnpm dev                                   # http://localhost:5173
 ```
 
-Im Dev-Modus (`CUE_DEV=1`) ohne gesetzten `APP_PASSWORD_HASH` schlägt der Login fehl —
-erzeuge zuerst einen Hash (siehe unten) und exportiere ihn, oder setze ihn in einer `.env`.
+### Google OAuth einrichten
 
-### Passwort-Hash erzeugen
+In der Google Cloud Console einen **OAuth-Client (Webanwendung)** anlegen:
+- **Autorisierte JavaScript-Quellen**: `https://cue.celox.io`
+- **Autorisierte Weiterleitungs-URIs**: `https://cue.celox.io/api/auth/google/callback`
 
-```bash
-python scripts/gen_password_hash.py
-# Gibt eine Zeile  APP_PASSWORD_HASH=...  aus → in .env eintragen.
-```
+Client-ID + Secret nach `.env` (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) — niemals committen.
+Wer rein darf, steuern `GOOGLE_ALLOWED_EMAILS` / `GOOGLE_ALLOWED_DOMAINS`. `OWNER_EMAIL`
+übernimmt beim ersten Login die bestehenden (noch besitzerlosen) Daten.
+
+Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist offen.
 
 `SECRET_KEY` erzeugen: `openssl rand -hex 32`.
 
@@ -97,21 +100,19 @@ docker cp ./cue-backup.db cue:/data/cue.db   # Volume muss existieren
 docker compose up -d
 ```
 
-Alternativ jederzeit über die UI: **Settings → JSON-Backup / ZIP-Export**.
+Alternativ jederzeit über die UI: **Settings → JSON-Backup / ZIP-Export** (pro Konto).
 
-## Passwort ändern
+## Konto / Abmelden
 
-**Settings → Passwort ändern** erzeugt aus dem neuen Passwort einen Argon2id-Hash
-(das Passwort wird nie gespeichert). Den ausgegebenen `APP_PASSWORD_HASH`-Wert in die
-`.env` eintragen und den Container neu starten (`docker compose up -d`).
+Login & Identität laufen komplett über Google. **Settings → Konto** zeigt das angemeldete
+Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.env` gesteuert.
 
 ## Projektstruktur
 
 ```
-backend/    FastAPI + SQLModel API, Auth/Security, Import/Export, Tests
+backend/    FastAPI + SQLModel API, Google-OAuth/Security, Import/Export, Tests
 frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
 deploy/     Caddyfile + nginx.conf
-scripts/    gen_password_hash.py
 Dockerfile  Multi-Stage (node build → python runtime)
 ```
 

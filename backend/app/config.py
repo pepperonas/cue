@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables.
 
-Single-user app: there is no user table, just one password hash in the env.
+Multi-tenant app: users sign in with Google; each user owns their own projects
+and prompts. Access is gated by an allowlist of emails/domains.
 """
 from __future__ import annotations
 
@@ -15,15 +16,31 @@ def _bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _csv_set(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    return {part.strip().lower() for part in value.split(",") if part.strip()}
+
+
 class Settings:
     """Runtime settings. Read once and cached."""
 
     def __init__(self) -> None:
-        # Secret used to sign session + CSRF tokens (itsdangerous).
+        # Secret used to sign session + CSRF + OAuth-state tokens (itsdangerous).
         self.secret_key: str = os.environ.get("SECRET_KEY", "")
 
-        # Argon2id hash of the single login password (see scripts/gen_password_hash.py).
-        self.app_password_hash: str = os.environ.get("APP_PASSWORD_HASH", "")
+        # Google OAuth 2.0 (Authorization Code flow). The secret stays server-side.
+        self.google_client_id: str = os.environ.get("GOOGLE_CLIENT_ID", "")
+        self.google_client_secret: str = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+        # Access allowlist. Empty + empty = closed (nobody) in prod; a user may
+        # sign in if their email is listed OR their domain is listed.
+        self.allowed_emails: set[str] = _csv_set(os.environ.get("GOOGLE_ALLOWED_EMAILS"))
+        self.allowed_domains: set[str] = _csv_set(os.environ.get("GOOGLE_ALLOWED_DOMAINS"))
+
+        # On this user's first login, claim any pre-multi-tenant (user_id IS NULL)
+        # projects/prompts. Lets the original single-user data carry over.
+        self.owner_email: str = os.environ.get("OWNER_EMAIL", "").strip().lower()
 
         # Session lifetime in seconds. Default 30 days ("remember me").
         self.session_max_age: int = int(os.environ.get("SESSION_MAX_AGE", str(30 * 24 * 3600)))
@@ -61,6 +78,27 @@ class Settings:
     def csrf_cookie_name(self) -> str:
         return "cue_csrf"
 
+    @property
+    def oauth_state_cookie_name(self) -> str:
+        return "cue_oauth_state"
+
+    @property
+    def google_redirect_uri(self) -> str:
+        """Must exactly match an Authorized redirect URI in the Google console."""
+        return f"{self.allowed_origin.rstrip('/')}/api/auth/google/callback"
+
+    def is_email_allowed(self, email: str) -> bool:
+        """Allowlist check. With no lists configured, allow only in dev mode."""
+        email = (email or "").strip().lower()
+        if not email:
+            return False
+        if not self.allowed_emails and not self.allowed_domains:
+            return self.dev_mode
+        if email in self.allowed_emails:
+            return True
+        domain = email.rsplit("@", 1)[-1] if "@" in email else ""
+        return bool(domain) and domain in self.allowed_domains
+
     def ensure_dirs(self) -> None:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         Path(self.upload_dir).mkdir(parents=True, exist_ok=True)
@@ -70,8 +108,10 @@ class Settings:
         problems: list[str] = []
         if not self.secret_key:
             problems.append("SECRET_KEY is not set")
-        if not self.app_password_hash:
-            problems.append("APP_PASSWORD_HASH is not set")
+        if not self.google_client_id:
+            problems.append("GOOGLE_CLIENT_ID is not set")
+        if not self.google_client_secret:
+            problems.append("GOOGLE_CLIENT_SECRET is not set")
         if problems and not self.dev_mode:
             raise RuntimeError(
                 "Invalid configuration: "

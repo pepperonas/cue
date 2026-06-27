@@ -52,7 +52,7 @@ export default function App() {
       </div>
     )
   }
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />
+  if (!authed) return <Login />
   return <Shell onLogout={() => setAuthed(false)} />
 }
 

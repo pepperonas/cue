@@ -2,9 +2,10 @@ import { useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { PRESET_SEEDS } from '../lib/color'
 import type { Project } from '../lib/types'
+import { useMe } from '../state/queries'
 import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
-import { Button, Icon, IconButton, Switch } from './ui'
+import { Button, Icon, Switch } from './ui'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
   { key: 'light', icon: 'light_mode', label: 'Hell' },
@@ -24,12 +25,10 @@ export function SettingsView({
   const s = useSettings()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const { data: me } = useMe()
 
   const [split, setSplit] = useState('rule')
   const [importProject, setImportProject] = useState<number | null>(null)
-  const [curPw, setCurPw] = useState('')
-  const [newPw, setNewPw] = useState('')
-  const [pwHash, setPwHash] = useState('')
 
   async function doImport(files: FileList | null) {
     if (!files || !files.length) return
@@ -41,22 +40,6 @@ export function SettingsView({
       toast.show('Import fehlgeschlagen', 'error')
     }
     if (fileRef.current) fileRef.current.value = ''
-  }
-
-  async function changePassword() {
-    if (newPw.length < 8) {
-      toast.show('Neues Passwort zu kurz (min. 8)', 'error')
-      return
-    }
-    try {
-      const res = await api.changePassword(curPw, newPw)
-      setPwHash(res.new_password_hash)
-      setCurPw('')
-      setNewPw('')
-      toast.show('Hash erzeugt — in .env eintragen', 'success')
-    } catch {
-      toast.show('Aktuelles Passwort falsch', 'error')
-    }
   }
 
   return (
@@ -167,59 +150,33 @@ export function SettingsView({
       </div>
 
       <div className="section">
-        <h3>Passwort ändern</h3>
-        <div className="field">
-          <label>Aktuelles Passwort</label>
-          <input
-            className="input"
-            type="password"
-            value={curPw}
-            onChange={(e) => setCurPw(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label>Neues Passwort</label>
-          <input
-            className="input"
-            type="password"
-            value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
-          />
-        </div>
-        <Button variant="tonal" icon="key" onClick={changePassword} disabled={!curPw || !newPw}>
-          Hash erzeugen
-        </Button>
-        {pwHash && (
-          <div className="field">
-            <label>Neuen Hash in .env eintragen und Container neu starten:</label>
-            <div className="row">
-              <code
-                style={{
-                  flex: 1,
-                  overflow: 'auto',
-                  background: 'var(--md-surface-container-lowest)',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--shape-s)',
-                  fontSize: '0.75rem',
-                }}
-              >
-                APP_PASSWORD_HASH={pwHash}
-              </code>
-              <IconButton
-                icon="content_copy"
-                label="Kopieren"
-                onClick={() => {
-                  navigator.clipboard?.writeText(`APP_PASSWORD_HASH=${pwHash}`)
-                  toast.show('Kopiert', 'success')
-                }}
+        <h3>Konto</h3>
+        {me?.user ? (
+          <div className="row" style={{ gap: 'var(--gap-3)', alignItems: 'center' }}>
+            {me.user.picture ? (
+              <img
+                src={me.user.picture}
+                alt=""
+                width={44}
+                height={44}
+                referrerPolicy="no-referrer"
+                style={{ borderRadius: '50%' }}
               />
+            ) : (
+              <span className="logo" style={{ width: 44, height: 44 }}>
+                <Icon name="account_circle" />
+              </span>
+            )}
+            <div className="grow" style={{ minWidth: 0 }}>
+              {me.user.name && <div style={{ font: 'var(--title-s)' }}>{me.user.name}</div>}
+              <div className="muted" style={{ fontSize: '0.85rem' }}>
+                {me.user.email}
+              </div>
             </div>
           </div>
+        ) : (
+          <p className="muted">Angemeldet.</p>
         )}
-      </div>
-
-      <div className="section">
-        <h3>Sitzung</h3>
         <Button variant="outlined" icon="logout" onClick={onLogout}>
           Abmelden
         </Button>

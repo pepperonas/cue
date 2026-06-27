@@ -53,7 +53,14 @@ export interface Prompt {
   ran_at: string | null
 }
 
+export interface User {
+  email: string
+  name: string
+  picture: string
+}
+
 export interface Me {
   authenticated: boolean
   csrf_token: string | null
+  user: User | null
 }

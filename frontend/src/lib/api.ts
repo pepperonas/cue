@@ -39,17 +39,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 export const api = {
-  // Auth
+  // Auth — login is a full-page redirect to Google, handled server-side.
   me: () => request<Me>('GET', '/auth/me'),
-  login: (password: string, remember: boolean) =>
-    request<Me>('POST', '/auth/login', { password, remember }),
+  googleLoginUrl: '/api/auth/google/login',
   logout: () => request<{ ok: boolean }>('POST', '/auth/logout'),
-  changePassword: (current_password: string, new_password: string) =>
-    request<{ ok: boolean; new_password_hash: string; note: string }>(
-      'POST',
-      '/auth/change-password',
-      { current_password, new_password },
-    ),
 
   // Projects
   listProjects: () => request<Project[]>('GET', '/projects'),
