@@ -63,7 +63,15 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
 
-  const [view, setView] = useState<View>('board')
+  const [view, setView] = useState<View>(() => {
+    const saved = localStorage.getItem('cue-view')
+    return saved === 'board' || saved === 'list' || saved === 'projects' || saved === 'settings'
+      ? saved
+      : 'board'
+  })
+  useEffect(() => {
+    localStorage.setItem('cue-view', view)
+  }, [view])
   const [q, setQ] = useState('')
   const [projectFilter, setProjectFilter] = useState<number | 'all' | 'none'>('all')
   const [showExtra, setShowExtra] = useState(false)
