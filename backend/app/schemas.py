@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -94,3 +95,15 @@ class BookmarkReorderItem(BaseModel):
 
 class BookmarkReorderRequest(BaseModel):
     items: list[BookmarkReorderItem]
+
+
+class MergeRequest(BaseModel):
+    # Prompts being merged (the client composes the final body/order/format).
+    source_ids: list[int]
+    title: str = ""
+    body: str
+    project_id: int | None = None
+    status: PromptStatus = PromptStatus.queued
+    tags: str = ""
+    # What to do with the source prompts after the merge.
+    originals: Literal["delete", "archive", "keep"] = "delete"

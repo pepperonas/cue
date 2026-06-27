@@ -146,6 +146,46 @@ def test_bookmark_flow(client):
     assert ub.json()["bookmarked"] is False
 
 
+def test_merge_flow(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    ids = []
+    for i in range(3):
+        cp = client.post("/api/prompts", json={"body": f"Body {i}"}, headers=headers)
+        assert cp.status_code == 201, cp.text
+        ids.append(cp.json()["id"])
+
+    # Merge the first two, deleting the originals.
+    mr = client.post(
+        "/api/prompts/merge",
+        json={
+            "source_ids": [ids[0], ids[1]],
+            "title": "Merged",
+            "body": "## A\n\nBody 0\n\n---\n\n## B\n\nBody 1",
+            "tags": "merged",
+            "originals": "delete",
+        },
+        headers=headers,
+    )
+    assert mr.status_code == 201, mr.text
+    assert mr.json()["title"] == "Merged"
+
+    # Originals gone, third prompt + the merged one remain.
+    remaining = {p["id"] for p in client.get("/api/prompts").json()}
+    assert ids[0] not in remaining and ids[1] not in remaining
+    assert ids[2] in remaining
+    assert len(remaining) == 2
+
+    # Fewer than two sources is rejected.
+    bad = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [ids[2]], "body": "x", "originals": "keep"},
+        headers=headers,
+    )
+    assert bad.status_code == 400
+
+
 def test_tenant_isolation(client):
     # User A creates a prompt.
     csrf_a = _auth(client, email="a@example.com", sub="sub-a")

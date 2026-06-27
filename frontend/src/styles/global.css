@@ -384,6 +384,97 @@ a {
   font-variation-settings: 'FILL' 1;
 }
 
+/* ---- Multi-select / merge ---- */
+.card.selecting,
+.list-item.selecting {
+  cursor: pointer;
+}
+.card.selecting {
+  position: relative;
+}
+.card.selecting .card-title {
+  padding-right: 28px;
+}
+.card .merge-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  line-height: 0;
+  color: var(--md-on-surface-variant);
+}
+.card.merge-selected,
+.list-item.merge-selected {
+  outline: 2px solid var(--md-primary);
+  outline-offset: -2px;
+}
+.card.merge-selected .merge-check,
+.list-item.merge-selected .merge-check-icon {
+  color: var(--md-primary);
+}
+.merge-check-icon {
+  color: var(--md-on-surface-variant);
+}
+
+.select-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100vw - 2 * var(--gap-4));
+  bottom: calc(var(--gap-5) + env(safe-area-inset-bottom));
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 8px 8px 8px 18px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-full);
+  box-shadow: var(--elev-3);
+}
+.select-count {
+  font: var(--label-l);
+  color: var(--md-on-surface);
+}
+
+/* Merge dialog — reorderable source list */
+.merge-parts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.merge-part {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: 8px 10px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m);
+}
+.merge-index {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--md-secondary-container, var(--md-primary-container));
+  color: var(--md-on-secondary-container, var(--md-on-primary-container));
+  font: var(--label-m);
+}
+.merge-part-preview {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ---- Bookmarks section (drag-sortable single column) ---- */
 .bookmark-list {
   display: flex;

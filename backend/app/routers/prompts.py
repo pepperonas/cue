@@ -10,6 +10,7 @@ from ..deps import current_user_id, require_csrf
 from ..models import Project, Prompt, PromptStatus, utcnow
 from ..schemas import (
     BookmarkReorderRequest,
+    MergeRequest,
     PromptCreate,
     PromptRead,
     PromptUpdate,
@@ -179,6 +180,63 @@ def delete_prompt(
     prompt = _owned(session, prompt_id, uid)
     session.delete(prompt)
     session.commit()
+
+
+@router.post("/merge", response_model=PromptRead, status_code=status.HTTP_201_CREATED)
+def merge_prompts(
+    payload: MergeRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> Prompt:
+    """Combine several of the caller's prompts into one new prompt.
+
+    The client composes the merged body/order/format; the server creates the new
+    prompt and then deletes / archives / keeps the sources — all in one commit.
+    """
+    if len(payload.source_ids) < 2:
+        raise HTTPException(status_code=400, detail="Select at least two prompts to merge")
+    if not payload.body.strip():
+        raise HTTPException(status_code=400, detail="Body required")
+    _check_project(session, payload.project_id, uid)
+
+    sources: list[Prompt] = []
+    for sid in payload.source_ids:
+        prompt = session.get(Prompt, sid)
+        if not prompt or prompt.user_id != uid:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        sources.append(prompt)
+
+    merged = Prompt(
+        user_id=uid,
+        title=_derive_title(payload.title, payload.body),
+        body=payload.body,
+        project_id=payload.project_id,
+        status=payload.status,
+        tags=payload.tags.strip(),
+        sort_order=_next_sort_order(session, payload.status, uid),
+    )
+    if payload.status in _RAN_STATUSES:
+        merged.ran_at = utcnow()
+    session.add(merged)
+
+    if payload.originals == "delete":
+        for prompt in sources:
+            session.delete(prompt)
+    elif payload.originals == "archive":
+        next_arch = _next_sort_order(session, PromptStatus.archived, uid)
+        for prompt in sources:
+            if prompt.status != PromptStatus.archived:
+                prompt.status = PromptStatus.archived
+                prompt.sort_order = next_arch
+                next_arch += 1
+                prompt.updated_at = utcnow()
+                session.add(prompt)
+    # "keep" -> sources are left untouched.
+
+    session.commit()
+    session.refresh(merged)
+    return merged
 
 
 @router.post("/reorder", response_model=list[PromptRead])

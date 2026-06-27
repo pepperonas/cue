@@ -123,6 +123,17 @@ export function useReorderBookmarks() {
   })
 }
 
+export function useMergePrompts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.mergePrompts,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({

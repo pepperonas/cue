@@ -12,6 +12,7 @@ import {
 import {
   projectMap,
   useDeletePrompt,
+  useMergePrompts,
   usePrompts,
   useProjects,
   useReorder,
@@ -23,6 +24,7 @@ import { useToast } from './state/toast'
 import { Board } from './components/Board'
 import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
+import { MergeDialog } from './components/MergeDialog'
 import { Confirm } from './components/Confirm'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
@@ -65,6 +67,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const reorderBookmarks = useReorderBookmarks()
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
+  const merge = useMergePrompts()
 
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('cue-view')
@@ -104,7 +107,22 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [confirmDel, setConfirmDel] = useState<Prompt | null>(null)
   const [shortcuts, setShortcuts] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  // Multi-select / merge mode.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [mergeOpen, setMergeOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  function exitSelect() {
+    setSelectMode(false)
+    setSelectedIds([])
+    setMergeOpen(false)
+  }
+  function toggleSelect(p: Prompt) {
+    setSelectedIds((prev) =>
+      prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id],
+    )
+  }
 
   const pmap = useMemo(() => projectMap(projects), [projects])
 
@@ -177,7 +195,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [toast, update],
   )
 
-  const anyModalOpen = composerOpen || !!detail || !!confirmDel || shortcuts
+  const anyModalOpen = composerOpen || !!detail || !!confirmDel || shortcuts || mergeOpen
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -193,10 +211,12 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       if (e.key === 'Escape') {
         if (shortcuts) setShortcuts(false)
         else if (confirmDel) setConfirmDel(null)
+        else if (mergeOpen) setMergeOpen(false)
         else if (composerOpen) {
           setComposerOpen(false)
           setEditing(null)
         } else if (detail) setDetail(null)
+        else if (selectMode) exitSelect()
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return
@@ -263,14 +283,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     detail,
     detailLive,
     handleCopy,
+    mergeOpen,
     navOrder,
     prompts,
+    selectMode,
     selectedId,
     shortcuts,
     update,
   ])
 
   function openDetail(p: Prompt) {
+    if (selectMode) return
     setSelectedId(p.id)
     setDetail(p)
   }
@@ -303,6 +326,16 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                   onClick={() => setShowExtra((v) => !v)}
                 >
                   <Icon name={showExtra ? 'unfold_less' : 'unfold_more'} /> Failed / Archived
+                </button>
+              )}
+              {(view === 'board' || view === 'list') && (
+                <button
+                  className="chip"
+                  data-active={selectMode}
+                  onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+                  title="Mehrere Prompts auswählen & zusammenführen"
+                >
+                  <Icon name="library_add_check" /> {selectMode ? 'Auswahl beenden' : 'Auswählen'}
                 </button>
               )}
             </div>
@@ -359,6 +392,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
                 onReorder={(items) => reorder.mutate(items)}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
               />
             ) : (
               <ListView
@@ -371,6 +407,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onCopy={handleCopy}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
               />
             )}
           </>
@@ -409,7 +448,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
       <Footer />
 
-      {(view === 'board' || view === 'list') && !composerOpen && (
+      {(view === 'board' || view === 'list') && !composerOpen && !selectMode && (
         <motion.button
           layoutId="composer-surface"
           className="fab"
@@ -424,6 +463,31 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           Neuer Prompt
         </motion.button>
       )}
+
+      <AnimatePresence>
+        {selectMode && (
+          <motion.div
+            key="select-bar"
+            className="select-bar"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={springs.spatial}
+          >
+            <span className="select-count">{selectedIds.length} ausgewählt</span>
+            <button className="btn btn--text" onClick={exitSelect}>
+              Abbrechen
+            </button>
+            <button
+              className="btn btn--filled"
+              disabled={selectedIds.length < 2}
+              onClick={() => setMergeOpen(true)}
+            >
+              <Icon name="merge" /> Zusammenführen
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {composerOpen && (
@@ -468,6 +532,27 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               setDetail(null)
               setConfirmDel(null)
               toast.show('Prompt gelöscht', 'success')
+            }}
+          />
+        )}
+        {mergeOpen && (
+          <MergeDialog
+            key="merge"
+            parts={
+              selectedIds
+                .map((id) => (prompts ?? []).find((p) => p.id === id))
+                .filter(Boolean) as Prompt[]
+            }
+            projects={projects ?? []}
+            onClose={() => setMergeOpen(false)}
+            onConfirm={(payload) => {
+              merge.mutate(payload, {
+                onSuccess: () => {
+                  exitSelect()
+                  toast.show('Prompts zusammengeführt', 'success')
+                },
+                onError: () => toast.show('Zusammenführen fehlgeschlagen', 'error'),
+              })
             }}
           />
         )}

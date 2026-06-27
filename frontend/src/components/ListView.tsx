@@ -18,6 +18,9 @@ interface Props {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  selectMode?: boolean
+  selectedIds?: number[]
+  onToggleSelect?: (p: Prompt) => void
 }
 
 const COLLAPSE_KEY = 'cue-list-collapsed'
@@ -41,6 +44,9 @@ export function ListView({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  selectMode,
+  selectedIds,
+  onToggleSelect,
 }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
 
@@ -100,6 +106,9 @@ export function ListView({
                           onCopy={onCopy}
                           onToggleBookmark={onToggleBookmark}
                           onToggleTested={onToggleTested}
+                          selectMode={selectMode}
+                          selectedForMerge={selectedIds?.includes(p.id)}
+                          onToggleSelect={onToggleSelect}
                         />
                       ))
                     )}
@@ -124,6 +133,9 @@ interface RowProps {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  selectMode?: boolean
+  selectedForMerge?: boolean
+  onToggleSelect?: (p: Prompt) => void
 }
 
 function ListRow({
@@ -136,6 +148,9 @@ function ListRow({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  selectMode,
+  selectedForMerge,
+  onToggleSelect,
 }: RowProps) {
   const canTest = p.status === 'running' || p.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
@@ -165,17 +180,25 @@ function ListRow({
 
   return (
     <motion.div
-      className={`list-item ${selected ? 'selected' : ''}`}
+      className={`list-item ${selected ? 'selected' : ''} ${selectMode ? 'selecting' : ''} ${
+        selectedForMerge ? 'merge-selected' : ''
+      }`}
       data-prompt-id={p.id}
-      title="Doppelklick kopiert den Prompt"
+      title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...springs.spatial, delay: Math.min(i * 0.02, 0.2) }}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
+      onClick={selectMode ? () => onToggleSelect?.(p) : handleClick}
+      onDoubleClick={selectMode ? undefined : handleDoubleClick}
       style={selected ? { outline: '2px solid var(--md-primary)' } : undefined}
     >
+      {selectMode && (
+        <Icon
+          name={selectedForMerge ? 'check_box' : 'check_box_outline_blank'}
+          className="merge-check-icon"
+        />
+      )}
       <Icon name={STATUS_ICON[p.status]} className={`st-icon ${STATUS_CLASS[p.status]}`} />
       <div className="grow">
         <div className="lt">{p.title || 'Untitled'}</div>

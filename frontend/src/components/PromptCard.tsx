@@ -20,6 +20,9 @@ interface Props {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  selectMode?: boolean
+  selectedForMerge?: boolean
+  onToggleSelect?: (p: Prompt) => void
 }
 
 export function PromptCard({
@@ -32,6 +35,9 @@ export function PromptCard({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  selectMode,
+  selectedForMerge,
+  onToggleSelect,
 }: Props) {
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -82,14 +88,21 @@ export function PromptCard({
       <div
         ref={setNodeRef}
         style={style}
-        className={`card ${isDragging ? 'dragging' : ''} ${selected ? 'selected' : ''}`}
+        className={`card ${isDragging ? 'dragging' : ''} ${selected ? 'selected' : ''} ${
+          selectMode ? 'selecting' : ''
+        } ${selectedForMerge ? 'merge-selected' : ''}`}
         data-prompt-id={prompt.id}
-        title="Doppelklick kopiert den Prompt"
-        {...attributes}
-        {...listeners}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
+        title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
+        {...(selectMode ? {} : attributes)}
+        {...(selectMode ? {} : listeners)}
+        onClick={selectMode ? () => onToggleSelect?.(prompt) : handleClick}
+        onDoubleClick={selectMode ? undefined : handleDoubleClick}
       >
+        {selectMode && (
+          <span className="merge-check" aria-hidden="true">
+            <Icon name={selectedForMerge ? 'check_box' : 'check_box_outline_blank'} />
+          </span>
+        )}
         <div className="card-title">{prompt.title || 'Untitled'}</div>
         <div className="card-body-preview">{prompt.body}</div>
         <div className="card-meta">

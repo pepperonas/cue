@@ -31,6 +31,9 @@ interface Props {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onReorder: (items: { id: number; status: Status; sort_order: number }[]) => void
+  selectMode?: boolean
+  selectedIds?: number[]
+  onToggleSelect?: (p: Prompt) => void
 }
 
 function group(prompts: Prompt[], columns: Status[]): Containers {
@@ -76,6 +79,9 @@ export function Board({
   onToggleBookmark,
   onToggleTested,
   onReorder,
+  selectMode,
+  selectedIds,
+  onToggleSelect,
 }: Props) {
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
   const [containers, setContainers] = useState<Containers>(() => group(prompts, columns))
@@ -195,6 +201,9 @@ export function Board({
                       onCopy={onCopy}
                       onToggleBookmark={onToggleBookmark}
                       onToggleTested={onToggleTested}
+                      selectMode={selectMode}
+                      selectedForMerge={selectedIds?.includes(id)}
+                      onToggleSelect={onToggleSelect}
                     />
                   )
                 })}

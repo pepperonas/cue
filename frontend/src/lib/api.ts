@@ -86,6 +86,15 @@ export const api = {
     request<Prompt[]>('POST', '/prompts/reorder', { items }),
   reorderBookmarks: (items: { id: number; bookmark_order: number }[]) =>
     request<Prompt[]>('POST', '/prompts/bookmarks/reorder', { items }),
+  mergePrompts: (input: {
+    source_ids: number[]
+    title?: string
+    body: string
+    project_id?: number | null
+    status?: Status
+    tags?: string
+    originals: 'delete' | 'archive' | 'keep'
+  }) => request<Prompt>('POST', '/prompts/merge', input),
 
   // Import / export return raw URLs for download handling in the UI.
   exportJsonUrl: '/api/export',
