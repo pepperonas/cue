@@ -83,12 +83,15 @@ export const api = {
       project_id: number | null
       status: Status
       tags: string
+      bookmarked: boolean
       unassign_project: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
   deletePrompt: (id: number) => request<void>('DELETE', `/prompts/${id}`),
   reorder: (items: { id: number; status: Status; sort_order: number }[]) =>
     request<Prompt[]>('POST', '/prompts/reorder', { items }),
+  reorderBookmarks: (items: { id: number; bookmark_order: number }[]) =>
+    request<Prompt[]>('POST', '/prompts/bookmarks/reorder', { items }),
 
   // Import / export return raw URLs for download handling in the UI.
   exportJsonUrl: '/api/export',

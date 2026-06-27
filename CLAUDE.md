@@ -44,8 +44,8 @@ separately and Vite proxies `/api` to `:8000`.
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).
 - `config.py` — env-driven `Settings` (cached). `validate()` fails fast unless `CUE_DEV=1`.
-- `db.py` — SQLite engine; a `connect` event sets `WAL`, `foreign_keys=ON`, `busy_timeout`.
-- `models.py` — `Project` + `Prompt` (SQLModel tables). `PromptStatus` enum.
+- `db.py` — SQLite engine; a `connect` event sets `WAL`, `foreign_keys=ON`, `busy_timeout`. `init_db` runs `_migrate()` — an idempotent `ALTER TABLE` guarded by a `PRAGMA table_info` check, since `create_all` only adds missing *tables*, never columns (the live DB has data, so additive fields like `bookmarked`/`bookmark_order` must be migrated this way; no Alembic).
+- `models.py` — `Project` + `Prompt` (SQLModel tables). `PromptStatus` enum. `Prompt.bookmarked` + `Prompt.bookmark_order` back the bookmarks section.
 - `schemas.py` — Pydantic request/response models (kept separate from table models).
 - `security.py` — Argon2id hashing/verify, itsdangerous session tokens (payload carries the CSRF secret), CSRF double-submit check, in-memory per-IP + global login rate limiters.
 - `deps.py` — `current_session` (401 guard), `require_csrf` (403 guard + Origin check), `get_client_ip` (only trusts XFF when `TRUST_PROXY`, uses rightmost hop).
@@ -62,6 +62,7 @@ separately and Vite proxies `/api` to `:8000`.
 - `state/settings.tsx` — theme (light/dark/system), seed color, behavior prefs; persisted to localStorage, applied as CSS vars.
 - `state/toast.tsx` — toast provider.
 - `components/Board.tsx` — dnd-kit multi-container board (cross-column status change + reorder). Local container state syncs from server data except while dragging; `onDragEnd` builds a minimal reorder payload for the affected columns.
+- `components/BookmarksView.tsx` — the **Bookmarks** tab: a single drag-sortable column (dnd-kit `SortableContext`, reuses `PromptCard`) of all `bookmarked` prompts ordered by `bookmark_order`. Local order syncs from server except while dragging; `onDragEnd` → `arrayMove` → `POST /prompts/bookmarks/reorder` (optimistic via `useReorderBookmarks`). Bookmarking elsewhere (card/list/detail bookmark toggle → `PATCH {bookmarked}`) appends to the end of this section server-side.
 - `components/ListView.tsx` — list view grouped by status into **collapsible** sections (one per visible status, driven by the same `columns` prop as the board, so the "Failed / Archived" toggle applies here too). Collapse state per status persists in `localStorage` (`cue-list-collapsed`); section bodies animate height with `emphasized` (reduced-motion → instant). Status icons are tinted via `STATUS_CLASS` (`.st-queued/.st-running/.st-done/.st-failed/.st-archived` in `global.css`) — the same subtle tint is applied to the board column heads, cards, and detail sheet.
 - `App.tsx` — auth gate, filters/search, keyboard shortcuts, view switching, mounts Composer/Detail/Confirm/Shortcuts overlays. The active view (`board/list/projects/settings`) persists to `localStorage` (`cue-view`) and is restored on reload.
 

@@ -16,9 +16,19 @@ interface Props {
   index: number
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onToggleBookmark?: (p: Prompt) => void
 }
 
-export function PromptCard({ prompt, project, dark, selected, index, onOpen, onCopy }: Props) {
+export function PromptCard({
+  prompt,
+  project,
+  dark,
+  selected,
+  index,
+  onOpen,
+  onCopy,
+  onToggleBookmark,
+}: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prompt.id,
     data: { status: prompt.status },
@@ -98,6 +108,17 @@ export function PromptCard({ prompt, project, dark, selected, index, onOpen, onC
                 </span>
               ))}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+            {onToggleBookmark && (
+              <button
+                className={`mini-btn ${prompt.bookmarked ? 'bookmarked' : ''}`}
+                aria-label={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
+                title={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onToggleBookmark(prompt)}
+              >
+                <Icon name={prompt.bookmarked ? 'bookmark' : 'bookmark_border'} />
+              </button>
+            )}
             <button
               className="mini-btn"
               aria-label="Status"

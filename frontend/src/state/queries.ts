@@ -94,6 +94,31 @@ export function useReorder() {
   })
 }
 
+// Bookmark drag-sort: optimistic snapshot of bookmark_order, then sync.
+export function useReorderBookmarks() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items: { id: number; bookmark_order: number }[]) =>
+      api.reorderBookmarks(items),
+    onMutate: async (items) => {
+      await qc.cancelQueries({ queryKey: PROMPTS_KEY })
+      const prev = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
+      const byId = new Map(items.map((i) => [i.id, i]))
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
+        (old ?? []).map((p) => {
+          const next = byId.get(p.id)
+          return next ? { ...p, bookmark_order: next.bookmark_order } : p
+        }),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(PROMPTS_KEY, ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: PROMPTS_KEY }),
+  })
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({

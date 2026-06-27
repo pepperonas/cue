@@ -42,6 +42,10 @@ class Prompt(SQLModel, table=True):
     sort_order: int = Field(default=0, index=True)
     # Simple comma-separated tags.
     tags: str = Field(default="")
+    # Bookmarking: pinned prompts get their own drag-sortable section.
+    bookmarked: bool = Field(default=False, index=True)
+    # Position within the bookmarks section. Lower = higher up.
+    bookmark_order: int = Field(default=0)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     # Set when the prompt first enters running/done.

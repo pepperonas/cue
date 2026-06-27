@@ -14,6 +14,7 @@ interface Props {
   selectedId: number | null
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onToggleBookmark?: (p: Prompt) => void
 }
 
 const COLLAPSE_KEY = 'cue-list-collapsed'
@@ -27,7 +28,16 @@ function loadCollapsed(): string[] {
   }
 }
 
-export function ListView({ prompts, projects, columns, dark, selectedId, onOpen, onCopy }: Props) {
+export function ListView({
+  prompts,
+  projects,
+  columns,
+  dark,
+  selectedId,
+  onOpen,
+  onCopy,
+  onToggleBookmark,
+}: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
 
   function toggle(status: Status) {
@@ -84,6 +94,7 @@ export function ListView({ prompts, projects, columns, dark, selectedId, onOpen,
                           selected={selectedId === p.id}
                           onOpen={onOpen}
                           onCopy={onCopy}
+                          onToggleBookmark={onToggleBookmark}
                         />
                       ))
                     )}
@@ -106,9 +117,19 @@ interface RowProps {
   selected: boolean
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onToggleBookmark?: (p: Prompt) => void
 }
 
-function ListRow({ prompt: p, project, dark, index: i, selected, onOpen, onCopy }: RowProps) {
+function ListRow({
+  prompt: p,
+  project,
+  dark,
+  index: i,
+  selected,
+  onOpen,
+  onCopy,
+  onToggleBookmark,
+}: RowProps) {
   const tones = project ? projectTones(project.color, dark) : null
 
   // Single click opens; double click copies (see PromptCard for rationale).
@@ -157,6 +178,19 @@ function ListRow({ prompt: p, project, dark, index: i, selected, onOpen, onCopy 
       </div>
       {project && tones && (
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
+      )}
+      {onToggleBookmark && (
+        <button
+          className={`mini-btn ${p.bookmarked ? 'bookmarked' : ''}`}
+          aria-label={p.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
+          title={p.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleBookmark(p)
+          }}
+        >
+          <Icon name={p.bookmarked ? 'bookmark' : 'bookmark_border'} />
+        </button>
       )}
       <button
         className="mini-btn"

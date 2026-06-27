@@ -3,11 +3,12 @@ import { springs } from '../lib/motion'
 import { useSettings } from '../state/settings'
 import { Icon, IconButton } from './ui'
 
-export type View = 'board' | 'list' | 'projects' | 'settings'
+export type View = 'board' | 'list' | 'bookmarks' | 'projects' | 'settings'
 
 const TABS: { key: View; icon: string; label: string }[] = [
   { key: 'board', icon: 'view_kanban', label: 'Board' },
   { key: 'list', icon: 'list', label: 'Liste' },
+  { key: 'bookmarks', icon: 'bookmark', label: 'Bookmarks' },
   { key: 'projects', icon: 'folder', label: 'Projekte' },
 ]
 

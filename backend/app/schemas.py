@@ -58,6 +58,7 @@ class PromptUpdate(BaseModel):
     project_id: int | None = None
     status: PromptStatus | None = None
     tags: str | None = None
+    bookmarked: bool | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
     unassign_project: bool = False
 
@@ -70,6 +71,8 @@ class PromptRead(BaseModel):
     status: PromptStatus
     sort_order: int
     tags: str
+    bookmarked: bool
+    bookmark_order: int
     created_at: datetime
     updated_at: datetime
     ran_at: datetime | None
@@ -83,3 +86,12 @@ class ReorderItem(BaseModel):
 
 class ReorderRequest(BaseModel):
     items: list[ReorderItem]
+
+
+class BookmarkReorderItem(BaseModel):
+    id: int
+    bookmark_order: int
+
+
+class BookmarkReorderRequest(BaseModel):
+    items: list[BookmarkReorderItem]

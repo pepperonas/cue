@@ -46,6 +46,8 @@ export interface Prompt {
   status: Status
   sort_order: number
   tags: string
+  bookmarked: boolean
+  bookmark_order: number
   created_at: string
   updated_at: string
   ran_at: string | null

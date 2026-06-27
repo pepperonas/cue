@@ -363,6 +363,20 @@ a {
 .mini-btn .material-symbols-rounded {
   font-size: 20px;
 }
+/* Active bookmark — accent the toggle so pinned prompts read at a glance. */
+.mini-btn.bookmarked,
+.icon-btn.bookmarked {
+  color: var(--md-primary);
+}
+
+/* ---- Bookmarks section (drag-sortable single column) ---- */
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  max-width: 640px;
+  margin: 0 auto;
+}
 
 /* ---- FAB ---- */
 .fab {

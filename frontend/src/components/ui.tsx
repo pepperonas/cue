@@ -24,10 +24,11 @@ export function Button({ variant = 'filled', icon, children, className, ...rest 
 export function IconButton({
   icon,
   label,
+  className,
   ...rest
 }: { icon: string; label: string } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button className="icon-btn" aria-label={label} title={label} {...rest}>
+    <button className={`icon-btn ${className ?? ''}`} aria-label={label} title={label} {...rest}>
       <Icon name={icon} />
     </button>
   )

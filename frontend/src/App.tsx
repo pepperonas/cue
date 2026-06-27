@@ -15,11 +15,13 @@ import {
   usePrompts,
   useProjects,
   useReorder,
+  useReorderBookmarks,
   useUpdatePrompt,
 } from './state/queries'
 import { useSettings } from './state/settings'
 import { useToast } from './state/toast'
 import { Board } from './components/Board'
+import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { Confirm } from './components/Confirm'
 import { DetailSheet } from './components/DetailSheet'
@@ -60,12 +62,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const { data: prompts, isLoading } = usePrompts()
   const { data: projects } = useProjects()
   const reorder = useReorder()
+  const reorderBookmarks = useReorderBookmarks()
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
 
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('cue-view')
-    return saved === 'board' || saved === 'list' || saved === 'projects' || saved === 'settings'
+    return saved === 'board' ||
+      saved === 'list' ||
+      saved === 'bookmarks' ||
+      saved === 'projects' ||
+      saved === 'settings'
       ? saved
       : 'board'
   })
@@ -135,6 +142,15 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       }
     },
     [settings.copyAdvancesStatus, toast, update],
+  )
+
+  const handleToggleBookmark = useCallback(
+    (p: Prompt) => {
+      update.mutate({ id: p.id, patch: { bookmarked: !p.bookmarked } })
+      vibrate(8)
+      toast.show(p.bookmarked ? 'Bookmark entfernt' : 'Gebookmarkt', 'success')
+    },
+    [toast, update],
   )
 
   const anyModalOpen = composerOpen || !!detail || !!confirmDel || shortcuts
@@ -316,6 +332,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectedId={selectedId}
                 onOpen={openDetail}
                 onCopy={handleCopy}
+                onToggleBookmark={handleToggleBookmark}
                 onReorder={(items) => reorder.mutate(items)}
               />
             ) : (
@@ -327,9 +344,23 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectedId={selectedId}
                 onOpen={openDetail}
                 onCopy={handleCopy}
+                onToggleBookmark={handleToggleBookmark}
               />
             )}
           </>
+        )}
+
+        {view === 'bookmarks' && (
+          <BookmarksView
+            prompts={filtered}
+            projects={pmap}
+            dark={settings.resolvedDark}
+            selectedId={selectedId}
+            onOpen={openDetail}
+            onCopy={handleCopy}
+            onToggleBookmark={handleToggleBookmark}
+            onReorder={(items) => reorderBookmarks.mutate(items)}
+          />
         )}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
@@ -395,6 +426,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             }}
             onDelete={(p) => setConfirmDel(p)}
             onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
+            onToggleBookmark={handleToggleBookmark}
           />
         )}
         {confirmDel && (

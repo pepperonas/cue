@@ -28,6 +28,7 @@ interface Props {
   selectedId: number | null
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onToggleBookmark?: (p: Prompt) => void
   onReorder: (items: { id: number; status: Status; sort_order: number }[]) => void
 }
 
@@ -71,6 +72,7 @@ export function Board({
   selectedId,
   onOpen,
   onCopy,
+  onToggleBookmark,
   onReorder,
 }: Props) {
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
@@ -189,6 +191,7 @@ export function Board({
                       selected={selectedId === id}
                       onOpen={onOpen}
                       onCopy={onCopy}
+                      onToggleBookmark={onToggleBookmark}
                     />
                   )
                 })}

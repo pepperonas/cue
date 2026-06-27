@@ -16,6 +16,7 @@ interface Props {
   onEdit: (p: Prompt) => void
   onDelete: (p: Prompt) => void
   onStatus: (p: Prompt, s: Status) => void
+  onToggleBookmark: (p: Prompt) => void
 }
 
 function fmt(iso: string | null): string {
@@ -36,6 +37,7 @@ export function DetailSheet({
   onEdit,
   onDelete,
   onStatus,
+  onToggleBookmark,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
   const tones = project ? projectTones(project.color, dark) : null
@@ -78,7 +80,15 @@ export function DetailSheet({
       >
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h2 style={{ margin: 0 }}>{prompt.title || 'Untitled'}</h2>
-          <IconButton icon="close" label="Schließen" onClick={onClose} />
+          <div className="row">
+            <IconButton
+              icon={prompt.bookmarked ? 'bookmark' : 'bookmark_border'}
+              label={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
+              className={prompt.bookmarked ? 'bookmarked' : undefined}
+              onClick={() => onToggleBookmark(prompt)}
+            />
+            <IconButton icon="close" label="Schließen" onClick={onClose} />
+          </div>
         </div>
 
         <div className="card-meta">

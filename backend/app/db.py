@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -38,6 +38,24 @@ def init_db() -> None:
     from . import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _migrate(engine)
+
+
+def _migrate(engine: Engine) -> None:
+    """Idempotent column adds for existing SQLite databases (no Alembic).
+
+    create_all() only creates missing tables, never new columns, so additive
+    schema changes need a manual ALTER TABLE guarded by a column check.
+    """
+    additions = {
+        "bookmarked": "ALTER TABLE prompt ADD COLUMN bookmarked BOOLEAN NOT NULL DEFAULT 0",
+        "bookmark_order": "ALTER TABLE prompt ADD COLUMN bookmark_order INTEGER NOT NULL DEFAULT 0",
+    }
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(prompt)")}
+        for column, ddl in additions.items():
+            if column not in cols:
+                conn.execute(text(ddl))
 
 
 def get_session() -> Iterator[Session]:

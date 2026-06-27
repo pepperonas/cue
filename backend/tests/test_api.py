@@ -92,6 +92,41 @@ def test_full_flow(client):
     assert no_csrf.status_code == 403
 
 
+def test_bookmark_flow(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    ids = []
+    for i in range(3):
+        cp = client.post("/api/prompts", json={"body": f"Prompt {i}"}, headers=headers)
+        assert cp.status_code == 201, cp.text
+        body = cp.json()
+        assert body["bookmarked"] is False
+        assert body["bookmark_order"] == 0
+        ids.append(body["id"])
+
+    # Bookmark two prompts -> they get incrementing bookmark_order.
+    b0 = client.patch(f"/api/prompts/{ids[0]}", json={"bookmarked": True}, headers=headers)
+    b1 = client.patch(f"/api/prompts/{ids[1]}", json={"bookmarked": True}, headers=headers)
+    assert b0.json()["bookmarked"] is True
+    assert b0.json()["bookmark_order"] == 1
+    assert b1.json()["bookmark_order"] == 2
+
+    # Reorder the bookmarks section (swap order).
+    rr = client.post(
+        "/api/prompts/bookmarks/reorder",
+        json={"items": [{"id": ids[1], "bookmark_order": 1}, {"id": ids[0], "bookmark_order": 2}]},
+        headers=headers,
+    )
+    assert rr.status_code == 200, rr.text
+    orders = {row["id"]: row["bookmark_order"] for row in rr.json()}
+    assert orders[ids[1]] == 1 and orders[ids[0]] == 2
+
+    # Un-bookmark.
+    ub = client.patch(f"/api/prompts/{ids[0]}", json={"bookmarked": False}, headers=headers)
+    assert ub.json()["bookmarked"] is False
+
+
 def test_import_and_export(client):
     csrf = _login(client)
     headers = {"X-CSRF-Token": csrf}

@@ -8,7 +8,13 @@ from sqlmodel import Session, select
 from ..db import get_session
 from ..deps import current_session, require_csrf
 from ..models import Project, Prompt, PromptStatus, utcnow
-from ..schemas import PromptCreate, PromptRead, PromptUpdate, ReorderRequest
+from ..schemas import (
+    BookmarkReorderRequest,
+    PromptCreate,
+    PromptRead,
+    PromptUpdate,
+    ReorderRequest,
+)
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
 
@@ -28,6 +34,13 @@ def _derive_title(title: str, body: str) -> str:
 def _next_sort_order(session: Session, status_value: PromptStatus) -> int:
     current_max = session.exec(
         select(func.max(Prompt.sort_order)).where(Prompt.status == status_value)
+    ).one()
+    return (current_max or 0) + 1
+
+
+def _next_bookmark_order(session: Session) -> int:
+    current_max = session.exec(
+        select(func.max(Prompt.bookmark_order)).where(Prompt.bookmarked == True)  # noqa: E712
     ).one()
     return (current_max or 0) + 1
 
@@ -122,6 +135,12 @@ def update_prompt(
     if payload.tags is not None:
         prompt.tags = payload.tags.strip()
 
+    if payload.bookmarked is not None and payload.bookmarked != prompt.bookmarked:
+        prompt.bookmarked = payload.bookmarked
+        # Newly bookmarked prompts append to the end of the bookmarks section.
+        if payload.bookmarked:
+            prompt.bookmark_order = _next_bookmark_order(session)
+
     if payload.status is not None and payload.status != prompt.status:
         prompt.status = payload.status
         prompt.sort_order = _next_sort_order(session, payload.status)
@@ -172,6 +191,28 @@ def reorder_prompts(
                 prompt.ran_at = utcnow()
         prompt.sort_order = item.sort_order
         prompt.updated_at = utcnow()
+        session.add(prompt)
+        touched.append(prompt)
+    session.commit()
+    for prompt in touched:
+        session.refresh(prompt)
+    return touched
+
+
+@router.post("/bookmarks/reorder", response_model=list[PromptRead])
+def reorder_bookmarks(
+    payload: BookmarkReorderRequest,
+    session: Session = Depends(get_session),
+    _s: dict = Depends(current_session),
+    _csrf: None = Depends(require_csrf),
+) -> list[Prompt]:
+    """Apply a drag-sort of the bookmarks section in one transaction."""
+    touched: list[Prompt] = []
+    for item in payload.items:
+        prompt = session.get(Prompt, item.id)
+        if not prompt:
+            continue
+        prompt.bookmark_order = item.bookmark_order
         session.add(prompt)
         touched.append(prompt)
     session.commit()
