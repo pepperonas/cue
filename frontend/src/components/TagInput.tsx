@@ -26,7 +26,22 @@ function splitTags(value: string): { completed: string[]; current: string } {
 export function TagInput({ id, value, placeholder, suggestions, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const [dropUp, setDropUp] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Open above the field when there isn't enough room below (the tag field sits
+  // near the bottom of the dialog, so dropping down would cover the actions).
+  function recalcDirection() {
+    const rect = inputRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const spaceBelow = window.innerHeight - rect.bottom
+    setDropUp(spaceBelow < 220 && rect.top > spaceBelow)
+  }
+
+  function openMenu() {
+    recalcDirection()
+    setOpen(true)
+  }
 
   const { completed, current } = splitTags(value)
   const query = current.trim().toLowerCase()
@@ -55,15 +70,15 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
   function commit(tag: string) {
     const next = [...completed.map((t) => t.trim()).filter(Boolean), tag]
     onChange(next.join(', ') + ', ')
-    setOpen(true)
     setActive(0)
     inputRef.current?.focus()
+    openMenu()
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!open || matches.length === 0) {
       if (e.key === 'ArrowDown') {
-        setOpen(true)
+        openMenu()
         e.preventDefault()
       }
       return
@@ -98,15 +113,15 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
         aria-autocomplete="list"
         onChange={(e) => {
           onChange(e.target.value)
-          setOpen(true)
           setActive(0)
+          openMenu()
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={openMenu}
         onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         onKeyDown={onKeyDown}
       />
       {open && matches.length > 0 && (
-        <ul className="tag-suggest" role="listbox">
+        <ul className={`tag-suggest ${dropUp ? 'up' : ''}`} role="listbox">
           {matches.map((tag, i) => (
             <li key={tag} role="option" aria-selected={i === active}>
               <button

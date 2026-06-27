@@ -57,7 +57,8 @@ separately and Vite proxies `/api` to `:8000`.
 - `lib/api.ts` — typed fetch client; reads `cue_csrf` cookie and sends `X-CSRF-Token` on mutations.
 - `lib/markdown.ts` — tiny escape-first Markdown renderer for previews (no DOMPurify needed: HTML is escaped before the markdown subset is applied).
 - `lib/tags.ts` — curated English software-dev tag list (`DEV_TAGS`) backing the tag autocomplete.
-- `components/TagInput.tsx` — comma-separated tag field with type-ahead. Completion targets the token after the last comma; `↑/↓` navigate, `Enter`/`Tab`/click commit, `Esc` closes. The Composer feeds it a pool of tags already used across prompts (via `usePrompts`) first, then `DEV_TAGS`, deduped case-insensitively.
+- `components/TagInput.tsx` — comma-separated tag field with type-ahead. Completion targets the token after the last comma; `↑/↓` navigate, `Enter`/`Tab`/click commit, `Esc` closes. The Composer feeds it a pool of tags already used across prompts (via `usePrompts`) first, then `DEV_TAGS`, deduped case-insensitively. The suggestion list **flips upward** (`.tag-suggest.up`) when there isn't room below — the tag field is the dialog's last field, so a downward menu would otherwise cover the action buttons.
+- **Sheet scroll/sticky actions**: `.sheet` is the scroll container (`max-height: 88vh; overflow: auto`); the Composer's action row carries `.sheet-actions` (`position: sticky; bottom: -gap-5` with negative margins to span the padding) so "Anlegen"/"Abbrechen" stay pinned at the bottom and never scroll away or get covered by an overlay.
 - `state/queries.ts` — React Query hooks with optimistic updates + rollback (reorder/update/delete).
 - `state/settings.tsx` — theme (light/dark/system), seed color, behavior prefs; persisted to localStorage, applied as CSS vars.
 - `state/toast.tsx` — toast provider.
