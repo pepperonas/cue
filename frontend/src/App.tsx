@@ -80,8 +80,23 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     localStorage.setItem('cue-view', view)
   }, [view])
   const [q, setQ] = useState('')
-  const [projectFilter, setProjectFilter] = useState<number | 'all' | 'none'>('all')
+  const [projectFilter, setProjectFilter] = useState<number | 'all' | 'none'>(() => {
+    const saved = localStorage.getItem('cue-project-filter')
+    if (saved === 'all' || saved === 'none') return saved
+    const n = saved ? Number(saved) : NaN
+    return Number.isFinite(n) ? n : 'all'
+  })
+  useEffect(() => {
+    localStorage.setItem('cue-project-filter', String(projectFilter))
+  }, [projectFilter])
   const [showExtra, setShowExtra] = useState(false)
+
+  // If the persisted filter points at a project that no longer exists, reset.
+  useEffect(() => {
+    if (typeof projectFilter === 'number' && projects && !projects.some((p) => p.id === projectFilter)) {
+      setProjectFilter('all')
+    }
+  }, [projects, projectFilter])
 
   const [composerOpen, setComposerOpen] = useState(false)
   const [editing, setEditing] = useState<Prompt | null>(null)

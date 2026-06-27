@@ -5,6 +5,7 @@ import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
+import { BookmarkButton } from './BookmarkButton'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -81,11 +82,10 @@ export function DetailSheet({
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h2 style={{ margin: 0 }}>{prompt.title || 'Untitled'}</h2>
           <div className="row">
-            <IconButton
-              icon={prompt.bookmarked ? 'bookmark' : 'bookmark_border'}
-              label={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
-              className={prompt.bookmarked ? 'bookmarked' : undefined}
-              onClick={() => onToggleBookmark(prompt)}
+            <BookmarkButton
+              variant="icon-btn"
+              bookmarked={prompt.bookmarked}
+              onToggle={() => onToggleBookmark(prompt)}
             />
             <IconButton icon="close" label="Schließen" onClick={onClose} />
           </div>

@@ -6,6 +6,7 @@ import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import type { Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
+import { BookmarkButton } from './BookmarkButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -109,15 +110,10 @@ export function PromptCard({
               ))}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
             {onToggleBookmark && (
-              <button
-                className={`mini-btn ${prompt.bookmarked ? 'bookmarked' : ''}`}
-                aria-label={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
-                title={prompt.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => onToggleBookmark(prompt)}
-              >
-                <Icon name={prompt.bookmarked ? 'bookmark' : 'bookmark_border'} />
-              </button>
+              <BookmarkButton
+                bookmarked={prompt.bookmarked}
+                onToggle={() => onToggleBookmark(prompt)}
+              />
             )}
             <button
               className="mini-btn"

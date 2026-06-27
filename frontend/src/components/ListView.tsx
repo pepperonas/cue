@@ -4,6 +4,7 @@ import { projectTones } from '../lib/color'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
+import { BookmarkButton } from './BookmarkButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -180,17 +181,7 @@ function ListRow({
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
       )}
       {onToggleBookmark && (
-        <button
-          className={`mini-btn ${p.bookmarked ? 'bookmarked' : ''}`}
-          aria-label={p.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
-          title={p.bookmarked ? 'Bookmark entfernen' : 'Bookmarken'}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleBookmark(p)
-          }}
-        >
-          <Icon name={p.bookmarked ? 'bookmark' : 'bookmark_border'} />
-        </button>
+        <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />
       )}
       <button
         className="mini-btn"

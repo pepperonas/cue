@@ -363,10 +363,13 @@ a {
 .mini-btn .material-symbols-rounded {
   font-size: 20px;
 }
-/* Active bookmark — accent the toggle so pinned prompts read at a glance. */
-.mini-btn.bookmarked,
-.icon-btn.bookmarked {
-  color: var(--md-primary);
+/* Active bookmark — gold fill + soft highlight so pinned prompts pop. */
+.bookmark-btn.bookmarked {
+  color: #f2b400;
+  background: color-mix(in srgb, #f2b400 16%, transparent);
+}
+.bookmark-btn.bookmarked:hover {
+  background: color-mix(in srgb, #f2b400 24%, transparent);
 }
 
 /* ---- Bookmarks section (drag-sortable single column) ---- */
