@@ -36,3 +36,10 @@ frontend/vite.config.d.ts
 *.swp
 .idea/
 .vscode/
+
+# Playwright MCP scratch output
+.playwright-mcp/
+# Stray screenshots from local verification
+/*.png
+/*.jpeg
+/*.jpg
