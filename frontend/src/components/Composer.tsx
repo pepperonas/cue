@@ -243,7 +243,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           />
         </div>
 
-        <div className="row-end sheet-actions">
+        <div className="row-end">
           <Button variant="text" onClick={onClose}>
             Abbrechen
           </Button>

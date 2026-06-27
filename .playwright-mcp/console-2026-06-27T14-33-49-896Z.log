@@ -1,0 +1,1 @@
+[     121ms] [ERROR] Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-GQaVwLu4VsrkyuYpjeGVnLhgpvZGWSp2mXyRlTykBKc='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked. @ https://cue.celox.io/:19

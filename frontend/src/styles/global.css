@@ -468,18 +468,6 @@ a {
   flex-direction: column;
   gap: var(--gap-4);
 }
-/* Action row pinned to the bottom of the scrolling sheet so primary actions
-   (e.g. "Anlegen") never scroll out of view or get covered. */
-.sheet-actions {
-  position: sticky;
-  bottom: calc(-1 * var(--gap-5));
-  z-index: 5;
-  margin: var(--gap-2) calc(-1 * var(--gap-5)) calc(-1 * var(--gap-5));
-  padding: var(--gap-4) var(--gap-5);
-  background: var(--md-surface-container-high);
-  border-top: 1px solid var(--md-outline-variant);
-  border-radius: 0 0 var(--shape-2xl) var(--shape-2xl);
-}
 
 /* ---- Form fields ---- */
 .field {
