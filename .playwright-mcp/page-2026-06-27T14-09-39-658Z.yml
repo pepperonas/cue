@@ -1,0 +1,86 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]: bolt
+        - text: cue
+      - navigation [ref=e8]:
+        - button "view_kanban Board" [ref=e9] [cursor=pointer]:
+          - generic [ref=e11]: view_kanban
+          - generic [ref=e12]: Board
+        - button "list Liste" [active] [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: list
+          - generic [ref=e15]: Liste
+        - button "folder Projekte" [ref=e16] [cursor=pointer]:
+          - generic [ref=e17]: folder
+          - generic [ref=e18]: Projekte
+      - button "Theme wechseln" [ref=e19] [cursor=pointer]:
+        - generic [ref=e20]: dark_mode
+      - button "Shortcuts (?)" [ref=e21] [cursor=pointer]:
+        - generic [ref=e22]: keyboard
+      - button "Einstellungen" [ref=e23] [cursor=pointer]:
+        - generic [ref=e24]: settings
+    - main [ref=e25]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: search
+        - textbox "Prompts durchsuchen… ( / )" [ref=e29]
+      - generic [ref=e32]:
+        - button "Alle" [ref=e33] [cursor=pointer]
+        - button "Ohne Projekt" [ref=e34] [cursor=pointer]
+        - button "cue" [ref=e35] [cursor=pointer]: cue
+        - button "inspector-rust" [ref=e37] [cursor=pointer]: inspector-rust
+      - generic [ref=e135]:
+        - generic "Doppelklick kopiert den Prompt" [ref=e136]:
+          - generic [ref=e137]: check_circle
+          - generic [ref=e138]:
+            - generic [ref=e139]: moom window management
+            - generic [ref=e140]: Done · inspector-rust
+          - button "Kopieren" [ref=e142] [cursor=pointer]:
+            - generic [ref=e143]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e144]:
+          - generic [ref=e145]: check_circle
+          - generic [ref=e146]:
+            - generic [ref=e147]: der shortcut command enter muss im button anders gehigjtligted werden. er ist kaum lesbar.
+            - generic [ref=e148]: Done · cue
+          - button "Kopieren" [ref=e150] [cursor=pointer]:
+            - generic [ref=e151]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e152]:
+          - generic [ref=e153]: check_circle
+          - generic [ref=e154]:
+            - generic [ref=e155]: stats history
+            - generic [ref=e156]: Done · inspector-rust
+          - button "Kopieren" [ref=e158] [cursor=pointer]:
+            - generic [ref=e159]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e160]:
+          - generic [ref=e161]: pending
+          - generic [ref=e162]:
+            - generic [ref=e163]: max brightness
+            - generic [ref=e164]: Queued · inspector-rust
+          - button "Kopieren" [ref=e166] [cursor=pointer]:
+            - generic [ref=e167]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e168]:
+          - generic [ref=e169]: pending
+          - generic [ref=e170]:
+            - generic [ref=e171]: fuzzy matching
+            - generic [ref=e172]: Queued · inspector-rust
+          - button "Kopieren" [ref=e174] [cursor=pointer]:
+            - generic [ref=e175]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e176]:
+          - generic [ref=e177]: pending
+          - generic [ref=e178]:
+            - generic [ref=e179]: volume changes animieren
+            - generic [ref=e180]: Queued · inspector-rust
+          - button "Kopieren" [ref=e182] [cursor=pointer]:
+            - generic [ref=e183]: content_copy
+        - generic "Doppelklick kopiert den Prompt" [ref=e184]:
+          - generic [ref=e185]: play_circle
+          - generic [ref=e186]:
+            - generic [ref=e187]: boom audio
+            - generic [ref=e188]: Running · inspector-rust
+          - button "Kopieren" [ref=e190] [cursor=pointer]:
+            - generic [ref=e191]: content_copy
+    - contentinfo [ref=e131]: © 2026 Martin Pfeffer | celox.io
+    - button "add Neuer Prompt" [ref=e132] [cursor=pointer]:
+      - generic [ref=e133]: add
+      - text: Neuer Prompt
+  - status

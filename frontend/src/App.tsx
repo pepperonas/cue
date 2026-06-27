@@ -248,7 +248,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                   </button>
                 )}
               </div>
-              {view === 'board' && (
+              {(view === 'board' || view === 'list') && (
                 <button
                   className="chip"
                   data-active={showExtra}
