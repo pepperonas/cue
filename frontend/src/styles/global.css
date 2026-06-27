@@ -644,6 +644,73 @@ a {
 }
 
 /* ---- List view ---- */
+/* ---- Status colors (subtle, status-specific icon tint) ---- */
+.st-icon {
+  color: var(--md-on-surface-variant);
+}
+.st-queued {
+  color: #6b8fd4;
+}
+.st-running {
+  color: #d79a3f;
+}
+.st-done {
+  color: #4caf72;
+}
+.st-failed {
+  color: #d96459;
+}
+.st-archived {
+  color: #8b929c;
+}
+
+/* ---- Grouped, collapsible list ---- */
+.list-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+}
+.list-group {
+  display: flex;
+  flex-direction: column;
+}
+.list-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  width: 100%;
+  padding: 8px 10px;
+  font: var(--title-m);
+  color: var(--md-on-surface);
+  border-radius: var(--shape-m);
+  transition: background var(--dur-short);
+}
+.list-group-head:hover {
+  background: var(--md-surface-container);
+}
+.list-group-head .count {
+  margin-left: auto;
+  font: var(--label-m);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  padding: 2px 10px;
+  border-radius: var(--shape-full);
+}
+.list-chevron {
+  color: var(--md-on-surface-variant);
+  transition: transform var(--dur-short);
+}
+.list-chevron.open {
+  transform: rotate(90deg);
+}
+.list-group-empty {
+  padding: var(--gap-2) var(--gap-2) var(--gap-3) 38px;
+  font: var(--label-l);
+}
+.list-group .list {
+  padding-top: var(--gap-2);
+}
+
 .list {
   display: flex;
   flex-direction: column;

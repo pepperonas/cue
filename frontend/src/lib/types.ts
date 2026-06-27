@@ -21,6 +21,15 @@ export const STATUS_ICON: Record<Status, string> = {
   archived: 'inventory_2',
 }
 
+// CSS class that tints the status icon a subtle, status-specific color.
+export const STATUS_CLASS: Record<Status, string> = {
+  queued: 'st-queued',
+  running: 'st-running',
+  done: 'st-done',
+  failed: 'st-failed',
+  archived: 'st-archived',
+}
+
 export interface Project {
   id: number
   name: string

@@ -13,7 +13,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { AnimatePresence } from 'motion/react'
 import type { Project, Prompt, Status } from '../lib/types'
-import { STATUS_ICON, STATUS_LABEL } from '../lib/types'
+import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
 import { PromptCard } from './PromptCard'
 import { Icon } from './ui'
@@ -54,7 +54,7 @@ function Column({
   return (
     <div ref={setNodeRef} className="column" data-over={isOver}>
       <div className="column-head">
-        <Icon name={STATUS_ICON[status]} />
+        <Icon name={STATUS_ICON[status]} className={`st-icon ${STATUS_CLASS[status]}`} />
         {STATUS_LABEL[status]}
         <span className="count">{count}</span>
       </div>

@@ -5,7 +5,7 @@ import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import type { Project, Prompt } from '../lib/types'
-import { STATUS_ICON } from '../lib/types'
+import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { Icon } from './ui'
 
 interface Props {
@@ -105,7 +105,10 @@ export function PromptCard({ prompt, project, dark, selected, index, onOpen, onC
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onOpen(prompt)}
             >
-              <Icon name={STATUS_ICON[prompt.status]} />
+              <Icon
+                name={STATUS_ICON[prompt.status]}
+                className={`st-icon ${STATUS_CLASS[prompt.status]}`}
+              />
             </button>
             <button
               className="mini-btn"

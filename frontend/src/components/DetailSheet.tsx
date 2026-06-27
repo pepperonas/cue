@@ -4,7 +4,7 @@ import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
-import { STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
+import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -89,7 +89,11 @@ export function DetailSheet({
             </span>
           )}
           <span className="badge" style={{ background: 'var(--md-surface-container-highest)' }}>
-            <Icon name={STATUS_ICON[prompt.status]} /> {STATUS_LABEL[prompt.status]}
+            <Icon
+              name={STATUS_ICON[prompt.status]}
+              className={`st-icon ${STATUS_CLASS[prompt.status]}`}
+            />{' '}
+            {STATUS_LABEL[prompt.status]}
           </span>
         </div>
 
@@ -101,7 +105,7 @@ export function DetailSheet({
               data-active={prompt.status === s}
               onClick={() => onStatus(prompt, s)}
             >
-              <Icon name={STATUS_ICON[s]} /> {STATUS_LABEL[s]}
+              <Icon name={STATUS_ICON[s]} className={`st-icon ${STATUS_CLASS[s]}`} /> {STATUS_LABEL[s]}
             </button>
           ))}
         </div>

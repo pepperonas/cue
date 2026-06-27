@@ -314,6 +314,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               <ListView
                 prompts={filtered}
                 projects={pmap}
+                columns={columns}
                 dark={settings.resolvedDark}
                 selectedId={selectedId}
                 onOpen={openDetail}

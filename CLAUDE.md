@@ -62,6 +62,7 @@ separately and Vite proxies `/api` to `:8000`.
 - `state/settings.tsx` — theme (light/dark/system), seed color, behavior prefs; persisted to localStorage, applied as CSS vars.
 - `state/toast.tsx` — toast provider.
 - `components/Board.tsx` — dnd-kit multi-container board (cross-column status change + reorder). Local container state syncs from server data except while dragging; `onDragEnd` builds a minimal reorder payload for the affected columns.
+- `components/ListView.tsx` — list view grouped by status into **collapsible** sections (one per visible status, driven by the same `columns` prop as the board, so the "Failed / Archived" toggle applies here too). Collapse state per status persists in `localStorage` (`cue-list-collapsed`); section bodies animate height with `emphasized` (reduced-motion → instant). Status icons are tinted via `STATUS_CLASS` (`.st-queued/.st-running/.st-done/.st-failed/.st-archived` in `global.css`) — the same subtle tint is applied to the board column heads, cards, and detail sheet.
 - `App.tsx` — auth gate, filters/search, keyboard shortcuts, view switching, mounts Composer/Detail/Confirm/Shortcuts overlays.
 
 ## Conventions & gotchas
