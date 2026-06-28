@@ -208,7 +208,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     <div className="scrim" onClick={onClose}>
       <motion.div
         layoutId="composer-surface"
-        className={`sheet ${dragOver ? 'drag-over' : ''}`}
+        className={`sheet sheet--composer ${dragOver ? 'drag-over' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
         onPaste={onPaste}
@@ -238,6 +238,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           </div>
         </div>
 
+        <div className="composer-scroll">
         <div className="field">
           <label htmlFor="c-title">Titel (optional)</label>
           <input
@@ -381,6 +382,8 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
               )}
             </div>
           )}
+        </div>
+
         </div>
 
         <div className="row-end">
