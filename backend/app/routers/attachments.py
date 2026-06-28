@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import mimetypes
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
@@ -19,6 +20,26 @@ router = APIRouter(prefix="/attachments", tags=["attachments"])
 _settings = get_settings()
 
 _ALLOWED = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"}
+
+# Attachments are auto-deleted this many days after upload.
+ATTACHMENT_TTL_DAYS = 30
+
+
+def purge_expired(session: Session) -> int:
+    """Delete attachments (file + row) older than the TTL. Returns the count."""
+    now = datetime.now(timezone.utc)
+    removed = 0
+    for att in session.exec(select(Attachment)).all():
+        created = att.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        if now - created > timedelta(days=ATTACHMENT_TTL_DAYS):
+            delete_attachment_file(att)
+            session.delete(att)
+            removed += 1
+    if removed:
+        session.commit()
+    return removed
 
 
 def attachment_read(a: Attachment) -> AttachmentRead:

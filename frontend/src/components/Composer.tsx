@@ -13,6 +13,7 @@ import { TagInput } from './TagInput'
 
 const DRAFT_KEY = 'cue-draft'
 const LAST_PROJECT_KEY = 'cue-last-project'
+const ATTACH_NOTICE_KEY = 'cue-hide-attach-notice'
 
 interface Props {
   projects: Project[]
@@ -73,6 +74,9 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const [attachments, setAttachments] = useState<Attachment[]>(editing?.attachments ?? [])
   const [uploading, setUploading] = useState(0)
   const [dragOver, setDragOver] = useState(false)
+  const [showNotice, setShowNotice] = useState(
+    () => localStorage.getItem(ATTACH_NOTICE_KEY) !== '1',
+  )
   const newIds = useRef<Set<number>>(new Set())
   const savedRef = useRef(false)
 
@@ -336,6 +340,21 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
               e.target.value = ''
             }}
           />
+          {showNotice && (
+            <div className="attach-notice">
+              <Icon name="schedule" />
+              <span>Screenshots werden nach 30 Tagen automatisch gelöscht.</span>
+              <button
+                className="link-btn"
+                onClick={() => {
+                  localStorage.setItem(ATTACH_NOTICE_KEY, '1')
+                  setShowNotice(false)
+                }}
+              >
+                Nicht wieder anzeigen
+              </button>
+            </div>
+          )}
           {attachments.length === 0 && uploading === 0 ? (
             <div className="dropzone-hint muted">
               <Icon name="image" /> Screenshots hierher ziehen oder einfügen (Cmd/Ctrl+V)

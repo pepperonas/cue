@@ -5,29 +5,49 @@ everything else. Security headers + a strict CSP are applied to every response.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session
 
 from .config import get_settings
-from .db import init_db
+from .db import engine, init_db
 from .routers import attachments, auth, importexport, projects, prompts
 
 _settings = get_settings()
 
 
+async def _attachment_gc_loop() -> None:
+    """Periodically delete attachments past their TTL (auto-cleanup of screenshots)."""
+    while True:
+        try:
+            with Session(engine) as session:
+                attachments.purge_expired(session)
+        except Exception:
+            pass
+        await asyncio.sleep(24 * 3600)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # noqa: ANN201
     init_db()
-    yield
+    gc_task = asyncio.create_task(_attachment_gc_loop())
+    try:
+        yield
+    finally:
+        gc_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await gc_task
 
 
 app = FastAPI(
     title="cue",
-    version="1.0.0",
+    version="0.1.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,

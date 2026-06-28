@@ -1,6 +1,6 @@
 [project]
 name = "cue-backend"
-version = "1.0.0"
+version = "0.1.0"
 description = "cue — Prompt-Queue für Claude-Code-Sessions (backend)"
 requires-python = ">=3.12"
 dependencies = [

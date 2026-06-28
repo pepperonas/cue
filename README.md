@@ -2,10 +2,39 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLModel](https://img.shields.io/badge/SQLModel-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
+[![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
+
 `cue` (≈ *queue*, „Stichwort zum Handeln") ist eine durchdachte Prompt-/Todo-Queue:
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
 Status-Workflow (Queued → Running → Done) abarbeiten und mit einem Klick in die
 Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
+
+## Screenshots
+
+![cue – Board (Dark)](docs/screenshots/board-dark.png)
+
+| Detail mit Live-Vorschau | Gruppierte Liste | Mobil |
+| --- | --- | --- |
+| ![Detail](docs/screenshots/detail-dark.png) | ![Liste](docs/screenshots/list-dark.png) | ![Mobil](docs/screenshots/mobile-dark.png) |
+
+<details>
+<summary>Light Theme</summary>
+
+![cue – Board (Light)](docs/screenshots/board.png)
+
+</details>
 
 ## Features
 
@@ -117,8 +146,22 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 backend/    FastAPI + SQLModel API, Google-OAuth/Security, Import/Export, Tests
 frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
 deploy/     Caddyfile + nginx.conf
+docs/       Screenshots
 Dockerfile  Multi-Stage (node build → python runtime)
 ```
+
+## Versionierung
+
+Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
+Aktuelle Version: **0.1.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+
+## Lizenz
+
+[MIT](LICENSE) © 2026 Martin Pfeffer ([celox.io](https://celox.io))
+
+## Autor
+
+**Martin Pfeffer** — [celox.io](https://celox.io)
 
 ---
 

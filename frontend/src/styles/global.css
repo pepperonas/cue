@@ -1167,6 +1167,31 @@ kbd {
   font-size: 15px;
   vertical-align: -3px;
 }
+.attach-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--shape-s);
+  padding: 6px 10px;
+}
+.attach-notice .material-symbols-rounded {
+  font-size: 16px;
+}
+.attach-notice .link-btn {
+  margin-left: auto;
+}
+.link-btn {
+  color: var(--md-primary);
+  font: var(--label-m);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
 
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
