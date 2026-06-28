@@ -465,7 +465,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       )}
 
       <AnimatePresence>
-        {selectMode && (
+        {selectMode && !mergeOpen && (
           <motion.div
             key="select-bar"
             className="select-bar"
