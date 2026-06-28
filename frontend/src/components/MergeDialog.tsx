@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
@@ -69,7 +69,11 @@ export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
 
   const [order, setOrder] = useState<number[]>(parts.map((p) => p.id))
   const [format, setFormat] = useState<Format>('headings')
-  const [title, setTitle] = useState('')
+  // Default title = source titles joined "A [&] B"; follows reorder until edited.
+  const [title, setTitle] = useState(() =>
+    parts.map((p) => p.title || 'Untitled').join(' [&] '),
+  )
+  const [titleTouched, setTitleTouched] = useState(false)
   const [projectId, setProjectId] = useState<number | null>(commonProject)
   const [status, setStatus] = useState<Status>('queued')
   const [tags, setTags] = useState(unionTags)
@@ -77,6 +81,11 @@ export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
 
   const orderedParts = order.map((id) => byId.get(id)).filter(Boolean) as Prompt[]
   const body = useMemo(() => buildBody(orderedParts, format), [orderedParts, format])
+
+  const autoTitle = orderedParts.map((p) => p.title || 'Untitled').join(' [&] ')
+  useEffect(() => {
+    if (!titleTouched) setTitle(autoTitle)
+  }, [autoTitle, titleTouched])
 
   function move(idx: number, dir: -1 | 1) {
     const next = [...order]
@@ -201,7 +210,10 @@ export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
             className="input"
             value={title}
             placeholder="Aus erster Zeile abgeleitet, wenn leer"
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              setTitleTouched(true)
+            }}
           />
         </div>
 
