@@ -148,7 +148,7 @@ export function PromptCard({
               />
             </button>
             <button
-              className="mini-btn"
+              className="mini-btn copy-btn"
               aria-label="Kopieren"
               title="Kopieren (c)"
               onPointerDown={(e) => e.stopPropagation()}

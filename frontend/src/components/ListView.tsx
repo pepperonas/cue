@@ -217,7 +217,7 @@ function ListRow({
         <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />
       )}
       <button
-        className="mini-btn"
+        className="mini-btn copy-btn"
         aria-label="Kopieren"
         title="Kopieren"
         onClick={(e) => {

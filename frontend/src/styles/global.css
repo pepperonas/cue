@@ -363,6 +363,14 @@ a {
 .mini-btn .material-symbols-rounded {
   font-size: 20px;
 }
+/* Copy button — filled primary (matches the big "kopieren" button in the detail). */
+.copy-btn {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
+.copy-btn:hover {
+  background: color-mix(in srgb, var(--md-primary) 90%, var(--md-on-primary));
+}
 /* Active bookmark — gold fill + soft highlight so pinned prompts pop. */
 .bookmark-btn.active {
   color: #f2b400;
