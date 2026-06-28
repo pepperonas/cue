@@ -11,6 +11,13 @@ body,
   margin: 0;
 }
 
+/* Never allow horizontal scrolling of the whole page. */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   font: var(--body-l);
   color: var(--md-on-surface);
@@ -238,7 +245,9 @@ a {
 /* ---- Board ---- */
 .board {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0,1fr) lets columns shrink below their content (long unbreakable
+     tokens) instead of forcing the grid wider than the viewport. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--gap-4);
   align-items: start;
 }
@@ -252,6 +261,7 @@ a {
   border-radius: var(--shape-l);
   padding: var(--gap-3);
   min-height: 200px;
+  min-width: 0;
   border: 1px solid transparent;
   transition: border-color var(--dur-short), background var(--dur-short);
 }
@@ -305,6 +315,7 @@ a {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .card-body-preview {
   font: var(--body-m);
@@ -313,6 +324,7 @@ a {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
   font-family: var(--font-mono);
   font-size: 0.78rem;
 }
@@ -592,6 +604,23 @@ a {
   max-height: 88vh;
   overflow: auto;
   box-shadow: var(--elev-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+}
+
+/* Detail sheet: header / status / copy / footer stay put; only the prompt
+   content scrolls (the whole sheet no longer scrolls as one block). */
+.sheet--detail {
+  overflow: hidden;
+}
+.sheet--detail > * {
+  flex: none;
+}
+.sheet--detail > .detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--gap-4);
@@ -1047,6 +1076,53 @@ kbd {
   background: var(--md-surface-container-high);
   padding: 2px 8px;
   border-radius: var(--shape-full);
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 640px) {
+  .app-main {
+    padding: var(--gap-3) var(--gap-3) 140px;
+  }
+  .topbar {
+    gap: var(--gap-2);
+    padding: var(--gap-2) var(--gap-3);
+  }
+  /* Logo-only brand to save width. */
+  .brand-name {
+    display: none;
+  }
+  /* Icon-only tabs so the bar never overflows the viewport. */
+  .tabs {
+    gap: 0;
+  }
+  .tab {
+    padding: 8px 12px;
+  }
+  .tab-label {
+    display: none;
+  }
+  .tab > .tab-label {
+    display: none;
+  }
+  /* Slightly smaller icon buttons in the header. */
+  .topbar .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  /* Action bar can wrap if the labels don't fit one row. */
+  .select-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 14px;
+    gap: var(--gap-2);
+  }
+  .select-count {
+    width: 100%;
+    text-align: center;
+  }
+  .sheet {
+    padding: var(--gap-4);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

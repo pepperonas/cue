@@ -79,7 +79,7 @@ export function DetailSheet({
     <div className="scrim" onClick={onClose}>
       <motion.div
         layoutId={`card-${prompt.id}`}
-        className="sheet"
+        className="sheet sheet--detail"
         onClick={(e) => e.stopPropagation()}
         transition={springs.spatial}
       >
@@ -147,8 +147,9 @@ export function DetailSheet({
           </button>
         </div>
 
-        <div ref={contentRef} style={{ userSelect: 'text', cursor: 'text' }}>
-          {showRaw ? (
+        <div className="detail-scroll">
+          <div ref={contentRef} style={{ userSelect: 'text', cursor: 'text' }}>
+            {showRaw ? (
             <pre
               style={{
                 background: 'var(--md-surface-container-lowest)',
@@ -176,10 +177,11 @@ export function DetailSheet({
           )}
         </div>
 
-        <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
-          <div>Erstellt: {fmt(prompt.created_at)}</div>
-          <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
-          <div>Gestartet: {fmt(prompt.ran_at)}</div>
+          <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
+            <div>Erstellt: {fmt(prompt.created_at)}</div>
+            <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
+            <div>Gestartet: {fmt(prompt.ran_at)}</div>
+          </div>
         </div>
 
         <div className="row-end">

@@ -78,6 +78,8 @@ separately and Vite proxies `/api` to `:8000`.
 
 ## Conventions & gotchas
 
+- **No horizontal scroll / mobile**: the board grid uses `repeat(3, minmax(0, 1fr))` (plain `1fr` columns refuse to shrink below a long unbreakable token and blow out the page width); `.column` has `min-width: 0`; card title/preview use `overflow-wrap: anywhere`; `html, body { overflow-x: hidden }` is a final guard. Under 640px the topbar collapses to icon-only tabs (`.tab-label` hidden, brand logo only) so it never exceeds the viewport, and the `.select-bar` wraps.
+- **Detail-sheet scroll**: `DetailSheet` uses `.sheet.sheet--detail` (`overflow: hidden`); only the `.detail-scroll` wrapper (content + dates) scrolls, while header/status-chips/copy/footer stay fixed (`.sheet--detail > * { flex: none }`, the scroll area is `flex: 1 1 auto; min-height: 0`). The Composer/MergeDialog keep the plain `.sheet` (whole-dialog scroll).
 - **Status transitions**: entering `running`/`done` the first time stamps `ran_at` server-side (in both `PATCH /prompts/{id}` and `/prompts/reorder`). Reorder runs in one transaction.
 - **Title derivation**: empty title → derived from the first non-blank body line (leading `#` stripped), server-side in `_derive_title`.
 - **Delete with undo**: prompt deletion (single from the detail, or bulk from the select-bar) goes through `requestDelete(ids)` in `App.tsx` — the rows are hidden immediately (`pendingDelete` filters them out of `filtered`) and the real `DELETE` only fires after a 6 s undo window; the toast's "Rückgängig" action cancels it. There is no confirm dialog for prompts (the undo is the safety net); `Confirm` is still used for **project** deletion in `ProjectsView`. Toasts support an optional `action` (`toast.show(msg, tone, { action })`).

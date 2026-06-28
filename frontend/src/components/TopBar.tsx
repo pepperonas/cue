@@ -28,7 +28,7 @@ export function TopBar({
         <span className="logo">
           <Icon name="bolt" />
         </span>
-        cue
+        <span className="brand-name">cue</span>
       </div>
       <div className="topbar-spacer" />
       <nav className="tabs">
