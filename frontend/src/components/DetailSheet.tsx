@@ -135,7 +135,7 @@ export function DetailSheet({
           variant="filled"
           icon="content_copy"
           onClick={() => onCopy(prompt)}
-          style={{ height: 56, fontSize: '1rem' }}
+          style={{ height: 56, flexShrink: 0, fontSize: '1rem' }}
         >
           In Zwischenablage kopieren
         </Button>
