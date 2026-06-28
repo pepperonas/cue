@@ -63,6 +63,15 @@ class Settings:
         # Directory for uploaded .txt imports (transient working files).
         self.upload_dir: str = os.environ.get("UPLOAD_DIR", str(Path("data") / "uploads"))
 
+        # Directory for persisted prompt image attachments (screenshots).
+        self.attachments_dir: str = os.environ.get(
+            "ATTACHMENTS_DIR", str(Path("data") / "attachments")
+        )
+        # Per-file upload cap for attachments (bytes). Default 10 MB.
+        self.max_attachment_bytes: int = int(
+            os.environ.get("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024))
+        )
+
         # Directory holding the built frontend (StaticFiles). Optional in dev.
         self.static_dir: str = os.environ.get("STATIC_DIR", str(Path("static")))
 
@@ -102,6 +111,7 @@ class Settings:
     def ensure_dirs(self) -> None:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         Path(self.upload_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.attachments_dir).mkdir(parents=True, exist_ok=True)
 
     def validate(self) -> None:
         """Fail fast on misconfiguration in production-ish setups."""

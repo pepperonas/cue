@@ -125,6 +125,11 @@ export function PromptCard({
                   #{t}
                 </span>
               ))}
+          {prompt.attachments.length > 0 && (
+            <span className="tag" title="Screenshots">
+              <Icon name="image" /> {prompt.attachments.length}
+            </span>
+          )}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
             {onToggleTested && canTest && (
               <TestedButton tested={prompt.tested} onToggle={() => onToggleTested(prompt)} />

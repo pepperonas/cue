@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
 from .db import init_db
-from .routers import auth, importexport, projects, prompts
+from .routers import attachments, auth, importexport, projects, prompts
 
 _settings = get_settings()
 
@@ -74,6 +74,7 @@ api = FastAPI(title="cue-api")
 api.include_router(auth.router)
 api.include_router(projects.router)
 api.include_router(prompts.router)
+api.include_router(attachments.router)
 api.include_router(importexport.router)
 
 

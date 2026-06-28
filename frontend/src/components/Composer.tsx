@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
-import type { Project, Prompt, Status } from '../lib/types'
+import { api } from '../lib/api'
+import type { Attachment, Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
 import { useCreatePrompt, usePrompts, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
@@ -65,10 +66,69 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const [preview, setPreview] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // Screenshot attachments. Existing ones come from the edited prompt; newly
+  // uploaded ones are tracked so they can be cleaned up if the dialog is cancelled.
+  const [attachments, setAttachments] = useState<Attachment[]>(editing?.attachments ?? [])
+  const [uploading, setUploading] = useState(0)
+  const [dragOver, setDragOver] = useState(false)
+  const newIds = useRef<Set<number>>(new Set())
+  const savedRef = useRef(false)
 
   useEffect(() => {
     taRef.current?.focus()
   }, [])
+
+  // Delete still-uncommitted uploads if the composer closes without saving.
+  useEffect(() => {
+    return () => {
+      if (savedRef.current) return
+      newIds.current.forEach((id) => {
+        void api.deleteAttachment(id).catch(() => {})
+      })
+    }
+  }, [])
+
+  async function uploadFiles(files: File[]) {
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    if (!images.length) return
+    setUploading((n) => n + images.length)
+    for (const file of images) {
+      try {
+        const att = await api.uploadAttachment(file)
+        newIds.current.add(att.id)
+        setAttachments((prev) => [...prev, att])
+      } catch {
+        toast.show('Bild-Upload fehlgeschlagen', 'error')
+      } finally {
+        setUploading((n) => n - 1)
+      }
+    }
+  }
+
+  function removeAttachment(att: Attachment) {
+    setAttachments((prev) => prev.filter((a) => a.id !== att.id))
+    newIds.current.delete(att.id)
+    void api.deleteAttachment(att.id).catch(() => {})
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer?.files?.length) void uploadFiles(Array.from(e.dataTransfer.files))
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const files = Array.from(e.clipboardData?.items ?? [])
+      .filter((it) => it.kind === 'file')
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => !!f && f.type.startsWith('image/'))
+    if (files.length) {
+      e.preventDefault()
+      void uploadFiles(files)
+    }
+  }
 
   // In read-only preview, Cmd/Ctrl+A selects only the rendered prompt (not the
   // page behind the sheet). In edit mode the textarea handles select-all itself.
@@ -96,6 +156,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
 
   async function save() {
     if (!body.trim()) return
+    const attachment_ids = attachments.map((a) => a.id)
     try {
       if (isEdit && editing) {
         await update.mutateAsync({
@@ -107,6 +168,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
             tags,
             project_id: projectId,
             unassign_project: projectId === null,
+            attachment_ids,
           },
         })
         toast.show('Gespeichert', 'success')
@@ -117,12 +179,14 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           project_id: projectId,
           status,
           tags,
+          attachment_ids,
         })
         localStorage.removeItem(DRAFT_KEY)
         // Remember the project so the next new prompt preselects it.
         localStorage.setItem(LAST_PROJECT_KEY, projectId == null ? '' : String(projectId))
         toast.show('Prompt angelegt', 'success')
       }
+      savedRef.current = true // keep the now-associated uploads
       onClose()
     } catch {
       toast.show('Speichern fehlgeschlagen', 'error')
@@ -140,9 +204,20 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     <div className="scrim" onClick={onClose}>
       <motion.div
         layoutId="composer-surface"
-        className="sheet"
+        className={`sheet ${dragOver ? 'drag-over' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
+        onDragOver={(e) => {
+          if (e.dataTransfer?.types?.includes('Files')) {
+            e.preventDefault()
+            setDragOver(true)
+          }
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget === e.target) setDragOver(false)
+        }}
+        onDrop={onDrop}
         transition={springs.spatial}
       >
         <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -241,6 +316,52 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
             suggestions={tagSuggestions}
             onChange={setTags}
           />
+        </div>
+
+        <div className="field">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <label style={{ margin: 0 }}>Screenshots</label>
+            <button className="chip" onClick={() => fileRef.current?.click()}>
+              <Icon name="add_photo_alternate" /> Bild hinzufügen
+            </button>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files) void uploadFiles(Array.from(e.target.files))
+              e.target.value = ''
+            }}
+          />
+          {attachments.length === 0 && uploading === 0 ? (
+            <div className="dropzone-hint muted">
+              <Icon name="image" /> Screenshots hierher ziehen oder einfügen (Cmd/Ctrl+V)
+            </div>
+          ) : (
+            <div className="attach-grid">
+              {attachments.map((a) => (
+                <div className="attach-thumb" key={a.id}>
+                  <img src={a.url} alt={a.name} loading="lazy" />
+                  <button
+                    className="attach-remove"
+                    aria-label="Entfernen"
+                    title="Entfernen"
+                    onClick={() => removeAttachment(a)}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </div>
+              ))}
+              {uploading > 0 && (
+                <div className="attach-thumb attach-loading">
+                  <Icon name="progress_activity" className="spin" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="row-end">

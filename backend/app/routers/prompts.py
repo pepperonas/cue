@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
-from ..models import Project, Prompt, PromptStatus, utcnow
+from ..models import Attachment, Project, Prompt, PromptStatus, utcnow
 from ..schemas import (
     BookmarkReorderRequest,
     MergeRequest,
@@ -16,8 +16,38 @@ from ..schemas import (
     PromptUpdate,
     ReorderRequest,
 )
+from .attachments import attachment_read, delete_attachment_file
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
+
+
+def _reads(session: Session, prompts: list[Prompt]) -> list[PromptRead]:
+    """Serialize prompts into PromptRead, batch-loading their attachments."""
+    ids = [p.id for p in prompts if p.id is not None]
+    by_prompt: dict[int, list] = {}
+    if ids:
+        for a in session.exec(select(Attachment).where(Attachment.prompt_id.in_(ids))).all():
+            by_prompt.setdefault(a.prompt_id, []).append(attachment_read(a))
+    return [PromptRead(**p.model_dump(), attachments=by_prompt.get(p.id, [])) for p in prompts]
+
+
+def _read(session: Session, prompt: Prompt) -> PromptRead:
+    return _reads(session, [prompt])[0]
+
+
+def _attach(session: Session, attachment_ids: list[int] | None, prompt_id: int, uid: int) -> None:
+    """Associate the caller's pending/own attachments with a prompt."""
+    for aid in attachment_ids or []:
+        att = session.get(Attachment, aid)
+        if att and att.user_id == uid and att.prompt_id in (None, prompt_id):
+            att.prompt_id = prompt_id
+            session.add(att)
+
+
+def _purge_attachments(session: Session, prompt_id: int) -> None:
+    for att in session.exec(select(Attachment).where(Attachment.prompt_id == prompt_id)).all():
+        delete_attachment_file(att)
+        session.delete(att)
 
 # Statuses that imply the prompt has been acted on -> stamp ran_at once.
 _RAN_STATUSES = {PromptStatus.running, PromptStatus.done}
@@ -81,7 +111,7 @@ def list_prompts(
         like = f"%{q.strip()}%"
         statement = statement.where(or_(Prompt.title.ilike(like), Prompt.body.ilike(like)))
     statement = statement.order_by(Prompt.status, Prompt.sort_order, Prompt.id)
-    return session.exec(statement).all()
+    return _reads(session, session.exec(statement).all())
 
 
 @router.post("", response_model=PromptRead, status_code=status.HTTP_201_CREATED)
@@ -109,7 +139,9 @@ def create_prompt(
     session.add(prompt)
     session.commit()
     session.refresh(prompt)
-    return prompt
+    _attach(session, payload.attachment_ids, prompt.id, uid)
+    session.commit()
+    return _read(session, prompt)
 
 
 @router.get("/{prompt_id}", response_model=PromptRead)
@@ -117,8 +149,8 @@ def get_prompt(
     prompt_id: int,
     session: Session = Depends(get_session),
     uid: int = Depends(current_user_id),
-) -> Prompt:
-    return _owned(session, prompt_id, uid)
+) -> PromptRead:
+    return _read(session, _owned(session, prompt_id, uid))
 
 
 @router.patch("/{prompt_id}", response_model=PromptRead)
@@ -165,9 +197,10 @@ def update_prompt(
 
     prompt.updated_at = utcnow()
     session.add(prompt)
+    _attach(session, payload.attachment_ids, prompt.id, uid)
     session.commit()
     session.refresh(prompt)
-    return prompt
+    return _read(session, prompt)
 
 
 @router.delete("/{prompt_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -178,6 +211,7 @@ def delete_prompt(
     _csrf: None = Depends(require_csrf),
 ) -> None:
     prompt = _owned(session, prompt_id, uid)
+    _purge_attachments(session, prompt_id)
     session.delete(prompt)
     session.commit()
 
@@ -219,9 +253,16 @@ def merge_prompts(
     if payload.status in _RAN_STATUSES:
         merged.ran_at = utcnow()
     session.add(merged)
+    session.flush()  # assign merged.id for attachment reassignment
 
     if payload.originals == "delete":
         for prompt in sources:
+            # Carry each source's screenshots over to the merged prompt.
+            for att in session.exec(
+                select(Attachment).where(Attachment.prompt_id == prompt.id)
+            ).all():
+                att.prompt_id = merged.id
+                session.add(att)
             session.delete(prompt)
     elif payload.originals == "archive":
         next_arch = _next_sort_order(session, PromptStatus.archived, uid)
@@ -236,7 +277,7 @@ def merge_prompts(
 
     session.commit()
     session.refresh(merged)
-    return merged
+    return _read(session, merged)
 
 
 @router.post("/reorder", response_model=list[PromptRead])
@@ -268,7 +309,7 @@ def reorder_prompts(
     session.commit()
     for prompt in touched:
         session.refresh(prompt)
-    return touched
+    return _reads(session, touched)
 
 
 @router.post("/bookmarks/reorder", response_model=list[PromptRead])
@@ -290,4 +331,4 @@ def reorder_bookmarks(
     session.commit()
     for prompt in touched:
         session.refresh(prompt)
-    return touched
+    return _reads(session, touched)

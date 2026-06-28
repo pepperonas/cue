@@ -1,6 +1,6 @@
 // Typed fetch client. Sends the CSRF double-submit header on mutations by
 // reading the readable `cue_csrf` cookie.
-import type { Me, Project, Prompt, Status } from './types'
+import type { Attachment, Me, Project, Prompt, Status } from './types'
 
 function csrfToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)cue_csrf=([^;]+)/)
@@ -67,6 +67,7 @@ export const api = {
     project_id?: number | null
     status?: Status
     tags?: string
+    attachment_ids?: number[]
   }) => request<Prompt>('POST', '/prompts', input),
   updatePrompt: (
     id: number,
@@ -78,6 +79,7 @@ export const api = {
       tags: string
       bookmarked: boolean
       tested: boolean
+      attachment_ids: number[]
       unassign_project: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
@@ -86,6 +88,28 @@ export const api = {
     request<Prompt[]>('POST', '/prompts/reorder', { items }),
   reorderBookmarks: (items: { id: number; bookmark_order: number }[]) =>
     request<Prompt[]>('POST', '/prompts/bookmarks/reorder', { items }),
+  uploadAttachment: async (file: File): Promise<Attachment> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/attachments', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body: fd,
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      let detail = 'Upload fehlgeschlagen'
+      try {
+        detail = JSON.parse(text).detail || detail
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(res.status, detail)
+    }
+    return res.json()
+  },
+  deleteAttachment: (id: number) => request<void>('DELETE', `/attachments/${id}`),
   mergePrompts: (input: {
     source_ids: number[]
     title?: string

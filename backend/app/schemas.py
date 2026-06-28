@@ -41,6 +41,15 @@ class ProjectRead(BaseModel):
     prompt_count: int = 0
 
 
+# ---- Attachments ----
+class AttachmentRead(BaseModel):
+    id: int
+    url: str
+    name: str
+    content_type: str
+    size: int
+
+
 # ---- Prompts ----
 class PromptCreate(BaseModel):
     title: str = ""
@@ -48,6 +57,7 @@ class PromptCreate(BaseModel):
     project_id: int | None = None
     status: PromptStatus = PromptStatus.queued
     tags: str = ""
+    attachment_ids: list[int] = []
 
 
 class PromptUpdate(BaseModel):
@@ -58,6 +68,8 @@ class PromptUpdate(BaseModel):
     tags: str | None = None
     bookmarked: bool | None = None
     tested: bool | None = None
+    # Additional attachments to associate with this prompt.
+    attachment_ids: list[int] | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
     unassign_project: bool = False
 
@@ -76,6 +88,7 @@ class PromptRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     ran_at: datetime | None
+    attachments: list[AttachmentRead] = []
 
 
 class ReorderItem(BaseModel):

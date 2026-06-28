@@ -38,6 +38,14 @@ export interface Project {
   prompt_count: number
 }
 
+export interface Attachment {
+  id: number
+  url: string
+  name: string
+  content_type: string
+  size: number
+}
+
 export interface Prompt {
   id: number
   title: string
@@ -52,6 +60,7 @@ export interface Prompt {
   created_at: string
   updated_at: string
   ran_at: string | null
+  attachments: Attachment[]
 }
 
 export interface User {

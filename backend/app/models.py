@@ -69,3 +69,17 @@ class Prompt(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow)
     # Set when the prompt first enters running/done.
     ran_at: datetime | None = Field(default=None)
+
+
+class Attachment(SQLModel, table=True):
+    __tablename__ = "attachment"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # Null while pending (uploaded in the composer before the prompt is saved).
+    prompt_id: int | None = Field(default=None, foreign_key="prompt.id", index=True)
+    filename: str = Field(default="")  # stored name on disk
+    original_name: str = Field(default="")
+    content_type: str = Field(default="application/octet-stream")
+    size: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)

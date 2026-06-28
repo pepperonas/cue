@@ -15,6 +15,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **„Getestet"-Status**: für Running-/Done-Prompts markieren, ob das Feature schon getestet wurde (grün gefülltes, animiertes Icon).
 - **Zusammenführen**: Auswahl-Modus → mehrere Prompts wählen → Merge-Dialog mit Reihenfolge (↑/↓), Format, Live-Vorschau und Wahl, was mit den Originalen passiert (löschen/archivieren/behalten).
 - **Löschen mit Undo**: einzeln (aus dem Detail) oder mehrere (Auswahl-Modus) — Toast „Rückgängig" macht das Löschen innerhalb von 6 s ungeschehen.
+- **Screenshots**: Bilder per Drag & Drop, Einfügen (Cmd/Ctrl+V) oder Button an Prompts anhängen; Thumbnails + Lightbox im Detail.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
 - **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips; neuer Prompt übernimmt das zuletzt genutzte Projekt.

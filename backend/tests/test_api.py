@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 def client(tmp_path):
     os.environ["DB_PATH"] = str(tmp_path / "cue.db")
     os.environ["UPLOAD_DIR"] = str(tmp_path / "uploads")
+    os.environ["ATTACHMENTS_DIR"] = str(tmp_path / "attachments")
     # Clear cached settings/engine so the tmp DB is used.
     import importlib
 
@@ -184,6 +185,51 @@ def test_merge_flow(client):
         headers=headers,
     )
     assert bad.status_code == 400
+
+
+_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def test_attachment_flow(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    up = client.post(
+        "/api/attachments",
+        files={"file": ("shot.png", io.BytesIO(_PNG), "image/png")},
+        headers=headers,
+    )
+    assert up.status_code == 201, up.text
+    aid = up.json()["id"]
+
+    # Non-image is rejected.
+    bad = client.post(
+        "/api/attachments",
+        files={"file": ("x.txt", io.BytesIO(b"hello"), "text/plain")},
+        headers=headers,
+    )
+    assert bad.status_code == 400
+
+    # Attach to a new prompt.
+    cp = client.post(
+        "/api/prompts", json={"body": "with screenshot", "attachment_ids": [aid]}, headers=headers
+    )
+    assert cp.status_code == 201, cp.text
+    pid = cp.json()["id"]
+    assert len(cp.json()["attachments"]) == 1
+    assert cp.json()["attachments"][0]["url"] == f"/api/attachments/{aid}"
+
+    # The file is served back intact.
+    served = client.get(f"/api/attachments/{aid}")
+    assert served.status_code == 200 and served.content == _PNG
+
+    # Deleting the prompt purges its attachments.
+    assert client.delete(f"/api/prompts/{pid}", headers=headers).status_code == 204
+    assert client.get(f"/api/attachments/{aid}").status_code == 404
 
 
 def test_tenant_isolation(client):

@@ -44,6 +44,7 @@ export function DetailSheet({
   onToggleTested,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
+  const [lightbox, setLightbox] = useState<string | null>(null)
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
@@ -177,6 +178,24 @@ export function DetailSheet({
           )}
         </div>
 
+          {prompt.attachments.length > 0 && (
+            <div>
+              <span className="muted">Screenshots</span>
+              <div className="attach-grid" style={{ marginTop: 'var(--gap-2)' }}>
+                {prompt.attachments.map((a) => (
+                  <button
+                    className="attach-thumb attach-view"
+                    key={a.id}
+                    onClick={() => setLightbox(a.url)}
+                    title={a.name}
+                  >
+                    <img src={a.url} alt={a.name} loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
             <div>Erstellt: {fmt(prompt.created_at)}</div>
             <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
@@ -193,6 +212,18 @@ export function DetailSheet({
           </Button>
         </div>
       </motion.div>
+
+      {lightbox && (
+        <div
+          className="lightbox"
+          onClick={(e) => {
+            e.stopPropagation()
+            setLightbox(null)
+          }}
+        >
+          <img src={lightbox} alt="" />
+        </div>
+      )}
     </div>
   )
 }
