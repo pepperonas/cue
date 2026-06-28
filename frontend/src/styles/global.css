@@ -929,6 +929,8 @@ a {
   border-radius: var(--shape-s);
   box-shadow: var(--elev-3);
   font: var(--body-m);
+  /* Region is click-through; the toast itself must catch the undo click. */
+  pointer-events: auto;
 }
 .toast .material-symbols-rounded {
   font-size: 20px;
