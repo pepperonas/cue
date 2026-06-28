@@ -25,7 +25,6 @@ import { Board } from './components/Board'
 import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
-import { Confirm } from './components/Confirm'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Login } from './components/Login'
@@ -104,7 +103,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [editing, setEditing] = useState<Prompt | null>(null)
   const [detail, setDetail] = useState<Prompt | null>(null)
-  const [confirmDel, setConfirmDel] = useState<Prompt | null>(null)
+  // Prompts pending deletion (hidden immediately; really deleted after the undo window).
+  const [pendingDelete, setPendingDelete] = useState<number[]>([])
   const [shortcuts, setShortcuts] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   // Multi-select / merge mode.
@@ -130,12 +130,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     const list = prompts ?? []
     const query = q.trim().toLowerCase()
     return list.filter((p) => {
+      if (pendingDelete.includes(p.id)) return false
       if (projectFilter === 'none' && p.project_id != null) return false
       if (typeof projectFilter === 'number' && p.project_id !== projectFilter) return false
       if (query && !`${p.title} ${p.body} ${p.tags}`.toLowerCase().includes(query)) return false
       return true
     })
-  }, [prompts, q, projectFilter])
+  }, [prompts, q, projectFilter, pendingDelete])
 
   const columns = useMemo<Status[]>(
     () => (showExtra ? [...BOARD_COLUMNS, ...EXTRA_COLUMNS] : BOARD_COLUMNS),
@@ -195,7 +196,36 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [toast, update],
   )
 
-  const anyModalOpen = composerOpen || !!detail || !!confirmDel || shortcuts || mergeOpen
+  // Delete with an undo window: hide immediately, commit to the server only
+  // after the toast times out (or never, if undone).
+  const requestDelete = useCallback(
+    (ids: number[]) => {
+      if (!ids.length) return
+      setPendingDelete((prev) => Array.from(new Set([...prev, ...ids])))
+      setDetail(null)
+      vibrate(8)
+      let undone = false
+      const commit = () => setPendingDelete((prev) => prev.filter((x) => !ids.includes(x)))
+      const timer = window.setTimeout(() => {
+        if (undone) return
+        ids.forEach((id) => del.mutate(id))
+        commit()
+      }, 6000)
+      toast.show(ids.length === 1 ? 'Prompt gelöscht' : `${ids.length} Prompts gelöscht`, 'success', {
+        action: {
+          label: 'Rückgängig',
+          onClick: () => {
+            undone = true
+            window.clearTimeout(timer)
+            commit()
+          },
+        },
+      })
+    },
+    [del, toast],
+  )
+
+  const anyModalOpen = composerOpen || !!detail || shortcuts || mergeOpen
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -210,7 +240,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
       if (e.key === 'Escape') {
         if (shortcuts) setShortcuts(false)
-        else if (confirmDel) setConfirmDel(null)
         else if (mergeOpen) setMergeOpen(false)
         else if (composerOpen) {
           setComposerOpen(false)
@@ -279,7 +308,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   }, [
     anyModalOpen,
     composerOpen,
-    confirmDel,
     detail,
     detailLive,
     handleCopy,
@@ -479,6 +507,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               Abbrechen
             </button>
             <button
+              className="btn btn--danger"
+              disabled={selectedIds.length < 1}
+              onClick={() => {
+                const ids = selectedIds
+                exitSelect()
+                requestDelete(ids)
+              }}
+            >
+              <Icon name="delete" /> Löschen
+            </button>
+            <button
               className="btn btn--filled"
               disabled={selectedIds.length < 2}
               onClick={() => setMergeOpen(true)}
@@ -515,24 +554,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               setDetail(null)
               setComposerOpen(true)
             }}
-            onDelete={(p) => setConfirmDel(p)}
+            onDelete={(p) => requestDelete([p.id])}
             onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
-          />
-        )}
-        {confirmDel && (
-          <Confirm
-            key="confirm"
-            title="Prompt löschen?"
-            message={`„${confirmDel.title || 'Untitled'}" wird dauerhaft entfernt.`}
-            onCancel={() => setConfirmDel(null)}
-            onConfirm={() => {
-              del.mutate(confirmDel.id)
-              setDetail(null)
-              setConfirmDel(null)
-              toast.show('Prompt gelöscht', 'success')
-            }}
           />
         )}
         {mergeOpen && (

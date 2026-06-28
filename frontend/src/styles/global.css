@@ -910,6 +910,21 @@ a {
 .toast--error .material-symbols-rounded {
   color: var(--md-error);
 }
+.toast-msg {
+  flex: 1;
+}
+.toast-action {
+  margin-left: var(--gap-2);
+  padding: 6px 12px;
+  border-radius: var(--shape-full);
+  font: var(--label-l);
+  font-weight: 600;
+  color: var(--md-inverse-primary, #b3c5ff);
+  white-space: nowrap;
+}
+.toast-action:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
 
 /* ---- Login ---- */
 .login-wrap {
