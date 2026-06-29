@@ -6,6 +6,8 @@ guarded solely by the shared RUNNER_TOKEN (`require_runner`).
 """
 from __future__ import annotations
 
+from datetime import timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, text
 from sqlmodel import Session, select
@@ -68,6 +70,38 @@ def _owned_run(session: Session, run_id: str, uid: int) -> Run:
     if not run or run.user_id != uid:
         raise HTTPException(status_code=404, detail="Run not found")
     return run
+
+
+def reap_stale(session: Session, timeout_seconds: int) -> int:
+    """Fail runs stuck in claiming/running without a recent heartbeat (the runner
+    died/restarted). Runs at startup and periodically. Returns the count reaped."""
+    now = utcnow()
+    cutoff = now - timedelta(seconds=timeout_seconds)
+    stale = session.exec(
+        select(Run).where(Run.status.in_((RunStatus.claiming, RunStatus.running)))
+    ).all()
+    reaped = 0
+    for run in stale:
+        ref = run.last_heartbeat or run.started_at or run.created_at
+        if ref is None:
+            continue
+        if ref.tzinfo is None:
+            ref = ref.replace(tzinfo=timezone.utc)
+        if ref >= cutoff:
+            continue  # still fresh
+        run.status = RunStatus.failed
+        run.error = "runner timeout"
+        run.finished_at = now
+        session.add(run)
+        for step in session.exec(select(RunStep).where(RunStep.run_id == run.id)).all():
+            if step.status not in RUN_TERMINAL:
+                step.status = RunStatus.failed
+                step.finished_at = now
+                session.add(step)
+        reaped += 1
+    if reaped:
+        session.commit()
+    return reaped
 
 
 # ---- User-facing ----

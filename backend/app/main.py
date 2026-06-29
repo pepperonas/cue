@@ -33,16 +33,33 @@ async def _attachment_gc_loop() -> None:
         await asyncio.sleep(24 * 3600)
 
 
+async def _run_reaper_loop() -> None:
+    """Fail runs whose runner stopped heart-beating (also cleans up runs left
+    in-flight across a backend restart). Runs immediately, then every 60 s."""
+    while True:
+        try:
+            with Session(engine) as session:
+                runs.reap_stale(session, _settings.run_stale_timeout)
+        except Exception:
+            pass
+        await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):  # noqa: ANN201
     init_db()
-    gc_task = asyncio.create_task(_attachment_gc_loop())
+    tasks = [
+        asyncio.create_task(_attachment_gc_loop()),
+        asyncio.create_task(_run_reaper_loop()),
+    ]
     try:
         yield
     finally:
-        gc_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await gc_task
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(

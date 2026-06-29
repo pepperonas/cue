@@ -409,3 +409,42 @@ def test_run_cancel_queued(client):
     assert c.status_code == 200 and c.json()["status"] == "canceled"
     # A canceled (queued) run is not claimable.
     assert client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).status_code == 204
+
+
+def test_run_reaper(client):
+    from datetime import timedelta
+
+    import app.db as db_module
+    from sqlmodel import Session, select
+
+    from app.models import Run, RunKind, RunStatus, RunStep, utcnow
+    from app.routers import runs as runs_router
+
+    uid = _make_user()
+    old = utcnow() - timedelta(seconds=10000)
+    with Session(db_module.engine) as s:
+        stale = Run(user_id=uid, kind=RunKind.single, project_path="/Users/martin/claude",
+                    status=RunStatus.running, last_heartbeat=old)
+        fresh = Run(user_id=uid, kind=RunKind.single, project_path="/Users/martin/claude",
+                    status=RunStatus.running, last_heartbeat=utcnow())
+        queued = Run(user_id=uid, kind=RunKind.single, project_path="/Users/martin/claude",
+                     status=RunStatus.queued)
+        for r in (stale, fresh, queued):
+            s.add(r)
+        s.commit()
+        for r in (stale, fresh, queued):
+            s.refresh(r)
+        s.add(RunStep(run_id=stale.id, step_index=0, prompt_text="x", status=RunStatus.running))
+        s.commit()
+        stale_id, fresh_id, queued_id = stale.id, fresh.id, queued.id
+
+    with Session(db_module.engine) as s:
+        assert runs_router.reap_stale(s, 300) == 1
+
+    with Session(db_module.engine) as s:
+        stale = s.get(Run, stale_id)
+        assert stale.status == RunStatus.failed and stale.error == "runner timeout"
+        assert s.get(Run, fresh_id).status == RunStatus.running  # recent heartbeat -> kept
+        assert s.get(Run, queued_id).status == RunStatus.queued  # not in-flight -> untouched
+        step = s.exec(select(RunStep).where(RunStep.run_id == stale_id)).first()
+        assert step.status == RunStatus.failed
