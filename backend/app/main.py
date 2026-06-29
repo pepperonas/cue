@@ -17,7 +17,7 @@ from sqlmodel import Session
 
 from .config import get_settings
 from .db import engine, init_db
-from .routers import attachments, auth, importexport, projects, prompts
+from .routers import attachments, auth, importexport, projects, prompts, runs
 
 _settings = get_settings()
 
@@ -95,6 +95,7 @@ api.include_router(auth.router)
 api.include_router(projects.router)
 api.include_router(prompts.router)
 api.include_router(attachments.router)
+api.include_router(runs.router)
 api.include_router(importexport.router)
 
 

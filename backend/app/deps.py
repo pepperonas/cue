@@ -1,9 +1,14 @@
 """Shared FastAPI dependencies: auth guard and CSRF guard."""
 from __future__ import annotations
 
+import hmac
+
 from fastapi import Depends, Header, HTTPException, Request, status
+from sqlmodel import Session
 
 from .config import get_settings
+from .db import get_session
+from .models import User
 from .security import csrf_matches, read_session
 
 _settings = get_settings()
@@ -40,6 +45,34 @@ def current_user_id(session: dict = Depends(current_session)) -> int:
     if not isinstance(uid, int):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return uid
+
+
+def require_owner(
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+) -> int:
+    """Restrict to the configured OWNER_EMAIL (the run feature executes code on
+    the runner's machine, so it must not be open to other allowlisted users)."""
+    owner = _settings.owner_email
+    if owner:
+        user = session.get(User, uid)
+        if not user or (user.email or "").strip().lower() != owner:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner only")
+    elif not _settings.dev_mode:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Run feature not configured")
+    return uid
+
+
+def require_runner(
+    authorization: str | None = Header(default=None),
+) -> None:
+    """Guard runner-only endpoints with the shared RUNNER_TOKEN (Bearer)."""
+    token = _settings.runner_token
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Runner not configured")
+    expected = f"Bearer {token}"
+    if not authorization or not hmac.compare_digest(authorization, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid runner token")
 
 
 def require_csrf(

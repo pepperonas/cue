@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from .models import PromptStatus
+from .models import PromptStatus, RunKind, RunStatus
 
 
 # ---- Auth ----
@@ -120,3 +120,108 @@ class MergeRequest(BaseModel):
     tags: str = ""
     # What to do with the source prompts after the merge.
     originals: Literal["delete", "archive", "keep"] = "delete"
+
+
+# ---- Run engine ----
+class RunCreate(BaseModel):
+    kind: RunKind = RunKind.single
+    # Ordered prompt ids (single = exactly one, chain = two or more).
+    prompt_ids: list[int]
+    project_path: str
+    model: str | None = None
+    allowed_tools: str | None = None
+    permission_mode: str | None = None
+    bare: bool = False
+    skip_permissions: bool = False
+    max_turns: int | None = None
+    stop_on_error: bool = True
+
+
+class RunStepRead(BaseModel):
+    id: int
+    step_index: int
+    prompt_id: int | None
+    prompt_text: str
+    status: RunStatus
+    claude_session_id: str | None
+    output: str | None
+    exit_code: int | None
+    cost_usd: float | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class RunLogRead(BaseModel):
+    seq: int
+    step_index: int
+    ts: datetime
+    event_type: str
+    line: str
+
+
+class RunRead(BaseModel):
+    id: str
+    kind: RunKind
+    project_path: str
+    status: RunStatus
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    claude_session_id: str | None
+    model: str | None
+    allowed_tools: str | None
+    permission_mode: str | None
+    bare: bool
+    skip_permissions: bool
+    max_turns: int | None
+    stop_on_error: bool
+    runner_id: str | None
+    last_heartbeat: datetime | None
+    cancel_requested: bool
+    total_cost_usd: float | None
+    error: str | None
+
+
+class RunDetailRead(RunRead):
+    steps: list[RunStepRead] = []
+    logs: list[RunLogRead] = []
+
+
+class RunConfigRead(BaseModel):
+    allowed_bases: list[str]
+    permission_modes: list[str]
+    models: list[str]
+
+
+# ---- Runner-facing payloads ----
+class ClaimRequest(BaseModel):
+    runner_id: str | None = None
+
+
+class HeartbeatResponse(BaseModel):
+    status: RunStatus
+    cancel_requested: bool
+
+
+class RunLogLine(BaseModel):
+    event_type: str = ""
+    line: str = ""
+
+
+class RunLogAppend(BaseModel):
+    step_index: int = 0
+    lines: list[RunLogLine] = []
+
+
+class StepResultRequest(BaseModel):
+    status: RunStatus
+    claude_session_id: str | None = None
+    output: str | None = None
+    exit_code: int | None = None
+    cost_usd: float | None = None
+
+
+class RunResultRequest(BaseModel):
+    status: RunStatus
+    total_cost_usd: float | None = None
+    error: str | None = None

@@ -1,7 +1,8 @@
-"""SQLModel table definitions: Project and Prompt."""
+"""SQLModel table definitions: Project, Prompt, attachments, and the run engine."""
 from __future__ import annotations
 
 import enum
+import uuid
 from datetime import datetime, timezone
 
 from sqlmodel import Field, SQLModel
@@ -9,6 +10,10 @@ from sqlmodel import Field, SQLModel
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def new_uuid() -> str:
+    return uuid.uuid4().hex
 
 
 class PromptStatus(str, enum.Enum):
@@ -83,3 +88,83 @@ class Attachment(SQLModel, table=True):
     content_type: str = Field(default="application/octet-stream")
     size: int = Field(default=0)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+# ---- Run engine ----
+class RunKind(str, enum.Enum):
+    single = "single"
+    chain = "chain"
+
+
+class RunStatus(str, enum.Enum):
+    queued = "queued"
+    claiming = "claiming"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+    canceled = "canceled"
+
+
+# Statuses a run/step can no longer leave.
+RUN_TERMINAL = {RunStatus.succeeded, RunStatus.failed, RunStatus.canceled}
+
+
+class Run(SQLModel, table=True):
+    __tablename__ = "run"
+
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    kind: RunKind = Field(default=RunKind.single)
+    project_path: str = Field(default="")
+    status: RunStatus = Field(default=RunStatus.queued, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    started_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(default=None)
+
+    # Claude session shared across all steps of a chain.
+    claude_session_id: str | None = Field(default=None)
+    # CLI options.
+    model: str | None = Field(default=None)
+    allowed_tools: str | None = Field(default=None)
+    permission_mode: str | None = Field(default=None)
+    bare: bool = Field(default=False)
+    skip_permissions: bool = Field(default=False)
+    max_turns: int | None = Field(default=None)
+    stop_on_error: bool = Field(default=True)
+
+    runner_id: str | None = Field(default=None)
+    last_heartbeat: datetime | None = Field(default=None)
+    cancel_requested: bool = Field(default=False)
+    total_cost_usd: float | None = Field(default=None)
+    error: str | None = Field(default=None)
+
+
+class RunStep(SQLModel, table=True):
+    __tablename__ = "run_step"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(foreign_key="run.id", index=True)
+    step_index: int = Field(default=0)
+    # Reference to the source prompt (may be deleted later) + a snapshot of its
+    # text so the run stays reproducible.
+    prompt_id: int | None = Field(default=None, foreign_key="prompt.id")
+    prompt_text: str = Field(default="")
+    status: RunStatus = Field(default=RunStatus.queued)
+    claude_session_id: str | None = Field(default=None)
+    output: str | None = Field(default=None)
+    exit_code: int | None = Field(default=None)
+    cost_usd: float | None = Field(default=None)
+    started_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(default=None)
+
+
+class RunLog(SQLModel, table=True):
+    __tablename__ = "run_log"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(foreign_key="run.id", index=True)
+    step_index: int = Field(default=0)
+    seq: int = Field(default=0, index=True)
+    ts: datetime = Field(default_factory=utcnow)
+    event_type: str = Field(default="")
+    line: str = Field(default="")

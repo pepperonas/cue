@@ -8,6 +8,12 @@ os.environ["SECRET_KEY"] = "test-secret-key-please-change"
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["CUE_DEV"] = "1"
 os.environ["DB_PATH"] = "data/test-cue.db"
+# Run engine config (owner-only run feature + runner token + path whitelist).
+os.environ["OWNER_EMAIL"] = "owner@example.com"
+os.environ["RUNNER_TOKEN"] = "test-runner-token"
+os.environ["ALLOWED_PROJECT_BASES"] = "/Users/martin/claude"
+
+_RUNNER_HDR = {"Authorization": "Bearer test-runner-token"}
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -269,3 +275,137 @@ def test_import_and_export(client):
     zexp = client.get("/api/export/txt")
     assert zexp.status_code == 200
     assert zexp.headers["content-type"] == "application/zip"
+
+
+def _mk_prompt(client, headers, body="do the thing") -> int:
+    r = client.post("/api/prompts", json={"body": body}, headers=headers)
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def test_run_full_flow(client):
+    csrf = _auth(client)  # owner@example.com
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+
+    cr = client.post(
+        "/api/runs",
+        json={"kind": "single", "prompt_ids": [pid], "project_path": "/Users/martin/claude/cue"},
+        headers=headers,
+    )
+    assert cr.status_code == 201, cr.text
+    run_id = cr.json()["id"]
+    assert cr.json()["status"] == "queued"
+
+    assert len(client.get("/api/runs").json()) == 1
+
+    # Runner claims it (atomic) -> claiming + one step.
+    claim = client.post("/api/runs/claim", json={"runner_id": "r1"}, headers=_RUNNER_HDR)
+    assert claim.status_code == 200, claim.text
+    assert claim.json()["status"] == "claiming"
+    assert len(claim.json()["steps"]) == 1
+    assert claim.json()["steps"][0]["prompt_text"] == "do the thing"
+
+    # No second run to claim.
+    assert client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).status_code == 204
+
+    hb = client.post(f"/api/runs/{run_id}/heartbeat", headers=_RUNNER_HDR)
+    assert hb.status_code == 200 and hb.json()["status"] == "running"
+    assert hb.json()["cancel_requested"] is False
+
+    client.post(
+        f"/api/runs/{run_id}/log",
+        json={"step_index": 0, "lines": [{"event_type": "system", "line": "init"}]},
+        headers=_RUNNER_HDR,
+    )
+    client.post(
+        f"/api/runs/{run_id}/steps/0/result",
+        json={"status": "succeeded", "claude_session_id": "sess-1", "output": "done", "cost_usd": 0.02},
+        headers=_RUNNER_HDR,
+    )
+    client.post(
+        f"/api/runs/{run_id}/result",
+        json={"status": "succeeded", "total_cost_usd": 0.02},
+        headers=_RUNNER_HDR,
+    )
+
+    detail = client.get(f"/api/runs/{run_id}").json()
+    assert detail["status"] == "succeeded"
+    assert detail["claude_session_id"] == "sess-1"
+    assert detail["steps"][0]["output"] == "done"
+    assert any(lg["event_type"] == "system" for lg in detail["logs"])
+
+
+def test_run_path_whitelist(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+    for bad in ("/etc", "/Users/martin/claude/../secret", "relative/path"):
+        r = client.post(
+            "/api/runs",
+            json={"kind": "single", "prompt_ids": [pid], "project_path": bad},
+            headers=headers,
+        )
+        assert r.status_code == 400, f"{bad} -> {r.status_code}"
+
+
+def test_run_chain_requires_two(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+    r = client.post(
+        "/api/runs",
+        json={"kind": "chain", "prompt_ids": [pid], "project_path": "/Users/martin/claude"},
+        headers=headers,
+    )
+    assert r.status_code == 400
+
+
+def test_run_owner_gate(client):
+    csrf = _auth(client, email="intruder@example.com", sub="sub-intruder")
+    headers = {"X-CSRF-Token": csrf}
+    assert client.get("/api/runs").status_code == 403
+    r = client.post(
+        "/api/runs",
+        json={"kind": "single", "prompt_ids": [1], "project_path": "/Users/martin/claude"},
+        headers=headers,
+    )
+    assert r.status_code == 403
+
+
+def test_runner_auth(client):
+    assert client.post("/api/runs/claim", json={}).status_code == 401
+    assert client.post(
+        "/api/runs/claim", json={}, headers={"Authorization": "Bearer wrong"}
+    ).status_code == 401
+
+
+def test_atomic_claim_distinct(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    p1, p2 = _mk_prompt(client, headers, "one"), _mk_prompt(client, headers, "two")
+    for pid in (p1, p2):
+        client.post(
+            "/api/runs",
+            json={"kind": "single", "prompt_ids": [pid], "project_path": "/Users/martin/claude"},
+            headers=headers,
+        )
+    a = client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).json()["id"]
+    b = client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).json()["id"]
+    assert a != b
+    assert client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).status_code == 204
+
+
+def test_run_cancel_queued(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+    run_id = client.post(
+        "/api/runs",
+        json={"kind": "single", "prompt_ids": [pid], "project_path": "/Users/martin/claude"},
+        headers=headers,
+    ).json()["id"]
+    c = client.post(f"/api/runs/{run_id}/cancel", headers=headers)
+    assert c.status_code == 200 and c.json()["status"] == "canceled"
+    # A canceled (queued) run is not claimable.
+    assert client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR).status_code == 204

@@ -6,6 +6,7 @@ and prompts. Access is gated by an allowlist of emails/domains.
 from __future__ import annotations
 
 import os
+import posixpath
 from functools import lru_cache
 from pathlib import Path
 
@@ -72,6 +73,21 @@ class Settings:
             os.environ.get("MAX_ATTACHMENT_BYTES", str(10 * 1024 * 1024))
         )
 
+        # ---- Run engine (Claude Code CLI runner) ----
+        # Shared secret the Mac runner presents (Authorization: Bearer ...).
+        self.runner_token: str = os.environ.get("RUNNER_TOKEN", "")
+        # Allowed project base paths (absolute, on the runner's machine). A run's
+        # project_path must equal or sit under one of these. Validated as strings
+        # here (the VPS has no access to the runner's filesystem); the runner
+        # re-validates against its own ALLOWED_BASES.
+        self.allowed_project_bases: list[str] = [
+            posixpath.normpath(p.strip())
+            for p in (os.environ.get("ALLOWED_PROJECT_BASES", "")).split(",")
+            if p.strip()
+        ]
+        # A run/step with no runner heartbeat for this long is reaped as failed.
+        self.run_stale_timeout: int = int(os.environ.get("RUN_STALE_TIMEOUT", "300"))
+
         # Directory holding the built frontend (StaticFiles). Optional in dev.
         self.static_dir: str = os.environ.get("STATIC_DIR", str(Path("static")))
 
@@ -107,6 +123,23 @@ class Settings:
             return True
         domain = email.rsplit("@", 1)[-1] if "@" in email else ""
         return bool(domain) and domain in self.allowed_domains
+
+    def is_path_allowed(self, path: str) -> bool:
+        """String-only whitelist check for a run's project_path (no FS access).
+
+        The path must be absolute, contain no NUL or `..` escapes, and equal or
+        sit under one of `allowed_project_bases`. The runner re-validates on the
+        machine that actually owns the filesystem (defense in depth).
+        """
+        if not path or "\x00" in path or not self.allowed_project_bases:
+            return False
+        norm = posixpath.normpath(path)
+        if not posixpath.isabs(norm) or ".." in norm.split("/"):
+            return False
+        return any(
+            norm == base or norm.startswith(base + "/")
+            for base in self.allowed_project_bases
+        )
 
     def ensure_dirs(self) -> None:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
