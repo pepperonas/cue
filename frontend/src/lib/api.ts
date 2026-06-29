@@ -61,6 +61,8 @@ export const api = {
     request<Project>('POST', '/projects', { name, color }),
   updateProject: (id: number, patch: { name?: string; color?: string }) =>
     request<Project>('PATCH', `/projects/${id}`, patch),
+  reorderProjects: (items: { id: number; sort_order: number }[]) =>
+    request<Project[]>('POST', '/projects/reorder', { items }),
   deleteProject: (id: number) => request<void>('DELETE', `/projects/${id}`),
 
   // Prompts

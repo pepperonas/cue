@@ -46,6 +46,8 @@ class Project(SQLModel, table=True):
     name: str = Field(index=True)
     # MD3 tonal seed color (hex, e.g. "#6750A4"). Drives the project badge tint.
     color: str = Field(default="#6750A4")
+    # Manual ordering (drag-sortable); also drives the filter-chip order.
+    sort_order: int = Field(default=0, index=True)
     created_at: datetime = Field(default_factory=utcnow)
 
 

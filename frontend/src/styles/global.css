@@ -911,6 +911,18 @@ a {
   flex: 1;
   min-width: 0;
 }
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+  color: var(--md-on-surface-variant);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.list-item.dragging {
+  box-shadow: var(--elev-2);
+  opacity: 0.95;
+}
 .list-item .lt {
   font: var(--title-s);
   white-space: nowrap;

@@ -55,6 +55,7 @@ def _migrate(engine: Engine) -> None:
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
+        "sort_order": "ALTER TABLE project ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
     }
     with engine.begin() as conn:
         for table, additions in (("prompt", prompt_additions), ("project", project_additions)):

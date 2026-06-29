@@ -34,6 +34,7 @@ export interface Project {
   id: number
   name: string
   color: string
+  sort_order: number
   created_at: string
   prompt_count: number
 }

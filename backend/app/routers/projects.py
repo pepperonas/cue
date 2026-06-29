@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from sqlalchemy import func as _func
+
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
 from ..models import Project, Prompt
-from ..schemas import ProjectCreate, ProjectRead, ProjectUpdate
+from ..schemas import ProjectCreate, ProjectReorderRequest, ProjectRead, ProjectUpdate
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -18,6 +20,7 @@ def _to_read(project: Project, count: int) -> ProjectRead:
         id=project.id,
         name=project.name,
         color=project.color,
+        sort_order=project.sort_order,
         created_at=project.created_at,
         prompt_count=count,
     )
@@ -43,7 +46,7 @@ def list_projects(
         ).all()
     )
     projects = session.exec(
-        select(Project).where(Project.user_id == uid).order_by(Project.name)
+        select(Project).where(Project.user_id == uid).order_by(Project.sort_order, Project.name)
     ).all()
     return [_to_read(p, counts.get(p.id, 0)) for p in projects]
 
@@ -62,7 +65,13 @@ def create_project(
         select(Project).where(Project.user_id == uid, Project.name == name)
     ).first():
         raise HTTPException(status_code=409, detail="Project name already exists")
-    project = Project(name=name, color=payload.color, user_id=uid)
+    next_order = (
+        session.exec(
+            select(_func.max(Project.sort_order)).where(Project.user_id == uid)
+        ).one()
+        or 0
+    ) + 1
+    project = Project(name=name, color=payload.color, user_id=uid, sort_order=next_order)
     session.add(project)
     session.commit()
     session.refresh(project)
@@ -99,6 +108,33 @@ def update_project(
         select(func.count(Prompt.id)).where(Prompt.project_id == project_id)
     ).one()
     return _to_read(project, count)
+
+
+@router.post("/reorder", response_model=list[ProjectRead])
+def reorder_projects(
+    payload: ProjectReorderRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> list[ProjectRead]:
+    """Apply a drag-sort of the caller's projects (also drives the filter chips)."""
+    for item in payload.items:
+        project = session.get(Project, item.id)
+        if project and project.user_id == uid:
+            project.sort_order = item.sort_order
+            session.add(project)
+    session.commit()
+    projects = session.exec(
+        select(Project).where(Project.user_id == uid).order_by(Project.sort_order, Project.name)
+    ).all()
+    counts = dict(
+        session.exec(
+            select(Prompt.project_id, func.count(Prompt.id))
+            .where(Prompt.user_id == uid)
+            .group_by(Prompt.project_id)
+        ).all()
+    )
+    return [_to_read(p, counts.get(p.id, 0)) for p in projects]
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

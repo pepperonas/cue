@@ -1,9 +1,21 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 
-export function Icon({ name, className }: { name: string; className?: string }) {
-  return <span className={`material-symbols-rounded ${className ?? ''}`}>{name}</span>
+export function Icon({
+  name,
+  className,
+  style,
+}: {
+  name: string
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <span className={`material-symbols-rounded ${className ?? ''}`} style={style}>
+      {name}
+    </span>
+  )
 }
 
 interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {

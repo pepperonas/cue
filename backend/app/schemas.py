@@ -37,8 +37,18 @@ class ProjectRead(BaseModel):
     id: int
     name: str
     color: str
+    sort_order: int = 0
     created_at: datetime
     prompt_count: int = 0
+
+
+class ProjectReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class ProjectReorderRequest(BaseModel):
+    items: list[ProjectReorderItem]
 
 
 # ---- Attachments ----
