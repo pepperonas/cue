@@ -32,11 +32,17 @@ though the backend also checks). The `claude` CLI must be logged in on this Mac.
 
 ## Run under PM2
 
+`start.sh` cds into this directory and runs the venv Python directly (no `uv` on
+PATH needed, loads `./.env`):
+
 ```bash
-pm2 start "uv run python -m cue_runner" --name cue-runner --cwd /Users/martin/claude/cue/cue-runner
+pm2 start ./start.sh --name cue-runner --interpreter bash
 pm2 save
 pm2 logs cue-runner
 ```
+
+A clean start logs `cue-runner started → <CUE_API_URL>` followed by
+`POST /api/runs/claim "204 No Content"` while idle.
 
 ## Configuration (`.env`)
 
