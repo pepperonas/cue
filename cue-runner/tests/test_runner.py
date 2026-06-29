@@ -1,0 +1,198 @@
+"""Runner unit tests — subprocess + HTTP are faked."""
+from __future__ import annotations
+
+import asyncio
+import json
+
+from cue_runner import executor
+from cue_runner.command import build_command
+from cue_runner.config import Config
+from cue_runner.executor import execute_run, execute_step
+from cue_runner.paths import is_path_allowed
+from cue_runner.stream import is_result, parse_line, session_id_of, summarize
+
+
+def _cfg(bases=None) -> Config:
+    return Config(
+        api_url="http://x",
+        runner_token="t",
+        allowed_bases=bases or ["/Users/martin/claude"],
+        run_timeout=5.0,
+    )
+
+
+# ---- pure helpers ----
+def test_path_whitelist():
+    bases = ["/Users/martin/claude"]
+    assert is_path_allowed("/Users/martin/claude/cue", bases)
+    assert is_path_allowed("/Users/martin/claude", bases)
+    assert not is_path_allowed("/etc", bases)
+    assert not is_path_allowed("/Users/martin/claude/../secret", bases)
+    assert not is_path_allowed("relative/path", bases)
+    assert not is_path_allowed("/Users/martin/claudex", bases)  # prefix, not a subdir
+
+
+def test_build_command_chain_threading():
+    cfg = _cfg()
+    run = {
+        "model": "opus",
+        "allowed_tools": "Read, Edit,Bash",
+        "permission_mode": "acceptEdits",
+        "bare": True,
+        "skip_permissions": False,
+    }
+    a0 = build_command(cfg, run, 0, "hi", "sess-123")
+    assert "--session-id" in a0 and "sess-123" in a0 and "--resume" not in a0
+    assert a0[a0.index("--allowedTools") + 1 : a0.index("--allowedTools") + 4] == ["Read", "Edit", "Bash"]
+    assert "--model" in a0 and "--permission-mode" in a0 and "--bare" in a0
+    assert "--dangerously-skip-permissions" not in a0
+
+    a1 = build_command(cfg, run, 1, "next", "sess-123")
+    assert "--resume" in a1 and "sess-123" in a1 and "--session-id" not in a1
+
+
+def test_stream_parsing():
+    init = parse_line(json.dumps({"type": "system", "subtype": "init", "session_id": "s1"}))
+    assert session_id_of(init) == "s1"
+    asst = parse_line(
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "pong"}]}})
+    )
+    assert summarize(asst) == ("assistant", "pong")
+    res = parse_line(json.dumps({"type": "result", "subtype": "success", "result": "pong", "total_cost_usd": 0.01}))
+    assert is_result(res)
+    assert parse_line("not json") is None
+
+
+# ---- fakes ----
+class FakeStdout:
+    def __init__(self, lines, hang: asyncio.Event | None):
+        self._lines = [l.encode() for l in lines]
+        self._i = 0
+        self._hang = hang
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._i < len(self._lines):
+            line = self._lines[self._i]
+            self._i += 1
+            return line
+        if self._hang is not None:
+            await self._hang.wait()
+        raise StopAsyncIteration
+
+
+class FakeProc:
+    def __init__(self, lines, hang=False):
+        self._hang = asyncio.Event() if hang else None
+        self.stdout = FakeStdout(lines, self._hang)
+        self.returncode = None
+        self.terminated = False
+        self.killed = False
+
+    def terminate(self):
+        self.terminated = True
+        self.returncode = -15
+        if self._hang:
+            self._hang.set()
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+        if self._hang:
+            self._hang.set()
+
+    async def wait(self):
+        if self.returncode is None:
+            self.returncode = 0
+        return self.returncode
+
+
+def _spawn_factory(proc, recorder=None):
+    async def spawn(*argv, **kwargs):
+        if recorder is not None:
+            recorder["argv"] = list(argv)
+            recorder["cwd"] = kwargs.get("cwd")
+        return proc
+
+    return spawn
+
+
+class FakeApi:
+    def __init__(self):
+        self.logs = []
+        self.steps = []
+        self.runs = []
+
+    async def append_log(self, run_id, idx, batch):
+        self.logs.append((idx, batch))
+
+    async def step_result(self, run_id, idx, status, **kw):
+        self.steps.append((idx, status, kw))
+
+    async def run_result(self, run_id, status, **kw):
+        self.runs.append((status, kw))
+
+
+# ---- execution ----
+async def test_execute_step_success():
+    lines = [
+        json.dumps({"type": "system", "subtype": "init", "session_id": "s9"}) + "\n",
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "pong"}]}, "session_id": "s9"}) + "\n",
+        json.dumps({"type": "result", "subtype": "success", "session_id": "s9", "is_error": False, "result": "pong", "total_cost_usd": 0.03}) + "\n",
+    ]
+    proc = FakeProc(lines)
+    api = FakeApi()
+    run = {"id": "r1", "project_path": "/Users/martin/claude/cue"}
+    out = await execute_step(_cfg(), api, run, 0, "hi", "sess", asyncio.Event(), spawn=_spawn_factory(proc))
+    assert out.status == "succeeded"
+    assert out.output == "pong"
+    assert out.cost == 0.03
+    assert out.session_id == "s9"
+    assert api.logs  # logs were flushed
+
+
+async def test_execute_step_cancel_kills_subprocess():
+    proc = FakeProc(["{}\n"], hang=True)  # never reaches EOF on its own
+    api = FakeApi()
+    run = {"id": "r1", "project_path": "/Users/martin/claude/cue"}
+    cancel = asyncio.Event()
+    cancel.set()
+    out = await execute_step(_cfg(), api, run, 0, "hi", "sess", cancel, spawn=_spawn_factory(proc))
+    assert out.status == "canceled"
+    assert proc.terminated is True  # subprocess was killed -> no orphan
+
+
+async def test_execute_run_stop_on_error(monkeypatch, tmp_path):
+    cfg = _cfg(bases=[str(tmp_path)])
+    api = FakeApi()
+    run = {
+        "id": "r2",
+        "project_path": str(tmp_path),
+        "stop_on_error": True,
+        "steps": [
+            {"step_index": 0, "prompt_text": "a"},
+            {"step_index": 1, "prompt_text": "b"},
+        ],
+    }
+
+    async def fake_step(*a, **k):
+        return executor.StepOutcome(status="failed", exit_code=1, session_id="s")
+
+    monkeypatch.setattr(executor, "execute_step", fake_step)
+    await execute_run(cfg, api, run, asyncio.Event())
+
+    statuses = {idx: status for idx, status, _ in api.steps}
+    assert statuses[0] == "failed"
+    assert statuses[1] == "canceled"  # follow-up step skipped
+    assert api.runs[-1][0] == "failed"
+
+
+async def test_execute_run_rejects_bad_path(tmp_path):
+    cfg = _cfg(bases=["/Users/martin/claude"])
+    api = FakeApi()
+    run = {"id": "r3", "project_path": "/etc", "steps": [{"step_index": 0, "prompt_text": "x"}]}
+    await execute_run(cfg, api, run, asyncio.Event())
+    assert api.runs[-1][0] == "failed"
+    assert not api.steps  # never executed
