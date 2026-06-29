@@ -2,7 +2,7 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
@@ -45,6 +45,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **Zusammenführen**: Auswahl-Modus → mehrere Prompts wählen → Merge-Dialog mit Reihenfolge (↑/↓), Format, Live-Vorschau und Wahl, was mit den Originalen passiert (löschen/archivieren/behalten).
 - **Löschen mit Undo**: einzeln (aus dem Detail) oder mehrere (Auswahl-Modus) — Toast „Rückgängig" macht das Löschen innerhalb von 6 s ungeschehen.
 - **Screenshots**: Bilder per Drag & Drop, Einfügen (Cmd/Ctrl+V) oder Button an Prompts anhängen; Thumbnails + Lightbox im Detail.
+- **Run-Engine**: gespeicherte Prompts headless über die **Claude-Code-CLI** ausführen — einzeln oder als **Playbook** (Prompt-Folge in einer Session). Ein Mac-Runner (`cue-runner/`) pollt cue, führt aus und schreibt Ergebnisse + Live-Log zurück. Owner-only, Pfad-Whitelist, eigener Runs-Tab mit Live-Tail, Cancel & Re-run.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
 - **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips; neuer Prompt übernimmt das zuletzt genutzte Projekt.
@@ -143,8 +144,9 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 ## Projektstruktur
 
 ```
-backend/    FastAPI + SQLModel API, Google-OAuth/Security, Import/Export, Tests
+backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests
 frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
+cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
 deploy/     Caddyfile + nginx.conf
 docs/       Screenshots
 Dockerfile  Multi-Stage (node build → python runtime)
@@ -153,7 +155,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.1.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.2.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 
