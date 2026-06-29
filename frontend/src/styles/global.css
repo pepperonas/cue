@@ -751,15 +751,16 @@ a {
 }
 .switch .knob {
   position: absolute;
-  top: 50%;
+  top: 6px;
   left: 6px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: var(--md-outline);
-  transform: translateY(-50%);
 }
 .switch[data-on='true'] .knob {
+  /* Slide right when on (no transform here — Framer's `layout` owns transform). */
+  left: 26px;
   background: var(--md-on-primary);
 }
 
