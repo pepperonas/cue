@@ -45,22 +45,17 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
   })
   const tones = projectTones(p.color, dark)
   const isEdit = editing?.id === p.id
+  // Keep clicks/typing on inner controls from starting a row drag (like the cards).
+  const stop = (e: React.PointerEvent) => e.stopPropagation()
 
   return (
     <div
       ref={setNodeRef}
-      className={`list-item ${isDragging ? 'dragging' : ''}`}
+      className={`list-item project-row ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      {...attributes}
+      {...listeners}
     >
-      <button
-        className="mini-btn drag-handle"
-        aria-label="Verschieben"
-        title="Ziehen zum Sortieren"
-        {...attributes}
-        {...listeners}
-      >
-        <Icon name="drag_indicator" />
-      </button>
       <span
         className="dot"
         style={{ background: tones.accent, width: 16, height: 16, borderRadius: '50%' }}
@@ -70,6 +65,7 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
           className="input grow"
           value={editing!.name}
           autoFocus
+          onPointerDown={stop}
           onChange={(e) => setEditing({ ...editing!, name: e.target.value })}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onSave(editing!)
@@ -92,15 +88,16 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
               className="swatch"
               style={{ background: s, width: 24, height: 24 }}
               data-active={editing!.color === s}
+              onPointerDown={stop}
               onClick={() => setEditing({ ...editing!, color: s })}
             />
           ))}
-          <IconButton icon="check" label="Speichern" onClick={() => onSave(editing!)} />
+          <IconButton icon="check" label="Speichern" onPointerDown={stop} onClick={() => onSave(editing!)} />
         </>
       ) : (
         <>
-          <IconButton icon="edit" label="Bearbeiten" onClick={() => setEditing(p)} />
-          <IconButton icon="delete" label="Löschen" onClick={() => onDelete(p)} />
+          <IconButton icon="edit" label="Bearbeiten" onPointerDown={stop} onClick={() => setEditing(p)} />
+          <IconButton icon="delete" label="Löschen" onPointerDown={stop} onClick={() => onDelete(p)} />
         </>
       )}
     </div>
@@ -201,8 +198,7 @@ export function ProjectsView({ dark }: { dark: boolean }) {
         {list.length === 0 && <p className="muted">Noch keine Projekte.</p>}
         {list.length > 0 && (
           <p className="muted" style={{ fontSize: '0.78rem', marginTop: -4 }}>
-            Per <Icon name="drag_indicator" style={{ verticalAlign: '-3px', fontSize: 16 }} /> ziehen
-            zum Sortieren — die Reihenfolge gilt auch für die Filter-Chips.
+            Zum Sortieren ziehen — die Reihenfolge gilt auch für die Filter-Chips.
           </p>
         )}
         <motion.div className="list" layout transition={springs.spatial}>

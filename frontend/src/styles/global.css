@@ -911,12 +911,12 @@ a {
   flex: 1;
   min-width: 0;
 }
-.drag-handle {
+/* Whole project row is draggable (like the prompt cards). */
+.project-row {
   cursor: grab;
   touch-action: none;
-  color: var(--md-on-surface-variant);
 }
-.drag-handle:active {
+.project-row:active {
   cursor: grabbing;
 }
 .list-item.dragging {
