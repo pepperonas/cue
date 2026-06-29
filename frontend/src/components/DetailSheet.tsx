@@ -20,6 +20,7 @@ interface Props {
   onStatus: (p: Prompt, s: Status) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
+  onRun?: (p: Prompt) => void
 }
 
 function fmt(iso: string | null): string {
@@ -42,6 +43,7 @@ export function DetailSheet({
   onStatus,
   onToggleBookmark,
   onToggleTested,
+  onRun,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -207,6 +209,11 @@ export function DetailSheet({
           <Button variant="danger" icon="delete" onClick={() => onDelete(prompt)}>
             Löschen
           </Button>
+          {onRun && (
+            <Button variant="tonal" icon="play_arrow" onClick={() => onRun(prompt)}>
+              Ausführen
+            </Button>
+          )}
           <Button variant="tonal" icon="edit" onClick={() => onEdit(prompt)}>
             Bearbeiten
           </Button>

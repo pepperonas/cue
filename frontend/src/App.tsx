@@ -7,16 +7,19 @@ import {
   BOARD_COLUMNS,
   EXTRA_COLUMNS,
   type Prompt,
+  type RunKind,
   type Status,
 } from './lib/types'
 import {
   projectMap,
+  useCreateRun,
   useDeletePrompt,
   useMergePrompts,
   usePrompts,
   useProjects,
   useReorder,
   useReorderBookmarks,
+  useRunConfig,
   useUpdatePrompt,
 } from './state/queries'
 import { useSettings } from './state/settings'
@@ -25,6 +28,8 @@ import { Board } from './components/Board'
 import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
+import { RunDialog, type RunPayload } from './components/RunDialog'
+import { RunsView } from './components/RunsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Login } from './components/Login'
@@ -67,12 +72,16 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
   const merge = useMergePrompts()
+  const runConfigQ = useRunConfig()
+  const canRun = runConfigQ.isSuccess
+  const createRun = useCreateRun()
 
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('cue-view')
     return saved === 'board' ||
       saved === 'list' ||
       saved === 'bookmarks' ||
+      saved === 'runs' ||
       saved === 'projects' ||
       saved === 'settings'
       ? saved
@@ -111,6 +120,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [mergeOpen, setMergeOpen] = useState(false)
+  const [runDialog, setRunDialog] = useState<{ kind: RunKind; prompts: Prompt[] } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   function exitSelect() {
@@ -225,7 +235,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [del, toast],
   )
 
-  const anyModalOpen = composerOpen || !!detail || shortcuts || mergeOpen
+  const anyModalOpen = composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -240,6 +250,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
       if (e.key === 'Escape') {
         if (shortcuts) setShortcuts(false)
+        else if (runDialog) setRunDialog(null)
         else if (mergeOpen) setMergeOpen(false)
         else if (composerOpen) {
           setComposerOpen(false)
@@ -314,6 +325,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     mergeOpen,
     navOrder,
     prompts,
+    runDialog,
     selectMode,
     selectedId,
     shortcuts,
@@ -328,7 +340,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="app">
-      <TopBar view={view} onView={setView} onShortcuts={() => setShortcuts(true)} />
+      <TopBar view={view} onView={setView} onShortcuts={() => setShortcuts(true)} canRun={canRun} />
       <main className="app-main">
         {(view === 'board' || view === 'list') && (
           <>
@@ -457,6 +469,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           />
         )}
 
+        {view === 'runs' && <RunsView canRun={canRun} />}
+
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
         {view === 'settings' && (
           <SettingsView
@@ -517,6 +531,20 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             >
               <Icon name="delete" /> Löschen
             </button>
+            {canRun && (
+              <button
+                className="btn btn--tonal"
+                disabled={selectedIds.length < 1}
+                onClick={() => {
+                  const ps = selectedIds
+                    .map((id) => (prompts ?? []).find((p) => p.id === id))
+                    .filter(Boolean) as Prompt[]
+                  if (ps.length) setRunDialog({ kind: ps.length > 1 ? 'chain' : 'single', prompts: ps })
+                }}
+              >
+                <Icon name="play_arrow" /> Ausführen
+              </button>
+            )}
             <button
               className="btn btn--filled"
               disabled={selectedIds.length < 2}
@@ -558,6 +586,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
+            onRun={
+              canRun
+                ? (p) => {
+                    setDetail(null)
+                    setRunDialog({ kind: 'single', prompts: [p] })
+                  }
+                : undefined
+            }
           />
         )}
         {mergeOpen && (
@@ -577,6 +613,27 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                   toast.show('Prompts zusammengeführt', 'success')
                 },
                 onError: () => toast.show('Zusammenführen fehlgeschlagen', 'error'),
+              })
+            }}
+          />
+        )}
+        {runDialog && runConfigQ.data && (
+          <RunDialog
+            key="run-dialog"
+            kind={runDialog.kind}
+            prompts={runDialog.prompts}
+            config={runConfigQ.data}
+            busy={createRun.isPending}
+            onClose={() => setRunDialog(null)}
+            onSubmit={(payload: RunPayload) => {
+              createRun.mutate(payload, {
+                onSuccess: () => {
+                  setRunDialog(null)
+                  exitSelect()
+                  setView('runs')
+                  toast.show('Run gestartet', 'success')
+                },
+                onError: () => toast.show('Start fehlgeschlagen', 'error'),
               })
             }}
           />

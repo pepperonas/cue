@@ -1213,6 +1213,127 @@ kbd {
   text-decoration: underline;
 }
 
+/* ---- Runs ---- */
+.runs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  max-width: 820px;
+  margin: 0 auto;
+}
+.run-card {
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-l);
+  overflow: hidden;
+}
+.run-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  width: 100%;
+  padding: var(--gap-3) var(--gap-4);
+  text-align: left;
+}
+.run-title {
+  font: var(--title-s);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.run-cost,
+.run-time {
+  font: var(--label-m);
+  white-space: nowrap;
+}
+.run-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--label-m);
+  padding: 3px 10px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-highest);
+  white-space: nowrap;
+}
+.run-badge .material-symbols-rounded {
+  font-size: 16px;
+}
+.run-badge.st-queued {
+  color: #6b8fd4;
+}
+.run-badge.st-claiming,
+.run-badge.st-canceled {
+  color: #8b929c;
+}
+.run-badge.st-running {
+  color: #d79a3f;
+}
+.run-badge.st-succeeded {
+  color: #4caf72;
+}
+.run-badge.st-failed {
+  color: #d96459;
+}
+.run-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  padding: 0 var(--gap-4) var(--gap-4);
+  border-top: 1px solid var(--md-outline-variant);
+}
+.run-error {
+  background: color-mix(in srgb, var(--md-error) 14%, transparent);
+  color: var(--md-error);
+  border-radius: var(--shape-s);
+  padding: 8px 12px;
+  font: var(--label-l);
+}
+.run-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  padding-top: var(--gap-3);
+}
+.run-meta code {
+  overflow-wrap: anywhere;
+}
+.run-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.run-step {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+.run-step-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+.run-log {
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--shape-s);
+  padding: var(--gap-3);
+  max-height: 280px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.run-log-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-log-ev {
+  color: var(--md-primary);
+}
+
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
   .app-main {

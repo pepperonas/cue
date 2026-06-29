@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { Project, Prompt, Status } from '../lib/types'
+import { RUN_ACTIVE } from '../lib/types'
 
 const PROMPTS_KEY = ['prompts'] as const
 const PROJECTS_KEY = ['projects'] as const
@@ -159,6 +160,52 @@ export function useDeleteProject() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PROJECTS_KEY })
       qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+    },
+  })
+}
+
+// ---- Run engine ----
+const RUNS_KEY = ['runs'] as const
+
+// Succeeds only for the owner; a 403 means the run feature is hidden.
+export function useRunConfig() {
+  return useQuery({ queryKey: ['run-config'], queryFn: () => api.runConfig(), retry: false })
+}
+
+export function useRuns(enabled: boolean) {
+  return useQuery({
+    queryKey: RUNS_KEY,
+    queryFn: () => api.listRuns(),
+    enabled,
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some((r) => RUN_ACTIVE.includes(r.status)) ? 3000 : false,
+  })
+}
+
+export function useRun(id: string | null) {
+  return useQuery({
+    queryKey: ['run', id],
+    queryFn: () => api.getRun(id as string),
+    enabled: !!id,
+    refetchInterval: (q) => (q.state.data && RUN_ACTIVE.includes(q.state.data.status) ? 2000 : false),
+  })
+}
+
+export function useCreateRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createRun,
+    onSuccess: () => qc.invalidateQueries({ queryKey: RUNS_KEY }),
+  })
+}
+
+export function useCancelRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.cancelRun(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: RUNS_KEY })
+      qc.invalidateQueries({ queryKey: ['run', id] })
     },
   })
 }

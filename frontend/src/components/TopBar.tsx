@@ -3,12 +3,13 @@ import { springs } from '../lib/motion'
 import { useSettings } from '../state/settings'
 import { Icon, IconButton } from './ui'
 
-export type View = 'board' | 'list' | 'bookmarks' | 'projects' | 'settings'
+export type View = 'board' | 'list' | 'bookmarks' | 'runs' | 'projects' | 'settings'
 
 const TABS: { key: View; icon: string; label: string }[] = [
   { key: 'board', icon: 'view_kanban', label: 'Board' },
   { key: 'list', icon: 'list', label: 'Liste' },
   { key: 'bookmarks', icon: 'bookmark', label: 'Bookmarks' },
+  { key: 'runs', icon: 'play_arrow', label: 'Runs' },
   { key: 'projects', icon: 'folder', label: 'Projekte' },
 ]
 
@@ -16,12 +17,15 @@ export function TopBar({
   view,
   onView,
   onShortcuts,
+  canRun = false,
 }: {
   view: View
   onView: (v: View) => void
   onShortcuts: () => void
+  canRun?: boolean
 }) {
   const s = useSettings()
+  const tabs = TABS.filter((t) => t.key !== 'runs' || canRun)
   return (
     <header className="topbar">
       <div className="brand">
@@ -32,7 +36,7 @@ export function TopBar({
       </div>
       <div className="topbar-spacer" />
       <nav className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             className="tab"

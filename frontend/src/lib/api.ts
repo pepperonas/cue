@@ -1,6 +1,17 @@
 // Typed fetch client. Sends the CSRF double-submit header on mutations by
 // reading the readable `cue_csrf` cookie.
-import type { Attachment, Me, Project, Prompt, Status } from './types'
+import type {
+  Attachment,
+  Me,
+  Project,
+  Prompt,
+  Run,
+  RunConfig,
+  RunDetail,
+  RunKind,
+  RunStatus,
+  Status,
+} from './types'
 
 function csrfToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)cue_csrf=([^;]+)/)
@@ -110,6 +121,25 @@ export const api = {
     return res.json()
   },
   deleteAttachment: (id: number) => request<void>('DELETE', `/attachments/${id}`),
+
+  // Run engine
+  runConfig: () => request<RunConfig>('GET', '/runs/config'),
+  listRuns: (status?: RunStatus) =>
+    request<Run[]>('GET', `/runs${status ? `?status=${status}` : ''}`),
+  getRun: (id: string, afterSeq = 0) =>
+    request<RunDetail>('GET', `/runs/${id}?after_seq=${afterSeq}`),
+  createRun: (input: {
+    kind: RunKind
+    prompt_ids: number[]
+    project_path: string
+    model?: string | null
+    allowed_tools?: string | null
+    permission_mode?: string | null
+    bare?: boolean
+    skip_permissions?: boolean
+    stop_on_error?: boolean
+  }) => request<Run>('POST', '/runs', input),
+  cancelRun: (id: string) => request<Run>('POST', `/runs/${id}/cancel`),
   mergePrompts: (input: {
     source_ids: number[]
     title?: string

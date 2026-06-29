@@ -74,3 +74,83 @@ export interface Me {
   csrf_token: string | null
   user: User | null
 }
+
+// ---- Run engine ----
+export type RunKind = 'single' | 'chain'
+export type RunStatus = 'queued' | 'claiming' | 'running' | 'succeeded' | 'failed' | 'canceled'
+
+export interface Run {
+  id: string
+  kind: RunKind
+  project_path: string
+  status: RunStatus
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  claude_session_id: string | null
+  model: string | null
+  allowed_tools: string | null
+  permission_mode: string | null
+  bare: boolean
+  skip_permissions: boolean
+  max_turns: number | null
+  stop_on_error: boolean
+  runner_id: string | null
+  last_heartbeat: string | null
+  cancel_requested: boolean
+  total_cost_usd: number | null
+  error: string | null
+}
+
+export interface RunStep {
+  id: number
+  step_index: number
+  prompt_id: number | null
+  prompt_text: string
+  status: RunStatus
+  claude_session_id: string | null
+  output: string | null
+  exit_code: number | null
+  cost_usd: number | null
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface RunLog {
+  seq: number
+  step_index: number
+  ts: string
+  event_type: string
+  line: string
+}
+
+export interface RunDetail extends Run {
+  steps: RunStep[]
+  logs: RunLog[]
+}
+
+export interface RunConfig {
+  allowed_bases: string[]
+  permission_modes: string[]
+  models: string[]
+}
+
+export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
+  queued: 'Queued',
+  claiming: 'Claiming',
+  running: 'Running',
+  succeeded: 'Succeeded',
+  failed: 'Failed',
+  canceled: 'Canceled',
+}
+
+export const RUN_STATUS_ICON: Record<RunStatus, string> = {
+  queued: 'schedule',
+  claiming: 'pending',
+  running: 'play_circle',
+  succeeded: 'check_circle',
+  failed: 'error',
+  canceled: 'cancel',
+}
+
+export const RUN_ACTIVE: RunStatus[] = ['queued', 'claiming', 'running']
