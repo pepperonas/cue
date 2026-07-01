@@ -21,6 +21,11 @@ class Config:
     max_concurrency: int = 1
     heartbeat_interval: float = 15.0
     run_timeout: float = 1800.0
+    # Prompt capture forwarder (disabled when capture_token is empty).
+    capture_token: str = ""
+    spool_path: str = ""
+    capture_state_path: str = ""
+    capture_interval: float = 2.0
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -44,4 +49,12 @@ class Config:
             max_concurrency=int(os.environ.get("MAX_CONCURRENCY", "1")),
             heartbeat_interval=float(os.environ.get("HEARTBEAT_INTERVAL", "15")),
             run_timeout=float(os.environ.get("RUN_TIMEOUT", "1800")),
+            capture_token=os.environ.get("CAPTURE_TOKEN", ""),
+            spool_path=os.path.expanduser(
+                os.environ.get("CUE_CAPTURE_SPOOL", "~/.cue-runner/capture-spool.jsonl")
+            ),
+            capture_state_path=os.path.expanduser(
+                os.environ.get("CUE_CAPTURE_STATE", "~/.cue-runner/capture-state.json")
+            ),
+            capture_interval=float(os.environ.get("CAPTURE_INTERVAL", "2")),
         )

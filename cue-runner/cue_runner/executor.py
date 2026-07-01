@@ -7,6 +7,9 @@ import os
 import uuid
 from dataclasses import dataclass
 
+# The runner's own claude invocations must not be re-captured by the hook.
+_CHILD_ENV = {**os.environ, "CUE_NO_CAPTURE": "1"}
+
 from .api import RunnerApi
 from .command import build_command
 from .config import Config
@@ -53,6 +56,7 @@ async def execute_step(
     proc = await spawn(
         *argv,
         cwd=run["project_path"],
+        env=_CHILD_ENV,
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,

@@ -7,10 +7,25 @@ import logging
 import signal
 
 from .api import RunnerApi
+from .capture import CaptureForwarder
 from .config import Config
 from .executor import execute_run
 
 log = logging.getLogger("cue-runner")
+
+
+async def _capture_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
+    """Forward prompts written to the spool by the UserPromptSubmit hook."""
+    fwd = CaptureForwarder(cfg, api)
+    while not stop.is_set():
+        try:
+            n = await fwd.step()
+            if n:
+                log.info("captured %d prompt(s)", n)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("capture forward failed: %s", exc)
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=cfg.capture_interval)
 
 
 async def _heartbeat_loop(
@@ -62,6 +77,11 @@ async def run_forever(cfg: Config) -> None:
         with contextlib.suppress(NotImplementedError):
             loop.add_signal_handler(sig, shutdown.set)
 
+    capture_task: asyncio.Task | None = None
+    if cfg.capture_token:
+        capture_task = asyncio.create_task(_capture_loop(cfg, api, shutdown))
+        log.info("prompt capture on (spool: %s)", cfg.spool_path)
+
     log.info("cue-runner started → %s (concurrency=%d)", cfg.api_url, cfg.max_concurrency)
     try:
         while not shutdown.is_set():
@@ -89,5 +109,9 @@ async def run_forever(cfg: Config) -> None:
         if tasks:
             with contextlib.suppress(Exception):
                 await asyncio.wait(tasks, timeout=30)
+        if capture_task:
+            capture_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await capture_task
         await api.aclose()
         log.info("cue-runner stopped")

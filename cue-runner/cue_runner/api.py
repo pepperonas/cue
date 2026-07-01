@@ -61,6 +61,16 @@ class RunnerApi:
             },
         )
 
+    async def capture(self, items: list[dict]) -> dict:
+        # Capture uses its own token (not the runner token).
+        r = await self.client.post(
+            "/api/capture",
+            json={"items": items},
+            headers={"Authorization": f"Bearer {self.cfg.capture_token}"},
+        )
+        r.raise_for_status()
+        return r.json()
+
     async def run_result(
         self,
         run_id: str,
