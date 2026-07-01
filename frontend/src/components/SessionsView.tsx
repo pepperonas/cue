@@ -126,6 +126,7 @@ function SessionCard({
 export function SessionsView({ dark }: { dark: boolean }) {
   const { data: sessions, isLoading } = useSessions(true)
   const { data: projects } = useProjects()
+  const [openProjects, setOpenProjects] = useState<Set<string>>(new Set())
   const [openId, setOpenId] = useState<number | null>(null)
 
   if (!isLoading && (sessions ?? []).length === 0) {
@@ -165,33 +166,54 @@ export function SessionsView({ dark }: { dark: boolean }) {
     return ai - bi
   })
 
+  function toggleProject(key: string) {
+    setOpenProjects((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
   return (
     <div className="sessions">
       {groups.map((g) => {
         const tones = g.project ? projectTones(g.project.color, dark) : null
+        const open = openProjects.has(g.key)
+        const promptTotal = g.items.reduce((n, s) => n + s.prompt_count, 0)
+        const latest = g.items.reduce((m, s) => (s.last_at > m ? s.last_at : m), g.items[0].last_at)
         return (
-          <section className="session-group" key={g.key}>
-            <h3 className="session-group-head">
-              {tones && (
-                <span
-                  className="dot"
-                  style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }}
-                />
-              )}
-              {g.name}
-              <span className="count">{g.items.length}</span>
-            </h3>
-            <div className="runs-list">
-              {g.items.map((s) => (
-                <SessionCard
-                  key={s.id}
-                  s={s}
-                  open={openId === s.id}
-                  onToggle={() => setOpenId(openId === s.id ? null : s.id)}
-                />
-              ))}
-            </div>
-          </section>
+          <div className="run-card" key={g.key}>
+            <button className="run-head" onClick={() => toggleProject(g.key)} aria-expanded={open}>
+              <span
+                className="dot"
+                style={{
+                  background: tones ? tones.accent : 'var(--md-outline)',
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                }}
+              />
+              <span className="run-title grow">{g.name}</span>
+              <span className="tag">
+                {g.items.length} Session{g.items.length === 1 ? '' : 's'}
+              </span>
+              <span className="tag">{promptTotal} Prompts</span>
+              <span className="muted run-time">{fmt(latest)}</span>
+              <Icon name={open ? 'expand_less' : 'expand_more'} />
+            </button>
+            {open && (
+              <div className="session-sublist">
+                {g.items.map((s) => (
+                  <SessionCard
+                    key={s.id}
+                    s={s}
+                    open={openId === s.id}
+                    onToggle={() => setOpenId(openId === s.id ? null : s.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )
       })}
     </div>

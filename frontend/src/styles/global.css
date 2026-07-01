@@ -1369,6 +1369,17 @@ kbd {
   padding: 2px 10px;
   border-radius: var(--shape-full);
 }
+/* Sessions nested inside a project card (project summary → sessions). */
+.session-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--gap-3);
+  border-top: 1px solid var(--md-outline-variant);
+}
+.session-sublist .run-card {
+  background: var(--md-surface-container-low);
+}
 .captured-list {
   display: flex;
   flex-direction: column;
