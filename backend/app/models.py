@@ -35,6 +35,9 @@ class User(SQLModel, table=True):
     picture: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
     last_login_at: datetime = Field(default_factory=utcnow)
+    # Per-user prompt-capture config (multi-tenant): own token + project base.
+    capture_token: str | None = Field(default=None, index=True)
+    project_base: str | None = Field(default=None)
 
 
 class Project(SQLModel, table=True):

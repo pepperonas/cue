@@ -4,6 +4,7 @@ import type {
   Attachment,
   CaptureSession,
   CaptureSessionDetail,
+  CaptureSettings,
   Me,
   Project,
   Prompt,
@@ -151,6 +152,9 @@ export const api = {
   promoteCaptured: (sessionId: number, cpId: number) =>
     request<Prompt>('POST', `/sessions/${sessionId}/prompts/${cpId}/promote`),
   deleteSession: (id: number) => request<void>('DELETE', `/sessions/${id}`),
+  getCaptureSettings: () => request<CaptureSettings>('GET', '/capture/settings'),
+  updateCaptureSettings: (patch: { project_base?: string; regenerate?: boolean }) =>
+    request<CaptureSettings>('POST', '/capture/settings', patch),
   mergePrompts: (input: {
     source_ids: number[]
     title?: string

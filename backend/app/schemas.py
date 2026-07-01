@@ -275,3 +275,15 @@ class CaptureSessionRead(BaseModel):
 
 class CaptureSessionDetail(CaptureSessionRead):
     prompts: list[CapturedPromptRead] = []
+
+
+class CaptureSettingsRead(BaseModel):
+    project_base: str
+    has_token: bool
+    # Set only immediately after (re)generating a token, shown once.
+    token: str | None = None
+
+
+class CaptureSettingsUpdate(BaseModel):
+    project_base: str | None = None
+    regenerate: bool = False

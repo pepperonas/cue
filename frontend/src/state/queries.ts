@@ -175,6 +175,19 @@ export function useDeleteSession() {
   })
 }
 
+export function useCaptureSettings() {
+  return useQuery({ queryKey: ['capture-settings'], queryFn: () => api.getCaptureSettings() })
+}
+
+export function useUpdateCaptureSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { project_base?: string; regenerate?: boolean }) =>
+      api.updateCaptureSettings(patch),
+    onSuccess: (data) => qc.setQueryData(['capture-settings'], { ...data, token: undefined }),
+  })
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({

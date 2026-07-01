@@ -123,20 +123,10 @@ function SessionCard({
   )
 }
 
-export function SessionsView({ canRun, dark }: { canRun: boolean; dark: boolean }) {
-  const { data: sessions, isLoading } = useSessions(canRun)
+export function SessionsView({ dark }: { dark: boolean }) {
+  const { data: sessions, isLoading } = useSessions(true)
   const { data: projects } = useProjects()
   const [openId, setOpenId] = useState<number | null>(null)
-
-  if (!canRun) {
-    return (
-      <div className="empty">
-        <Icon name="lock" />
-        <h3 style={{ margin: 0 }}>Nicht verfügbar</h3>
-        <p className="muted">Der Prompt-Verlauf ist dem Owner vorbehalten.</p>
-      </div>
-    )
-  }
 
   if (!isLoading && (sessions ?? []).length === 0) {
     return (

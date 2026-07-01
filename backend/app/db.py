@@ -57,8 +57,16 @@ def _migrate(engine: Engine) -> None:
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
         "sort_order": "ALTER TABLE project ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
     }
+    user_additions = {
+        "capture_token": "ALTER TABLE user ADD COLUMN capture_token VARCHAR",
+        "project_base": "ALTER TABLE user ADD COLUMN project_base VARCHAR",
+    }
     with engine.begin() as conn:
-        for table, additions in (("prompt", prompt_additions), ("project", project_additions)):
+        for table, additions in (
+            ("prompt", prompt_additions),
+            ("project", project_additions),
+            ("user", user_additions),
+        ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             for column, ddl in additions.items():
                 if column not in cols:

@@ -151,10 +151,10 @@ class Settings:
             for base in self.allowed_project_bases
         )
 
-    def capture_project_name(self, cwd: str) -> str | None:
+    def capture_project_name(self, cwd: str, base: str | None = None) -> str | None:
         """Project name derived from a captured cwd: the first path segment under
-        `capture_base`. Returns None when cwd is outside the base."""
-        base = self.capture_base
+        the base (per-user override, else `capture_base`). None if outside base."""
+        base = posixpath.normpath(base) if base else self.capture_base
         if not base or not cwd:
             return None
         norm = posixpath.normpath(cwd)

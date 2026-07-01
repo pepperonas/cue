@@ -2,15 +2,17 @@
 session history (grouped by Claude session, attributed to a project)."""
 from __future__ import annotations
 
+import hmac
+import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..db import get_session
-from ..deps import require_capture, require_csrf, require_owner
+from ..deps import current_user_id, require_csrf
 from ..models import (
     CapturedPrompt,
     CaptureSession,
@@ -25,6 +27,8 @@ from ..schemas import (
     CaptureResult,
     CaptureSessionDetail,
     CaptureSessionRead,
+    CaptureSettingsRead,
+    CaptureSettingsUpdate,
     PromptRead,
 )
 from .prompts import _derive_title, _next_sort_order, _read
@@ -37,17 +41,28 @@ _PALETTE = ["#6750A4", "#3B6EA5", "#2E7D55", "#B3541E", "#8E4585", "#0F766E", "#
 _MAX_PROMPT = 20000
 
 
-def _owner_user(session: Session) -> User:
-    """The user captures are attributed to (single-owner for now)."""
-    email = _settings.owner_email
-    user = (
-        session.exec(select(User).where(func.lower(User.email) == email)).first()
-        if email
-        else session.exec(select(User)).first()
-    )
-    if not user:
-        raise HTTPException(status_code=409, detail="Owner has not signed in yet")
-    return user
+def _resolve_capture_user(session: Session, authorization: str | None) -> User:
+    """Map a capture Bearer token to a user: the env CAPTURE_TOKEN → owner, or a
+    per-user token → that user (multi-tenant)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing capture token")
+    token = authorization[len("Bearer ") :]
+    env = _settings.capture_token
+    if env and hmac.compare_digest(token, env):
+        email = _settings.owner_email
+        user = (
+            session.exec(select(User).where(func.lower(User.email) == email)).first()
+            if email
+            else session.exec(select(User)).first()
+        )
+        if not user:
+            raise HTTPException(status_code=409, detail="Owner has not signed in yet")
+        return user
+    if token:
+        user = session.exec(select(User).where(User.capture_token == token)).first()
+        if user:
+            return user
+    raise HTTPException(status_code=401, detail="Invalid capture token")
 
 
 def _project_for(session: Session, uid: int, name: str) -> Project:
@@ -83,10 +98,11 @@ def _session_read(session: Session, cs: CaptureSession) -> CaptureSessionRead:
 def capture(
     payload: CaptureRequest,
     session: Session = Depends(get_session),
-    _cap: None = Depends(require_capture),
+    authorization: str | None = Header(default=None),
 ) -> CaptureResult:
-    user = _owner_user(session)
+    user = _resolve_capture_user(session, authorization)
     uid = user.id
+    base = user.project_base or None
     stored = skipped = 0
     # Cache sessions within this batch to avoid repeated lookups.
     cache: dict[str, CaptureSession] = {}
@@ -105,7 +121,7 @@ def capture(
                 )
             ).first()
         if cs is None:
-            name = _settings.capture_project_name(item.cwd)
+            name = _settings.capture_project_name(item.cwd, base)
             project = _project_for(session, uid, name) if name else None
             cs = CaptureSession(
                 user_id=uid,
@@ -153,7 +169,7 @@ def capture(
 def list_sessions(
     project_id: int | None = Query(default=None),
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> list[CaptureSessionRead]:
     stmt = select(CaptureSession).where(CaptureSession.user_id == uid)
     if project_id is not None:
@@ -166,7 +182,7 @@ def list_sessions(
 def get_session_detail(
     session_pk: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> CaptureSessionDetail:
     cs = session.get(CaptureSession, session_pk)
     if not cs or cs.user_id != uid:
@@ -189,7 +205,7 @@ def promote_captured(
     session_pk: int,
     cp_id: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> PromptRead:
     """Turn a captured prompt into a real (queued) prompt in the session's project."""
@@ -217,7 +233,7 @@ def promote_captured(
 def delete_session(
     session_pk: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> None:
     cs = session.get(CaptureSession, session_pk)
@@ -227,3 +243,36 @@ def delete_session(
         session.delete(cp)
     session.delete(cs)
     session.commit()
+
+
+# ---- Per-user capture settings ----
+@router.get("/capture/settings", response_model=CaptureSettingsRead)
+def get_capture_settings(
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+) -> CaptureSettingsRead:
+    user = session.get(User, uid)
+    base = (user.project_base if user and user.project_base else _settings.capture_base) or ""
+    return CaptureSettingsRead(project_base=base, has_token=bool(user and user.capture_token))
+
+
+@router.post("/capture/settings", response_model=CaptureSettingsRead)
+def update_capture_settings(
+    payload: CaptureSettingsUpdate,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> CaptureSettingsRead:
+    user = session.get(User, uid)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if payload.project_base is not None:
+        user.project_base = payload.project_base.strip() or None
+    token_once: str | None = None
+    if payload.regenerate:
+        token_once = secrets.token_hex(32)
+        user.capture_token = token_once
+    session.add(user)
+    session.commit()
+    base = (user.project_base or _settings.capture_base) or ""
+    return CaptureSettingsRead(project_base=base, has_token=bool(user.capture_token), token=token_once)

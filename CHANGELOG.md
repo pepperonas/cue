@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-01
+
+### Added
+- **Prompt capture** — a Claude Code `UserPromptSubmit` hook logs every prompt
+  you type in the CLI into cue via the cue-runner's forwarder (spool → batched,
+  dedup-safe upload).
+  - New **Verlauf** view: capture sessions grouped by project → prompt timeline,
+    with copy and **promote-to-queue**; session delete.
+  - The project is derived from the working directory under a configurable base.
+  - **Multi-tenant**: per-user capture token + project base (Settings →
+    Prompt-Capture); the runner sets `CUE_NO_CAPTURE=1` on its own runs.
+- Drag-to-reorder projects (order drives the filter chips).
+
 ## [0.2.0] - 2026-06-29
 
 ### Added
@@ -41,5 +54,6 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.3.0]: https://github.com/pepperonas/cue/releases/tag/v0.3.0
 [0.2.0]: https://github.com/pepperonas/cue/releases/tag/v0.2.0
 [0.1.0]: https://github.com/pepperonas/cue/releases/tag/v0.1.0

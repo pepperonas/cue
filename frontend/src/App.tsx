@@ -472,7 +472,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         )}
 
         {view === 'runs' && <RunsView canRun={canRun} />}
-        {view === 'sessions' && <SessionsView canRun={canRun} dark={settings.resolvedDark} />}
+        {view === 'sessions' && <SessionsView dark={settings.resolvedDark} />}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
         {view === 'settings' && (

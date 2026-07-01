@@ -33,7 +33,8 @@ export function TopBar({
   canRun?: boolean
 }) {
   const s = useSettings()
-  const tabs = TABS.filter((t) => (t.key !== 'runs' && t.key !== 'sessions') || canRun)
+  // Runs execute code on the owner's machine → owner-only. Verlauf is per-user.
+  const tabs = TABS.filter((t) => t.key !== 'runs' || canRun)
   return (
     <header className="topbar">
       <div className="brand">

@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { PRESET_SEEDS } from '../lib/color'
 import type { Project } from '../lib/types'
-import { useMe } from '../state/queries'
+import { useCaptureSettings, useMe, useUpdateCaptureSettings } from '../state/queries'
 import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
-import { Button, Icon, Switch } from './ui'
+import { Button, Icon, IconButton, Switch } from './ui'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
   { key: 'light', icon: 'light_mode', label: 'Hell' },
@@ -29,6 +29,14 @@ export function SettingsView({
 
   const [split, setSplit] = useState('rule')
   const [importProject, setImportProject] = useState<number | null>(null)
+
+  const { data: capture } = useCaptureSettings()
+  const updateCapture = useUpdateCaptureSettings()
+  const [captureBase, setCaptureBase] = useState('')
+  const [newToken, setNewToken] = useState<string | null>(null)
+  useEffect(() => {
+    if (capture) setCaptureBase(capture.project_base)
+  }, [capture?.project_base])
 
   async function doImport(files: FileList | null) {
     if (!files || !files.length) return
@@ -146,6 +154,97 @@ export function SettingsView({
           <Button variant="outlined" icon="folder_zip" onClick={() => window.open(api.exportZipUrl)}>
             ZIP (.txt)
           </Button>
+        </div>
+      </div>
+
+      <div className="section">
+        <h3>Prompt-Capture</h3>
+        <p className="muted" style={{ fontSize: '0.85rem', marginTop: -4 }}>
+          Jeder Prompt, den du in der Claude-Code-CLI eingibst, wird in cue protokolliert
+          (Ansicht „Verlauf"). Der Runner auf deinem Rechner leitet ihn weiter.
+        </p>
+        <div className="field">
+          <label htmlFor="cap-base">Projekt-Basis (für die Projekt-Zuordnung)</label>
+          <div className="row">
+            <input
+              id="cap-base"
+              className="input grow"
+              value={captureBase}
+              placeholder="/Users/deinname/projekte"
+              onChange={(e) => setCaptureBase(e.target.value)}
+            />
+            <Button
+              variant="tonal"
+              icon="save"
+              onClick={() =>
+                updateCapture.mutate(
+                  { project_base: captureBase },
+                  { onSuccess: () => toast.show('Basis-Pfad gespeichert', 'success') },
+                )
+              }
+            >
+              Speichern
+            </Button>
+          </div>
+          <div className="muted" style={{ fontSize: '0.78rem' }}>
+            Der erste Ordner unterhalb dieses Pfads wird zum Projektnamen.
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Capture-Token</label>
+          <div className="row">
+            <span className="muted" style={{ flex: 1 }}>
+              {capture?.has_token ? 'Token gesetzt.' : 'Noch kein Token.'} Für den Runner
+              (`CAPTURE_TOKEN`).
+            </span>
+            <Button
+              variant="outlined"
+              icon="key"
+              onClick={() =>
+                updateCapture.mutate(
+                  { regenerate: true },
+                  {
+                    onSuccess: (d) => {
+                      setNewToken(d.token ?? null)
+                      toast.show('Neues Token erzeugt', 'success')
+                    },
+                  },
+                )
+              }
+            >
+              {capture?.has_token ? 'Neu generieren' : 'Token generieren'}
+            </Button>
+          </div>
+          {newToken && (
+            <div className="field">
+              <label style={{ color: 'var(--md-error)' }}>
+                ⚠️ Nur jetzt sichtbar — in die Runner-`.env` als CAPTURE_TOKEN eintragen:
+              </label>
+              <div className="row">
+                <code
+                  style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    background: 'var(--md-surface-container-lowest)',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--shape-s)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {newToken}
+                </code>
+                <IconButton
+                  icon="content_copy"
+                  label="Kopieren"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(newToken)
+                    toast.show('Kopiert', 'success')
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -17,13 +17,19 @@ log = logging.getLogger("cue-runner")
 async def _capture_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
     """Forward prompts written to the spool by the UserPromptSubmit hook."""
     fwd = CaptureForwarder(cfg, api)
+    last_err_log = 0.0
+    loop = asyncio.get_event_loop()
     while not stop.is_set():
         try:
             n = await fwd.step()
             if n:
                 log.info("captured %d prompt(s)", n)
         except Exception as exc:  # noqa: BLE001
-            log.warning("capture forward failed: %s", exc)
+            # Throttle repeated failures (e.g. owner not signed in -> 409 every tick).
+            now = loop.time()
+            if now - last_err_log > 60:
+                log.warning("capture forward paused (retrying): %s", exc)
+                last_err_log = now
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=cfg.capture_interval)
 

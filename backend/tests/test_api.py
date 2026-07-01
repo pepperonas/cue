@@ -517,3 +517,32 @@ def test_capture_outside_base(client):
     assert r.json()["stored"] == 1
     sessions = client.get("/api/sessions").json()
     assert sessions[0]["project_id"] is None  # cwd outside base -> no project
+
+
+def test_capture_per_user_token(client):
+    # A non-owner user generates their own capture token + base.
+    csrf = _auth(client, email="dev2@example.com", sub="sub-dev2")
+    headers = {"X-CSRF-Token": csrf}
+    r = client.post(
+        "/api/capture/settings",
+        json={"regenerate": True, "project_base": "/Users/martin/claude"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    tok = r.json()["token"]
+    assert tok and r.json()["has_token"] is True
+
+    # Ingest with the per-user token -> attributed to dev2, project derived.
+    ing = client.post(
+        "/api/capture",
+        json={"items": [{"session_id": "u2", "cwd": "/Users/martin/claude/proj2", "prompt": "hi", "seq": 1}]},
+        headers={"Authorization": f"Bearer {tok}"},
+    )
+    assert ing.json()["stored"] == 1
+    sessions = client.get("/api/sessions").json()
+    assert len(sessions) == 1 and sessions[0]["project_name"] == "proj2"
+
+    # Settings GET reflects the saved base + token presence (never the token).
+    g = client.get("/api/capture/settings").json()
+    assert g["project_base"] == "/Users/martin/claude"
+    assert g["has_token"] is True and g.get("token") is None

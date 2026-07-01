@@ -159,6 +159,12 @@ export interface CaptureSessionDetail extends CaptureSession {
   prompts: CapturedPrompt[]
 }
 
+export interface CaptureSettings {
+  project_base: string
+  has_token: boolean
+  token?: string | null
+}
+
 export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
   queued: 'Queued',
   claiming: 'Claiming',
