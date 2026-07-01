@@ -12,8 +12,11 @@ os.environ["DB_PATH"] = "data/test-cue.db"
 os.environ["OWNER_EMAIL"] = "owner@example.com"
 os.environ["RUNNER_TOKEN"] = "test-runner-token"
 os.environ["ALLOWED_PROJECT_BASES"] = "/Users/martin/claude"
+os.environ["CAPTURE_TOKEN"] = "test-capture-token"
+os.environ["CAPTURE_BASE"] = "/Users/martin/claude"
 
 _RUNNER_HDR = {"Authorization": "Bearer test-runner-token"}
+_CAPTURE_HDR = {"Authorization": "Bearer test-capture-token"}
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -448,3 +451,69 @@ def test_run_reaper(client):
         assert s.get(Run, queued_id).status == RunStatus.queued  # not in-flight -> untouched
         step = s.exec(select(RunStep).where(RunStep.run_id == stale_id)).first()
         assert step.status == RunStatus.failed
+
+
+def test_capture_flow(client):
+    csrf = _auth(client)  # creates the owner user (owner@example.com) + cookie
+    headers = {"X-CSRF-Token": csrf}
+
+    # Ingest (capture token, no cookie needed).
+    body = {
+        "items": [
+            {"session_id": "sess-A", "cwd": "/Users/martin/claude/cue/sub", "prompt": "first", "seq": 1},
+            {"session_id": "sess-A", "cwd": "/Users/martin/claude/cue", "prompt": "second", "seq": 2},
+            {"session_id": "sess-B", "cwd": "/Users/martin/claude/inspector-rust", "prompt": "other", "seq": 1},
+        ]
+    }
+    r = client.post("/api/capture", json=body, headers=_CAPTURE_HDR)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"stored": 3, "skipped": 0}
+
+    # Dedup: re-sending seq 1 of sess-A is skipped.
+    r2 = client.post(
+        "/api/capture",
+        json={"items": [{"session_id": "sess-A", "cwd": "/Users/martin/claude/cue", "prompt": "first", "seq": 1}]},
+        headers=_CAPTURE_HDR,
+    )
+    assert r2.json() == {"stored": 0, "skipped": 1}
+
+    # Sessions (owner cookie), newest first; project derived from cwd.
+    sessions = client.get("/api/sessions").json()
+    assert len(sessions) == 2
+    by_sid = {s["claude_session_id"]: s for s in sessions}
+    assert by_sid["sess-A"]["project_name"] == "cue"
+    assert by_sid["sess-A"]["prompt_count"] == 2
+    assert by_sid["sess-B"]["project_name"] == "inspector-rust"
+
+    # Detail: ordered prompts.
+    sid = by_sid["sess-A"]["id"]
+    detail = client.get(f"/api/sessions/{sid}").json()
+    assert [p["text"] for p in detail["prompts"]] == ["first", "second"]
+
+    # Promote a captured prompt into a real queued prompt in the same project.
+    cp_id = detail["prompts"][0]["id"]
+    pr = client.post(f"/api/sessions/{sid}/prompts/{cp_id}/promote", headers=headers)
+    assert pr.status_code == 201, pr.text
+    assert pr.json()["body"] == "first"
+    assert pr.json()["status"] == "queued"
+    assert pr.json()["project_id"] == by_sid["sess-A"]["project_id"]
+
+
+def test_capture_auth(client):
+    assert client.post("/api/capture", json={"items": []}).status_code == 401
+    assert (
+        client.post("/api/capture", json={"items": []}, headers={"Authorization": "Bearer nope"}).status_code
+        == 401
+    )
+
+
+def test_capture_outside_base(client):
+    _auth(client)
+    r = client.post(
+        "/api/capture",
+        json={"items": [{"session_id": "s", "cwd": "/etc", "prompt": "x", "seq": 1}]},
+        headers=_CAPTURE_HDR,
+    )
+    assert r.json()["stored"] == 1
+    sessions = client.get("/api/sessions").json()
+    assert sessions[0]["project_id"] is None  # cwd outside base -> no project

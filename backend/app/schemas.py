@@ -235,3 +235,43 @@ class RunResultRequest(BaseModel):
     status: RunStatus
     total_cost_usd: float | None = None
     error: str | None = None
+
+
+# ---- Prompt capture ----
+class CaptureItem(BaseModel):
+    session_id: str          # Claude Code session id
+    cwd: str = ""
+    prompt: str
+    seq: int = 0
+    ts: float | None = None   # client epoch seconds (optional)
+
+
+class CaptureRequest(BaseModel):
+    items: list[CaptureItem]
+
+
+class CaptureResult(BaseModel):
+    stored: int
+    skipped: int
+
+
+class CapturedPromptRead(BaseModel):
+    id: int
+    seq: int
+    text: str
+    created_at: datetime
+
+
+class CaptureSessionRead(BaseModel):
+    id: int
+    claude_session_id: str
+    project_id: int | None
+    project_name: str | None = None
+    cwd: str
+    started_at: datetime
+    last_at: datetime
+    prompt_count: int
+
+
+class CaptureSessionDetail(CaptureSessionRead):
+    prompts: list[CapturedPromptRead] = []

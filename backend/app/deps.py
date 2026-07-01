@@ -75,6 +75,18 @@ def require_runner(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid runner token")
 
 
+def require_capture(
+    authorization: str | None = Header(default=None),
+) -> None:
+    """Guard the capture ingest endpoint with the shared CAPTURE_TOKEN (Bearer)."""
+    token = _settings.capture_token
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Capture not configured")
+    expected = f"Bearer {token}"
+    if not authorization or not hmac.compare_digest(authorization, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid capture token")
+
+
 def require_csrf(
     request: Request,
     x_csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),

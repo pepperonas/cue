@@ -88,6 +88,16 @@ class Settings:
         # A run/step with no runner heartbeat for this long is reaped as failed.
         self.run_stale_timeout: int = int(os.environ.get("RUN_STALE_TIMEOUT", "300"))
 
+        # ---- Prompt capture ----
+        # Shared secret the capture forwarder presents (Bearer). Maps to OWNER_EMAIL.
+        self.capture_token: str = os.environ.get("CAPTURE_TOKEN", "")
+        # Base under which captured `cwd`s are turned into project names. Per-user
+        # override comes later; default to the first allowed project base or env.
+        _cap_base = os.environ.get("CAPTURE_BASE", "").strip()
+        self.capture_base: str = posixpath.normpath(_cap_base) if _cap_base else (
+            self.allowed_project_bases[0] if self.allowed_project_bases else ""
+        )
+
         # Directory holding the built frontend (StaticFiles). Optional in dev.
         self.static_dir: str = os.environ.get("STATIC_DIR", str(Path("static")))
 
@@ -140,6 +150,20 @@ class Settings:
             norm == base or norm.startswith(base + "/")
             for base in self.allowed_project_bases
         )
+
+    def capture_project_name(self, cwd: str) -> str | None:
+        """Project name derived from a captured cwd: the first path segment under
+        `capture_base`. Returns None when cwd is outside the base."""
+        base = self.capture_base
+        if not base or not cwd:
+            return None
+        norm = posixpath.normpath(cwd)
+        if norm != base and not norm.startswith(base + "/"):
+            return None
+        rest = norm[len(base):].lstrip("/")
+        if not rest:
+            return None
+        return rest.split("/", 1)[0]
 
     def ensure_dirs(self) -> None:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)

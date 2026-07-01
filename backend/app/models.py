@@ -170,3 +170,30 @@ class RunLog(SQLModel, table=True):
     ts: datetime = Field(default_factory=utcnow)
     event_type: str = Field(default="")
     line: str = Field(default="")
+
+
+# ---- Prompt capture (every prompt typed in the Claude Code CLI) ----
+class CaptureSession(SQLModel, table=True):
+    __tablename__ = "capture_session"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # Claude Code session id (from the UserPromptSubmit hook).
+    claude_session_id: str = Field(index=True)
+    project_id: int | None = Field(default=None, foreign_key="project.id", index=True)
+    cwd: str = Field(default="")
+    started_at: datetime = Field(default_factory=utcnow)
+    last_at: datetime = Field(default_factory=utcnow, index=True)
+    prompt_count: int = Field(default=0)
+
+
+class CapturedPrompt(SQLModel, table=True):
+    __tablename__ = "captured_prompt"
+
+    id: int | None = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="capture_session.id", index=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # Client-provided monotonic sequence within the Claude session (dedup key).
+    seq: int = Field(default=0)
+    text: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow)
