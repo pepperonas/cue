@@ -30,6 +30,7 @@ import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
 import { RunDialog, type RunPayload } from './components/RunDialog'
 import { RunsView } from './components/RunsView'
+import { SessionsView } from './components/SessionsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Login } from './components/Login'
@@ -82,6 +83,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       saved === 'list' ||
       saved === 'bookmarks' ||
       saved === 'runs' ||
+      saved === 'sessions' ||
       saved === 'projects' ||
       saved === 'settings'
       ? saved
@@ -470,6 +472,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         )}
 
         {view === 'runs' && <RunsView canRun={canRun} />}
+        {view === 'sessions' && <SessionsView canRun={canRun} dark={settings.resolvedDark} />}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
         {view === 'settings' && (

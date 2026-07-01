@@ -2,6 +2,8 @@
 // reading the readable `cue_csrf` cookie.
 import type {
   Attachment,
+  CaptureSession,
+  CaptureSessionDetail,
   Me,
   Project,
   Prompt,
@@ -142,6 +144,13 @@ export const api = {
     stop_on_error?: boolean
   }) => request<Run>('POST', '/runs', input),
   cancelRun: (id: string) => request<Run>('POST', `/runs/${id}/cancel`),
+
+  // Prompt capture history
+  listSessions: () => request<CaptureSession[]>('GET', '/sessions'),
+  getSession: (id: number) => request<CaptureSessionDetail>('GET', `/sessions/${id}`),
+  promoteCaptured: (sessionId: number, cpId: number) =>
+    request<Prompt>('POST', `/sessions/${sessionId}/prompts/${cpId}/promote`),
+  deleteSession: (id: number) => request<void>('DELETE', `/sessions/${id}`),
   mergePrompts: (input: {
     source_ids: number[]
     title?: string

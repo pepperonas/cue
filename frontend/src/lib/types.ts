@@ -136,6 +136,29 @@ export interface RunConfig {
   models: string[]
 }
 
+// ---- Prompt capture ----
+export interface CaptureSession {
+  id: number
+  claude_session_id: string
+  project_id: number | null
+  project_name: string | null
+  cwd: string
+  started_at: string
+  last_at: string
+  prompt_count: number
+}
+
+export interface CapturedPrompt {
+  id: number
+  seq: number
+  text: string
+  created_at: string
+}
+
+export interface CaptureSessionDetail extends CaptureSession {
+  prompts: CapturedPrompt[]
+}
+
 export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
   queued: 'Queued',
   claiming: 'Claiming',

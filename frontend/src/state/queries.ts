@@ -135,6 +135,46 @@ export function useMergePrompts() {
   })
 }
 
+// ---- Prompt capture history ----
+export function useSessions(enabled: boolean) {
+  return useQuery({
+    queryKey: ['sessions'],
+    queryFn: () => api.listSessions(),
+    enabled,
+    refetchInterval: enabled ? 5000 : false,
+  })
+}
+
+export function useSession(id: number | null) {
+  return useQuery({
+    queryKey: ['session', id],
+    queryFn: () => api.getSession(id as number),
+    enabled: !!id,
+    refetchInterval: 4000,
+  })
+}
+
+export function usePromoteCaptured() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sessionId, cpId }: { sessionId: number; cpId: number }) =>
+      api.promoteCaptured(sessionId, cpId),
+    onSuccess: (prompt) => {
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) => [...(old ?? []), prompt])
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
+export function useDeleteSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteSession(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sessions'] }),
+  })
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({

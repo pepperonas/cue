@@ -1347,6 +1347,55 @@ kbd {
   color: var(--md-primary);
 }
 
+/* ---- Sessions / Verlauf ---- */
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-5);
+  max-width: 820px;
+  margin: 0 auto;
+}
+.session-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  font: var(--title-m);
+  margin: 0 0 var(--gap-3);
+}
+.session-group-head .count {
+  font: var(--label-m);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  padding: 2px 10px;
+  border-radius: var(--shape-full);
+}
+.captured-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.captured {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-2);
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--shape-s);
+  padding: 10px 12px;
+}
+.captured-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.captured-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 /* ---- Mobile ---- */
 @media (max-width: 640px) {
   .app-main {
