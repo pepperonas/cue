@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
+import { dedupeTags } from '../lib/tags'
 import type { Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BookmarkButton } from './BookmarkButton'
@@ -115,16 +116,11 @@ export function PromptCard({
               {project.name}
             </span>
           )}
-          {prompt.tags &&
-            prompt.tags
-              .split(',')
-              .map((t) => t.trim())
-              .filter(Boolean)
-              .map((t) => (
-                <span key={t} className="tag">
-                  #{t}
-                </span>
-              ))}
+          {dedupeTags(prompt.tags).map((t) => (
+            <span key={t} className="tag">
+              #{t}
+            </span>
+          ))}
           {prompt.attachments.length > 0 && (
             <span className="tag" title="Screenshots">
               <Icon name="image" /> {prompt.attachments.length}

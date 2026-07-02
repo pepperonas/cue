@@ -7,7 +7,7 @@ import type { Attachment, Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
 import { useCreatePrompt, usePrompts, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
-import { DEV_TAGS } from '../lib/tags'
+import { DEV_TAGS, normalizeTags } from '../lib/tags'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
 
@@ -169,6 +169,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   async function save() {
     if (!body.trim()) return
     const attachment_ids = attachments.map((a) => a.id)
+    const cleanTags = normalizeTags(tags) // dedup so a prompt never holds a tag twice
     try {
       if (isEdit && editing) {
         await update.mutateAsync({
@@ -177,7 +178,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
             body,
             title,
             status,
-            tags,
+            tags: cleanTags,
             project_id: projectId,
             unassign_project: projectId === null,
             attachment_ids,
@@ -190,7 +191,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           title: title || undefined,
           project_id: projectId,
           status,
-          tags,
+          tags: cleanTags,
           attachment_ids,
         })
         localStorage.removeItem(DRAFT_KEY)
@@ -218,7 +219,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   }
 
   return (
-    <div className="scrim" onClick={onClose}>
+    <div className="scrim" onClick={isEdit ? undefined : onClose}>
       <motion.div
         layoutId="composer-surface"
         className={`sheet sheet--composer ${dragOver ? 'drag-over' : ''}`}

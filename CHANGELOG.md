@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-02
+
+### Fixed
+- Tags are now deduplicated case-insensitively per prompt — the tag input
+  refuses to add a tag the prompt already has, and tags are deduped on save and
+  on render, so a tag (e.g. `optimization`) can never appear twice on a prompt.
+- Editing a prompt: clicking outside the dialog no longer closes it (avoids
+  losing edits by an accidental click on the backdrop). Close via the ✕,
+  "Abbrechen", or Esc. Creating a new prompt still closes on outside click.
+
 ## [0.4.0] - 2026-07-02
 
 ### Added
@@ -110,6 +120,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.4.1]: https://github.com/pepperonas/cue/releases/tag/v0.4.1
 [0.4.0]: https://github.com/pepperonas/cue/releases/tag/v0.4.0
 [0.3.2]: https://github.com/pepperonas/cue/releases/tag/v0.3.2
 [0.3.1]: https://github.com/pepperonas/cue/releases/tag/v0.3.1

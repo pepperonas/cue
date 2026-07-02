@@ -68,7 +68,11 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
   }, [suggestions, chosen, query])
 
   function commit(tag: string) {
-    const next = [...completed.map((t) => t.trim()).filter(Boolean), tag]
+    const kept = completed.map((t) => t.trim()).filter(Boolean)
+    // Don't add a tag the prompt already has (case-insensitive).
+    const next = kept.some((t) => t.toLowerCase() === tag.toLowerCase())
+      ? kept
+      : [...kept, tag]
     onChange(next.join(', ') + ', ')
     setActive(0)
     inputRef.current?.focus()

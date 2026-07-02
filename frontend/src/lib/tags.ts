@@ -1,3 +1,25 @@
+// Split a comma-separated tag string into trimmed, non-empty, case-insensitively
+// unique tags (keeping the first spelling seen). Used so a prompt can never hold
+// the same tag twice.
+export function dedupeTags(raw: string | null | undefined): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of (raw ?? '').split(',')) {
+    const t = part.trim()
+    const key = t.toLowerCase()
+    if (t && !seen.has(key)) {
+      seen.add(key)
+      out.push(t)
+    }
+  }
+  return out
+}
+
+// Normalize a tag field to a deduped, comma-separated string.
+export function normalizeTags(raw: string | null | undefined): string {
+  return dedupeTags(raw).join(', ')
+}
+
 // Curated English software-development tags suggested in the tag autocomplete.
 // Kept lowercase, single-token (use hyphens, no spaces) so they round-trip
 // cleanly through the comma-separated tag field.
