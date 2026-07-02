@@ -78,6 +78,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     () => localStorage.getItem(ATTACH_NOTICE_KEY) !== '1',
   )
   const newIds = useRef<Set<number>>(new Set())
+  const removedExisting = useRef<Set<number>>(new Set())
   const savedRef = useRef(false)
 
   useEffect(() => {
@@ -113,8 +114,15 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
 
   function removeAttachment(att: Attachment) {
     setAttachments((prev) => prev.filter((a) => a.id !== att.id))
-    newIds.current.delete(att.id)
-    void api.deleteAttachment(att.id).catch(() => {})
+    if (newIds.current.has(att.id)) {
+      // Uncommitted upload from this session — safe to drop immediately.
+      newIds.current.delete(att.id)
+      void api.deleteAttachment(att.id).catch(() => {})
+    } else {
+      // Already persisted on the prompt: stage the removal so "Abbrechen"
+      // leaves it intact; only delete on a successful save.
+      removedExisting.current.add(att.id)
+    }
   }
 
   function onDrop(e: React.DragEvent) {
@@ -191,6 +199,11 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
         toast.show('Prompt angelegt', 'success')
       }
       savedRef.current = true // keep the now-associated uploads
+      // Now that the save succeeded, actually delete the removed existing ones.
+      removedExisting.current.forEach((id) => {
+        void api.deleteAttachment(id).catch(() => {})
+      })
+      removedExisting.current.clear()
       onClose()
     } catch {
       toast.show('Speichern fehlgeschlagen', 'error')

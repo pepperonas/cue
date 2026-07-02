@@ -9,7 +9,7 @@ from sqlalchemy import func as _func
 
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
-from ..models import Project, Prompt
+from ..models import CaptureSession, Project, Prompt
 from ..schemas import ProjectCreate, ProjectReorderRequest, ProjectRead, ProjectUpdate
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -152,5 +152,15 @@ def delete_project(
     for prompt in prompts:
         prompt.project_id = None
         session.add(prompt)
+    # Capture sessions also FK the project (capture auto-creates projects per cwd);
+    # unassign them too, or foreign_keys=ON raises on delete.
+    sessions = session.exec(
+        select(CaptureSession).where(
+            CaptureSession.project_id == project_id, CaptureSession.user_id == uid
+        )
+    ).all()
+    for cs in sessions:
+        cs.project_id = None
+        session.add(cs)
     session.delete(project)
     session.commit()

@@ -51,6 +51,16 @@ def test_build_command_chain_threading():
     assert "--resume" in a1 and "sess-123" in a1 and "--session-id" not in a1
 
 
+def test_allowed_tools_rejects_flag_injection():
+    """A compromised server must not smuggle extra claude flags via allowed_tools."""
+    cfg = _cfg()
+    run = {"allowed_tools": "Bash --dangerously-skip-permissions -x"}
+    argv = build_command(cfg, run, 0, "hi", "sess")
+    assert "--dangerously-skip-permissions" not in argv
+    assert "-x" not in argv
+    assert argv[argv.index("--allowedTools") + 1] == "Bash"
+
+
 def test_stream_parsing():
     init = parse_line(json.dumps({"type": "system", "subtype": "init", "session_id": "s1"}))
     assert session_id_of(init) == "s1"

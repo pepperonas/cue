@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
 from sqlmodel import Session, select
 
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
-from ..models import Attachment, Project, Prompt, PromptStatus, utcnow
+from ..models import Attachment, Project, Prompt, PromptStatus, RunStep, utcnow
 from ..schemas import (
     BookmarkReorderRequest,
     MergeRequest,
@@ -212,6 +212,9 @@ def delete_prompt(
 ) -> None:
     prompt = _owned(session, prompt_id, uid)
     _purge_attachments(session, prompt_id)
+    # RunStep keeps a text snapshot, so detach the FK rather than blocking the
+    # delete (foreign_keys=ON would otherwise raise on a previously-run prompt).
+    session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
     session.delete(prompt)
     session.commit()
 
@@ -263,6 +266,10 @@ def merge_prompts(
             ).all():
                 att.prompt_id = merged.id
                 session.add(att)
+            # Detach RunStep FK so a previously-run source can be deleted.
+            session.exec(
+                update(RunStep).where(RunStep.prompt_id == prompt.id).values(prompt_id=None)
+            )
             session.delete(prompt)
     elif payload.originals == "archive":
         next_arch = _next_sort_order(session, PromptStatus.archived, uid)

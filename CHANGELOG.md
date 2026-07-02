@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-07-02
+
+### Fixed
+- Deleting (or merging away) a prompt that had been executed in a run no longer
+  crashes with a 500 — the `RunStep.prompt_id` foreign key is detached first
+  (the step keeps its text snapshot).
+- Deleting a project that has capture sessions no longer crashes with a 500 —
+  `CaptureSession.project_id` is unassigned alongside the project's prompts.
+- Composer: removing an already-saved screenshot and then pressing **Abbrechen**
+  no longer deletes it permanently; existing attachments are only deleted on a
+  successful save, uncommitted uploads still get cleaned up on cancel.
+
+### Security (cue-runner hardening — defense-in-depth vs. a compromised server)
+- `allowed_tools` tokens starting with `-` are rejected, so a malicious server
+  can't smuggle extra `claude` CLI flags (e.g. `--dangerously-skip-permissions`).
+- The `claude` subprocess no longer inherits the runner's `RUNNER_TOKEN` /
+  `CAPTURE_TOKEN` (or `CUE_*` config) — a run step can't read them from its env.
+- Steps run in their own process group (`start_new_session`); cancel/timeout now
+  signals the whole tree, so tool-spawned grandchildren aren't orphaned.
+- The project path is re-validated after `realpath`, closing a symlink escape of
+  the base whitelist.
+- The stream-json reader tolerates events larger than 64 KiB and surfaces reader
+  errors as a failed step instead of a false success.
+
 ## [0.3.1] - 2026-07-02
 
 ### Changed
@@ -62,6 +86,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.3.2]: https://github.com/pepperonas/cue/releases/tag/v0.3.2
 [0.3.1]: https://github.com/pepperonas/cue/releases/tag/v0.3.1
 [0.3.0]: https://github.com/pepperonas/cue/releases/tag/v0.3.0
 [0.2.0]: https://github.com/pepperonas/cue/releases/tag/v0.2.0

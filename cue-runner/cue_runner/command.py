@@ -12,7 +12,9 @@ from .config import Config
 
 
 def _split_tools(value: str) -> list[str]:
-    return [t for t in re.split(r"[,\s]+", value.strip()) if t]
+    # Drop any token that could be read as a CLI flag ("-"/"--…"): a compromised
+    # server must not be able to smuggle extra `claude` flags via allowed_tools.
+    return [t for t in re.split(r"[,\s]+", value.strip()) if t and not t.startswith("-")]
 
 
 def build_command(

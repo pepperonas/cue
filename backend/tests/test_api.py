@@ -546,3 +546,35 @@ def test_capture_per_user_token(client):
     g = client.get("/api/capture/settings").json()
     assert g["project_base"] == "/Users/martin/claude"
     assert g["has_token"] is True and g.get("token") is None
+
+
+def test_delete_prompt_after_run(client):
+    """Deleting a prompt used in a run must not FK-crash on RunStep.prompt_id."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+    cr = client.post(
+        "/api/runs",
+        json={"kind": "single", "prompt_ids": [pid], "project_path": "/Users/martin/claude/cue"},
+        headers=headers,
+    )
+    assert cr.status_code == 201, cr.text  # run snapshots a RunStep referencing pid
+    d = client.delete(f"/api/prompts/{pid}", headers=headers)
+    assert d.status_code == 204, d.text
+    assert client.get("/api/prompts").json() == []
+
+
+def test_delete_project_with_capture(client):
+    """Deleting a project that has capture sessions must not FK-crash."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    client.post(
+        "/api/capture",
+        json={"items": [{"session_id": "sX", "cwd": "/Users/martin/claude/cue", "prompt": "hi", "seq": 1}]},
+        headers=_CAPTURE_HDR,
+    )
+    project_id = client.get("/api/sessions").json()[0]["project_id"]
+    assert project_id is not None
+    d = client.delete(f"/api/projects/{project_id}", headers=headers)
+    assert d.status_code == 204, d.text
+    assert client.get("/api/sessions").json()[0]["project_id"] is None  # unassigned, not deleted
