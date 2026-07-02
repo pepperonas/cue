@@ -45,43 +45,62 @@ export function SendToSessionDialog({ text, projectId, onClose }: Props) {
     if (sessionId == null && options.length) setSessionId(options[0].id)
   }, [options, sessionId])
 
+  // Set once the dialog unmounts so in-flight async work stops touching state.
+  const closedRef = useRef(false)
   useEffect(() => () => {
+    closedRef.current = true
     if (pollRef.current) window.clearInterval(pollRef.current)
   }, [])
 
   async function doSend() {
     if (sessionId == null) return
     setBusy(true)
+    let created: { id: number }
     try {
-      const { id } = await send.mutateAsync({ sessionId, text, submit })
-      // Poll for the runner's result so we can report success/failure honestly.
-      let ticks = 0
-      pollRef.current = window.setInterval(async () => {
-        ticks++
-        try {
-          const d = await api.getDelivery(id)
-          if (d.status === 'sent') {
-            window.clearInterval(pollRef.current!)
-            toast.show(submit ? 'Gesendet & ausgeführt' : 'In die Session eingefügt', 'success')
-            onClose()
-          } else if (d.status === 'failed') {
-            window.clearInterval(pollRef.current!)
-            toast.show(`Senden fehlgeschlagen: ${d.error ?? 'unbekannt'}`, 'error')
-            setBusy(false)
-          }
-        } catch {
-          /* keep polling */
-        }
-        if (ticks > 12) {
+      created = await send.mutateAsync({ sessionId, text, submit })
+    } catch {
+      if (!closedRef.current) {
+        toast.show('Senden fehlgeschlagen', 'error')
+        setBusy(false)
+      }
+      return
+    }
+    if (closedRef.current) return // dialog was closed during the request
+    const id = created.id
+    // Poll for the runner's result so we can report success/failure honestly.
+    let ticks = 0
+    pollRef.current = window.setInterval(async () => {
+      if (closedRef.current) {
+        window.clearInterval(pollRef.current!)
+        return
+      }
+      ticks++
+      try {
+        const d = await api.getDelivery(id)
+        if (closedRef.current) {
           window.clearInterval(pollRef.current!)
+          return
+        }
+        if (d.status === 'sent') {
+          window.clearInterval(pollRef.current!)
+          toast.show(submit ? 'Gesendet & ausgeführt' : 'In die Session eingefügt', 'success')
+          onClose()
+        } else if (d.status === 'failed') {
+          window.clearInterval(pollRef.current!)
+          toast.show(`Senden fehlgeschlagen: ${d.error ?? 'unbekannt'}`, 'error')
+          setBusy(false)
+        }
+      } catch {
+        /* keep polling */
+      }
+      if (ticks > 12) {
+        window.clearInterval(pollRef.current!)
+        if (!closedRef.current) {
           toast.show('Keine Rückmeldung vom Runner — läuft er?', 'error')
           setBusy(false)
         }
-      }, 800)
-    } catch {
-      toast.show('Senden fehlgeschlagen', 'error')
-      setBusy(false)
-    }
+      }
+    }, 800)
   }
 
   return (

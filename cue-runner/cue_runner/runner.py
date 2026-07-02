@@ -25,7 +25,10 @@ async def _delivery_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> No
             d = await api.claim_delivery()
             if d:
                 worked = True
-                status, error = await deliver_one(d)
+                try:
+                    status, error = await deliver_one(d)
+                except Exception as exc:  # noqa: BLE001 — always resolve the claimed delivery
+                    status, error = "failed", f"runner error: {exc}"[:400]
                 await api.delivery_result(d["id"], status, error)
                 if status == "sent":
                     log.info("delivered prompt to %s session", d.get("transport"))

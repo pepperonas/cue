@@ -12,7 +12,21 @@ compromised server can't inject shell/AppleScript or extra flags.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
+
+# Each osascript/tmux call must not wedge the (serial) delivery loop — the very
+# first iTerm delivery can block on the macOS Automation-permission dialog.
+_RUN_TIMEOUT = 20.0
+
+# Strip ESC + other C0 control bytes (keep \t and \n) from delivered text so a
+# prompt can't embed a bracketed-paste terminator (ESC[201~) — which would end
+# paste mode early and let the remainder run as live keystrokes/commands.
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+
+
+def _sanitize_text(text: str) -> str:
+    return _CTRL_RE.sub("", text or "")
 
 # iTerm2: find the session whose id matches the GUID, bracketed-paste the text,
 # then optionally send a bare return to submit. Text/guid/submit come via argv
@@ -52,7 +66,14 @@ async def _run(argv: list[str], stdin: bytes | None = None) -> tuple[int, str]:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
-    out, _ = await proc.communicate(input=stdin)
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(input=stdin), timeout=_RUN_TIMEOUT)
+    except asyncio.TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        with contextlib.suppress(Exception):
+            await proc.wait()
+        return 124, "timed out (terminal unresponsive or awaiting Automation permission?)"
     return proc.returncode or 0, out.decode("utf-8", "replace").strip()
 
 
@@ -96,6 +117,7 @@ async def _deliver_tmux(d: dict) -> tuple[str, str | None]:
 
 async def deliver_one(d: dict) -> tuple[str, str | None]:
     """Perform one delivery. Returns (status, error) — status is 'sent'|'failed'."""
+    d = {**d, "text": _sanitize_text(d.get("text", ""))}
     transport = d.get("transport")
     if transport == "iterm":
         return await _deliver_iterm(d)

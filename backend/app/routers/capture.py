@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hmac
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from sqlalchemy import func, text
@@ -45,6 +45,8 @@ _settings = get_settings()
 _PALETTE = ["#6750A4", "#3B6EA5", "#2E7D55", "#B3541E", "#8E4585", "#0F766E", "#9A3B3B"]
 _MAX_PROMPT = 20000
 _MAX_SEND = 100000
+# A delivery claimed but not resolved within this window is presumed dead.
+_DELIVERY_STALE_S = 120
 
 
 def _transport_of(cs: CaptureSession) -> str | None:
@@ -148,15 +150,14 @@ def capture(
             )
             session.add(cs)
             session.flush()
-        # Refresh the live terminal context (the session may have moved panes).
-        if item.term_program:
-            cs.term_program = item.term_program
-        if item.iterm_session_id:
-            cs.iterm_session_id = item.iterm_session_id
-        if item.tmux_pane:
-            cs.tmux_pane = item.tmux_pane
-        if item.tmux_socket:
-            cs.tmux_socket = item.tmux_socket
+        # Refresh the live terminal context to *this* prompt's terminal. Always
+        # overwrite (don't keep old values) so a session resumed in a plain
+        # terminal clears a stale iTerm GUID / recyclable tmux pane — otherwise a
+        # later, unrelated pane with a reused id could receive the delivery.
+        cs.term_program = item.term_program
+        cs.iterm_session_id = item.iterm_session_id
+        cs.tmux_pane = item.tmux_pane
+        cs.tmux_socket = item.tmux_socket
         cache[item.session_id] = cs
 
         # Dedup on (session, seq) when the client provides a sequence.
@@ -267,6 +268,12 @@ def delete_session(
         raise HTTPException(status_code=404, detail="Session not found")
     for cp in session.exec(select(CapturedPrompt).where(CapturedPrompt.session_id == cs.id)).all():
         session.delete(cp)
+    # CliDelivery rows FK the session too (foreign_keys=ON would raise on delete).
+    for d in session.exec(select(CliDelivery).where(CliDelivery.session_id == cs.id)).all():
+        session.delete(d)
+    # Flush the child deletes before removing the parent: the FKs are table-level
+    # (no ORM relationship), so the unit-of-work won't order them for us.
+    session.flush()
     session.delete(cs)
     session.commit()
 
@@ -344,6 +351,15 @@ def claim_delivery(
 ):
     """Atomically claim the oldest queued delivery (single UPDATE guards against
     a double-claim if two poll ticks overlap)."""
+    # Reap deliveries stuck in 'sending' (runner died after claiming, before
+    # reporting a result) so they reach a terminal state instead of lingering.
+    session.execute(
+        text(
+            "UPDATE cli_delivery SET status='failed', error='runner stopped responding', "
+            "sent_at=:now WHERE status='sending' AND created_at < :cutoff"
+        ),
+        {"now": utcnow(), "cutoff": utcnow() - timedelta(seconds=_DELIVERY_STALE_S)},
+    )
     row = session.execute(
         text(
             "UPDATE cli_delivery SET status='sending' "

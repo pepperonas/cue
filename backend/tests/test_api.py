@@ -643,3 +643,45 @@ def test_send_owner_only(client):
 def test_cli_claim_requires_runner_token(client):
     assert client.get("/api/cli/claim").status_code == 401
     assert client.get("/api/cli/claim", headers={"Authorization": "Bearer nope"}).status_code == 401
+
+
+def test_delete_session_with_delivery(client):
+    """Deleting a session that has a CliDelivery must not FK-crash."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _capture_with_terminal(client)
+    s = client.get("/api/sessions").json()[0]
+    r = client.post(f"/api/sessions/{s['id']}/send", json={"text": "hi", "submit": False}, headers=headers)
+    assert r.status_code == 201, r.text
+    # Session now has a delivery row FK'ing it; delete must still succeed.
+    d = client.delete(f"/api/sessions/{s['id']}", headers=headers)
+    assert d.status_code == 204, d.text
+    assert client.get("/api/sessions").json() == []
+
+
+def test_delivery_stale_reaper(client):
+    """A delivery stuck in 'sending' past the timeout is failed on the next claim."""
+    import datetime as _dt
+
+    import app.db as db_module
+    from sqlmodel import Session as _S
+
+    from app.models import CaptureSession, CliDelivery, DeliveryStatus
+
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _capture_with_terminal(client)
+    s = client.get("/api/sessions").json()[0]
+
+    # Create a delivery, then force it into 'sending' backdated past the timeout.
+    did = client.post(f"/api/sessions/{s['id']}/send", json={"text": "x"}, headers=headers).json()["id"]
+    with _S(db_module.engine) as sess:
+        row = sess.get(CliDelivery, did)
+        row.status = DeliveryStatus.sending
+        row.created_at = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(seconds=600)
+        sess.add(row)
+        sess.commit()
+
+    # Next claim reaps it (no queued rows -> 204), and the row is now 'failed'.
+    assert client.get("/api/cli/claim", headers=_RUNNER_HDR).status_code == 204
+    assert client.get(f"/api/cli/{did}", headers=headers).json()["status"] == "failed"

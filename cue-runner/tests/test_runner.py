@@ -265,3 +265,51 @@ async def test_deliver_unknown_transport():
 
     status, err = await deliver.deliver_one({"transport": "carrier-pigeon"})
     assert status == "failed" and "unknown transport" in err
+
+
+async def test_deliver_strips_bracketed_paste_terminator(monkeypatch):
+    """Prompt text can't smuggle an ESC[201~ terminator into the paste stream."""
+    from cue_runner import deliver
+
+    calls = []
+
+    async def fake_run(argv, stdin=None):
+        calls.append({"argv": argv, "stdin": stdin})
+        return 0, "ok"
+
+    monkeypatch.setattr(deliver, "_run", fake_run)
+    evil = "before\x1b[201~echo pwned\nafter"
+    st, err = await deliver.deliver_one(
+        {"transport": "iterm", "iterm_session_id": "w0:ABCDEF0123", "text": evil, "submit": False}
+    )
+    assert st == "sent"
+    passed_text = calls[0]["argv"][3]  # osascript - <guid> <text> <submit>
+    assert "\x1b" not in passed_text  # ESC stripped
+    assert "201~echo pwned" in passed_text  # rest kept as literal (no ESC prefix)
+    assert "\n" in passed_text  # newline preserved (multi-line prompts still work)
+
+
+async def test_run_times_out(monkeypatch):
+    """A hanging subprocess is killed and reported, not left to wedge the loop."""
+    from cue_runner import deliver
+
+    monkeypatch.setattr(deliver, "_RUN_TIMEOUT", 0.05)
+
+    class HangProc:
+        returncode = None
+
+        async def communicate(self, input=None):
+            await asyncio.sleep(10)
+
+        def kill(self):
+            self.returncode = -9
+
+        async def wait(self):
+            return -9
+
+    async def fake_exec(*a, **k):
+        return HangProc()
+
+    monkeypatch.setattr(deliver.asyncio, "create_subprocess_exec", fake_exec)
+    code, out = await deliver._run(["osascript", "-"], stdin=b"x")
+    assert code == 124 and "timed out" in out

@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-07-02
+
+### Fixed
+- Deleting a capture session that had a "send to CLI" delivery no longer
+  crashes with a FK 500 — `CliDelivery` rows are removed first, and the child
+  deletes are flushed before the parent (also fixes the same latent ordering
+  issue for sessions with captured prompts).
+- The runner strips ESC/control bytes from delivered text, so a prompt can't
+  smuggle a bracketed-paste terminator (`ESC[201~`) that would end paste mode
+  early and run the remainder as live keystrokes/commands.
+- The runner now reports a `failed` result if a delivery transport raises
+  (missing `osascript`/`tmux`, oversized argv, …) instead of silently orphaning
+  the claimed delivery; and each `osascript`/`tmux` call has a 20 s timeout so a
+  hung terminal (or the first-run Automation-permission dialog) can't wedge the
+  whole delivery loop.
+- The terminal context is now fully refreshed on every captured prompt (stale
+  iTerm GUID / recyclable tmux pane is cleared when a session resumes elsewhere),
+  so a delivery can't be routed into an unrelated terminal.
+- A delivery stuck in `sending` (runner died mid-flight) is reaped to `failed`
+  on the next claim instead of lingering forever.
+- `SendToSessionDialog`: closing the dialog while a send/poll is in flight no
+  longer updates state after unmount or fires a stray toast seconds later.
+
 ## [0.4.1] - 2026-07-02
 
 ### Fixed
@@ -120,6 +143,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.4.2]: https://github.com/pepperonas/cue/releases/tag/v0.4.2
 [0.4.1]: https://github.com/pepperonas/cue/releases/tag/v0.4.1
 [0.4.0]: https://github.com/pepperonas/cue/releases/tag/v0.4.0
 [0.3.2]: https://github.com/pepperonas/cue/releases/tag/v0.3.2
