@@ -61,11 +61,18 @@ def _migrate(engine: Engine) -> None:
         "capture_token": "ALTER TABLE user ADD COLUMN capture_token VARCHAR",
         "project_base": "ALTER TABLE user ADD COLUMN project_base VARCHAR",
     }
+    capture_session_additions = {
+        "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
+        "iterm_session_id": "ALTER TABLE capture_session ADD COLUMN iterm_session_id VARCHAR NOT NULL DEFAULT ''",
+        "tmux_pane": "ALTER TABLE capture_session ADD COLUMN tmux_pane VARCHAR NOT NULL DEFAULT ''",
+        "tmux_socket": "ALTER TABLE capture_session ADD COLUMN tmux_socket VARCHAR NOT NULL DEFAULT ''",
+    }
     with engine.begin() as conn:
         for table, additions in (
             ("prompt", prompt_additions),
             ("project", project_additions),
             ("user", user_additions),
+            ("capture_session", capture_session_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             for column, ddl in additions.items():

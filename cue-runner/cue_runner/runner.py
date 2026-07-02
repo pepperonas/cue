@@ -9,9 +9,37 @@ import signal
 from .api import RunnerApi
 from .capture import CaptureForwarder
 from .config import Config
+from .deliver import deliver_one
 from .executor import execute_run
 
 log = logging.getLogger("cue-runner")
+
+
+async def _delivery_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
+    """Poll for prompts to type back into a live terminal session and perform them."""
+    last_err_log = 0.0
+    loop = asyncio.get_event_loop()
+    while not stop.is_set():
+        worked = False
+        try:
+            d = await api.claim_delivery()
+            if d:
+                worked = True
+                status, error = await deliver_one(d)
+                await api.delivery_result(d["id"], status, error)
+                if status == "sent":
+                    log.info("delivered prompt to %s session", d.get("transport"))
+                else:
+                    log.warning("delivery %s failed: %s", d.get("id"), error)
+        except Exception as exc:  # noqa: BLE001
+            now = loop.time()
+            if now - last_err_log > 60:
+                log.warning("delivery poll paused (retrying): %s", exc)
+                last_err_log = now
+        if worked and not stop.is_set():
+            continue  # drain the queue without waiting
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=cfg.deliver_interval)
 
 
 async def _capture_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
@@ -88,6 +116,11 @@ async def run_forever(cfg: Config) -> None:
         capture_task = asyncio.create_task(_capture_loop(cfg, api, shutdown))
         log.info("prompt capture on (spool: %s)", cfg.spool_path)
 
+    delivery_task: asyncio.Task | None = None
+    if cfg.deliver_enabled:
+        delivery_task = asyncio.create_task(_delivery_loop(cfg, api, shutdown))
+        log.info("cli delivery on (poll %.1fs)", cfg.deliver_interval)
+
     log.info("cue-runner started → %s (concurrency=%d)", cfg.api_url, cfg.max_concurrency)
     try:
         while not shutdown.is_set():
@@ -115,9 +148,10 @@ async def run_forever(cfg: Config) -> None:
         if tasks:
             with contextlib.suppress(Exception):
                 await asyncio.wait(tasks, timeout=30)
-        if capture_task:
-            capture_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await capture_task
+        for extra in (capture_task, delivery_task):
+            if extra:
+                extra.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await extra
         await api.aclose()
         log.info("cue-runner stopped")

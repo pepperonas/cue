@@ -5,6 +5,7 @@ import type {
   CaptureSession,
   CaptureSessionDetail,
   CaptureSettings,
+  Delivery,
   Me,
   Project,
   Prompt,
@@ -152,6 +153,10 @@ export const api = {
   promoteCaptured: (sessionId: number, cpId: number) =>
     request<Prompt>('POST', `/sessions/${sessionId}/prompts/${cpId}/promote`),
   deleteSession: (id: number) => request<void>('DELETE', `/sessions/${id}`),
+  // Send a prompt into a live session's terminal (owner-only, via the runner).
+  sendToSession: (sessionId: number, text: string, submit: boolean) =>
+    request<Delivery>('POST', `/sessions/${sessionId}/send`, { text, submit }),
+  getDelivery: (id: number) => request<Delivery>('GET', `/cli/${id}`),
   getCaptureSettings: () => request<CaptureSettings>('GET', '/capture/settings'),
   updateCaptureSettings: (patch: { project_base?: string; regenerate?: boolean }) =>
     request<CaptureSettings>('POST', '/capture/settings', patch),

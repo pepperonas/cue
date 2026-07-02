@@ -61,6 +61,19 @@ class RunnerApi:
             },
         )
 
+    async def claim_delivery(self) -> dict | None:
+        r = await self.client.get("/api/cli/claim")
+        if r.status_code == 204:
+            return None
+        r.raise_for_status()
+        return r.json()
+
+    async def delivery_result(self, delivery_id: int, status: str, error: str | None = None) -> None:
+        await self.client.post(
+            f"/api/cli/{delivery_id}/result",
+            json={"status": status, "error": error},
+        )
+
     async def capture(self, items: list[dict]) -> dict:
         # Capture uses its own token (not the runner token).
         r = await self.client.post(

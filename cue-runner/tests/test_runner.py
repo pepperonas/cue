@@ -206,3 +206,62 @@ async def test_execute_run_rejects_bad_path(tmp_path):
     await execute_run(cfg, api, run, asyncio.Event())
     assert api.runs[-1][0] == "failed"
     assert not api.steps  # never executed
+
+
+async def test_deliver_iterm_builds_argv(monkeypatch):
+    from cue_runner import deliver
+
+    calls = []
+
+    async def fake_run(argv, stdin=None):
+        calls.append({"argv": argv, "stdin": stdin})
+        return 0, "ok"
+
+    monkeypatch.setattr(deliver, "_run", fake_run)
+    status, err = await deliver.deliver_one(
+        {"transport": "iterm", "iterm_session_id": "w0t1p0:DEADBEEF0123", "text": "hello", "submit": True}
+    )
+    assert status == "sent" and err is None
+    argv = calls[0]["argv"]
+    assert argv[0] == "osascript"
+    assert argv[2] == "DEADBEEF0123"  # GUID extracted from ITERM_SESSION_ID
+    assert argv[3] == "hello" and argv[4] == "1"  # text + submit flag, no interpolation
+    assert calls[0]["stdin"] is not None  # AppleScript fed via stdin
+
+
+async def test_deliver_iterm_rejects_bad_guid(monkeypatch):
+    from cue_runner import deliver
+
+    async def fake_run(argv, stdin=None):
+        raise AssertionError("must not spawn for invalid id")
+
+    monkeypatch.setattr(deliver, "_run", fake_run)
+    status, err = await deliver.deliver_one({"transport": "iterm", "iterm_session_id": "x:--evil", "text": "hi"})
+    assert status == "failed" and "invalid" in err
+
+
+async def test_deliver_tmux_bracketed_paste(monkeypatch):
+    from cue_runner import deliver
+
+    calls = []
+
+    async def fake_run(argv, stdin=None):
+        calls.append(argv)
+        return 0, ""
+
+    monkeypatch.setattr(deliver, "_run", fake_run)
+    status, err = await deliver.deliver_one(
+        {"transport": "tmux", "tmux_pane": "%3", "tmux_socket": "/tmp/tmux-501/default", "text": "x", "submit": True}
+    )
+    assert status == "sent"
+    assert calls[0][:2] == ["tmux", "-S"]
+    assert "load-buffer" in calls[0]
+    assert "paste-buffer" in calls[1] and "-p" in calls[1]  # bracketed paste
+    assert calls[2][-2:] == ["-t", "%3"] or "Enter" in calls[2]
+
+
+async def test_deliver_unknown_transport():
+    from cue_runner import deliver
+
+    status, err = await deliver.deliver_one({"transport": "carrier-pigeon"})
+    assert status == "failed" and "unknown transport" in err

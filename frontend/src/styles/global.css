@@ -1463,3 +1463,18 @@ kbd {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Send-to-CLI dialog: prompt preview box */
+.send-preview {
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border-radius: var(--shape-m);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  border: 1px solid var(--md-outline-variant);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}

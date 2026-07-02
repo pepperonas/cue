@@ -578,3 +578,68 @@ def test_delete_project_with_capture(client):
     d = client.delete(f"/api/projects/{project_id}", headers=headers)
     assert d.status_code == 204, d.text
     assert client.get("/api/sessions").json()[0]["project_id"] is None  # unassigned, not deleted
+
+
+def _capture_with_terminal(client, session_id="sT", cwd="/Users/martin/claude/cue", iterm="w0t0p0:ABCDEF0123456789"):
+    return client.post(
+        "/api/capture",
+        json={"items": [{
+            "session_id": session_id, "cwd": cwd, "prompt": "hi", "seq": 1,
+            "term_program": "iTerm.app", "iterm_session_id": iterm,
+        }]},
+        headers=_CAPTURE_HDR,
+    )
+
+
+def test_send_to_session_flow(client):
+    csrf = _auth(client)  # owner
+    headers = {"X-CSRF-Token": csrf}
+    _capture_with_terminal(client)
+    s = client.get("/api/sessions").json()[0]
+    assert s["deliverable"] is True
+
+    # Owner queues a delivery.
+    r = client.post(f"/api/sessions/{s['id']}/send", json={"text": "run the tests", "submit": True}, headers=headers)
+    assert r.status_code == 201, r.text
+    did = r.json()["id"]
+    assert r.json()["status"] == "queued"
+
+    # Runner claims it (atomic) and gets the transport + target.
+    claim = client.get("/api/cli/claim", headers=_RUNNER_HDR)
+    assert claim.status_code == 200, claim.text
+    body = claim.json()
+    assert body["transport"] == "iterm"
+    assert body["iterm_session_id"] == "w0t0p0:ABCDEF0123456789"
+    assert body["text"] == "run the tests" and body["submit"] is True
+
+    # No second delivery to claim.
+    assert client.get("/api/cli/claim", headers=_RUNNER_HDR).status_code == 204
+
+    # Runner reports success; owner sees it.
+    assert client.post(f"/api/cli/{did}/result", json={"status": "sent"}, headers=_RUNNER_HDR).status_code == 204
+    assert client.get(f"/api/cli/{did}", headers=headers).json()["status"] == "sent"
+
+
+def test_send_requires_reachable_terminal(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    # cwd outside base still creates a session, but with no terminal context.
+    client.post("/api/capture", json={"items": [{"session_id": "sNoTerm", "cwd": "/Users/martin/claude/cue", "prompt": "x", "seq": 1}]}, headers=_CAPTURE_HDR)
+    s = client.get("/api/sessions").json()[0]
+    assert s["deliverable"] is False
+    r = client.post(f"/api/sessions/{s['id']}/send", json={"text": "hi"}, headers=headers)
+    assert r.status_code == 409
+
+
+def test_send_owner_only(client):
+    # A non-owner allowlisted user must not be able to send (drives owner's terminal).
+    csrf = _auth(client, email="other@example.com", sub="other")
+    headers = {"X-CSRF-Token": csrf}
+    # other user has no sessions; a made-up id must 403 (owner gate) before 404.
+    r = client.post("/api/sessions/1/send", json={"text": "hi"}, headers=headers)
+    assert r.status_code == 403
+
+
+def test_cli_claim_requires_runner_token(client):
+    assert client.get("/api/cli/claim").status_code == 401
+    assert client.get("/api/cli/claim", headers={"Authorization": "Bearer nope"}).status_code == 401

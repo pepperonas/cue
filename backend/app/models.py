@@ -188,6 +188,12 @@ class CaptureSession(SQLModel, table=True):
     started_at: datetime = Field(default_factory=utcnow)
     last_at: datetime = Field(default_factory=utcnow, index=True)
     prompt_count: int = Field(default=0)
+    # Live terminal context (learned from the hook) so cue can send a prompt
+    # back into this session's terminal. Updated on every capture.
+    term_program: str = Field(default="")
+    iterm_session_id: str = Field(default="")
+    tmux_pane: str = Field(default="")
+    tmux_socket: str = Field(default="")
 
 
 class CapturedPrompt(SQLModel, table=True):
@@ -200,3 +206,27 @@ class CapturedPrompt(SQLModel, table=True):
     seq: int = Field(default=0)
     text: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class DeliveryStatus(str, enum.Enum):
+    queued = "queued"
+    sending = "sending"  # claimed by the runner, in flight
+    sent = "sent"
+    failed = "failed"
+
+
+class CliDelivery(SQLModel, table=True):
+    """A request to type a prompt into a live capture session's terminal.
+    Owner-only (executes on the runner's machine); the runner claims & performs it."""
+
+    __tablename__ = "cli_delivery"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    session_id: int = Field(foreign_key="capture_session.id", index=True)
+    text: str = Field(default="")
+    submit: bool = Field(default=False)  # press Enter after inserting
+    status: DeliveryStatus = Field(default=DeliveryStatus.queued, index=True)
+    error: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    sent_at: datetime | None = Field(default=None)

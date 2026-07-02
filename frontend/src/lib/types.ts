@@ -146,6 +146,15 @@ export interface CaptureSession {
   started_at: string
   last_at: string
   prompt_count: number
+  deliverable: boolean
+}
+
+export type DeliveryStatus = 'queued' | 'sending' | 'sent' | 'failed'
+
+export interface Delivery {
+  id: number
+  status: DeliveryStatus
+  error?: string | null
 }
 
 export interface CapturedPrompt {

@@ -48,6 +48,10 @@ def plan_items(
                 "prompt": prompt,
                 "seq": seqs[sid],
                 "ts": rec.get("ts"),
+                "term_program": rec.get("term_program", ""),
+                "iterm_session_id": rec.get("iterm_session_id", ""),
+                "tmux_pane": rec.get("tmux_pane", ""),
+                "tmux_socket": rec.get("tmux_socket", ""),
             }
         )
     return items, seqs, len(complete.encode("utf-8"))

@@ -57,6 +57,22 @@ A clean start logs `cue-runner started → <CUE_API_URL>` followed by
 | `MAX_CONCURRENCY` | no | `1` | concurrent runs (semaphore) |
 | `HEARTBEAT_INTERVAL` | no | `15` | seconds between heartbeats (also picks up cancels) |
 | `RUN_TIMEOUT` | no | `1800` | hard per-step timeout (seconds) |
+| `CAPTURE_TOKEN` | no | — | enables the capture forwarder (spool → `/api/capture`) |
+| `CUE_DELIVER` | no | `1` | `0` disables the "send prompt into a live session" loop |
+| `DELIVER_INTERVAL` | no | `1.5` | seconds between delivery-claim polls |
+
+## Sending prompts into a live session (iTerm2 / tmux)
+
+The runner can type a prompt from the web app into a **running** Claude-Code
+session (owner-only). The capture hook records each session's terminal context
+(`ITERM_SESSION_ID`, `TMUX`), the runner polls `GET /api/cli/claim`, and delivers
+via **iTerm2** (`osascript`/AppleScript) or **tmux** (`paste-buffer`) using
+bracketed paste (multi-line safe), optionally pressing Enter to submit.
+
+> **macOS Automation permission (one-time):** iTerm2 delivery uses AppleScript,
+> so the process running the runner (e.g. iTerm/PM2) needs **System Settings →
+> Privacy & Security → Automation → allow controlling *iTerm***. The first
+> delivery triggers the prompt; until granted, deliveries report `failed`.
 
 ---
 

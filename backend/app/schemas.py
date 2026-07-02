@@ -244,6 +244,11 @@ class CaptureItem(BaseModel):
     prompt: str
     seq: int = 0
     ts: float | None = None   # client epoch seconds (optional)
+    # Live terminal context, so cue can later send prompts back into the session.
+    term_program: str = ""
+    iterm_session_id: str = ""
+    tmux_pane: str = ""
+    tmux_socket: str = ""
 
 
 class CaptureRequest(BaseModel):
@@ -271,10 +276,34 @@ class CaptureSessionRead(BaseModel):
     started_at: datetime
     last_at: datetime
     prompt_count: int
+    # True when cue knows a live terminal transport for this session (can send).
+    deliverable: bool = False
 
 
 class CaptureSessionDetail(CaptureSessionRead):
     prompts: list[CapturedPromptRead] = []
+
+
+class CliSendRequest(BaseModel):
+    text: str
+    submit: bool = False  # press Enter after inserting the text
+
+
+class CliDeliveryRead(BaseModel):
+    """What the runner receives to perform one delivery."""
+
+    id: int
+    transport: str  # "iterm" | "tmux"
+    iterm_session_id: str = ""
+    tmux_pane: str = ""
+    tmux_socket: str = ""
+    text: str
+    submit: bool = False
+
+
+class CliDeliveryResult(BaseModel):
+    status: str  # "sent" | "failed"
+    error: str | None = None
 
 
 class CaptureSettingsRead(BaseModel):

@@ -6,16 +6,18 @@ import hmac
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from sqlalchemy import func, text
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..db import get_session
-from ..deps import current_user_id, require_csrf
+from ..deps import current_user_id, require_csrf, require_owner, require_runner
 from ..models import (
     CapturedPrompt,
     CaptureSession,
+    CliDelivery,
+    DeliveryStatus,
     Project,
     Prompt,
     PromptStatus,
@@ -29,6 +31,9 @@ from ..schemas import (
     CaptureSessionRead,
     CaptureSettingsRead,
     CaptureSettingsUpdate,
+    CliDeliveryRead,
+    CliDeliveryResult,
+    CliSendRequest,
     PromptRead,
 )
 from .prompts import _derive_title, _next_sort_order, _read
@@ -39,6 +44,16 @@ _settings = get_settings()
 # Deterministic project colors when auto-creating from a captured cwd.
 _PALETTE = ["#6750A4", "#3B6EA5", "#2E7D55", "#B3541E", "#8E4585", "#0F766E", "#9A3B3B"]
 _MAX_PROMPT = 20000
+_MAX_SEND = 100000
+
+
+def _transport_of(cs: CaptureSession) -> str | None:
+    """Which terminal transport cue can use to reach this session, if any."""
+    if cs.iterm_session_id:
+        return "iterm"
+    if cs.tmux_pane:
+        return "tmux"
+    return None
 
 
 def _resolve_capture_user(session: Session, authorization: str | None) -> User:
@@ -90,7 +105,9 @@ def _session_read(session: Session, cs: CaptureSession) -> CaptureSessionRead:
     if cs.project_id:
         project = session.get(Project, cs.project_id)
         name = project.name if project else None
-    return CaptureSessionRead(**cs.model_dump(), project_name=name)
+    return CaptureSessionRead(
+        **cs.model_dump(), project_name=name, deliverable=_transport_of(cs) is not None
+    )
 
 
 # ---- Ingest (token-guarded, from the runner's capture forwarder) ----
@@ -131,6 +148,15 @@ def capture(
             )
             session.add(cs)
             session.flush()
+        # Refresh the live terminal context (the session may have moved panes).
+        if item.term_program:
+            cs.term_program = item.term_program
+        if item.iterm_session_id:
+            cs.iterm_session_id = item.iterm_session_id
+        if item.tmux_pane:
+            cs.tmux_pane = item.tmux_pane
+        if item.tmux_socket:
+            cs.tmux_socket = item.tmux_socket
         cache[item.session_id] = cs
 
         # Dedup on (session, seq) when the client provides a sequence.
@@ -276,3 +302,103 @@ def update_capture_settings(
     session.commit()
     base = (user.project_base or _settings.capture_base) or ""
     return CaptureSettingsRead(project_base=base, has_token=bool(user.capture_token), token=token_once)
+
+
+# ---- Send a prompt back into a live session's terminal (owner-only) ----
+@router.post("/sessions/{session_pk}/send", status_code=status.HTTP_201_CREATED)
+def send_to_session(
+    session_pk: int,
+    payload: CliSendRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(require_owner),
+    _csrf: None = Depends(require_csrf),
+) -> dict:
+    """Queue a delivery that the runner types into the session's terminal.
+
+    Owner-only: this drives a terminal on the runner's machine, exactly like the
+    run feature, so it must not be open to other allowlisted users."""
+    cs = session.get(CaptureSession, session_pk)
+    if not cs or cs.user_id != uid:
+        raise HTTPException(status_code=404, detail="Session not found")
+    txt = (payload.text or "").strip()
+    if not txt:
+        raise HTTPException(status_code=400, detail="Text required")
+    if _transport_of(cs) is None:
+        raise HTTPException(status_code=409, detail="Session has no reachable terminal")
+    delivery = CliDelivery(
+        user_id=uid, session_id=cs.id, text=txt[:_MAX_SEND], submit=bool(payload.submit)
+    )
+    session.add(delivery)
+    session.commit()
+    session.refresh(delivery)
+    return {"id": delivery.id, "status": delivery.status}
+
+
+# ---- Runner-facing (RUNNER_TOKEN) ----
+# NB: declare the literal /cli/claim before /cli/{delivery_id}, or "claim" would
+# be matched as the int path param and 422 before reaching this route.
+@router.get("/cli/claim", response_model=CliDeliveryRead)
+def claim_delivery(
+    session: Session = Depends(get_session),
+    _runner: None = Depends(require_runner),
+):
+    """Atomically claim the oldest queued delivery (single UPDATE guards against
+    a double-claim if two poll ticks overlap)."""
+    row = session.execute(
+        text(
+            "UPDATE cli_delivery SET status='sending' "
+            "WHERE id = (SELECT id FROM cli_delivery WHERE status='queued' "
+            "ORDER BY created_at, id LIMIT 1) AND status='queued' RETURNING id"
+        )
+    ).first()
+    session.commit()
+    if not row:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    d = session.get(CliDelivery, row[0])
+    cs = session.get(CaptureSession, d.session_id)
+    transport = _transport_of(cs) if cs else None
+    if not cs or transport is None:
+        d.status = DeliveryStatus.failed
+        d.error = "session no longer reachable"
+        d.sent_at = utcnow()
+        session.add(d)
+        session.commit()
+        raise HTTPException(status_code=409, detail="Session no longer reachable")
+    return CliDeliveryRead(
+        id=d.id,
+        transport=transport,
+        iterm_session_id=cs.iterm_session_id,
+        tmux_pane=cs.tmux_pane,
+        tmux_socket=cs.tmux_socket,
+        text=d.text,
+        submit=d.submit,
+    )
+
+
+@router.post("/cli/{delivery_id}/result", status_code=status.HTTP_204_NO_CONTENT)
+def delivery_result(
+    delivery_id: int,
+    payload: CliDeliveryResult,
+    session: Session = Depends(get_session),
+    _runner: None = Depends(require_runner),
+) -> None:
+    d = session.get(CliDelivery, delivery_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    d.status = DeliveryStatus.sent if payload.status == "sent" else DeliveryStatus.failed
+    d.error = (payload.error or None) if d.status == DeliveryStatus.failed else None
+    d.sent_at = utcnow()
+    session.add(d)
+    session.commit()
+
+
+@router.get("/cli/{delivery_id}")
+def get_delivery(
+    delivery_id: int,
+    session: Session = Depends(get_session),
+    uid: int = Depends(require_owner),
+) -> dict:
+    d = session.get(CliDelivery, delivery_id)
+    if not d or d.user_id != uid:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    return {"id": d.id, "status": d.status, "error": d.error}

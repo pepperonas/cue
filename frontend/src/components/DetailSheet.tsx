@@ -21,6 +21,7 @@ interface Props {
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
   onRun?: (p: Prompt) => void
+  onSend?: (p: Prompt) => void
 }
 
 function fmt(iso: string | null): string {
@@ -44,6 +45,7 @@ export function DetailSheet({
   onToggleBookmark,
   onToggleTested,
   onRun,
+  onSend,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -212,6 +214,11 @@ export function DetailSheet({
           {onRun && (
             <Button variant="tonal" icon="play_arrow" onClick={() => onRun(prompt)}>
               Ausführen
+            </Button>
+          )}
+          {onSend && (
+            <Button variant="tonal" icon="send" onClick={() => onSend(prompt)}>
+              An CLI senden
             </Button>
           )}
           <Button variant="tonal" icon="edit" onClick={() => onEdit(prompt)}>

@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-02
+
+### Added
+- **Send a prompt into a live CLI session** — the reverse of prompt capture.
+  From a prompt's detail view (owner-only), pick a running Claude-Code session
+  and cue types the prompt into that terminal, either just inserting it or
+  submitting it (Enter). Implemented over the existing runner:
+  - The capture hook now records the session's terminal context
+    (`ITERM_SESSION_ID` / `TMUX`), so cue knows which terminal each Claude
+    session lives in; `CaptureSession` gains `deliverable` when it's reachable.
+  - New `CliDelivery` queue: `POST /api/sessions/{id}/send` (owner) enqueues,
+    the runner claims via `GET /api/cli/claim` and reports via
+    `POST /api/cli/{id}/result`.
+  - Runner transport layer (`cue_runner/deliver.py`): **iTerm2** (AppleScript
+    `write text`) and **tmux** (`paste-buffer`), both using **bracketed paste**
+    so multi-line prompts land as literal input; ids validated, argv-only (no
+    shell/AppleScript injection).
+  - `SendToSessionDialog`: picks the most relevant live session (prompt's
+    project first), "und ausführen" toggle (default off), polls for the result.
+
+### Note
+- iTerm2 automation needs a one-time **Automation permission** (System Settings
+  → Privacy & Security → Automation) for the process running the runner.
+
 ## [0.3.2] - 2026-07-02
 
 ### Fixed
@@ -86,6 +110,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.4.0]: https://github.com/pepperonas/cue/releases/tag/v0.4.0
 [0.3.2]: https://github.com/pepperonas/cue/releases/tag/v0.3.2
 [0.3.1]: https://github.com/pepperonas/cue/releases/tag/v0.3.1
 [0.3.0]: https://github.com/pepperonas/cue/releases/tag/v0.3.0

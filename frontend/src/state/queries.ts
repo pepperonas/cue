@@ -175,6 +175,13 @@ export function useDeleteSession() {
   })
 }
 
+export function useSendToSession() {
+  return useMutation({
+    mutationFn: ({ sessionId, text, submit }: { sessionId: number; text: string; submit: boolean }) =>
+      api.sendToSession(sessionId, text, submit),
+  })
+}
+
 export function useCaptureSettings() {
   return useQuery({ queryKey: ['capture-settings'], queryFn: () => api.getCaptureSettings() })
 }

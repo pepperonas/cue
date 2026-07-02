@@ -26,6 +26,9 @@ class Config:
     spool_path: str = ""
     capture_state_path: str = ""
     capture_interval: float = 2.0
+    # CLI delivery: type prompts from the web app back into a live session.
+    deliver_enabled: bool = True
+    deliver_interval: float = 1.5
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -57,4 +60,6 @@ class Config:
                 os.environ.get("CUE_CAPTURE_STATE", "~/.cue-runner/capture-state.json")
             ),
             capture_interval=float(os.environ.get("CAPTURE_INTERVAL", "2")),
+            deliver_enabled=os.environ.get("CUE_DELIVER", "1") not in ("0", "false", "no"),
+            deliver_interval=float(os.environ.get("DELIVER_INTERVAL", "1.5")),
         )

@@ -29,6 +29,7 @@ import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
 import { RunDialog, type RunPayload } from './components/RunDialog'
+import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
 import { SessionsView } from './components/SessionsView'
 import { DetailSheet } from './components/DetailSheet'
@@ -123,6 +124,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [mergeOpen, setMergeOpen] = useState(false)
   const [runDialog, setRunDialog] = useState<{ kind: RunKind; prompts: Prompt[] } | null>(null)
+  const [sendTarget, setSendTarget] = useState<{ text: string; projectId: number | null } | null>(
+    null,
+  )
   const searchRef = useRef<HTMLInputElement>(null)
 
   function exitSelect() {
@@ -237,7 +241,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [del, toast],
   )
 
-  const anyModalOpen = composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog
+  const anyModalOpen =
+    composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog || !!sendTarget
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -252,6 +257,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
       if (e.key === 'Escape') {
         if (shortcuts) setShortcuts(false)
+        else if (sendTarget) setSendTarget(null)
         else if (runDialog) setRunDialog(null)
         else if (mergeOpen) setMergeOpen(false)
         else if (composerOpen) {
@@ -328,6 +334,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     navOrder,
     prompts,
     runDialog,
+    sendTarget,
     selectMode,
     selectedId,
     shortcuts,
@@ -597,6 +604,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                   }
                 : undefined
             }
+            onSend={
+              canRun
+                ? (p) => {
+                    setDetail(null)
+                    setSendTarget({ text: p.body, projectId: p.project_id })
+                  }
+                : undefined
+            }
           />
         )}
         {mergeOpen && (
@@ -639,6 +654,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onError: () => toast.show('Start fehlgeschlagen', 'error'),
               })
             }}
+          />
+        )}
+        {sendTarget && (
+          <SendToSessionDialog
+            key="send-dialog"
+            text={sendTarget.text}
+            projectId={sendTarget.projectId}
+            onClose={() => setSendTarget(null)}
           />
         )}
         {shortcuts && <ShortcutsOverlay key="shortcuts" onClose={() => setShortcuts(false)} />}

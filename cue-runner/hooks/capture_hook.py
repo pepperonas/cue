@@ -24,12 +24,19 @@ def main() -> None:
     )
     try:
         os.makedirs(os.path.dirname(spool), exist_ok=True)
+        # tmux env is "socket,pid,session" — the socket is the first field.
+        tmux = os.environ.get("TMUX", "")
         line = json.dumps(
             {
                 "session_id": data.get("session_id", ""),
                 "cwd": data.get("cwd", ""),
                 "prompt": prompt,
                 "ts": time.time(),
+                # Live terminal context so cue can send prompts back here.
+                "term_program": os.environ.get("TERM_PROGRAM", ""),
+                "iterm_session_id": os.environ.get("ITERM_SESSION_ID", ""),
+                "tmux_pane": os.environ.get("TMUX_PANE", ""),
+                "tmux_socket": tmux.split(",")[0] if tmux else "",
             },
             ensure_ascii=False,
         )
