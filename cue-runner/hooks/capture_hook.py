@@ -9,6 +9,23 @@ import sys
 import time
 
 
+def _git_root(path: str) -> str:
+    """Nearest ancestor of path (inclusive) containing `.git` (dir or worktree
+    file) — the real project root, so cue can name projects precisely even for
+    repos nested under grouping folders like `_customers/`. '' if none."""
+    try:
+        p = os.path.abspath(path)
+        while True:
+            if os.path.exists(os.path.join(p, ".git")):
+                return p
+            parent = os.path.dirname(p)
+            if parent == p:
+                return ""
+            p = parent
+    except Exception:
+        return ""
+
+
 def main() -> None:
     if os.environ.get("CUE_NO_CAPTURE"):
         return
@@ -30,6 +47,7 @@ def main() -> None:
             {
                 "session_id": data.get("session_id", ""),
                 "cwd": data.get("cwd", ""),
+                "git_root": _git_root(data.get("cwd", "")) if data.get("cwd") else "",
                 "prompt": prompt,
                 "ts": time.time(),
                 # Live terminal context so cue can send prompts back here.

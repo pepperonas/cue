@@ -499,6 +499,47 @@ def test_capture_flow(client):
     assert pr.json()["project_id"] == by_sid["sess-A"]["project_id"]
 
 
+def test_capture_git_root_project_derivation(client):
+    """Hook-reported git roots split grouping folders (`_customers/...`) into
+    real projects; items without git_root keep the legacy first-segment name."""
+    _auth(client)
+    items = [
+        # cwd deep inside a repo nested under _customers/<kunde>/<projekt>
+        {"session_id": "s-c1", "cwd": "/Users/martin/claude/_customers/celox/website/src",
+         "prompt": "a", "seq": 1, "git_root": "/Users/martin/claude/_customers/celox/website"},
+        # repo directly under _customers
+        {"session_id": "s-c2", "cwd": "/Users/martin/claude/_customers/hus-ic",
+         "prompt": "b", "seq": 1, "git_root": "/Users/martin/claude/_customers/hus-ic"},
+        # plain top-level repo -> unchanged
+        {"session_id": "s-c3", "cwd": "/Users/martin/claude/cue/frontend",
+         "prompt": "c", "seq": 1, "git_root": "/Users/martin/claude/cue"},
+        # repo itself underscore-named -> keeps its own name
+        {"session_id": "s-c4", "cwd": "/Users/martin/claude/_customers/_drafts",
+         "prompt": "d", "seq": 1, "git_root": "/Users/martin/claude/_customers/_drafts"},
+        # old hook (no git_root) -> legacy first-segment fallback
+        {"session_id": "s-c5", "cwd": "/Users/martin/claude/_customers/legacy/x",
+         "prompt": "e", "seq": 1},
+        # git root outside the base -> fallback too
+        {"session_id": "s-c6", "cwd": "/Users/martin/claude/cue",
+         "prompt": "f", "seq": 1, "git_root": "/Users/martin"},
+    ]
+    r = client.post("/api/capture", json={"items": items}, headers=_CAPTURE_HDR)
+    assert r.status_code == 200, r.text
+    assert r.json()["stored"] == 6
+
+    sessions = client.get("/api/sessions").json()
+    names = {s["claude_session_id"]: s["project_name"] for s in sessions}
+    assert names["s-c1"] == "celox/website"
+    assert names["s-c2"] == "hus-ic"
+    assert names["s-c3"] == "cue"
+    assert names["s-c4"] == "_drafts"
+    assert names["s-c5"] == "_customers"
+    assert names["s-c6"] == "cue"
+    # s-c3 and s-c6 landed in the same project (both derive to "cue").
+    by_sid = {s["claude_session_id"]: s for s in sessions}
+    assert by_sid["s-c3"]["project_id"] == by_sid["s-c6"]["project_id"]
+
+
 def test_capture_auth(client):
     assert client.post("/api/capture", json={"items": []}).status_code == 401
     assert (

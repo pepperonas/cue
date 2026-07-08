@@ -151,9 +151,16 @@ class Settings:
             for base in self.allowed_project_bases
         )
 
-    def capture_project_name(self, cwd: str, base: str | None = None) -> str | None:
-        """Project name derived from a captured cwd: the first path segment under
-        the base (per-user override, else `capture_base`). None if outside base."""
+    def capture_project_name(
+        self, cwd: str, base: str | None = None, git_root: str | None = None
+    ) -> str | None:
+        """Project name derived from a captured cwd. Preferred: the git repo root
+        (reported by the hook) relative to the base (per-user override, else
+        `capture_base`), with `_`-prefixed grouping folders (e.g. `_customers`)
+        skipped — so `_customers/celox/website` becomes "celox/website" instead
+        of everything lumping into one "_customers" project. Fallback (no/old
+        hook, no repo): the first path segment under the base. None if the cwd
+        is outside the base."""
         base = posixpath.normpath(base) if base else self.capture_base
         if not base or not cwd:
             return None
@@ -163,6 +170,13 @@ class Settings:
         rest = norm[len(base):].lstrip("/")
         if not rest:
             return None
+        if git_root:
+            root = posixpath.normpath(git_root)
+            if root.startswith(base + "/"):
+                segments = root[len(base):].lstrip("/").split("/")
+                visible = [s for s in segments if not s.startswith("_")]
+                # Repo itself `_`-named (e.g. `_customers/_drafts`) -> keep its own name.
+                return "/".join(visible) if visible else segments[-1]
         return rest.split("/", 1)[0]
 
     def ensure_dirs(self) -> None:

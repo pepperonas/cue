@@ -140,7 +140,7 @@ def capture(
                 )
             ).first()
         if cs is None:
-            name = _settings.capture_project_name(item.cwd, base)
+            name = _settings.capture_project_name(item.cwd, base, item.git_root or None)
             project = _project_for(session, uid, name) if name else None
             cs = CaptureSession(
                 user_id=uid,

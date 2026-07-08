@@ -39,6 +39,16 @@ def test_plan_items_seq_per_session():
     assert consumed == len(text.encode())
 
 
+def test_plan_items_forwards_git_root():
+    rec = {"session_id": "A", "cwd": "/x/_customers/celox/website", "prompt": "p",
+           "git_root": "/x/_customers/celox/website", "ts": 1.0}
+    items, _s, _c = plan_items(json.dumps(rec) + "\n", {})
+    assert items[0]["git_root"] == "/x/_customers/celox/website"
+    # Old spool lines without git_root still parse (empty string forwarded).
+    items2, _s2, _c2 = plan_items(_line("B", "b1"), {})
+    assert items2[0]["git_root"] == ""
+
+
 def test_plan_items_ignores_partial_trailing_line():
     text = _line("A", "a1") + '{"session_id":"A","prompt":"partial"'  # no newline
     items, _seqs, consumed = plan_items(text, {})
@@ -98,6 +108,25 @@ def test_hook_writes_spool(tmp_path):
     )
     rec = json.loads(spool.read_text().strip())
     assert rec["session_id"] == "S1" and rec["prompt"] == "hello"
+
+
+def test_hook_records_git_root(tmp_path):
+    """The hook walks up from cwd to the nearest .git and spools it, so cue can
+    name projects by repo root (splits grouping dirs like _customers)."""
+    repo = tmp_path / "_customers" / "celox" / "website"
+    (repo / ".git").mkdir(parents=True)
+    cwd = repo / "src"
+    cwd.mkdir()
+    spool = tmp_path / "spool.jsonl"
+    subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=json.dumps({"session_id": "S2", "cwd": str(cwd), "prompt": "hi"}),
+        text=True,
+        env={"CUE_CAPTURE_SPOOL": str(spool), "PATH": "/usr/bin:/bin"},
+        check=True,
+    )
+    rec = json.loads(spool.read_text().strip())
+    assert rec["git_root"] == str(repo)
 
 
 def test_hook_skips_when_no_capture(tmp_path):

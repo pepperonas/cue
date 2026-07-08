@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-09
+
+### Added
+- **Projekt-Chips im Board sortierbar**: the project filter chips above the
+  board/list can now be drag-reordered in place (same order source as the
+  Projekte view — `Project.sort_order`); "Alle" / "Ohne Projekt" stay fixed.
+- **Precise capture project derivation via git root**: the capture hook now
+  reports the cwd's git repo root, and cue derives the project name from it
+  relative to the base with `_`-prefixed grouping folders skipped — so repos
+  under `_customers/` become separate projects (`celox/website`,
+  `boarding-m/website`, `hus-ic`, …) instead of all lumping into one
+  `_customers` project. Fully backward-compatible: items without `git_root`
+  (old hook, no repo) keep the first-segment fallback, existing projects and
+  sessions are untouched.
+
 ## [0.4.2] - 2026-07-02
 
 ### Fixed
@@ -143,6 +158,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.5.0]: https://github.com/pepperonas/cue/releases/tag/v0.5.0
 [0.4.2]: https://github.com/pepperonas/cue/releases/tag/v0.4.2
 [0.4.1]: https://github.com/pepperonas/cue/releases/tag/v0.4.1
 [0.4.0]: https://github.com/pepperonas/cue/releases/tag/v0.4.0

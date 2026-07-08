@@ -244,6 +244,8 @@ class CaptureItem(BaseModel):
     prompt: str
     seq: int = 0
     ts: float | None = None   # client epoch seconds (optional)
+    # Git repo root of the cwd (hook-reported) for precise project derivation.
+    git_root: str = ""
     # Live terminal context, so cue can later send prompts back into the session.
     term_program: str = ""
     iterm_session_id: str = ""

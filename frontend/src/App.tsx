@@ -35,6 +35,7 @@ import { SessionsView } from './components/SessionsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Login } from './components/Login'
+import { ProjectChips } from './components/ProjectChips'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
 import { ShortcutsOverlay } from './components/ShortcutsOverlay'
@@ -389,33 +390,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               )}
             </div>
 
-            <div className="chips">
-              <button
-                className="chip"
-                data-active={projectFilter === 'all'}
-                onClick={() => setProjectFilter('all')}
-              >
-                Alle
-              </button>
-              <button
-                className="chip"
-                data-active={projectFilter === 'none'}
-                onClick={() => setProjectFilter('none')}
-              >
-                Ohne Projekt
-              </button>
-              {(projects ?? []).map((p) => (
-                <button
-                  key={p.id}
-                  className="chip"
-                  data-active={projectFilter === p.id}
-                  onClick={() => setProjectFilter(p.id)}
-                >
-                  <span className="dot" style={{ background: p.color }} />
-                  {p.name}
-                </button>
-              ))}
-            </div>
+            <ProjectChips
+              projects={projects ?? []}
+              filter={projectFilter}
+              setFilter={setProjectFilter}
+            />
 
             {isLoading ? (
               <div className="board">

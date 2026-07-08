@@ -45,6 +45,7 @@ def plan_items(
             {
                 "session_id": sid,
                 "cwd": rec.get("cwd", ""),
+                "git_root": rec.get("git_root", ""),
                 "prompt": prompt,
                 "seq": seqs[sid],
                 "ts": rec.get("ts"),
