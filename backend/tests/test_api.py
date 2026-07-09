@@ -516,16 +516,19 @@ def test_capture_git_root_project_derivation(client):
         # repo itself underscore-named -> keeps its own name
         {"session_id": "s-c4", "cwd": "/Users/martin/claude/_customers/_drafts",
          "prompt": "d", "seq": 1, "git_root": "/Users/martin/claude/_customers/_drafts"},
-        # old hook (no git_root) -> legacy first-segment fallback
+        # old hook (no git_root) -> fallback skips `_` grouping folders
         {"session_id": "s-c5", "cwd": "/Users/martin/claude/_customers/legacy/x",
          "prompt": "e", "seq": 1},
+        # non-repo cwd directly in a customer folder -> customer name
+        {"session_id": "s-c7", "cwd": "/Users/martin/claude/_customers/celox",
+         "prompt": "g", "seq": 1},
         # git root outside the base -> fallback too
         {"session_id": "s-c6", "cwd": "/Users/martin/claude/cue",
          "prompt": "f", "seq": 1, "git_root": "/Users/martin"},
     ]
     r = client.post("/api/capture", json={"items": items}, headers=_CAPTURE_HDR)
     assert r.status_code == 200, r.text
-    assert r.json()["stored"] == 6
+    assert r.json()["stored"] == 7
 
     sessions = client.get("/api/sessions").json()
     names = {s["claude_session_id"]: s["project_name"] for s in sessions}
@@ -533,8 +536,9 @@ def test_capture_git_root_project_derivation(client):
     assert names["s-c2"] == "hus-ic"
     assert names["s-c3"] == "cue"
     assert names["s-c4"] == "_drafts"
-    assert names["s-c5"] == "_customers"
+    assert names["s-c5"] == "legacy"
     assert names["s-c6"] == "cue"
+    assert names["s-c7"] == "celox"
     # s-c3 and s-c6 landed in the same project (both derive to "cue").
     by_sid = {s["claude_session_id"]: s for s in sessions}
     assert by_sid["s-c3"]["project_id"] == by_sid["s-c6"]["project_id"]

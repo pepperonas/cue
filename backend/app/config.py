@@ -159,8 +159,9 @@ class Settings:
         `capture_base`), with `_`-prefixed grouping folders (e.g. `_customers`)
         skipped — so `_customers/celox/website` becomes "celox/website" instead
         of everything lumping into one "_customers" project. Fallback (no/old
-        hook, no repo): the first path segment under the base. None if the cwd
-        is outside the base."""
+        hook, no repo): the first path segment under the base, but grouping
+        folders are skipped there too (`_customers/celox` -> "celox"). None if
+        the cwd is outside the base."""
         base = posixpath.normpath(base) if base else self.capture_base
         if not base or not cwd:
             return None
@@ -177,6 +178,11 @@ class Settings:
                 visible = [s for s in segments if not s.startswith("_")]
                 # Repo itself `_`-named (e.g. `_customers/_drafts`) -> keep its own name.
                 return "/".join(visible) if visible else segments[-1]
+        # No usable git root: first segment, skipping `_` grouping folders (a
+        # session started in `_customers/celox` itself belongs to "celox").
+        for seg in rest.split("/"):
+            if not seg.startswith("_"):
+                return seg
         return rest.split("/", 1)[0]
 
     def ensure_dirs(self) -> None:
