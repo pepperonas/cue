@@ -10,13 +10,14 @@ from ..deps import current_user_id, require_csrf
 from ..models import Attachment, Project, Prompt, PromptStatus, RunStep, utcnow
 from ..schemas import (
     BookmarkReorderRequest,
+    DuplicateRequest,
     MergeRequest,
     PromptCreate,
     PromptRead,
     PromptUpdate,
     ReorderRequest,
 )
-from .attachments import attachment_read, delete_attachment_file
+from .attachments import attachment_read, clone_attachment_file, delete_attachment_file
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
 
@@ -217,6 +218,56 @@ def delete_prompt(
     session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
     session.delete(prompt)
     session.commit()
+
+
+@router.post(
+    "/{prompt_id}/duplicate", response_model=PromptRead, status_code=status.HTTP_201_CREATED
+)
+def duplicate_prompt(
+    prompt_id: int,
+    payload: DuplicateRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> Prompt:
+    """Copy a prompt into another project (title/body/tags + screenshots).
+
+    The copy always starts as `queued` in the target project; attachment files
+    are duplicated on disk so the copy owns its screenshots independently."""
+    src = _owned(session, prompt_id, uid)
+    _check_project(session, payload.project_id, uid)
+
+    copy = Prompt(
+        user_id=uid,
+        title=src.title,
+        body=src.body,
+        project_id=payload.project_id,
+        status=PromptStatus.queued,
+        tags=src.tags,
+        sort_order=_next_sort_order(session, PromptStatus.queued, uid),
+    )
+    session.add(copy)
+    session.flush()  # assign copy.id for the cloned attachments
+
+    for att in session.exec(select(Attachment).where(Attachment.prompt_id == src.id)).all():
+        new_name = clone_attachment_file(att)
+        if new_name is None:
+            continue  # source file already expired/missing -> skip silently
+        session.add(
+            Attachment(
+                user_id=uid,
+                prompt_id=copy.id,
+                filename=new_name,
+                original_name=att.original_name,
+                content_type=att.content_type,
+                size=att.size,
+                created_at=utcnow(),
+            )
+        )
+
+    session.commit()
+    session.refresh(copy)
+    return _read(session, copy)
 
 
 @router.post("/merge", response_model=PromptRead, status_code=status.HTTP_201_CREATED)

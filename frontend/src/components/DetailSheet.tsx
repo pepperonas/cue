@@ -12,6 +12,7 @@ import { Button, Icon, IconButton } from './ui'
 interface Props {
   prompt: Prompt
   project?: Project
+  projects: Project[]
   dark: boolean
   onClose: () => void
   onCopy: (p: Prompt) => void
@@ -20,6 +21,8 @@ interface Props {
   onStatus: (p: Prompt, s: Status) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
+  onMoveProject: (p: Prompt, projectId: number | null) => void
+  onCopyToProject: (p: Prompt, projectId: number | null) => void
   onRun?: (p: Prompt) => void
   onSend?: (p: Prompt) => void
 }
@@ -36,6 +39,7 @@ function fmt(iso: string | null): string {
 export function DetailSheet({
   prompt,
   project,
+  projects,
   dark,
   onClose,
   onCopy,
@@ -44,14 +48,53 @@ export function DetailSheet({
   onStatus,
   onToggleBookmark,
   onToggleTested,
+  onMoveProject,
+  onCopyToProject,
   onRun,
   onSend,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [projMenu, setProjMenu] = useState(false)
+  const [projMode, setProjMode] = useState<'move' | 'copy'>('move')
+  const projWrapRef = useRef<HTMLSpanElement>(null)
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
+
+  // Project menu: close on outside click; Escape closes just the menu (captured
+  // before the global handler would close the whole sheet).
+  useEffect(() => {
+    if (!projMenu) return
+    function onDown(e: PointerEvent) {
+      if (projWrapRef.current && !projWrapRef.current.contains(e.target as Node)) {
+        setProjMenu(false)
+      }
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setProjMenu(false)
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onEsc, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onEsc, true)
+    }
+  }, [projMenu])
+
+  function chooseProject(projectId: number | null) {
+    setProjMenu(false)
+    const current = prompt.project_id ?? null
+    if (projMode === 'move') {
+      if (projectId !== current) onMoveProject(prompt, projectId)
+    } else {
+      onCopyToProject(prompt, projectId)
+    }
+  }
 
   // Cmd/Ctrl+A selects only the prompt content (not the whole page behind the
   // sheet), so a following Cmd/Ctrl+C copies just the prompt.
@@ -108,12 +151,72 @@ export function DetailSheet({
         </div>
 
         <div className="card-meta">
-          {project && tones && (
-            <span className="badge" style={{ background: tones.container, color: tones.on }}>
-              <span className="dot" style={{ background: tones.accent }} />
-              {project.name}
-            </span>
-          )}
+          <span ref={projWrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
+            <button
+              className="badge badge-btn"
+              style={
+                project && tones
+                  ? { background: tones.container, color: tones.on }
+                  : { background: 'var(--md-surface-container-highest)' }
+              }
+              title="Projekt ändern oder Prompt in anderes Projekt kopieren"
+              onClick={() => setProjMenu((v) => !v)}
+            >
+              <span
+                className="dot"
+                style={{ background: tones ? tones.accent : 'var(--md-outline)' }}
+              />
+              {project ? project.name : 'Kein Projekt'}
+              <Icon name={projMenu ? 'expand_less' : 'expand_more'} className="badge-caret" />
+            </button>
+            {projMenu && (
+              <motion.div
+                className="proj-menu"
+                initial={{ opacity: 0, scale: 0.94, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={springs.spatialFast}
+              >
+                <div className="proj-menu-modes">
+                  <button
+                    className="chip"
+                    data-active={projMode === 'move'}
+                    onClick={() => setProjMode('move')}
+                  >
+                    <Icon name="drive_file_move" /> Verschieben
+                  </button>
+                  <button
+                    className="chip"
+                    data-active={projMode === 'copy'}
+                    onClick={() => setProjMode('copy')}
+                  >
+                    <Icon name="content_copy" /> Kopieren
+                  </button>
+                </div>
+                <div className="proj-menu-list">
+                  <button className="proj-menu-item" onClick={() => chooseProject(null)}>
+                    <span className="dot" style={{ background: 'var(--md-outline)' }} />
+                    Kein Projekt
+                    {prompt.project_id == null && projMode === 'move' && (
+                      <Icon name="check" className="proj-menu-check" />
+                    )}
+                  </button>
+                  {projects.map((pr) => (
+                    <button
+                      key={pr.id}
+                      className="proj-menu-item"
+                      onClick={() => chooseProject(pr.id)}
+                    >
+                      <span className="dot" style={{ background: pr.color }} />
+                      {pr.name}
+                      {prompt.project_id === pr.id && projMode === 'move' && (
+                        <Icon name="check" className="proj-menu-check" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </span>
           <span className="badge" style={{ background: 'var(--md-surface-container-highest)' }}>
             <Icon
               name={STATUS_ICON[prompt.status]}

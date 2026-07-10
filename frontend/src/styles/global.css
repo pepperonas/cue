@@ -358,6 +358,72 @@ a {
   height: 8px;
   border-radius: 50%;
 }
+/* Clickable project badge (detail sheet): opens the move/copy menu. */
+.badge-btn {
+  border: none;
+  cursor: pointer;
+  transition: filter var(--dur-short);
+}
+.badge-btn:hover {
+  filter: brightness(1.12);
+}
+.badge-caret {
+  font-size: 16px;
+  margin: -2px -4px -2px -2px;
+}
+.proj-menu {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
+  max-width: min(320px, 78vw);
+  padding: 8px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m, 12px);
+  box-shadow: var(--elev-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform-origin: top left;
+}
+.proj-menu-modes {
+  display: flex;
+  gap: 6px;
+}
+.proj-menu-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.proj-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: var(--shape-s, 8px);
+  font: var(--label-l);
+  color: var(--md-on-surface);
+  background: transparent;
+  transition: background var(--dur-short);
+}
+.proj-menu-item:hover {
+  background: var(--md-surface-container-highest);
+}
+.proj-menu-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.proj-menu-check {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--md-primary);
+}
 
 .mini-btn {
   position: relative;

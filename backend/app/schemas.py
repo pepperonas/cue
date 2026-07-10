@@ -120,6 +120,11 @@ class BookmarkReorderRequest(BaseModel):
     items: list[BookmarkReorderItem]
 
 
+class DuplicateRequest(BaseModel):
+    # Target project for the copy (None = no project).
+    project_id: int | None = None
+
+
 class MergeRequest(BaseModel):
     # Prompts being merged (the client composes the final body/order/format).
     source_ids: list[int]

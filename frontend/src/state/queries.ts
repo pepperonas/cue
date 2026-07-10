@@ -56,6 +56,18 @@ export function useUpdatePrompt() {
   })
 }
 
+export function useDuplicatePrompt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, projectId }: { id: number; projectId: number | null }) =>
+      api.duplicatePrompt(id, projectId),
+    onSuccess: (prompt) => {
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) => [...(old ?? []), prompt])
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
 export function useDeletePrompt() {
   const qc = useQueryClient()
   return useMutation({

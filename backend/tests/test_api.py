@@ -241,6 +241,54 @@ def test_attachment_flow(client):
     assert client.get(f"/api/attachments/{aid}").status_code == 404
 
 
+def test_duplicate_prompt_to_project(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    target = client.post("/api/projects", json={"name": "ziel", "color": "#2E7D55"}, headers=headers)
+    assert target.status_code == 201
+    target_id = target.json()["id"]
+
+    up = client.post(
+        "/api/attachments",
+        files={"file": ("shot.png", io.BytesIO(_PNG), "image/png")},
+        headers=headers,
+    )
+    aid = up.json()["id"]
+    src = client.post(
+        "/api/prompts",
+        json={"title": "Voice", "body": "voice input", "tags": "audio, ux",
+              "status": "done", "attachment_ids": [aid]},
+        headers=headers,
+    ).json()
+
+    dup = client.post(
+        f"/api/prompts/{src['id']}/duplicate", json={"project_id": target_id}, headers=headers
+    )
+    assert dup.status_code == 201, dup.text
+    copy = dup.json()
+    assert copy["id"] != src["id"]
+    assert copy["title"] == "Voice" and copy["body"] == "voice input"
+    assert copy["tags"] == "audio, ux"
+    assert copy["project_id"] == target_id
+    assert copy["status"] == "queued"  # copies always start queued
+    # Screenshot was cloned: own attachment row + file, same content.
+    assert len(copy["attachments"]) == 1
+    copy_att = copy["attachments"][0]
+    assert copy_att["id"] != aid
+    served = client.get(copy_att["url"])
+    assert served.status_code == 200 and served.content == _PNG
+    # Deleting the original doesn't touch the copy's file.
+    assert client.delete(f"/api/prompts/{src['id']}", headers=headers).status_code == 204
+    assert client.get(copy_att["url"]).status_code == 200
+
+    # Unknown / foreign project is rejected.
+    bad = client.post(
+        f"/api/prompts/{copy['id']}/duplicate", json={"project_id": 99999}, headers=headers
+    )
+    assert bad.status_code == 400
+
+
 def test_tenant_isolation(client):
     # User A creates a prompt.
     csrf_a = _auth(client, email="a@example.com", sub="sub-a")

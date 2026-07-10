@@ -63,6 +63,25 @@ def delete_attachment_file(a: Attachment) -> None:
         pass
 
 
+def clone_attachment_file(a: Attachment) -> str | None:
+    """Copy an attachment's file under a fresh stored name (for prompt
+    duplication). Returns the new filename, or None if the source is gone."""
+    import shutil
+    import uuid
+
+    src = attachment_path(a)
+    if not src.is_file():
+        return None
+    new_name = f"{uuid.uuid4().hex}{src.suffix}"
+    try:
+        dest_dir = Path(_settings.attachments_dir)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dest_dir / new_name)
+    except OSError:
+        return None
+    return new_name
+
+
 @router.post("", response_model=AttachmentRead, status_code=status.HTTP_201_CREATED)
 async def upload_attachment(
     file: UploadFile,

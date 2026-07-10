@@ -14,6 +14,7 @@ import {
   projectMap,
   useCreateRun,
   useDeletePrompt,
+  useDuplicatePrompt,
   useMergePrompts,
   usePrompts,
   useProjects,
@@ -74,6 +75,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const reorderBookmarks = useReorderBookmarks()
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
+  const duplicate = useDuplicatePrompt()
   const merge = useMergePrompts()
   const runConfigQ = useRunConfig()
   const canRun = runConfigQ.isSuccess
@@ -563,6 +565,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             key="detail"
             prompt={detailLive}
             project={detailLive.project_id ? pmap.get(detailLive.project_id) : undefined}
+            projects={projects ?? []}
             dark={settings.resolvedDark}
             onClose={() => setDetail(null)}
             onCopy={handleCopy}
@@ -575,6 +578,29 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
+            onMoveProject={(p, pid) => {
+              update.mutate({
+                id: p.id,
+                patch: pid == null ? { unassign_project: true, project_id: null } : { project_id: pid },
+              })
+              const name = pid == null ? null : pmap.get(pid)?.name
+              toast.show(name ? `Verschoben nach „${name}"` : 'Projekt entfernt', 'success')
+            }}
+            onCopyToProject={(p, pid) => {
+              duplicate.mutate(
+                { id: p.id, projectId: pid },
+                {
+                  onSuccess: () => {
+                    const name = pid == null ? null : pmap.get(pid)?.name
+                    toast.show(
+                      name ? `Kopie in „${name}" erstellt (Queued)` : 'Kopie erstellt (Queued)',
+                      'success',
+                    )
+                  },
+                  onError: () => toast.show('Kopieren fehlgeschlagen', 'error'),
+                },
+              )
+            }}
             onRun={
               canRun
                 ? (p) => {
