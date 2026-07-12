@@ -102,6 +102,8 @@ export interface Run {
   cancel_requested: boolean
   total_cost_usd: number | null
   error: string | null
+  steps_done: number
+  steps_total: number
 }
 
 export interface RunStep {

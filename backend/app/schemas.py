@@ -197,6 +197,9 @@ class RunRead(BaseModel):
     cancel_requested: bool
     total_cost_usd: float | None
     error: str | None
+    # Step progress ("4/5 done") for list views without loading full details.
+    steps_done: int = 0
+    steps_total: int = 0
 
 
 class RunDetailRead(RunRead):

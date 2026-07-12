@@ -347,8 +347,11 @@ def test_run_full_flow(client):
     assert cr.status_code == 201, cr.text
     run_id = cr.json()["id"]
     assert cr.json()["status"] == "queued"
+    assert cr.json()["steps_total"] == 1 and cr.json()["steps_done"] == 0
 
-    assert len(client.get("/api/runs").json()) == 1
+    listed = client.get("/api/runs").json()
+    assert len(listed) == 1
+    assert listed[0]["steps_total"] == 1 and listed[0]["steps_done"] == 0
 
     # Runner claims it (atomic) -> claiming + one step.
     claim = client.post("/api/runs/claim", json={"runner_id": "r1"}, headers=_RUNNER_HDR)
@@ -382,6 +385,7 @@ def test_run_full_flow(client):
 
     detail = client.get(f"/api/runs/{run_id}").json()
     assert detail["status"] == "succeeded"
+    assert detail["steps_done"] == 1 and detail["steps_total"] == 1
     assert detail["claude_session_id"] == "sess-1"
     assert detail["steps"][0]["output"] == "done"
     assert any(lg["event_type"] == "system" for lg in detail["logs"])

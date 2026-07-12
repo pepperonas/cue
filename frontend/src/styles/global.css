@@ -1321,7 +1321,8 @@ kbd {
   text-overflow: ellipsis;
 }
 .run-cost,
-.run-time {
+.run-time,
+.run-progress {
   font: var(--label-m);
   white-space: nowrap;
 }

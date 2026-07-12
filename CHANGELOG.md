@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-07-12
+
+### Added
+- **Run step progress**: the run list API (`GET /runs`) now carries
+  `steps_done`/`steps_total` per run (steps in a terminal state vs. all
+  steps). The run ticker overlay shows it for playbooks ("Playbook läuft… ·
+  4/5 abgeschlossen", aggregated across runs when several are active), and
+  the Runs tab shows a "4/5" chip in each playbook's header row.
+
+### Changed
+- **Active runs expanded by default**: on the Runs tab, queued/claiming/
+  running runs open their detail (steps, live log, cancel) automatically;
+  clicking the header still toggles, and a manual toggle wins over the
+  default. Several runs can now be open at the same time (each open card
+  fetches and polls its own detail).
+
 ## [0.12.1] - 2026-07-12
 
 ### Fixed

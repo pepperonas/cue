@@ -49,10 +49,13 @@ export function RunTicker({ enabled, onOpen }: { enabled: boolean; onOpen: () =>
 
   if (!enabled || active.length === 0) return null
   const first = active[0]
+  const done = active.reduce((n, r) => n + r.steps_done, 0)
+  const total = active.reduce((n, r) => n + r.steps_total, 0)
+  const progress = total > 1 ? ` · ${done}/${total} abgeschlossen` : ''
   const label =
     active.length === 1
-      ? `${KIND_LABEL[first.kind] ?? 'Run'} ${STATUS_LABEL[first.status] ?? first.status}`
-      : `${active.length} Runs aktiv`
+      ? `${KIND_LABEL[first.kind] ?? 'Run'} ${STATUS_LABEL[first.status] ?? first.status}${progress}`
+      : `${active.length} Runs aktiv${progress}`
   return (
     <motion.button
       className="run-ticker"

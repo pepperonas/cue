@@ -46,8 +46,13 @@ _MODELS = ["sonnet", "opus", "opusplan", "haiku"]
 _MAX_LINE = 4096
 
 
-def _run_read(run: Run) -> RunRead:
-    return RunRead(**run.model_dump())
+def _run_read(session: Session, run: Run) -> RunRead:
+    statuses = session.exec(select(RunStep.status).where(RunStep.run_id == run.id)).all()
+    return RunRead(
+        **run.model_dump(),
+        steps_total=len(statuses),
+        steps_done=sum(1 for s in statuses if s in RUN_TERMINAL),
+    )
 
 
 def _run_detail(session: Session, run: Run, after_seq: int = 0) -> RunDetailRead:
@@ -63,6 +68,8 @@ def _run_detail(session: Session, run: Run, after_seq: int = 0) -> RunDetailRead
         **run.model_dump(),
         steps=[s.model_dump() for s in steps],
         logs=[lg.model_dump() for lg in logs],
+        steps_total=len(steps),
+        steps_done=sum(1 for s in steps if s.status in RUN_TERMINAL),
     )
 
 
@@ -156,7 +163,7 @@ def create_run(
         )
     session.commit()
     session.refresh(run)
-    return _run_read(run)
+    return _run_read(session, run)
 
 
 @router.get("", response_model=list[RunRead])
@@ -169,7 +176,7 @@ def list_runs(
     if status_filter is not None:
         stmt = stmt.where(Run.status == status_filter)
     stmt = stmt.order_by(Run.created_at.desc(), Run.id)
-    return [_run_read(r) for r in session.exec(stmt).all()]
+    return [_run_read(session, r) for r in session.exec(stmt).all()]
 
 
 @router.get("/{run_id}", response_model=RunDetailRead)
@@ -199,7 +206,7 @@ def cancel_run(
     session.add(run)
     session.commit()
     session.refresh(run)
-    return _run_read(run)
+    return _run_read(session, run)
 
 
 # ---- Runner-facing ----
@@ -344,4 +351,4 @@ def run_result(
     session.add(run)
     session.commit()
     session.refresh(run)
-    return _run_read(run)
+    return _run_read(session, run)
