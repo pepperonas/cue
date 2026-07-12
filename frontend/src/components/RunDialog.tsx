@@ -52,7 +52,13 @@ function loadPrefs(): RunPrefs {
 
 export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Props) {
   const byId = new Map(prompts.map((p) => [p.id, p]))
-  const [order, setOrder] = useState<number[]>(prompts.map((p) => p.id))
+  // Steps default to the board order of the Queued column (top to bottom),
+  // regardless of the click order during selection. ↑/↓ still allow overrides.
+  const [order, setOrder] = useState<number[]>(() =>
+    [...prompts]
+      .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+      .map((p) => p.id),
+  )
   // Restore the last-used settings; anything no longer valid against the
   // server-provided whitelists falls back to the previous defaults.
   const prefs = loadPrefs()
