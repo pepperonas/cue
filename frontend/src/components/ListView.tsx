@@ -167,6 +167,7 @@ function ListRow({
   onModSelect,
 }: RowProps) {
   const canTest = p.status === 'running' || p.status === 'done'
+  const canBlock = p.status === 'queued'
   const tones = project ? projectTones(project.color, dark) : null
 
   // Single click opens; double click copies (see PromptCard for rationale).
@@ -241,7 +242,7 @@ function ListRow({
       {onToggleTested && canTest && (
         <TestedButton tested={p.tested} onToggle={() => onToggleTested(p)} />
       )}
-      {onToggleBlocked && (
+      {onToggleBlocked && canBlock && (
         <BlockedButton blocked={p.blocked} onToggle={() => onToggleBlocked(p)} />
       )}
       {onToggleBookmark && (

@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2026-07-12
+
+### Fixed
+- **Cmd/Ctrl+Enter save in the composer**: the shortcut silently did nothing
+  when any earlier keydown listener (e.g. a browser extension) called
+  `preventDefault()` on the combo — the handler yielded to `defaultPrevented`.
+  Capture and backup handler now coordinate through a WeakSet of handled
+  events instead, so the save always fires exactly once. Additionally:
+  `Cmd/Ctrl+S` saves too (fallback when something outside the page swallows
+  Cmd+Enter), an empty prompt body shows an error toast instead of silently
+  ignoring the shortcut, and an in-flight guard prevents duplicate prompts
+  from rapid repeated presses.
+
+### Changed
+- **Blocked only for queued prompts**: the blocked toggle is now rendered only
+  on queued prompts (cards, list rows, detail — analogous to the tested
+  toggle on running/done). The server rejects `blocked=true` on non-queued
+  prompts (400) and clears the flag whenever a prompt leaves the queue (PATCH
+  and reorder); a one-time idempotent migration clears stale flags on
+  existing data.
+
 ## [0.12.0] - 2026-07-12
 
 ### Added

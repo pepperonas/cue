@@ -194,7 +194,14 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   }, [body, isEdit])
 
   async function save() {
-    if (!body.trim()) return
+    if (!body.trim()) {
+      // Never fail silently: Cmd+Enter with an empty body used to do nothing,
+      // which reads as "the shortcut is broken".
+      toast.show('Prompt-Text fehlt', 'error')
+      setPreview(false)
+      taRef.current?.focus()
+      return
+    }
     const attachment_ids = attachments.map((a) => a.id)
     const cleanTags = normalizeTags(tags) // dedup so a prompt never holds a tag twice
     try {
@@ -238,24 +245,43 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     }
   }
 
-  // Cmd/Ctrl+Enter saves regardless of where the focus sits. A window-level
-  // CAPTURE listener is required: clicking a non-focusable area (e.g. the
-  // rendered preview) moves focus to <body>, where a keydown handler on the
-  // sheet element would never fire — and capture phase means no other handler
-  // can swallow the event first. The sheet keeps a bubble-phase backup handler
-  // (below); the defaultPrevented guard ensures only one of the two saves.
+  // Cmd/Ctrl+Enter and Cmd/Ctrl+S save regardless of where the focus sits.
+  // A window-level CAPTURE listener is required: clicking a non-focusable area
+  // (e.g. the rendered preview) moves focus to <body>, where a keydown handler
+  // on the sheet element would never fire. The sheet keeps a bubble-phase
+  // backup handler (below).
+  //
+  // Capture and backup coordinate through a WeakSet of handled events — NOT
+  // through defaultPrevented: a browser extension (or any listener registered
+  // before ours) that preventDefaults the combo would otherwise silently
+  // disable saving entirely. Cmd/Ctrl+S exists as a second, muscle-memory
+  // path for setups where something outside the page swallows Cmd+Enter.
   const saveRef = useRef(save)
   saveRef.current = save
+  const savingRef = useRef(false)
+  const handledSaveKeys = useRef(new WeakSet<KeyboardEvent>())
   function isSaveCombo(e: { metaKey: boolean; ctrlKey: boolean; key: string }) {
-    return (e.metaKey || e.ctrlKey) && e.key === 'Enter'
+    return (e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')
   }
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (isSaveCombo(e) && !e.defaultPrevented) {
-        e.preventDefault()
-        void saveRef.current()
-      }
+  async function triggerSave() {
+    if (savingRef.current) return // no double-create while a save is in flight
+    savingRef.current = true
+    try {
+      await saveRef.current()
+    } finally {
+      savingRef.current = false
     }
+  }
+  function handleSaveKey(e: KeyboardEvent) {
+    if (!isSaveCombo(e) || handledSaveKeys.current.has(e)) return
+    handledSaveKeys.current.add(e)
+    e.preventDefault() // also suppresses the browser's save-page dialog on Cmd/Ctrl+S
+    void triggerSave()
+  }
+  const handleSaveKeyRef = useRef(handleSaveKey)
+  handleSaveKeyRef.current = handleSaveKey
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => handleSaveKeyRef.current(e)
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
@@ -268,10 +294,8 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           // Backup path in case the window capture listener is unavailable.
-          if (isSaveCombo(e) && !e.nativeEvent.defaultPrevented) {
-            e.preventDefault()
-            void saveRef.current()
-          }
+          // The WeakSet in handleSaveKey ensures this never double-saves.
+          handleSaveKeyRef.current(e.nativeEvent)
         }}
         onPaste={onPaste}
         onDragOver={(e) => {
@@ -474,7 +498,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           <Button variant="text" onClick={onClose}>
             Abbrechen
           </Button>
-          <Button icon="check" onClick={save} disabled={!body.trim()}>
+          <Button icon="check" onClick={() => void triggerSave()} disabled={!body.trim()}>
             {isEdit ? 'Speichern' : 'Anlegen'}{' '}
             <kbd style={{ marginLeft: 6 }}>
               <Icon name="keyboard_command_key" /> ↵

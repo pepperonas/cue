@@ -46,6 +46,7 @@ export function PromptCard({
   onModSelect,
 }: Props) {
   const canTest = prompt.status === 'running' || prompt.status === 'done'
+  const canBlock = prompt.status === 'queued'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prompt.id,
     data: { status: prompt.status },
@@ -149,7 +150,7 @@ export function PromptCard({
             {onToggleTested && canTest && (
               <TestedButton tested={prompt.tested} onToggle={() => onToggleTested(prompt)} />
             )}
-            {onToggleBlocked && (
+            {onToggleBlocked && canBlock && (
               <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />
             )}
             {onToggleBookmark && (

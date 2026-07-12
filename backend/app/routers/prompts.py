@@ -201,12 +201,19 @@ def update_prompt(
         prompt.tested = payload.tested
 
     # Apply blocked BEFORE the status guard so unblock+move works in one PATCH.
+    # Blocked only exists on queued prompts: blocking anything else is rejected,
+    # and leaving queued clears the flag.
     if payload.blocked is not None:
+        target = payload.status if payload.status is not None else prompt.status
+        if payload.blocked and target != PromptStatus.queued:
+            raise HTTPException(status_code=400, detail="Only queued prompts can be blocked")
         prompt.blocked = payload.blocked
 
     if payload.status is not None and payload.status != prompt.status:
         if prompt.blocked and payload.status in _RAN_STATUSES:
             raise HTTPException(status_code=400, detail="Prompt is blocked")
+        if payload.status != PromptStatus.queued:
+            prompt.blocked = False
         prompt.status = payload.status
         # Freshly-done prompts always surface at the TOP of the done column;
         # every other status change appends at the bottom as before.
@@ -379,6 +386,9 @@ def reorder_prompts(
             continue
         if prompt.status != item.status:
             prompt.status = item.status
+            # Blocked only exists on queued prompts — leaving queued clears it.
+            if item.status != PromptStatus.queued:
+                prompt.blocked = False
             if item.status in _RAN_STATUSES and prompt.ran_at is None:
                 prompt.ran_at = utcnow()
         prompt.sort_order = item.sort_order

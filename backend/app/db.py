@@ -79,6 +79,9 @@ def _migrate(engine: Engine) -> None:
             for column, ddl in additions.items():
                 if column not in cols:
                     conn.execute(text(ddl))
+        # Blocked only exists on queued prompts — clear stale flags from before
+        # that rule (idempotent data fix).
+        conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")
 
 
 def get_session() -> Iterator[Session]:

@@ -62,6 +62,7 @@ export function DetailSheet({
   const [projMode, setProjMode] = useState<'move' | 'copy'>('move')
   const projWrapRef = useRef<HTMLSpanElement>(null)
   const canTest = prompt.status === 'running' || prompt.status === 'done'
+  const canBlock = prompt.status === 'queued'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -144,11 +145,13 @@ export function DetailSheet({
                 onToggle={() => onToggleTested(prompt)}
               />
             )}
-            <BlockedButton
-              variant="icon-btn"
-              blocked={prompt.blocked}
-              onToggle={() => onToggleBlocked(prompt)}
-            />
+            {canBlock && (
+              <BlockedButton
+                variant="icon-btn"
+                blocked={prompt.blocked}
+                onToggle={() => onToggleBlocked(prompt)}
+              />
+            )}
             <BookmarkButton
               variant="icon-btn"
               bookmarked={prompt.bookmarked}

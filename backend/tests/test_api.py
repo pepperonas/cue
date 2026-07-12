@@ -441,12 +441,24 @@ def test_blocked_flow(client):
         client.patch(f"/api/prompts/{pid}", json={"status": "done"}, headers=headers).status_code
         == 400
     )
-    # ... but may still be archived.
+    # ... but may still be archived — leaving queued clears the flag
+    # (blocked only exists on queued prompts).
+    r = client.patch(f"/api/prompts/{pid}", json={"status": "archived"}, headers=headers)
+    assert r.status_code == 200 and r.json()["blocked"] is False
+    # Blocking a non-queued prompt is rejected.
     assert (
-        client.patch(f"/api/prompts/{pid}", json={"status": "archived"}, headers=headers).status_code
+        client.patch(f"/api/prompts/{pid}", json={"blocked": True}, headers=headers).status_code
+        == 400
+    )
+    # Back to queued, block again — unblock + move works in a single PATCH.
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"status": "queued"}, headers=headers).status_code
         == 200
     )
-    # Unblock + move works in a single PATCH.
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"blocked": True}, headers=headers).status_code
+        == 200
+    )
     r = client.patch(
         f"/api/prompts/{pid}", json={"blocked": False, "status": "running"}, headers=headers
     )
