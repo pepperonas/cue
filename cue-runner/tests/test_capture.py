@@ -139,3 +139,96 @@ def test_hook_skips_when_no_capture(tmp_path):
         check=True,
     )
     assert not spool.exists()
+
+
+def test_plan_items_skips_invalid_records():
+    text = (
+        "not json at all\n"
+        + json.dumps({"session_id": "", "prompt": "no sid"}) + "\n"
+        + json.dumps({"session_id": "A", "prompt": "   "}) + "\n"  # blank prompt
+        + "\n"
+        + _line("A", "valid")
+    )
+    items, seqs, consumed = plan_items(text, {})
+    assert [i["prompt"] for i in items] == ["valid"]
+    assert seqs == {"A": 1}
+    assert consumed == len(text.encode())  # junk lines are consumed, not re-read
+
+
+def test_plan_items_no_newline_consumes_nothing():
+    items, seqs, consumed = plan_items('{"session_id":"A","prompt":"partial"', {"A": 5})
+    assert items == [] and consumed == 0
+    assert seqs == {"A": 5}  # existing seq state untouched
+
+
+async def test_forwarder_missing_spool_is_quiet(tmp_path):
+    cfg = _cfg(tmp_path)  # spool file never created
+    fwd = CaptureForwarder(cfg, FakeApi())
+    assert await fwd.step() == 0
+
+
+async def test_forwarder_recovers_from_corrupt_state(tmp_path):
+    cfg = _cfg(tmp_path)
+    Path(cfg.capture_state_path).write_text("{{{ not json")
+    Path(cfg.spool_path).write_text(_line("A", "a1"))
+    api = FakeApi()
+    fwd = CaptureForwarder(cfg, api)
+    assert fwd.offset == 0 and fwd.seqs == {}  # corrupt state -> clean restart
+    assert await fwd.step() == 1
+
+
+async def test_forwarder_handles_spool_truncation(tmp_path):
+    cfg = _cfg(tmp_path)
+    Path(cfg.spool_path).write_text(_line("A", "a1") + _line("A", "a2"))
+    api = FakeApi()
+    fwd = CaptureForwarder(cfg, api)
+    assert await fwd.step() == 2
+
+    # Spool rotated/truncated to something SHORTER than the committed offset.
+    Path(cfg.spool_path).write_text(_line("B", "fresh"))
+    assert await fwd.step() == 0  # this tick only resets the bookkeeping
+    assert fwd.offset == 0 and fwd.seqs == {}
+    assert await fwd.step() == 1  # next tick forwards the new content
+    assert api.batches[-1][0]["session_id"] == "B"
+    assert api.batches[-1][0]["seq"] == 1
+
+
+async def test_forwarder_keeps_offset_on_api_failure(tmp_path):
+    """A failed POST must not advance the offset — the same lines are retried
+    with identical (session, seq) pairs, and cue dedups them (at-least-once)."""
+    import pytest
+
+    class DownApi:
+        async def capture(self, items):
+            raise RuntimeError("cue unreachable")
+
+    cfg = _cfg(tmp_path)
+    Path(cfg.spool_path).write_text(_line("A", "a1"))
+    fwd = CaptureForwarder(cfg, DownApi())
+    with pytest.raises(RuntimeError):
+        await fwd.step()
+    assert fwd.offset == 0  # nothing committed
+
+    # Same forwarder, API back up -> identical items are delivered.
+    api = FakeApi()
+    fwd.api = api
+    assert await fwd.step() == 1
+    assert api.batches[0][0]["seq"] == 1
+    assert fwd.offset > 0
+
+
+async def test_forwarder_batches_large_backlogs(tmp_path):
+    from cue_runner import capture as capture_module
+
+    cfg = _cfg(tmp_path)
+    Path(cfg.spool_path).write_text("".join(_line("A", f"p{i}") for i in range(5)))
+    api = FakeApi()
+    fwd = CaptureForwarder(cfg, api)
+    original = capture_module._MAX_BATCH
+    capture_module._MAX_BATCH = 2
+    try:
+        assert await fwd.step() == 5
+    finally:
+        capture_module._MAX_BATCH = original
+    assert [len(b) for b in api.batches] == [2, 2, 1]  # split into _MAX_BATCH chunks
+    assert [i["seq"] for b in api.batches for i in b] == [1, 2, 3, 4, 5]

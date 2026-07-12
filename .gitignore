@@ -43,3 +43,7 @@ frontend/vite.config.d.ts
 /*.png
 /*.jpeg
 /*.jpg
+
+# Coverage artifacts
+.coverage
+coverage/

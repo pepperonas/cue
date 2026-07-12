@@ -1,0 +1,12 @@
+{
+  "name": "cue-repo",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:backend && npm run test:runner && npm run test:frontend",
+    "test:backend": "cd backend && uv run pytest -q",
+    "test:runner": "cd cue-runner && .venv/bin/python -m pytest -q",
+    "test:frontend": "cd frontend && pnpm vitest run",
+    "posttest": "npm run update-badges",
+    "update-badges": "node scripts/update-badges.mjs"
+  }
+}

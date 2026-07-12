@@ -313,3 +313,317 @@ async def test_run_times_out(monkeypatch):
     monkeypatch.setattr(deliver.asyncio, "create_subprocess_exec", fake_exec)
     code, out = await deliver._run(["osascript", "-"], stdin=b"x")
     assert code == 124 and "timed out" in out
+
+
+# ---- config (Config.from_env) ----
+def test_config_from_env_full_parse(monkeypatch):
+    env = {
+        "CUE_API_URL": "https://cue.example/",  # trailing slash stripped
+        "RUNNER_TOKEN": "tok",
+        "ALLOWED_BASES": " /a/one , /b/two/ ",  # trimmed + normalized
+        "CLAUDE_PATH": "/opt/claude",
+        "RUNNER_ID": "mac-2",
+        "POLL_INTERVAL": "2.5",
+        "MAX_CONCURRENCY": "3",
+        "HEARTBEAT_INTERVAL": "7",
+        "RUN_TIMEOUT": "60",
+        "CAPTURE_TOKEN": "cap",
+        "CAPTURE_INTERVAL": "1.5",
+        "CUE_DELIVER": "0",
+        "DELIVER_INTERVAL": "9",
+    }
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    cfg = Config.from_env()
+    assert cfg.api_url == "https://cue.example"
+    assert cfg.allowed_bases == ["/a/one", "/b/two"]
+    assert cfg.poll_interval == 2.5 and cfg.max_concurrency == 3
+    assert cfg.heartbeat_interval == 7.0 and cfg.run_timeout == 60.0
+    assert cfg.deliver_enabled is False  # "0" disables the delivery loop
+    assert cfg.deliver_interval == 9.0
+    assert cfg.claude_path == "/opt/claude" and cfg.runner_id == "mac-2"
+
+    monkeypatch.setenv("CUE_DELIVER", "false")
+    assert Config.from_env().deliver_enabled is False
+    monkeypatch.delenv("CUE_DELIVER")
+    assert Config.from_env().deliver_enabled is True  # default on
+
+
+def test_config_from_env_missing_required(monkeypatch):
+    import pytest
+
+    for var in ("CUE_API_URL", "RUNNER_TOKEN", "ALLOWED_BASES"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("CUE_API_URL", "https://cue.example")
+    with pytest.raises(RuntimeError) as exc:
+        Config.from_env()
+    msg = str(exc.value)
+    assert "RUNNER_TOKEN" in msg and "ALLOWED_BASES" in msg
+    assert "CUE_API_URL" not in msg  # the one that IS set isn't reported
+
+
+# ---- paths ----
+def test_path_whitelist_edge_cases():
+    assert not is_path_allowed("/x", [])  # no bases -> closed
+    assert not is_path_allowed("", ["/x"])
+    assert not is_path_allowed("/x/a\x00b", ["/x"])
+    # Bases are normalized, so a configured trailing slash still matches.
+    assert is_path_allowed("/x/sub", ["/x/"])
+
+
+# ---- stream summaries ----
+def test_stream_summarize_variants():
+    tool = parse_line(json.dumps({
+        "type": "assistant",
+        "message": {"content": [{"type": "tool_use", "name": "Bash"},
+                                {"type": "text", "text": "running"}]},
+    }))
+    assert summarize(tool) == ("assistant", "[tool: Bash] running")
+    assert summarize({"type": "user"}) == ("user", "[tool result]")
+    assert summarize({"type": "system", "subtype": "init"}) == ("system:init", "init")
+    assert summarize({"type": "system"}) == ("system", "")
+    # Non-dict JSON and blank lines parse to None.
+    assert parse_line("[1, 2, 3]") is None
+    assert parse_line('"just a string"') is None
+    assert parse_line("   ") is None
+
+
+def test_stream_summarize_truncates_long_output():
+    huge = parse_line(json.dumps({"type": "result", "result": "x" * 10_000}))
+    label, line = summarize(huge)
+    assert label == "result" and len(line) == 4000
+
+
+# ---- executor edge cases ----
+async def test_execute_step_timeout_kills_subprocess():
+    cfg = _cfg()
+    cfg.run_timeout = 0.1
+    proc = FakeProc(["{}\n"], hang=True)  # stdout never reaches EOF
+    api = FakeApi()
+    run = {"id": "r-t", "project_path": "/Users/martin/claude/cue"}
+    out = await execute_step(cfg, api, run, 0, "hi", "sess", asyncio.Event(),
+                             spawn=_spawn_factory(proc))
+    assert out.status == "failed"  # timeout reports failed, not canceled
+    assert proc.terminated or proc.killed  # no orphaned subprocess
+
+
+async def test_execute_step_reports_stream_read_error():
+    class BrokenStdout:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise ValueError("Separator is not found, and chunk exceed the limit")
+
+    proc = FakeProc([])
+    proc.stdout = BrokenStdout()
+    api = FakeApi()
+    run = {"id": "r-e", "project_path": "/Users/martin/claude/cue"}
+    out = await execute_step(_cfg(), api, run, 0, "hi", "sess", asyncio.Event(),
+                             spawn=_spawn_factory(proc))
+    assert out.status == "failed"
+    # The error surfaced in the run log instead of being swallowed.
+    assert any("stream read error" in line for _idx, batch in api.logs for _e, line in batch)
+
+
+async def test_execute_step_nonzero_exit_without_result_event():
+    proc = FakeProc([json.dumps({"type": "system", "subtype": "init", "session_id": "s1"}) + "\n"])
+    proc.returncode = 3
+
+    async def wait():
+        return 3
+
+    proc.wait = wait
+    api = FakeApi()
+    run = {"id": "r-x", "project_path": "/Users/martin/claude/cue"}
+    out = await execute_step(_cfg(), api, run, 0, "hi", "sess", asyncio.Event(),
+                             spawn=_spawn_factory(proc))
+    assert out.status == "failed" and out.exit_code == 3
+
+
+async def test_execute_run_continue_on_error(monkeypatch, tmp_path):
+    """stop_on_error=False keeps executing after a failed step; the run still fails."""
+    cfg = _cfg(bases=[str(tmp_path)])
+    api = FakeApi()
+    run = {
+        "id": "r-c",
+        "project_path": str(tmp_path),
+        "stop_on_error": False,
+        "steps": [{"step_index": 0, "prompt_text": "a"}, {"step_index": 1, "prompt_text": "b"}],
+    }
+    outcomes = iter([
+        executor.StepOutcome(status="failed", exit_code=1, session_id="s"),
+        executor.StepOutcome(status="succeeded", session_id="s", cost=0.5),
+    ])
+
+    async def fake_step(*a, **k):
+        return next(outcomes)
+
+    monkeypatch.setattr(executor, "execute_step", fake_step)
+    await execute_run(cfg, api, run, asyncio.Event())
+    statuses = {idx: status for idx, status, _ in api.steps}
+    assert statuses == {0: "failed", 1: "succeeded"}  # step 1 still ran
+    assert api.runs[-1][0] == "failed"
+    assert api.runs[-1][1]["total_cost_usd"] == 0.5
+
+
+async def test_execute_run_symlink_escape_rejected(tmp_path):
+    """A symlink inside an allowed base must not smuggle the run elsewhere."""
+    import os as _os
+
+    base = tmp_path / "base"
+    outside = tmp_path / "outside"
+    base.mkdir()
+    outside.mkdir()
+    link = base / "sneaky"
+    _os.symlink(outside, link)
+
+    cfg = _cfg(bases=[str(base)])
+    api = FakeApi()
+    run = {"id": "r-s", "project_path": str(link),
+           "steps": [{"step_index": 0, "prompt_text": "x"}]}
+    await execute_run(cfg, api, run, asyncio.Event())
+    assert api.runs[-1][0] == "failed"
+    assert "escapes" in api.runs[-1][1]["error"]
+    assert not api.steps  # never executed
+
+
+async def test_execute_run_pre_canceled_skips_all_steps(tmp_path):
+    cfg = _cfg(bases=[str(tmp_path)])
+    api = FakeApi()
+    cancel = asyncio.Event()
+    cancel.set()
+    run = {"id": "r-pc", "project_path": str(tmp_path),
+           "steps": [{"step_index": 0, "prompt_text": "a"},
+                     {"step_index": 1, "prompt_text": "b"}]}
+    await execute_run(cfg, api, run, cancel)
+    assert [s for _i, s, _k in api.steps] == ["canceled", "canceled"]
+    assert api.runs[-1][0] == "canceled"
+
+
+def test_child_env_strips_runner_secrets(monkeypatch):
+    monkeypatch.setenv("RUNNER_TOKEN", "runner-secret")
+    monkeypatch.setenv("CAPTURE_TOKEN", "capture-secret")
+    monkeypatch.setenv("CUE_API_URL", "https://cue.example")
+    monkeypatch.setenv("HARMLESS", "keep-me")
+    env = executor._child_env()
+    assert "RUNNER_TOKEN" not in env
+    assert "CAPTURE_TOKEN" not in env
+    assert "CUE_API_URL" not in env  # all CUE_* config is withheld
+    assert env["HARMLESS"] == "keep-me"
+    assert env["CUE_NO_CAPTURE"] == "1"  # the runner's claude runs aren't re-captured
+
+
+# ---- daemon loops (runner.py) ----
+async def test_heartbeat_loop_propagates_cancel():
+    """cancel_requested from cue reaches the executor's cancel event."""
+    from cue_runner import runner
+
+    class HbApi:
+        def __init__(self):
+            self.calls = 0
+
+        async def heartbeat(self, run_id):
+            self.calls += 1
+            return {"status": "running", "cancel_requested": self.calls >= 2}
+
+    cfg = _cfg()
+    cfg.heartbeat_interval = 0.01
+    api = HbApi()
+    cancel = asyncio.Event()
+    stop = asyncio.Event()
+    task = asyncio.create_task(runner._heartbeat_loop(cfg, api, "r1", cancel, stop))
+    await asyncio.wait_for(cancel.wait(), timeout=2)
+    stop.set()
+    await asyncio.wait_for(task, timeout=2)
+    assert api.calls >= 2
+
+
+async def test_heartbeat_loop_survives_api_errors():
+    from cue_runner import runner
+
+    class FlakyApi:
+        def __init__(self):
+            self.calls = 0
+
+        async def heartbeat(self, run_id):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("cue briefly unreachable")
+            return {"status": "canceled", "cancel_requested": False}
+
+    cfg = _cfg()
+    cfg.heartbeat_interval = 0.01
+    api = FlakyApi()
+    cancel = asyncio.Event()
+    stop = asyncio.Event()
+    task = asyncio.create_task(runner._heartbeat_loop(cfg, api, "r1", cancel, stop))
+    # A server-side 'canceled' status also sets the cancel event.
+    await asyncio.wait_for(cancel.wait(), timeout=2)
+    stop.set()
+    await asyncio.wait_for(task, timeout=2)
+
+
+async def test_delivery_loop_always_resolves_claimed_deliveries(monkeypatch):
+    """Even when the transport crashes, the claimed delivery is reported failed
+    (otherwise it would sit in 'sending' until the stale reaper)."""
+    from cue_runner import runner
+
+    class DeliveryApi:
+        def __init__(self):
+            self.claims = [{"id": 7, "transport": "iterm"}]
+            self.results = []
+
+        async def claim_delivery(self):
+            return self.claims.pop() if self.claims else None
+
+        async def delivery_result(self, did, status, error=None):
+            self.results.append((did, status, error))
+
+    async def exploding_deliver(d):
+        raise RuntimeError("osascript blew up")
+
+    monkeypatch.setattr(runner, "deliver_one", exploding_deliver)
+    cfg = _cfg()
+    cfg.deliver_interval = 0.01
+    api = DeliveryApi()
+    stop = asyncio.Event()
+    task = asyncio.create_task(runner._delivery_loop(cfg, api, stop))
+    for _ in range(200):
+        if api.results:
+            break
+        await asyncio.sleep(0.01)
+    stop.set()
+    await asyncio.wait_for(task, timeout=2)
+    assert api.results == [(7, "failed", "runner error: osascript blew up")]
+
+
+async def test_handle_run_reports_crash_and_releases_slot(monkeypatch):
+    from cue_runner import runner
+
+    class CrashApi:
+        def __init__(self):
+            self.results = []
+
+        async def heartbeat(self, run_id):
+            return {"status": "running", "cancel_requested": False}
+
+        async def run_result(self, run_id, status, **kw):
+            self.results.append((run_id, status, kw))
+
+    async def broken_execute(cfg, api, run, cancel_event):
+        raise RuntimeError("unexpected bug")
+
+    monkeypatch.setattr(runner, "execute_run", broken_execute)
+    cfg = _cfg()
+    api = CrashApi()
+    sem = asyncio.Semaphore(1)
+    await sem.acquire()  # the claim loop acquires before spawning _handle_run
+    active: set[asyncio.Event] = set()
+    await asyncio.wait_for(
+        runner._handle_run(cfg, api, {"id": "r9", "steps": []}, sem, active), timeout=2
+    )
+    assert api.results[0][1] == "failed"
+    assert "runner error" in api.results[0][2]["error"]
+    assert not sem.locked()  # concurrency slot released for the next run
+    assert active == set()  # cancel bookkeeping cleaned up

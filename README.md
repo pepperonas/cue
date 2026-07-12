@@ -5,6 +5,8 @@
 [![Version](https://img.shields.io/badge/version-0.14.1-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
+[![Tests](https://img.shields.io/badge/tests-199%20passing-brightgreen.svg)](backend/tests/test_api.py)
+[![LOC](https://img.shields.io/badge/LOC-11312-blue.svg)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
