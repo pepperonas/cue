@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-07-12
+
+### Added
+- **Custom dialogs everywhere**: new reusable `InputDialog` (MD3, autofocus,
+  Enter/Esc, inline validation) replaces the last native `window.prompt()`
+  calls (create/rename snippet group — now with a live duplicate check);
+  deleting snippets (single from the editor, bulk from the selection bar)
+  asks via the app's own `Confirm` dialog including a merge-semantics
+  reminder. Project convention: no native browser dialogs.
+- **Snippet management polish**: search field (abbreviation/title/body,
+  umlaut-safe, hides empty groups while searching), visible **select mode**
+  with checkboxes and a per-group select-all toggle (Cmd/Ctrl+click still
+  works), drag **handles** on rows and group headers (no more click-vs-drag
+  ambiguity; dragging pauses during search/selection), and a **copy button**
+  per row that puts the snippet body on the clipboard.
+
 ## [0.15.0] - 2026-07-12
 
 ### Added

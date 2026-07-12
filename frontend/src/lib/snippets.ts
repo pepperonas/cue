@@ -64,3 +64,12 @@ export function abbreviationTaken(
     (s) => s.id !== excludeId && s.abbreviation.trim().toLowerCase() === needle,
   )
 }
+
+/** Case-insensitive search over abbreviation, title and body. */
+export function filterSnippets(snippets: Snippet[], query: string): Snippet[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return snippets
+  return snippets.filter((s) =>
+    `${s.abbreviation}\n${s.title}\n${s.body}`.toLowerCase().includes(q),
+  )
+}

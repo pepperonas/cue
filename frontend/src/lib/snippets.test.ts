@@ -63,3 +63,18 @@ describe('abbreviationTaken', () => {
     expect(abbreviationTaken(list, '   ')).toBe(false)
   })
 })
+
+describe('filterSnippets', () => {
+  const list = [
+    { ...snip(1, 'aiplan', null), title: 'Plan', body: 'Architektur' },
+    { ...snip(2, 'grüße', null), title: '', body: 'Hallo Wölt' },
+  ]
+  it('matches abbreviation, title and body case-insensitively (incl. umlauts)', async () => {
+    const { filterSnippets } = await import('./snippets')
+    expect(filterSnippets(list, 'AIPLAN').map((s) => s.id)).toEqual([1])
+    expect(filterSnippets(list, 'architek').map((s) => s.id)).toEqual([1])
+    expect(filterSnippets(list, 'wölt').map((s) => s.id)).toEqual([2])
+    expect(filterSnippets(list, '')).toHaveLength(2)
+    expect(filterSnippets(list, 'nix')).toHaveLength(0)
+  })
+})

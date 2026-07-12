@@ -13,9 +13,9 @@ import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AnimatePresence, motion } from 'motion/react'
-import { vibrate } from '../lib/clipboard'
+import { copyText, vibrate } from '../lib/clipboard'
 import { springs } from '../lib/motion'
-import { groupSnippets, UNGROUPED_KEY, UNGROUPED_LABEL } from '../lib/snippets'
+import { filterSnippets, groupSnippets, UNGROUPED_KEY, UNGROUPED_LABEL } from '../lib/snippets'
 import type { Snippet, SnippetImportResult } from '../lib/types'
 import {
   useBulkDeleteSnippets,
@@ -32,6 +32,7 @@ import {
 } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Confirm } from './Confirm'
+import { InputDialog } from './InputDialog'
 import { SnippetEditor } from './SnippetEditor'
 import { Button, Icon, IconButton } from './ui'
 
@@ -71,14 +72,24 @@ export function SnippetsView() {
   const [creating, setCreating] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [confirmGroup, setConfirmGroup] = useState<{ id: number; name: string } | null>(null)
+  const [confirmBulk, setConfirmBulk] = useState(false)
+  const [confirmSnippet, setConfirmSnippet] = useState<Snippet | null>(null)
+  const [groupDialog, setGroupDialog] = useState<
+    { mode: 'create' } | { mode: 'rename'; id: number; current: string } | null
+  >(null)
+  const [selectMode, setSelectMode] = useState(false)
+  const [query, setQuery] = useState('')
   const [importResult, setImportResult] = useState<SnippetImportResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const sections = useMemo(
-    () => groupSnippets(snippets ?? [], groups ?? []),
-    [snippets, groups],
-  )
+  const searching = query.trim().length > 0
+  const sections = useMemo(() => {
+    const visible = filterSnippets(snippets ?? [], query)
+    const all = groupSnippets(visible, groups ?? [])
+    // While searching, hide sections without matches (incl. "Ohne Gruppe").
+    return searching ? all.filter((sec) => sec.snippets.length > 0) : all
+  }, [snippets, groups, query, searching])
   const byId = useMemo(() => new Map((snippets ?? []).map((s) => [s.id, s])), [snippets])
 
   // Container state mirrors sections while idle; diverges only mid-drag.
@@ -209,21 +220,27 @@ export function SnippetsView() {
     })
   }
 
-  function addGroup() {
-    const name = window.prompt('Name der neuen Gruppe:')?.trim()
-    if (!name) return
-    createGroup.mutate(name, {
-      onError: (e) => toast.show(e instanceof Error ? e.message : 'Anlegen fehlgeschlagen', 'error'),
-    })
+  const existingGroupNames = useMemo(
+    () => new Set((groups ?? []).map((g) => g.name.toLowerCase())),
+    [groups],
+  )
+
+  function submitGroupDialog(name: string) {
+    if (!groupDialog) return
+    const opts = {
+      onSuccess: () => setGroupDialog(null),
+      onError: (e: unknown) =>
+        toast.show(e instanceof Error ? e.message : 'Fehlgeschlagen', 'error'),
+    }
+    if (groupDialog.mode === 'create') createGroup.mutate(name, opts)
+    else renameGroup.mutate({ id: groupDialog.id, name }, opts)
   }
 
-  function renameGroupPrompt(id: number, current: string) {
-    const name = window.prompt('Gruppe umbenennen:', current)?.trim()
-    if (!name || name === current) return
-    renameGroup.mutate(
-      { id, name },
-      { onError: (e) => toast.show(e instanceof Error ? e.message : 'Umbenennen fehlgeschlagen', 'error') },
-    )
+  function selectSection(ids: number[], allSelected: boolean) {
+    setSelectedIds((prev) => {
+      const rest = prev.filter((x) => !ids.includes(x))
+      return allSelected ? rest : [...rest, ...ids]
+    })
   }
 
   const activeSnippet = typeof activeId === 'number' ? byId.get(activeId) : undefined
@@ -251,7 +268,30 @@ export function SnippetsView() {
     >
       <div className="row" style={{ flexWrap: 'wrap', marginBottom: 'var(--gap-4)' }}>
         <h1 style={{ font: 'var(--headline-m)', margin: 0, flex: 1 }}>Snippets</h1>
-        <button className="chip" onClick={addGroup}>
+        <div className="search" style={{ maxWidth: 260 }}>
+          <Icon name="search" />
+          <input
+            value={query}
+            placeholder="Snippets durchsuchen…"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button className="mini-btn" aria-label="Leeren" onClick={() => setQuery('')}>
+              <Icon name="close" />
+            </button>
+          )}
+        </div>
+        <button
+          className="chip"
+          data-active={selectMode}
+          onClick={() => {
+            if (selectMode) setSelectedIds([])
+            setSelectMode((v) => !v)
+          }}
+        >
+          <Icon name="library_add_check" /> {selectMode ? 'Auswahl beenden' : 'Auswählen'}
+        </button>
+        <button className="chip" onClick={() => setGroupDialog({ mode: 'create' })}>
           <Icon name="create_new_folder" /> Neue Gruppe
         </button>
         <button className="chip" onClick={() => fileRef.current?.click()}>
@@ -337,16 +377,29 @@ export function SnippetsView() {
                 ids={containers[sec.key] ?? []}
                 byId={byId}
                 collapsed={collapsed.includes(sec.key)}
+                dragDisabled={searching || selectMode}
                 onToggle={() => toggleCollapse(sec.key)}
-                onRename={sec.groupId != null ? () => renameGroupPrompt(sec.groupId as number, sec.name) : undefined}
+                onRename={
+                  sec.groupId != null
+                    ? () => setGroupDialog({ mode: 'rename', id: sec.groupId as number, current: sec.name })
+                    : undefined
+                }
                 onDelete={
                   sec.groupId != null
                     ? () => setConfirmGroup({ id: sec.groupId as number, name: sec.name })
                     : undefined
                 }
                 selectedIds={selectedIds}
+                selectMode={selectMode}
                 onToggleSelect={toggleSelect}
+                onSelectSection={selectSection}
                 onEdit={(s) => setEditing(s)}
+                onCopy={(s) => {
+                  void copyText(s.body).then((ok) => {
+                    vibrate(10)
+                    toast.show(ok ? 'Body in Zwischenablage kopiert' : 'Kopieren fehlgeschlagen', ok ? 'success' : 'error')
+                  })
+                }}
               />
             ))}
           </SortableContext>
@@ -399,17 +452,7 @@ export function SnippetsView() {
               </option>
             ))}
           </select>
-          <button
-            className="btn btn--danger"
-            onClick={() => {
-              bulkDelete.mutate(selectedIds, {
-                onSuccess: () => {
-                  toast.show(`${selectedIds.length} Snippets gelöscht`, 'success')
-                  setSelectedIds([])
-                },
-              })
-            }}
-          >
+          <button className="btn btn--danger" onClick={() => setConfirmBulk(true)}>
             <Icon name="delete" /> Löschen
           </button>
         </motion.div>
@@ -429,9 +472,7 @@ export function SnippetsView() {
             onDelete={
               editing
                 ? () => {
-                    del.mutate(editing.id, {
-                      onSuccess: () => toast.show('Snippet gelöscht', 'success'),
-                    })
+                    setConfirmSnippet(editing)
                     setEditing(null)
                   }
                 : undefined
@@ -439,6 +480,59 @@ export function SnippetsView() {
           />
         )}
       </AnimatePresence>
+
+      {groupDialog && (
+        <InputDialog
+          title={groupDialog.mode === 'create' ? 'Neue Gruppe' : 'Gruppe umbenennen'}
+          label="Name der Gruppe"
+          placeholder="z. B. AI Prompts"
+          icon={groupDialog.mode === 'create' ? 'create_new_folder' : 'edit'}
+          initialValue={groupDialog.mode === 'rename' ? groupDialog.current : ''}
+          confirmLabel={groupDialog.mode === 'create' ? 'Anlegen' : 'Umbenennen'}
+          validate={(name) => {
+            const unchanged = groupDialog.mode === 'rename' && name === groupDialog.current
+            if (!unchanged && existingGroupNames.has(name.toLowerCase()))
+              return 'Gruppe existiert bereits'
+            return null
+          }}
+          onConfirm={submitGroupDialog}
+          onCancel={() => setGroupDialog(null)}
+        />
+      )}
+
+      {confirmSnippet && (
+        <Confirm
+          title={`Snippet „${confirmSnippet.abbreviation}" löschen?`}
+          message="In Inspector Rust bleibt das Snippet bestehen (Merge-Import) und muss dort separat gelöscht werden."
+          confirmLabel="Löschen"
+          onCancel={() => setConfirmSnippet(null)}
+          onConfirm={() => {
+            del.mutate(confirmSnippet.id, {
+              onSuccess: () => toast.show('Snippet gelöscht', 'success'),
+            })
+            setConfirmSnippet(null)
+          }}
+        />
+      )}
+
+      {confirmBulk && (
+        <Confirm
+          title={`${selectedIds.length} Snippets löschen?`}
+          message="Gelöschte Snippets bleiben in Inspector Rust bestehen (Merge-Import) und müssen dort separat entfernt werden."
+          confirmLabel="Löschen"
+          onCancel={() => setConfirmBulk(false)}
+          onConfirm={() => {
+            bulkDelete.mutate(selectedIds, {
+              onSuccess: () => {
+                toast.show(`${selectedIds.length} Snippets gelöscht`, 'success')
+                setSelectedIds([])
+                setSelectMode(false)
+              },
+            })
+            setConfirmBulk(false)
+          }}
+        />
+      )}
 
       {confirmGroup && (
         <Confirm
@@ -465,12 +559,16 @@ function SnippetSectionView({
   ids,
   byId,
   collapsed,
+  dragDisabled,
   onToggle,
   onRename,
   onDelete,
   selectedIds,
+  selectMode,
   onToggleSelect,
+  onSelectSection,
   onEdit,
+  onCopy,
 }: {
   sectionKey: string
   name: string
@@ -478,15 +576,23 @@ function SnippetSectionView({
   ids: number[]
   byId: Map<number, Snippet>
   collapsed: boolean
+  dragDisabled: boolean
   onToggle: () => void
   onRename?: () => void
   onDelete?: () => void
   selectedIds: number[]
+  selectMode: boolean
   onToggleSelect: (s: Snippet) => void
+  onSelectSection: (ids: number[], allSelected: boolean) => void
   onEdit: (s: Snippet) => void
+  onCopy: (s: Snippet) => void
 }) {
   // The header is sortable (group reorder) when it's a real group.
-  const sortable = useSortable({ id: secId(sectionKey), disabled: groupId == null })
+  const sortable = useSortable({
+    id: secId(sectionKey),
+    disabled: groupId == null || dragDisabled,
+  })
+  const allSelected = ids.length > 0 && ids.every((id) => selectedIds.includes(id))
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: secId(sectionKey),
     data: { section: sectionKey },
@@ -503,7 +609,17 @@ function SnippetSectionView({
       style={headerStyle}
     >
       <div className="snippet-group-head" data-over={isOver}>
-        {groupId != null && (
+        {selectMode && ids.length > 0 && (
+          <button
+            className="mini-btn"
+            title={allSelected ? 'Gruppe abwählen' : 'Ganze Gruppe auswählen'}
+            aria-label="Ganze Gruppe auswählen"
+            onClick={() => onSelectSection(ids, allSelected)}
+          >
+            <Icon name={allSelected ? 'check_box' : 'check_box_outline_blank'} />
+          </button>
+        )}
+        {groupId != null && !dragDisabled && (
           <span
             className="drag-handle"
             title="Gruppe verschieben"
@@ -535,8 +651,11 @@ function SnippetSectionView({
                     key={id}
                     snippet={s}
                     selected={selectedIds.includes(id)}
+                    selectMode={selectMode}
+                    dragDisabled={dragDisabled}
                     onToggleSelect={() => onToggleSelect(s)}
                     onEdit={() => onEdit(s)}
+                    onCopy={() => onCopy(s)}
                   />
                 )
               })
@@ -551,36 +670,77 @@ function SnippetSectionView({
 function SnippetRow({
   snippet,
   selected,
+  selectMode,
+  dragDisabled,
   onToggleSelect,
   onEdit,
+  onCopy,
 }: {
   snippet: Snippet
   selected: boolean
+  selectMode: boolean
+  dragDisabled: boolean
   onToggleSelect: () => void
   onEdit: () => void
+  onCopy: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: snippet.id,
+    disabled: dragDisabled,
   })
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`snippet-row ${isDragging ? 'dragging' : ''} ${selected ? 'merge-selected' : ''}`}
-      {...attributes}
-      {...listeners}
+      className={`snippet-row ${isDragging ? 'dragging' : ''} ${selected ? 'merge-selected' : ''} ${
+        selectMode ? 'selecting' : ''
+      }`}
       onClick={(e) => {
-        if (e.metaKey || e.ctrlKey) {
+        if (selectMode || e.metaKey || e.ctrlKey) {
           onToggleSelect()
           return
         }
         onEdit()
       }}
-      title="Klick zum Bearbeiten · Cmd/Ctrl+Klick zum Auswählen"
+      title={
+        selectMode
+          ? 'Klick zum Auswählen'
+          : 'Klick zum Bearbeiten · Cmd/Ctrl+Klick zum Auswählen · am Griff ziehen zum Verschieben'
+      }
     >
+      {selectMode ? (
+        <Icon
+          name={selected ? 'check_box' : 'check_box_outline_blank'}
+          className="merge-check-icon"
+        />
+      ) : (
+        !dragDisabled && (
+          <span
+            className="drag-handle"
+            title="Ziehen zum Verschieben"
+            onClick={(e) => e.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            <Icon name="drag_indicator" />
+          </span>
+        )
+      )}
       <code className="snippet-abbr">{snippet.abbreviation}</code>
       <span className="lt grow">{snippet.title || snippet.body.split('\n')[0]}</span>
-      {selected && <Icon name="check_box" className="proj-menu-check" />}
+      <button
+        className="mini-btn copy-btn"
+        aria-label="Body kopieren"
+        title="Body in Zwischenablage kopieren"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          onCopy()
+        }}
+      >
+        <Icon name="content_copy" />
+      </button>
+      {!selectMode && selected && <Icon name="check_box" className="proj-menu-check" />}
     </div>
   )
 }

@@ -2,11 +2,11 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-[![Version](https://img.shields.io/badge/version-0.15.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.15.1-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
-[![Tests](https://img.shields.io/badge/tests-261%20passing-brightgreen.svg)](backend/tests/test_api.py)
-[![LOC](https://img.shields.io/badge/LOC-13052-blue.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-262%20passing-brightgreen.svg)](backend/tests/test_api.py)
+[![LOC](https://img.shields.io/badge/LOC-13322-blue.svg)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -56,7 +56,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips (**per Drag & Drop direkt im Board sortierbar**); neuer Prompt übernimmt das zuletzt genutzte Projekt. Im Prompt-Detail öffnet der **Projekt-Badge ein Menü**: Prompt in ein anderes Projekt **verschieben** oder als **Kopie** (inkl. Screenshots, landet als Queued) dorthin **duplizieren**.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft, **Tag-Autocomplete** (kuratierte EN-Dev-Tags + bereits verwendete Tags).
 - **Diktat**: Prompts per **Sprachaufzeichnung** erstellen — Mikro-Button am Prompt-Feld (Web Speech API, browser-nativ, kein Server-Roundtrip); erkannte Sätze werden angehängt, Zwischenergebnis läuft live mit. In Browsern ohne Support (Firefox) ausgeblendet.
-- **Snippet-Bibliothek**: Bearbeitungs-Werkbank für die AI-Prompt-Snippets aus **Inspector Rust** — IR-Backup-JSON importieren, in cue gruppieren/bearbeiten (Drag & Drop, Multi-Select, Live-Duplikat-Check der Abkürzung, Markdown-Vorschau), wieder als IR-Backup exportieren und in IR über „Settings → Backup & restore" zurückspielen. **Verlustfreier Roundtrip** (Merge-Key = Abkürzung, Gruppen reisen per Name, auch leere Gruppen überleben); verschlüsselte Backups werden mit klarer Meldung abgelehnt.
+- **Snippet-Bibliothek**: Bearbeitungs-Werkbank für die AI-Prompt-Snippets aus **Inspector Rust** — IR-Backup-JSON importieren, in cue gruppieren/bearbeiten (Drag & Drop mit Griffen, sichtbarer Auswahl-Modus mit Gruppen-Select-All, Suche, 1-Klick-Copy des Bodys, Live-Duplikat-Check der Abkürzung, Markdown-Vorschau), wieder als IR-Backup exportieren und in IR über „Settings → Backup & restore" zurückspielen. **Verlustfreier Roundtrip** (Merge-Key = Abkürzung, Gruppen reisen per Name, auch leere Gruppen überleben); verschlüsselte Backups werden mit klarer Meldung abgelehnt.
 - **Import** von `.txt` (Split an `---`/Leerzeilen/keiner) + **Export** als JSON-Backup oder ZIP (`.txt` pro Prompt).
 - **MD3 Expressive**: Material-You-Dynamic-Color aus Seed, Light/Dark/System, sichtbare Physik, reduced-motion-aware. Der **Theme-Wechsel** blendet das neue Theme als **Circular Reveal** vom Klickpunkt auf (View Transitions API, wie auf celox.io); ohne API-Support oder bei `prefers-reduced-motion` sofortiger Wechsel.
 - **PWA**, installierbar, letzte Daten offline lesbar.
@@ -103,7 +103,7 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 ### Tests
 
 Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
-gemockt) — zusammen **261 Tests**:
+gemockt) — zusammen **262 Tests**:
 
 ```bash
 npm test                             # alle drei Suiten + Badge-Update (posttest)
@@ -114,7 +114,7 @@ cd backend    && uv run pytest                    # 137 Tests — API-Verhalten 
                                                   #  Runs, Capture, SPA-Guard, CSP …)
 cd cue-runner && .venv/bin/python -m pytest       # 65 Tests — Executor, Orchestrierungs-Loops,
                                                   #  Stream-Parser, Delivery, API-Client (Mocks)
-cd frontend   && pnpm vitest run                  # 59 Tests — src/lib (markdown-XSS, tags,
+cd frontend   && pnpm vitest run                  # 60 Tests — src/lib (markdown-XSS, tags,
                                                   #  color, api-CSRF, clipboard, speech)
 cd frontend   && pnpm typecheck                   # tsc
 
@@ -193,7 +193,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.15.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.15.1**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 

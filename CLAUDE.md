@@ -131,6 +131,7 @@ separately and Vite proxies `/api` to `:8000`.
 - **Last-used project**: creating a prompt stores its project in `localStorage` (`cue-last-project`); the next new prompt preselects it (validated against the live project list; an active project filter still wins via `defaultProjectId`).
 - **Header project label**: the board view shows the active project filter next to the brand (`TopBar` `projectLabel` prop, `.brand-project` chip, remounted `motion.span` per label so the spring replays; hidden <760px).
 - **kbd-in-button legibility**: `.btn kbd` derives its chip background/border from `currentColor` (`color-mix`) so the `⌘↵` hint stays readable on filled/tonal/danger surfaces instead of dark-on-dark.
+- **No native browser dialogs** — `window.prompt/confirm/alert` are banned. Use `Confirm` (message + danger action) or `InputDialog` (`components/InputDialog.tsx`: MD3 text input, autofocus+select, Enter=OK/Esc=Cancel, `validate` callback for inline errors like duplicate names).
 - **Conventional Commits**. Persist app state lives entirely in the SQLite file (`/data/cue.db` in the container volume).
 
 ## Deployment (live: cue.celox.io on VPS 69.62.121.168)
