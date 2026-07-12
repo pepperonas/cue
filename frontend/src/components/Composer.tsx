@@ -81,9 +81,11 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const removedExisting = useRef<Set<number>>(new Set())
   const savedRef = useRef(false)
 
+  // Focus the editor on open and whenever preview switches back to edit mode
+  // (e.g. via double-click on the preview).
   useEffect(() => {
-    taRef.current?.focus()
-  }, [])
+    if (!preview) taRef.current?.focus()
+  }, [preview])
 
   // Delete still-uncommitted uploads if the composer closes without saving.
   useEffect(() => {
@@ -211,12 +213,22 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
     }
   }
 
-  function onKeyDown(e: React.KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault()
-      void save()
+  // Cmd/Ctrl+Enter saves regardless of where the focus sits. A window-level
+  // listener is required: clicking a non-focusable area (e.g. the rendered
+  // preview) moves focus to <body>, where a keydown handler on the sheet
+  // element would never fire.
+  const saveRef = useRef(save)
+  saveRef.current = save
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        void saveRef.current()
+      }
     }
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className="scrim" onClick={isEdit ? undefined : onClose}>
@@ -224,7 +236,6 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
         layoutId="composer-surface"
         className={`sheet sheet--composer ${dragOver ? 'drag-over' : ''}`}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={onKeyDown}
         onPaste={onPaste}
         onDragOver={(e) => {
           if (e.dataTransfer?.types?.includes('Files')) {
@@ -268,6 +279,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           <div
             ref={previewRef}
             className="md-preview"
+            title="Doppelklick zum Bearbeiten"
             style={{
               minHeight: 240,
               background: 'var(--md-surface-container-lowest)',
@@ -276,6 +288,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
               userSelect: 'text',
               cursor: 'text',
             }}
+            onDoubleClick={() => setPreview(false)}
             dangerouslySetInnerHTML={{ __html: renderMarkdown(body || '_Nichts zum Anzeigen_') }}
           />
         ) : (

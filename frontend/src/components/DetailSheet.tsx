@@ -256,7 +256,12 @@ export function DetailSheet({
         </div>
 
         <div className="detail-scroll">
-          <div ref={contentRef} style={{ userSelect: 'text', cursor: 'text' }}>
+          <div
+            ref={contentRef}
+            style={{ userSelect: 'text', cursor: 'text' }}
+            title="Doppelklick zum Bearbeiten"
+            onDoubleClick={() => onEdit(prompt)}
+          >
             {showRaw ? (
             <pre
               style={{

@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-12
+
+### Added
+- **Double-click to edit**: double-clicking the content in the prompt detail
+  (rendered preview or raw text) opens the edit dialog; double-clicking the
+  Markdown preview inside the composer switches back to the editor with the
+  textarea focused.
+
+### Fixed
+- **Cmd/Ctrl+Enter saves the composer again regardless of focus.** Clicking a
+  non-focusable area (e.g. the rendered preview) moved keyboard focus to
+  `<body>`, where the save shortcut — previously bound to the sheet element —
+  never fired. It now lives on a window-level listener while the dialog is open.
+
 ## [0.6.0] - 2026-07-10
 
 ### Added
@@ -178,6 +192,7 @@ First public release.
   dynamic color, full keyboard shortcuts, and PWA support.
 - Mobile-optimized, no-horizontal-scroll responsive layout.
 
+[0.7.0]: https://github.com/pepperonas/cue/releases/tag/v0.7.0
 [0.6.0]: https://github.com/pepperonas/cue/releases/tag/v0.6.0
 [0.5.1]: https://github.com/pepperonas/cue/releases/tag/v0.5.1
 [0.5.0]: https://github.com/pepperonas/cue/releases/tag/v0.5.0
