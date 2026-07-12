@@ -80,6 +80,48 @@ def _owned_run(session: Session, run_id: str, uid: int) -> Run:
     return run
 
 
+def _prompts_to_running(session: Session, run: Run) -> None:
+    """Mirror a starting run on the board: move every source prompt into the
+    Running column (stamps ran_at on first entry, like a manual move)."""
+    from .prompts import _next_sort_order
+
+    now = utcnow()
+    steps = session.exec(
+        select(RunStep).where(RunStep.run_id == run.id).order_by(RunStep.step_index)
+    ).all()
+    for step in steps:
+        if step.prompt_id is None:
+            continue
+        prompt = session.get(Prompt, step.prompt_id)
+        if prompt is None or prompt.blocked or prompt.status == PromptStatus.running:
+            continue
+        prompt.status = PromptStatus.running
+        prompt.sort_order = _next_sort_order(session, PromptStatus.running, prompt.user_id)
+        if prompt.ran_at is None:
+            prompt.ran_at = now
+        session.add(prompt)
+
+
+def _release_unfinished_prompts(session: Session, run: Run) -> None:
+    """A run ended without executing all steps (cancel, failure, runner
+    timeout): source prompts of unfinished steps return to the queue. Steps
+    that did report a result already moved their prompt in step_result."""
+    from .prompts import _next_sort_order
+
+    steps = session.exec(
+        select(RunStep).where(RunStep.run_id == run.id).order_by(RunStep.step_index)
+    ).all()
+    for step in steps:
+        if step.status in RUN_TERMINAL or step.prompt_id is None:
+            continue
+        prompt = session.get(Prompt, step.prompt_id)
+        if prompt is None or prompt.status != PromptStatus.running:
+            continue
+        prompt.status = PromptStatus.queued
+        prompt.sort_order = _next_sort_order(session, PromptStatus.queued, prompt.user_id)
+        session.add(prompt)
+
+
 def reap_stale(session: Session, timeout_seconds: int) -> int:
     """Fail runs stuck in claiming/running without a recent heartbeat (the runner
     died/restarted). Runs at startup and periodically. Returns the count reaped."""
@@ -101,6 +143,7 @@ def reap_stale(session: Session, timeout_seconds: int) -> int:
         run.error = "runner timeout"
         run.finished_at = now
         session.add(run)
+        _release_unfinished_prompts(session, run)
         for step in session.exec(select(RunStep).where(RunStep.run_id == run.id)).all():
             if step.status not in RUN_TERMINAL:
                 step.status = RunStatus.failed
@@ -161,6 +204,7 @@ def create_run(
         session.add(
             RunStep(run_id=run.id, step_index=idx, prompt_id=pid, prompt_text=prompt.body)
         )
+    _prompts_to_running(session, run)
     session.commit()
     session.refresh(run)
     return _run_read(session, run)
@@ -200,6 +244,7 @@ def cancel_run(
     if run.status == RunStatus.queued:
         run.status = RunStatus.canceled
         run.finished_at = utcnow()
+        _release_unfinished_prompts(session, run)
     elif run.status in (RunStatus.claiming, RunStatus.running):
         run.cancel_requested = True
     # terminal -> no-op
@@ -349,6 +394,7 @@ def run_result(
     run.error = (payload.error or None) and payload.error[:2000]
     run.finished_at = utcnow()
     session.add(run)
+    _release_unfinished_prompts(session, run)
     session.commit()
     session.refresh(run)
     return _run_read(session, run)

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-07-12
+
+### Added
+- **Board mirrors run execution**: creating a run moves all its source
+  prompts into the Running column (stamps `ran_at` on first entry; blocked
+  prompts are skipped). Finished steps already moved prompts — success →
+  top of Done, failure → Failed — so the full lifecycle is now visible on
+  the board. When a run ends without executing all steps (cancel while
+  queued, stop-on-error failure, runner timeout via the reaper), the
+  prompts of never-executed steps return to the queue instead of being
+  stranded in Running.
+
 ## [0.13.0] - 2026-07-12
 
 ### Added

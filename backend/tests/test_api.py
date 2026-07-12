@@ -349,6 +349,9 @@ def test_run_full_flow(client):
     assert cr.json()["status"] == "queued"
     assert cr.json()["steps_total"] == 1 and cr.json()["steps_done"] == 0
 
+    # Creating the run mirrors the prompt into the Running column.
+    assert client.get(f"/api/prompts/{pid}").json()["status"] == "running"
+
     listed = client.get("/api/runs").json()
     assert len(listed) == 1
     assert listed[0]["steps_total"] == 1 and listed[0]["steps_done"] == 0
@@ -411,6 +414,53 @@ def test_failed_step_marks_prompt_failed(client):
         headers=_RUNNER_HDR,
     )
     assert client.get(f"/api/prompts/{pid}").json()["status"] == "failed"
+
+
+def test_run_prompts_move_to_running_and_release_on_cancel(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "step one")
+    b = _mk_prompt(client, headers, "step two")
+    run_id = client.post(
+        "/api/runs",
+        json={"kind": "chain", "prompt_ids": [a, b], "project_path": "/Users/martin/claude/cue"},
+        headers=headers,
+    ).json()["id"]
+    assert client.get(f"/api/prompts/{a}").json()["status"] == "running"
+    assert client.get(f"/api/prompts/{b}").json()["status"] == "running"
+
+    # Canceling the still-queued run releases both prompts back to the queue.
+    r = client.post(f"/api/runs/{run_id}/cancel", headers=headers)
+    assert r.status_code == 200 and r.json()["status"] == "canceled"
+    assert client.get(f"/api/prompts/{a}").json()["status"] == "queued"
+    assert client.get(f"/api/prompts/{b}").json()["status"] == "queued"
+
+
+def test_run_result_releases_unexecuted_steps(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "step one")
+    b = _mk_prompt(client, headers, "step two")
+    run_id = client.post(
+        "/api/runs",
+        json={"kind": "chain", "prompt_ids": [a, b], "project_path": "/Users/martin/claude/cue"},
+        headers=headers,
+    ).json()["id"]
+    client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR)
+    # Step 0 fails, the runner stops (stop_on_error) and reports the run failed.
+    client.post(
+        f"/api/runs/{run_id}/steps/0/result",
+        json={"status": "failed", "exit_code": 1},
+        headers=_RUNNER_HDR,
+    )
+    client.post(
+        f"/api/runs/{run_id}/result",
+        json={"status": "failed", "error": "step 1 failed"},
+        headers=_RUNNER_HDR,
+    )
+    # The executed step keeps its outcome, the never-run step returns to queued.
+    assert client.get(f"/api/prompts/{a}").json()["status"] == "failed"
+    assert client.get(f"/api/prompts/{b}").json()["status"] == "queued"
 
 
 def test_done_status_goes_to_top(client):

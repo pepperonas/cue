@@ -289,7 +289,11 @@ export function useCreateRun() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: api.createRun,
-    onSuccess: () => qc.invalidateQueries({ queryKey: RUNS_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: RUNS_KEY })
+      // The server moved the source prompts into the Running column.
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+    },
   })
 }
 
@@ -300,6 +304,8 @@ export function useCancelRun() {
     onSuccess: (_d, id) => {
       qc.invalidateQueries({ queryKey: RUNS_KEY })
       qc.invalidateQueries({ queryKey: ['run', id] })
+      // A canceled queued run releases its prompts back into the queue.
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
     },
   })
 }
