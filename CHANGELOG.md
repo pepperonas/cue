@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-12
+
+### Added
+- **Voice dictation in the Composer**: a mic chip next to the prompt field
+  records speech via the browser-native Web Speech API and appends finalized
+  phrases to the prompt body (live interim readout below the textarea, red
+  pulsing indicator while recording). Auto-restarts across Chrome's silence
+  timeout; stops on preview switch, save, and close. Browsers without the API
+  (Firefox) don't show the button. `Permissions-Policy` now allows
+  `microphone=(self)`.
+
 ## [0.8.0] - 2026-07-12
 
 ### Added

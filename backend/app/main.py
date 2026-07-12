@@ -64,7 +64,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.8.0",
+    version="0.9.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -102,7 +102,8 @@ async def security_headers(request: Request, call_next):  # noqa: ANN001, ANN201
     response.headers["Referrer-Policy"] = "same-origin"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Content-Security-Policy"] = _csp()
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # microphone=(self): voice dictation in the Composer (Web Speech API).
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
     return response
 
 

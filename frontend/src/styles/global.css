@@ -1563,3 +1563,39 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
     animation: none !important;
   }
 }
+
+/* Voice dictation (Composer): red-tinted active chip + live interim readout */
+.chip.dictating {
+  background: color-mix(in srgb, var(--md-error) 14%, transparent);
+  border-color: color-mix(in srgb, var(--md-error) 45%, transparent);
+  color: var(--md-error);
+}
+.dictation-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  min-height: 20px;
+  font-size: 0.85rem;
+  color: var(--md-on-surface-variant);
+}
+.dictation-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dictation-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--md-error);
+  animation: dictation-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dictation-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dictation-dot { animation: none; }
+}

@@ -8,6 +8,7 @@ import { STATUS_LABEL, STATUSES } from '../lib/types'
 import { useCreatePrompt, usePrompts, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
 import { DEV_TAGS, normalizeTags } from '../lib/tags'
+import { useDictation } from '../lib/speech'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
 
@@ -81,11 +82,35 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const removedExisting = useRef<Set<number>>(new Set())
   const savedRef = useRef(false)
 
+  // Voice dictation (Web Speech API): finalized phrases are appended to the
+  // body with smart spacing; interim text shows in a live readout below the
+  // textarea. Unsupported browsers (Firefox) simply don't render the button.
+  const dictation = useDictation(
+    (text) => {
+      if (!text) return
+      setBody((prev) => (prev && !/\s$/.test(prev) ? `${prev} ${text}` : prev + text))
+    },
+    (error) => {
+      toast.show(
+        error === 'not-allowed' || error === 'service-not-allowed'
+          ? 'Mikrofon-Zugriff verweigert'
+          : 'Diktat fehlgeschlagen',
+        'error',
+      )
+    },
+  )
+
   // Focus the editor on open and whenever preview switches back to edit mode
   // (e.g. via double-click on the preview).
   useEffect(() => {
     if (!preview) taRef.current?.focus()
   }, [preview])
+
+  // The mic chip lives next to the textarea — switching to preview hides it,
+  // so an active recording must not keep running invisibly.
+  useEffect(() => {
+    if (preview) dictation.stop()
+  }, [preview]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Delete still-uncommitted uploads if the composer closes without saving.
   useEffect(() => {
@@ -293,7 +318,21 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           />
         ) : (
           <div className="field">
-            <label htmlFor="c-body">Prompt (Markdown)</label>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <label htmlFor="c-body" style={{ margin: 0 }}>
+                Prompt (Markdown)
+              </label>
+              {dictation.supported && (
+                <button
+                  className={`chip ${dictation.listening ? 'dictating' : ''}`}
+                  onClick={dictation.toggle}
+                  title={dictation.listening ? 'Aufnahme stoppen' : 'Prompt diktieren'}
+                >
+                  <Icon name={dictation.listening ? 'stop_circle' : 'mic'} />{' '}
+                  {dictation.listening ? 'Stoppen' : 'Diktieren'}
+                </button>
+              )}
+            </div>
             <textarea
               id="c-body"
               ref={taRef}
@@ -302,6 +341,12 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
               placeholder="Schreibe deinen Claude-Code-Prompt…"
               onChange={(e) => setBody(e.target.value)}
             />
+            {dictation.listening && (
+              <div className="dictation-live" aria-live="polite">
+                <span className="dictation-dot" />
+                <span className="dictation-text">{dictation.interim || 'Zuhören…'}</span>
+              </div>
+            )}
           </div>
         )}
 
