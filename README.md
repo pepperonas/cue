@@ -2,7 +2,7 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-[![Version](https://img.shields.io/badge/version-0.14.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.14.2-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
 [![Tests](https://img.shields.io/badge/tests-199%20passing-brightgreen.svg)](backend/tests/test_api.py)
@@ -101,9 +101,38 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 
 ### Tests
 
+Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
+gemockt) — zusammen **199 Tests**:
+
 ```bash
-cd backend && uv run pytest          # Login → CRUD → Reorder → Import → Export
-cd frontend && pnpm typecheck        # tsc
+npm test                             # alle drei Suiten + Badge-Update (posttest)
+
+# einzeln:
+cd backend    && uv run pytest                    # 90 Tests — API-Verhalten end-to-end
+                                                  # (Auth/OAuth, Tenant-Isolation, CRUD,
+                                                  #  Runs, Capture, SPA-Guard, CSP …)
+cd cue-runner && .venv/bin/python -m pytest       # 56 Tests — Executor, Stream-Parser,
+                                                  #  Delivery-Transports, API-Client (httpx mock)
+cd frontend   && pnpm vitest run                  # 53 Tests — src/lib (markdown-XSS, tags,
+                                                  #  color, api-CSRF, clipboard, speech)
+cd frontend   && pnpm typecheck                   # tsc
+
+# Coverage (backend 96 %, runner 81 %):
+cd backend && uv run pytest --cov=app --cov-report=term-missing
+```
+
+Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
+liegen in `backend/tests/conftest.py`.
+
+### README-Badges (LOC + Testanzahl)
+
+`scripts/update-badges.mjs` hält die Badges ehrlich: Source-LOC (ohne Tests,
+`node_modules`, `dist`, Generiertes) und die Testanzahl **aus echtem
+Runner-Output** (`pytest --collect-only` + `vitest list`, kein `it()`-Grep).
+Läuft idempotent, automatisch nach `npm test` (posttest-Hook) oder manuell:
+
+```bash
+npm run update-badges
 ```
 
 ## Deployment (VPS, `cue.celox.io`)
@@ -150,18 +179,20 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 ## Projektstruktur
 
 ```
-backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests
-frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
-cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
+backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests (90, conftest.py)
+frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA, Vitest (src/lib)
+cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README, 56 Tests)
+scripts/    update-badges.mjs — LOC-/Test-Badges im README automatisch aktualisieren
 deploy/     Caddyfile + nginx.conf
 docs/       Screenshots
+package.json  Root-Skripte: npm test (alle Suiten) + posttest-Badge-Hook
 Dockerfile  Multi-Stage (node build → python runtime)
 ```
 
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.14.1**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.14.2**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 

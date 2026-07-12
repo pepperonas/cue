@@ -22,7 +22,7 @@ as a live log, and reports step/run results. Pure outbound HTTP — no open port
 cd cue-runner
 uv venv && uv pip install -e ".[dev]"
 cp .env.example .env        # set RUNNER_TOKEN (must match the cue backend) + ALLOWED_BASES
-uv run pytest               # run tests
+uv run pytest               # run tests (56 — executor, stream parser, delivery, API client; all offline)
 uv run python -m cue_runner # start the daemon
 ```
 

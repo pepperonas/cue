@@ -28,13 +28,32 @@ pnpm install
 pnpm dev                                   # Vite dev server :5173, proxies /api -> :8000
 pnpm build                                 # tsc -b && vite build -> dist/
 pnpm typecheck
+pnpm vitest run                            # frontend unit tests (src/lib only)
+
+# All suites + badge refresh (from the repo root; root package.json)
+npm test                                   # backend + runner + frontend, then posttest
+npm run update-badges                      # refresh README LOC/test badges (idempotent)
 
 # Full app (prod): one container serves API + built frontend
 docker compose up -d --build               # listens on 127.0.0.1:8791
 # Auth needs GOOGLE_CLIENT_ID/SECRET + an allowlist in .env (see .env.example).
 ```
 
-After backend or frontend changes, run `uv run pytest` and `pnpm build` before committing.
+After backend or frontend changes, run `uv run pytest` and `pnpm build` before committing
+(or `npm test` from the root to run all three suites — it also refreshes the README badges
+via the `posttest` hook).
+
+**Testing conventions:** three suites — `backend/tests/` (pytest, black-box over the HTTP
+API with a real tmp SQLite; shared fixtures/helpers in `conftest.py`: `client`, `auth()`,
+`make_user()`, `RUNNER_HDR`/`CAPTURE_HDR`), `cue-runner/tests/` (pytest + pytest-asyncio,
+fake subprocesses + httpx `MockTransport`, no network), `frontend/src/lib/*.test.ts`
+(Vitest, only pure lib modules — UI components are deliberately untested). Test behavior,
+not implementation; external deps (Google OAuth via monkeypatched `_post_form`/`_get_json`,
+subprocesses, browser APIs) are mocked; everything runs offline and deterministically.
+Coverage: backend 96 %, runner 81 % (`--cov=app` / `--cov=cue_runner`); remaining gaps are
+defensive except-branches + the runner's orchestration loop (`runner.py`, hard to test,
+low value). `scripts/update-badges.mjs` parses test counts from `pytest --collect-only` +
+`vitest list` — never grep for `it()`.
 
 ## Architecture
 

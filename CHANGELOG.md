@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] - 2026-07-12
+
+### Added
+- **Badge automation**: `scripts/update-badges.mjs` keeps the README's LOC and
+  test-count badges current — LOC counted over source only (tests, generated
+  files and dependencies excluded), test counts parsed from the real runners
+  (`pytest --collect-only`, `vitest list`). Wired as `npm run update-badges`
+  plus a `posttest` hook in a new root `package.json` (`npm test` runs all
+  three suites).
+- **Frontend unit tests** (Vitest, new): 53 tests over `src/lib` — escape-first
+  markdown rendering (XSS), tag normalization/dedup, tonal color generation,
+  API client CSRF handling, clipboard/speech wrappers, motion presets.
+
+### Changed
+- **Test suite maxed out**: backend 34 → 90 tests (coverage 84 % → 96 %; OAuth
+  callback flows, session/CSRF/state primitives, project CRUD + tenant
+  isolation, SPA path-traversal guard, security headers, attachment guards,
+  merge/import/export edge cases, run-log pagination), cue-runner 22 → 56
+  tests (coverage 59 % → 81 %; API client via httpx MockTransport, config
+  parsing, stream >64-KiB events, delivery edge cases). No behavior changes.
+- Shared backend test fixtures extracted into `backend/tests/conftest.py`.
+
 ## [0.14.1] - 2026-07-12
 
 ### Changed
