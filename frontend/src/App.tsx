@@ -34,6 +34,7 @@ import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
 import { RunTicker } from './components/RunTicker'
 import { SessionsView } from './components/SessionsView'
+import { SnippetsView } from './components/SnippetsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Login } from './components/Login'
@@ -89,6 +90,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       saved === 'bookmarks' ||
       saved === 'runs' ||
       saved === 'sessions' ||
+      saved === 'snippets' ||
       saved === 'projects' ||
       saved === 'settings'
       ? saved
@@ -516,6 +518,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         )}
 
         {view === 'runs' && <RunsView canRun={canRun} />}
+        {view === 'snippets' && <SnippetsView />}
         {view === 'sessions' && <SessionsView dark={settings.resolvedDark} />}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}

@@ -328,3 +328,81 @@ class CaptureSettingsRead(BaseModel):
 class CaptureSettingsUpdate(BaseModel):
     project_base: str | None = None
     regenerate: bool = False
+
+
+# ---- Snippets (Inspector-Rust roundtrip workbench) ----
+class SnippetCreate(BaseModel):
+    abbreviation: str
+    title: str = ""
+    body: str
+    # Group name; "" or None = ungrouped. Unknown names are created on the fly.
+    group_name: str | None = None
+
+
+class SnippetUpdate(BaseModel):
+    abbreviation: str | None = None
+    title: str | None = None
+    body: str | None = None
+    # Three-valued like IR: None = don't touch, "" = ungroup, name = assign.
+    group_name: str | None = None
+
+
+class SnippetRead(BaseModel):
+    id: int
+    abbreviation: str
+    title: str
+    body: str
+    group_name: str | None
+    sort_order: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SnippetGroupCreate(BaseModel):
+    name: str
+
+
+class SnippetGroupUpdate(BaseModel):
+    name: str
+
+
+class SnippetGroupRead(BaseModel):
+    id: int
+    name: str
+    sort_order: int
+
+
+class SnippetReorderItem(BaseModel):
+    id: int
+    group_name: str | None = None  # "" and None both mean ungrouped here
+    sort_order: int
+
+
+class SnippetReorderRequest(BaseModel):
+    items: list[SnippetReorderItem]
+
+
+class SnippetGroupReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class SnippetGroupReorderRequest(BaseModel):
+    items: list[SnippetGroupReorderItem]
+
+
+class SnippetBulkMoveRequest(BaseModel):
+    ids: list[int]
+    group_name: str = ""  # "" = ungroup
+
+
+class SnippetBulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+class SnippetImportResult(BaseModel):
+    imported: int
+    updated: int
+    groups_created: int
+    skipped: int
+    errors: list[str] = []

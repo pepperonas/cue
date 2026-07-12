@@ -196,3 +196,29 @@ export const RUN_STATUS_ICON: Record<RunStatus, string> = {
 }
 
 export const RUN_ACTIVE: RunStatus[] = ['queued', 'claiming', 'running']
+
+// ---- Snippets (Inspector-Rust roundtrip workbench) ----
+export interface Snippet {
+  id: number
+  abbreviation: string
+  title: string
+  body: string
+  group_name: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SnippetGroup {
+  id: number
+  name: string
+  sort_order: number
+}
+
+export interface SnippetImportResult {
+  imported: number
+  updated: number
+  groups_created: number
+  skipped: number
+  errors: string[]
+}

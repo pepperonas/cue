@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-07-12
+
+### Added
+- **Snippet library** — an editing workbench for Inspector-Rust (IR) AI-prompt
+  snippets with a lossless roundtrip: import an IR backup JSON, structure and
+  edit the snippets in cue (groups collapsible + drag-sortable, snippets
+  draggable across groups, multi-select bulk move/delete, editor with
+  monospace abbreviation field + live duplicate check and Markdown preview),
+  export back as an IR backup that "Settings → Backup & restore → Import"
+  reads. New **Snippets** tab.
+  - Format contract in `app/ir_format.py` (pure, tested incl. a golden
+    roundtrip against a real IR fixture): version 2 envelope, unix-millis
+    timestamps, `abbreviation` as merge key (verbatim, trim only), groups by
+    NAME with empty groups + order in `snippet_categories`, three-valued
+    `category` (`"name"` assign / `""` explicitly ungroup / `null` leave IR's
+    assignment untouched) — cue exports `""` for ungrouped, never `null`.
+  - Read-side tolerance: full envelope, snippets-only backups, the legacy
+    `[{abbreviation,title?,body}]` format (lands ungrouped); encrypted
+    backups are rejected with a clear message. Per-row errors are collected,
+    never fatal. Import merges (upsert per abbreviation); `category: null`
+    does not clobber a cue-side group move.
+  - New tables `snippet` + `snippet_group` (per-tenant, abbreviation unique
+    per user), full CRUD/reorder/bulk API under `/api/snippets`, partial
+    export via `?groups=a,b`.
+  - The UI carries a permanent hint that IR imports MERGE: deletions and
+    abbreviation renames in cue do not delete/rename in IR.
+
 ## [0.14.3] - 2026-07-12
 
 ### Changed

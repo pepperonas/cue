@@ -1,6 +1,9 @@
 // Typed fetch client. Sends the CSRF double-submit header on mutations by
 // reading the readable `cue_csrf` cookie.
 import type {
+  Snippet,
+  SnippetGroup,
+  SnippetImportResult,
   Attachment,
   CaptureSession,
   CaptureSessionDetail,
@@ -194,5 +197,43 @@ export const api = {
     })
     if (!res.ok) throw new ApiError(res.status, 'Import failed')
     return res.json()
+  },
+}
+
+// ---- Snippets ----
+export const snippetsApi = {
+  list: () => request<Snippet[]>('GET', '/snippets'),
+  create: (input: { abbreviation: string; title: string; body: string; group_name: string | null }) =>
+    request<Snippet>('POST', '/snippets', input),
+  update: (
+    id: number,
+    patch: Partial<{ abbreviation: string; title: string; body: string; group_name: string }>,
+  ) => request<Snippet>('PATCH', `/snippets/${id}`, patch),
+  remove: (id: number) => request<void>('DELETE', `/snippets/${id}`),
+  reorder: (items: { id: number; group_name: string; sort_order: number }[]) =>
+    request<Snippet[]>('POST', '/snippets/reorder', { items }),
+  bulkMove: (ids: number[], group_name: string) =>
+    request<Snippet[]>('POST', '/snippets/bulk-move', { ids, group_name }),
+  bulkDelete: (ids: number[]) => request<void>('POST', '/snippets/bulk-delete', { ids }),
+  groups: () => request<SnippetGroup[]>('GET', '/snippets/groups'),
+  createGroup: (name: string) => request<SnippetGroup>('POST', '/snippets/groups', { name }),
+  renameGroup: (id: number, name: string) =>
+    request<SnippetGroup>('PATCH', `/snippets/groups/${id}`, { name }),
+  deleteGroup: (id: number) => request<void>('DELETE', `/snippets/groups/${id}`),
+  reorderGroups: (items: { id: number; sort_order: number }[]) =>
+    request<SnippetGroup[]>('POST', '/snippets/groups/reorder', { items }),
+  importBackup: async (file: File): Promise<SnippetImportResult> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/snippets/import', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': csrfToken() },
+      body: fd,
+    })
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : undefined
+    if (!res.ok) throw new Error(data?.detail || 'Import fehlgeschlagen')
+    return data as SnippetImportResult
   },
 }

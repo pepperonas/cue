@@ -313,3 +313,117 @@ export function useCancelRun() {
 export function projectMap(projects: Project[] | undefined): Map<number, Project> {
   return new Map((projects ?? []).map((p) => [p.id, p]))
 }
+
+// ---- Snippets ----
+import { snippetsApi } from '../lib/api'
+
+const SNIPPETS_KEY = ['snippets'] as const
+const SNIPPET_GROUPS_KEY = ['snippet-groups'] as const
+
+export function useSnippets() {
+  return useQuery({ queryKey: SNIPPETS_KEY, queryFn: snippetsApi.list })
+}
+
+export function useSnippetGroups() {
+  return useQuery({ queryKey: SNIPPET_GROUPS_KEY, queryFn: snippetsApi.groups })
+}
+
+function useInvalidateSnippets() {
+  const qc = useQueryClient()
+  return () => {
+    void qc.invalidateQueries({ queryKey: SNIPPETS_KEY })
+    void qc.invalidateQueries({ queryKey: SNIPPET_GROUPS_KEY })
+  }
+}
+
+export function useCreateSnippet() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({
+    mutationFn: snippetsApi.create,
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateSnippet() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Parameters<typeof snippetsApi.update>[1] }) =>
+      snippetsApi.update(id, patch),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteSnippet() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.remove, onSuccess: invalidate })
+}
+
+export function useReorderSnippets() {
+  const qc = useQueryClient()
+  const invalidate = useInvalidateSnippets()
+  return useMutation({
+    mutationFn: snippetsApi.reorder,
+    // Optimistic: apply the new group/sort to the cache before the server answers.
+    onMutate: async (items) => {
+      await qc.cancelQueries({ queryKey: SNIPPETS_KEY })
+      const previous = qc.getQueryData<import('../lib/types').Snippet[]>(SNIPPETS_KEY)
+      if (previous) {
+        const patch = new Map(items.map((i) => [i.id, i]))
+        qc.setQueryData(
+          SNIPPETS_KEY,
+          previous.map((s) => {
+            const p = patch.get(s.id)
+            return p ? { ...s, group_name: p.group_name || null, sort_order: p.sort_order } : s
+          }),
+        )
+      }
+      return { previous }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) qc.setQueryData(SNIPPETS_KEY, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+}
+
+export function useBulkMoveSnippets() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({
+    mutationFn: ({ ids, groupName }: { ids: number[]; groupName: string }) =>
+      snippetsApi.bulkMove(ids, groupName),
+    onSuccess: invalidate,
+  })
+}
+
+export function useBulkDeleteSnippets() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.bulkDelete, onSuccess: invalidate })
+}
+
+export function useCreateSnippetGroup() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.createGroup, onSuccess: invalidate })
+}
+
+export function useRenameSnippetGroup() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => snippetsApi.renameGroup(id, name),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteSnippetGroup() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.deleteGroup, onSuccess: invalidate })
+}
+
+export function useReorderSnippetGroups() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.reorderGroups, onSuccess: invalidate })
+}
+
+export function useImportSnippets() {
+  const invalidate = useInvalidateSnippets()
+  return useMutation({ mutationFn: snippetsApi.importBackup, onSuccess: invalidate })
+}

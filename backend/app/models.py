@@ -232,3 +232,37 @@ class CliDelivery(SQLModel, table=True):
     error: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow, index=True)
     sent_at: datetime | None = Field(default=None)
+
+
+class SnippetGroup(SQLModel, table=True):
+    """A named snippet group. Exists as its own table ONLY so empty groups and
+    the group order survive (snippets denormalize the name in `group_name`)."""
+
+    __tablename__ = "snippet_group"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # No index on name: tiny per-user table, and SQLModel's auto index name
+    # would collide with snippet.group_name's (ix_snippet_group_name).
+    name: str = Field(default="")
+    sort_order: int = Field(default=0)
+
+
+class Snippet(SQLModel, table=True):
+    """An Inspector-Rust text snippet (abbreviation -> body expansion).
+
+    `abbreviation` is IR's merge key — unique per tenant (enforced in the
+    router, like Project.name). `group_name` mirrors the SnippetGroup name so
+    list/export never need a join; a group rename back-fills it in one txn."""
+
+    __tablename__ = "snippet"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    abbreviation: str = Field(index=True)
+    title: str = Field(default="")
+    body: str = Field(default="")
+    group_name: str | None = Field(default=None, index=True)
+    sort_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)

@@ -9,6 +9,7 @@ export type View =
   | 'bookmarks'
   | 'runs'
   | 'sessions'
+  | 'snippets'
   | 'projects'
   | 'settings'
 
@@ -18,6 +19,7 @@ const TABS: { key: View; icon: string; label: string }[] = [
   { key: 'bookmarks', icon: 'bookmark', label: 'Bookmarks' },
   { key: 'runs', icon: 'play_arrow', label: 'Runs' },
   { key: 'sessions', icon: 'history', label: 'Verlauf' },
+  { key: 'snippets', icon: 'data_object', label: 'Snippets' },
   { key: 'projects', icon: 'folder', label: 'Projekte' },
 ]
 
