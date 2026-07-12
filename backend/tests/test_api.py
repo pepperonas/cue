@@ -533,13 +533,13 @@ def test_capture_flow(client):
     assert by_sid["sess-A"]["prompt_count"] == 2
     assert by_sid["sess-B"]["project_name"] == "inspector-rust"
 
-    # Detail: ordered prompts.
+    # Detail: prompts newest-first.
     sid = by_sid["sess-A"]["id"]
     detail = client.get(f"/api/sessions/{sid}").json()
-    assert [p["text"] for p in detail["prompts"]] == ["first", "second"]
+    assert [p["text"] for p in detail["prompts"]] == ["second", "first"]
 
     # Promote a captured prompt into a real queued prompt in the same project.
-    cp_id = detail["prompts"][0]["id"]
+    cp_id = detail["prompts"][1]["id"]
     pr = client.post(f"/api/sessions/{sid}/prompts/{cp_id}/promote", headers=headers)
     assert pr.status_code == 201, pr.text
     assert pr.json()["body"] == "first"

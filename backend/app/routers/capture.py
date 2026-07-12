@@ -217,7 +217,7 @@ def get_session_detail(
     prompts = session.exec(
         select(CapturedPrompt)
         .where(CapturedPrompt.session_id == cs.id)
-        .order_by(CapturedPrompt.seq, CapturedPrompt.id)
+        .order_by(CapturedPrompt.seq.desc(), CapturedPrompt.id.desc())
     ).all()
     base = _session_read(session, cs)
     return CaptureSessionDetail(**base.model_dump(), prompts=[p.model_dump() for p in prompts])
