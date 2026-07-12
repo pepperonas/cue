@@ -7,6 +7,7 @@ import { springs } from '../lib/motion'
 import { dedupeTags } from '../lib/tags'
 import type { Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
+import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { Icon } from './ui'
@@ -21,6 +22,7 @@ interface Props {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  onToggleBlocked?: (p: Prompt) => void
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
@@ -37,6 +39,7 @@ export function PromptCard({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  onToggleBlocked,
   selectMode,
   selectedForMerge,
   onToggleSelect,
@@ -107,11 +110,11 @@ export function PromptCard({
         style={style}
         className={`card ${isDragging ? 'dragging' : ''} ${selected ? 'selected' : ''} ${
           selectMode ? 'selecting' : ''
-        } ${selectedForMerge ? 'merge-selected' : ''}`}
+        } ${selectedForMerge ? 'merge-selected' : ''} ${prompt.blocked ? 'blocked' : ''}`}
         data-prompt-id={prompt.id}
         title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
-        {...(selectMode ? {} : attributes)}
-        {...(selectMode ? {} : listeners)}
+        {...(selectMode || prompt.blocked ? {} : attributes)}
+        {...(selectMode || prompt.blocked ? {} : listeners)}
         onClick={handleClick}
         onDoubleClick={selectMode ? undefined : handleDoubleClick}
       >
@@ -145,6 +148,9 @@ export function PromptCard({
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
             {onToggleTested && canTest && (
               <TestedButton tested={prompt.tested} onToggle={() => onToggleTested(prompt)} />
+            )}
+            {onToggleBlocked && (
+              <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />
             )}
             {onToggleBookmark && (
               <BookmarkButton

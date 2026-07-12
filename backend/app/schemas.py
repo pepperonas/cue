@@ -78,6 +78,7 @@ class PromptUpdate(BaseModel):
     tags: str | None = None
     bookmarked: bool | None = None
     tested: bool | None = None
+    blocked: bool | None = None
     # Additional attachments to associate with this prompt.
     attachment_ids: list[int] | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
@@ -95,6 +96,7 @@ class PromptRead(BaseModel):
     bookmarked: bool
     bookmark_order: int
     tested: bool
+    blocked: bool
     created_at: datetime
     updated_at: datetime
     ran_at: datetime | None

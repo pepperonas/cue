@@ -75,6 +75,8 @@ class Prompt(SQLModel, table=True):
     bookmark_order: int = Field(default=0)
     # Whether the feature this prompt produced has been tested (running/done only).
     tested: bool = Field(default=False)
+    # Blocked prompts sink to the bottom of their column and refuse running/done.
+    blocked: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     # Set when the prompt first enters running/done.

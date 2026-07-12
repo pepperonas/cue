@@ -96,6 +96,7 @@ export const api = {
       tags: string
       bookmarked: boolean
       tested: boolean
+      blocked: boolean
       attachment_ids: number[]
       unassign_project: boolean
     }>,

@@ -58,6 +58,7 @@ export interface Prompt {
   bookmarked: boolean
   bookmark_order: number
   tested: boolean
+  blocked: boolean
   created_at: string
   updated_at: string
   ran_at: string | null

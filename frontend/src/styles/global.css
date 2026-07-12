@@ -1599,3 +1599,83 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
 @media (prefers-reduced-motion: reduce) {
   .dictation-dot { animation: none; }
 }
+
+/* ── Blocked prompts ─────────────────────────────────────────────────── */
+.card.blocked,
+.list-item.blocked {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+.card.blocked { cursor: default; }
+/* Keep the unblock control fully legible on a grayed card. */
+.card.blocked .blocked-btn,
+.list-item.blocked .blocked-btn {
+  opacity: 1;
+  filter: none;
+}
+.blocked-btn.active {
+  color: var(--md-error);
+  background: color-mix(in srgb, var(--md-error) 14%, transparent);
+}
+
+/* ── Board: "+N weitere" column expander ─────────────────────────────── */
+.col-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px dashed var(--md-outline-variant);
+  border-radius: var(--shape-s);
+  background: none;
+  color: var(--md-on-surface-variant);
+  font: var(--label-l);
+  cursor: pointer;
+}
+.col-more:hover {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+}
+
+/* ── Active project label in the topbar (board view) ─────────────────── */
+.brand-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font: var(--label-l);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-project .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (max-width: 760px) {
+  .brand-project { display: none; }
+}
+
+/* ── Run ticker: floating live status of active runs ─────────────────── */
+.run-ticker {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 999px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font: var(--label-l);
+  box-shadow: var(--elev-2);
+  cursor: pointer;
+}
+.run-ticker:hover { background: var(--md-surface-container-highest); }
+.run-ticker .spin { color: var(--md-primary); }

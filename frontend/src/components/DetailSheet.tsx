@@ -5,6 +5,7 @@ import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
+import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { Button, Icon, IconButton } from './ui'
@@ -21,6 +22,7 @@ interface Props {
   onStatus: (p: Prompt, s: Status) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
+  onToggleBlocked: (p: Prompt) => void
   onMoveProject: (p: Prompt, projectId: number | null) => void
   onCopyToProject: (p: Prompt, projectId: number | null) => void
   onRun?: (p: Prompt) => void
@@ -48,6 +50,7 @@ export function DetailSheet({
   onStatus,
   onToggleBookmark,
   onToggleTested,
+  onToggleBlocked,
   onMoveProject,
   onCopyToProject,
   onRun,
@@ -141,6 +144,11 @@ export function DetailSheet({
                 onToggle={() => onToggleTested(prompt)}
               />
             )}
+            <BlockedButton
+              variant="icon-btn"
+              blocked={prompt.blocked}
+              onToggle={() => onToggleBlocked(prompt)}
+            />
             <BookmarkButton
               variant="icon-btn"
               bookmarked={prompt.bookmarked}
@@ -232,6 +240,12 @@ export function DetailSheet({
               key={s}
               className="chip"
               data-active={prompt.status === s}
+              disabled={prompt.blocked && (s === 'running' || s === 'done')}
+              title={
+                prompt.blocked && (s === 'running' || s === 'done')
+                  ? 'Blockiert — erst Blockierung aufheben'
+                  : undefined
+              }
               onClick={() => onStatus(prompt, s)}
             >
               <Icon name={STATUS_ICON[s]} className={`st-icon ${STATUS_CLASS[s]}`} /> {STATUS_LABEL[s]}
@@ -319,7 +333,7 @@ export function DetailSheet({
           <Button variant="danger" icon="delete" onClick={() => onDelete(prompt)}>
             Löschen
           </Button>
-          {onRun && (
+          {onRun && !prompt.blocked && (
             <Button variant="tonal" icon="play_arrow" onClick={() => onRun(prompt)}>
               Ausführen
             </Button>

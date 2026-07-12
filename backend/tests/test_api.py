@@ -386,6 +386,73 @@ def test_run_full_flow(client):
     assert detail["steps"][0]["output"] == "done"
     assert any(lg["event_type"] == "system" for lg in detail["logs"])
 
+    # The successful step moved its source prompt to done.
+    prompt = client.get(f"/api/prompts/{pid}").json()
+    assert prompt["status"] == "done"
+
+
+def test_failed_step_marks_prompt_failed(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+    run_id = client.post(
+        "/api/runs",
+        json={"kind": "single", "prompt_ids": [pid], "project_path": "/Users/martin/claude/cue"},
+        headers=headers,
+    ).json()["id"]
+    client.post("/api/runs/claim", json={}, headers=_RUNNER_HDR)
+    client.post(
+        f"/api/runs/{run_id}/steps/0/result",
+        json={"status": "failed", "exit_code": 1},
+        headers=_RUNNER_HDR,
+    )
+    assert client.get(f"/api/prompts/{pid}").json()["status"] == "failed"
+
+
+def test_done_status_goes_to_top(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "prompt a")
+    b = _mk_prompt(client, headers, "prompt b")
+
+    ra = client.patch(f"/api/prompts/{a}", json={"status": "done"}, headers=headers)
+    rb = client.patch(f"/api/prompts/{b}", json={"status": "done"}, headers=headers)
+    assert ra.status_code == 200 and rb.status_code == 200
+    # b was moved later -> it sits ABOVE a in the done column.
+    assert rb.json()["sort_order"] < ra.json()["sort_order"]
+    done = [p["id"] for p in client.get("/api/prompts?status=done").json()]
+    assert done.index(b) < done.index(a)
+
+
+def test_blocked_flow(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+
+    r = client.patch(f"/api/prompts/{pid}", json={"blocked": True}, headers=headers)
+    assert r.status_code == 200 and r.json()["blocked"] is True
+
+    # Blocked prompts refuse running/done ...
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"status": "running"}, headers=headers).status_code
+        == 400
+    )
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"status": "done"}, headers=headers).status_code
+        == 400
+    )
+    # ... but may still be archived.
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"status": "archived"}, headers=headers).status_code
+        == 200
+    )
+    # Unblock + move works in a single PATCH.
+    r = client.patch(
+        f"/api/prompts/{pid}", json={"blocked": False, "status": "running"}, headers=headers
+    )
+    assert r.status_code == 200
+    assert r.json()["blocked"] is False and r.json()["status"] == "running"
+
 
 def test_run_path_whitelist(client):
     csrf = _auth(client)

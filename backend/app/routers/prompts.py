@@ -72,6 +72,16 @@ def _next_sort_order(session: Session, status_value: PromptStatus, uid: int) -> 
     return (current_max or 0) + 1
 
 
+def _top_sort_order(session: Session, status_value: PromptStatus, uid: int | None) -> int:
+    """Sort order placing a prompt at the TOP of its status column."""
+    current_min = session.exec(
+        select(func.min(Prompt.sort_order)).where(
+            Prompt.status == status_value, Prompt.user_id == uid
+        )
+    ).one()
+    return (current_min if current_min is not None else 1) - 1
+
+
 def _next_bookmark_order(session: Session, uid: int) -> int:
     current_max = session.exec(
         select(func.max(Prompt.bookmark_order)).where(
@@ -190,9 +200,20 @@ def update_prompt(
     if payload.tested is not None:
         prompt.tested = payload.tested
 
+    # Apply blocked BEFORE the status guard so unblock+move works in one PATCH.
+    if payload.blocked is not None:
+        prompt.blocked = payload.blocked
+
     if payload.status is not None and payload.status != prompt.status:
+        if prompt.blocked and payload.status in _RAN_STATUSES:
+            raise HTTPException(status_code=400, detail="Prompt is blocked")
         prompt.status = payload.status
-        prompt.sort_order = _next_sort_order(session, payload.status, uid)
+        # Freshly-done prompts always surface at the TOP of the done column;
+        # every other status change appends at the bottom as before.
+        if payload.status == PromptStatus.done:
+            prompt.sort_order = _top_sort_order(session, PromptStatus.done, uid)
+        else:
+            prompt.sort_order = _next_sort_order(session, payload.status, uid)
         if payload.status in _RAN_STATUSES and prompt.ran_at is None:
             prompt.ran_at = utcnow()
 

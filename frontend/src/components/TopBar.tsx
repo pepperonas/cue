@@ -26,11 +26,14 @@ export function TopBar({
   onView,
   onShortcuts,
   canRun = false,
+  projectLabel = null,
 }: {
   view: View
   onView: (v: View) => void
   onShortcuts: () => void
   canRun?: boolean
+  // Currently selected project (board view): shown next to the brand.
+  projectLabel?: { text: string; color?: string } | null
 }) {
   const s = useSettings()
   // Runs execute code on the owner's machine → owner-only. Verlauf is per-user.
@@ -42,6 +45,21 @@ export function TopBar({
           <Icon name="bolt" />
         </span>
         <span className="brand-name">cue</span>
+        {projectLabel && (
+          <motion.span
+            // Remount per label so the spring entrance replays on each change.
+            key={projectLabel.text}
+            className="brand-project"
+            initial={{ opacity: 0, y: 8, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={springs.bouncy}
+          >
+            {projectLabel.color && (
+              <span className="dot" style={{ background: projectLabel.color }} />
+            )}
+            {projectLabel.text}
+          </motion.span>
+        )}
       </div>
       <div className="topbar-spacer" />
       <nav className="tabs">

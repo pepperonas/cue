@@ -30,6 +30,7 @@ interface Props {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  onToggleBlocked?: (p: Prompt) => void
   onReorder: (items: { id: number; status: Status; sort_order: number }[]) => void
   selectMode?: boolean
   selectedIds?: number[]
@@ -37,10 +38,15 @@ interface Props {
   onModSelect?: (p: Prompt) => void
 }
 
+const COLUMN_CAP = 10
+
 function group(prompts: Prompt[], columns: Status[]): Containers {
   const out: Containers = {}
   columns.forEach((c) => (out[c] = []))
-  const sorted = [...prompts].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+  // Blocked prompts always sink to the bottom of their column.
+  const sorted = [...prompts].sort(
+    (a, b) => Number(a.blocked) - Number(b.blocked) || a.sort_order - b.sort_order || a.id - b.id,
+  )
   for (const p of sorted) {
     if (out[p.status]) out[p.status].push(p.id)
   }
@@ -79,6 +85,7 @@ export function Board({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  onToggleBlocked,
   onReorder,
   selectMode,
   selectedIds,
@@ -88,6 +95,8 @@ export function Board({
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
   const [containers, setContainers] = useState<Containers>(() => group(prompts, columns))
   const [activeId, setActiveId] = useState<number | null>(null)
+  // Per-column "show all" toggle; the first COLUMN_CAP cards are always shown.
+  const [expanded, setExpanded] = useState<Partial<Record<Status, boolean>>>({})
   const dragging = useRef(false)
 
   // Re-sync from server data unless a drag is in progress.
@@ -108,9 +117,12 @@ export function Board({
     return undefined
   }
 
+  const dragOrigin = useRef<Status | undefined>(undefined)
+
   function onDragStart(e: DragStartEvent) {
     dragging.current = true
     setActiveId(e.active.id as number)
+    dragOrigin.current = findContainer(e.active.id)
   }
 
   function onDragOver(e: DragOverEvent) {
@@ -153,6 +165,13 @@ export function Board({
         setContainers(next)
       }
     }
+    // A card dragged INTO done from another column always lands at the TOP.
+    if (to === 'done' && dragOrigin.current && dragOrigin.current !== 'done') {
+      const items = next['done'].filter((x) => x !== active.id)
+      next = { ...next, done: [active.id as number, ...items] }
+      setContainers(next)
+    }
+    dragOrigin.current = undefined
     vibrate(8)
 
     // Build the reorder payload for every card in the affected columns.
@@ -188,7 +207,10 @@ export function Board({
               strategy={verticalListSortingStrategy}
             >
               <AnimatePresence>
-                {(containers[status] ?? []).map((id, idx) => {
+                {(expanded[status] || activeId != null
+                  ? containers[status] ?? []
+                  : (containers[status] ?? []).slice(0, COLUMN_CAP)
+                ).map((id, idx) => {
                   const p = byId.get(id)
                   if (!p) return null
                   return (
@@ -203,6 +225,7 @@ export function Board({
                       onCopy={onCopy}
                       onToggleBookmark={onToggleBookmark}
                       onToggleTested={onToggleTested}
+                      onToggleBlocked={onToggleBlocked}
                       selectMode={selectMode}
                       selectedForMerge={selectedIds?.includes(id)}
                       onToggleSelect={onToggleSelect}
@@ -211,6 +234,19 @@ export function Board({
                   )
                 })}
               </AnimatePresence>
+              {(containers[status]?.length ?? 0) > COLUMN_CAP && activeId == null && (
+                <button
+                  className="col-more"
+                  onClick={() =>
+                    setExpanded((prev) => ({ ...prev, [status]: !prev[status] }))
+                  }
+                >
+                  <Icon name={expanded[status] ? 'unfold_less' : 'unfold_more'} />
+                  {expanded[status]
+                    ? 'Weniger anzeigen'
+                    : `${(containers[status]?.length ?? 0) - COLUMN_CAP} weitere anzeigen`}
+                </button>
+              )}
               {(containers[status]?.length ?? 0) === 0 && (
                 <div className="empty" style={{ padding: 'var(--gap-4)' }}>
                   <span className="muted">Leer</span>

@@ -17,6 +17,7 @@ from ..db import get_session
 from ..deps import require_csrf, require_owner, require_runner
 from ..models import (
     Prompt,
+    PromptStatus,
     Run,
     RunKind,
     RunLog,
@@ -302,6 +303,26 @@ def step_result(
         step.started_at = now
     step.finished_at = now
     session.add(step)
+
+    # Sync the source prompt's board status with the step outcome: a successful
+    # step moves it to done (TOP of the column), a failed step to failed.
+    if step.prompt_id is not None and payload.status in (RunStatus.succeeded, RunStatus.failed):
+        from .prompts import _next_sort_order, _top_sort_order
+
+        prompt = session.get(Prompt, step.prompt_id)
+        if prompt is not None and not prompt.blocked:
+            if payload.status == RunStatus.succeeded:
+                if prompt.status != PromptStatus.done:
+                    prompt.status = PromptStatus.done
+                    prompt.sort_order = _top_sort_order(session, PromptStatus.done, prompt.user_id)
+            elif prompt.status not in (PromptStatus.done, PromptStatus.failed):
+                prompt.status = PromptStatus.failed
+                prompt.sort_order = _next_sort_order(session, PromptStatus.failed, prompt.user_id)
+            if prompt.ran_at is None:
+                prompt.ran_at = now
+            prompt.updated_at = now
+            session.add(prompt)
+
     session.commit()
     return {"ok": True}
 

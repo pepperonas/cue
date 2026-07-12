@@ -239,20 +239,25 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   }
 
   // Cmd/Ctrl+Enter saves regardless of where the focus sits. A window-level
-  // listener is required: clicking a non-focusable area (e.g. the rendered
-  // preview) moves focus to <body>, where a keydown handler on the sheet
-  // element would never fire.
+  // CAPTURE listener is required: clicking a non-focusable area (e.g. the
+  // rendered preview) moves focus to <body>, where a keydown handler on the
+  // sheet element would never fire — and capture phase means no other handler
+  // can swallow the event first. The sheet keeps a bubble-phase backup handler
+  // (below); the defaultPrevented guard ensures only one of the two saves.
   const saveRef = useRef(save)
   saveRef.current = save
+  function isSaveCombo(e: { metaKey: boolean; ctrlKey: boolean; key: string }) {
+    return (e.metaKey || e.ctrlKey) && e.key === 'Enter'
+  }
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if (isSaveCombo(e) && !e.defaultPrevented) {
         e.preventDefault()
         void saveRef.current()
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   return (
@@ -261,6 +266,13 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
         layoutId="composer-surface"
         className={`sheet sheet--composer ${dragOver ? 'drag-over' : ''}`}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Backup path in case the window capture listener is unavailable.
+          if (isSaveCombo(e) && !e.nativeEvent.defaultPrevented) {
+            e.preventDefault()
+            void saveRef.current()
+          }
+        }}
         onPaste={onPaste}
         onDragOver={(e) => {
           if (e.dataTransfer?.types?.includes('Files')) {

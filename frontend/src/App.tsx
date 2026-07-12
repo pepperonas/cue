@@ -32,6 +32,7 @@ import { MergeDialog } from './components/MergeDialog'
 import { RunDialog, type RunPayload } from './components/RunDialog'
 import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
+import { RunTicker } from './components/RunTicker'
 import { SessionsView } from './components/SessionsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
@@ -184,6 +185,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       .sort(
         (a, b) =>
           order.indexOf(a.status) - order.indexOf(b.status) ||
+          Number(a.blocked) - Number(b.blocked) ||
           a.sort_order - b.sort_order ||
           a.id - b.id,
       )
@@ -198,7 +200,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       if (ok) {
         vibrate(10)
         toast.show('In Zwischenablage kopiert', 'success')
-        if (settings.copyAdvancesStatus && p.status === 'queued') {
+        if (settings.copyAdvancesStatus && p.status === 'queued' && !p.blocked) {
           update.mutate({ id: p.id, patch: { status: 'running' } })
         }
       } else {
@@ -213,6 +215,27 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       update.mutate({ id: p.id, patch: { bookmarked: !p.bookmarked } })
       vibrate(8)
       toast.show(p.bookmarked ? 'Bookmark entfernt' : 'Gebookmarkt', 'success')
+    },
+    [toast, update],
+  )
+
+  const handleToggleBlocked = useCallback(
+    (p: Prompt) => {
+      update.mutate({ id: p.id, patch: { blocked: !p.blocked } })
+      vibrate(8)
+      toast.show(p.blocked ? 'Blockierung aufgehoben' : 'Blockiert — wandert ans Spaltenende', 'success')
+    },
+    [toast, update],
+  )
+
+  // Single gate for every status change: blocked prompts refuse running/done.
+  const applyStatus = useCallback(
+    (p: Prompt, s: Status) => {
+      if (p.blocked && (s === 'running' || s === 'done')) {
+        toast.show('Prompt ist blockiert — erst Blockierung aufheben', 'error')
+        return
+      }
+      update.mutate({ id: p.id, patch: { status: s } })
     },
     [toast, update],
   )
@@ -296,9 +319,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             setDetail(null)
             setComposerOpen(true)
           }
-          if (e.key === '1') update.mutate({ id: detailLive.id, patch: { status: 'queued' } })
-          if (e.key === '2') update.mutate({ id: detailLive.id, patch: { status: 'running' } })
-          if (e.key === '3') update.mutate({ id: detailLive.id, patch: { status: 'done' } })
+          if (e.key === '1') applyStatus(detailLive, 'queued')
+          if (e.key === '2') applyStatus(detailLive, 'running')
+          if (e.key === '3') applyStatus(detailLive, 'done')
         }
         return
       }
@@ -331,15 +354,16 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         else if (e.key === 'e') {
           setEditing(p)
           setComposerOpen(true)
-        } else if (e.key === '1') update.mutate({ id: p.id, patch: { status: 'queued' } })
-        else if (e.key === '2') update.mutate({ id: p.id, patch: { status: 'running' } })
-        else if (e.key === '3') update.mutate({ id: p.id, patch: { status: 'done' } })
+        } else if (e.key === '1') applyStatus(p, 'queued')
+        else if (e.key === '2') applyStatus(p, 'running')
+        else if (e.key === '3') applyStatus(p, 'done')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [
     anyModalOpen,
+    applyStatus,
     composerOpen,
     detail,
     detailLive,
@@ -363,7 +387,24 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="app">
-      <TopBar view={view} onView={setView} onShortcuts={() => setShortcuts(true)} canRun={canRun} />
+      <TopBar
+        view={view}
+        onView={setView}
+        onShortcuts={() => setShortcuts(true)}
+        canRun={canRun}
+        projectLabel={
+          view === 'board'
+            ? projectFilter === 'all'
+              ? { text: 'Alle Projekte' }
+              : projectFilter === 'none'
+                ? { text: 'Ohne Projekt' }
+                : {
+                    text: pmap.get(projectFilter)?.name ?? '…',
+                    color: pmap.get(projectFilter)?.color,
+                  }
+            : null
+        }
+      />
       <main className="app-main">
         {(view === 'board' || view === 'list') && (
           <>
@@ -432,6 +473,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onCopy={handleCopy}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
+                onToggleBlocked={handleToggleBlocked}
                 onReorder={(items) => reorder.mutate(items)}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
@@ -449,6 +491,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onCopy={handleCopy}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
+                onToggleBlocked={handleToggleBlocked}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
@@ -493,6 +536,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       </main>
 
       <Footer />
+
+      <RunTicker enabled={canRun && view !== 'runs'} onOpen={() => setView('runs')} />
 
       {(view === 'board' || view === 'list') && !composerOpen && !selectMode && (
         <motion.button
@@ -588,9 +633,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               setComposerOpen(true)
             }}
             onDelete={(p) => requestDelete([p.id])}
-            onStatus={(p, s) => update.mutate({ id: p.id, patch: { status: s } })}
+            onStatus={applyStatus}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
+            onToggleBlocked={handleToggleBlocked}
             onMoveProject={(p, pid) => {
               update.mutate({
                 id: p.id,

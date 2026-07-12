@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-07-12
+
+### Added
+- **Blocked status**: new toggle (left of the bookmark icon on cards, list
+  rows and the detail). Blocked prompts are grayed out, sink to the bottom of
+  their column, cannot be dragged and refuse running/done (client- and
+  server-side 400) until unblocked; "Ausführen" is hidden for them.
+- **Runs move prompts to Done**: a successfully finished run step moves its
+  source prompt to Done (top of the column); a failed step moves it to Failed.
+- **Run status overlay**: a floating pill (bottom left) shows active runs
+  everywhere in the app — click opens the Runs tab; when a run finishes the
+  board refreshes automatically and a toast reports the outcome.
+- **Active project in the header**: the board view labels the selected
+  project (or "Alle Projekte" / "Ohne Projekt") next to the cue brand, with a
+  spring entrance on every change.
+- **Column cap**: board columns show at most 10 cards; more are collapsed
+  behind a per-column "+N weitere anzeigen" expander (the first 10 stay
+  visible).
+- Parallel runs: the Mac runner already supported it — `MAX_CONCURRENCY` in
+  `cue-runner/.env` is now set to 3, so up to three runs (each its own Claude
+  session) execute simultaneously.
+
+### Changed
+- **Done goes on top**: moving a prompt to Done (status chips, keyboard `3`,
+  drag into the column, or a finished run) now always places it at the TOP of
+  the Done column.
+
+### Fixed
+- Cmd/Ctrl+Enter in the composer is now double-hardened: the window listener
+  runs in the capture phase (nothing can swallow the event first) and the
+  sheet keeps a bubble-phase backup handler (guarded against double-saving).
+
 ## [0.11.1] - 2026-07-12
 
 ### Changed

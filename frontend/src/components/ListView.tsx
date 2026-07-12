@@ -4,6 +4,7 @@ import { projectTones } from '../lib/color'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
+import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { Icon } from './ui'
@@ -18,6 +19,7 @@ interface Props {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  onToggleBlocked?: (p: Prompt) => void
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
@@ -45,6 +47,7 @@ export function ListView({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  onToggleBlocked,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -65,7 +68,10 @@ export function ListView({
       {columns.map((status) => {
         const items = prompts
           .filter((p) => p.status === status)
-          .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+          .sort(
+            (a, b) =>
+              Number(a.blocked) - Number(b.blocked) || a.sort_order - b.sort_order || a.id - b.id,
+          )
         const isCollapsed = collapsed.includes(status)
         return (
           <section className="list-group" key={status}>
@@ -108,6 +114,7 @@ export function ListView({
                           onCopy={onCopy}
                           onToggleBookmark={onToggleBookmark}
                           onToggleTested={onToggleTested}
+                          onToggleBlocked={onToggleBlocked}
                           selectMode={selectMode}
                           selectedForMerge={selectedIds?.includes(p.id)}
                           onToggleSelect={onToggleSelect}
@@ -136,6 +143,7 @@ interface RowProps {
   onCopy: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  onToggleBlocked?: (p: Prompt) => void
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
@@ -152,6 +160,7 @@ function ListRow({
   onCopy,
   onToggleBookmark,
   onToggleTested,
+  onToggleBlocked,
   selectMode,
   selectedForMerge,
   onToggleSelect,
@@ -201,7 +210,7 @@ function ListRow({
     <motion.div
       className={`list-item ${selected ? 'selected' : ''} ${selectMode ? 'selecting' : ''} ${
         selectedForMerge ? 'merge-selected' : ''
-      }`}
+      } ${p.blocked ? 'blocked' : ''}`}
       data-prompt-id={p.id}
       title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
       layout
@@ -231,6 +240,9 @@ function ListRow({
       )}
       {onToggleTested && canTest && (
         <TestedButton tested={p.tested} onToggle={() => onToggleTested(p)} />
+      )}
+      {onToggleBlocked && (
+        <BlockedButton blocked={p.blocked} onToggle={() => onToggleBlocked(p)} />
       )}
       {onToggleBookmark && (
         <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />
