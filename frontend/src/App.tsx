@@ -142,10 +142,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id],
     )
   }
-  // Shift+click on a card/row: toggle its selection and drive select mode from
-  // the result — first shift+click enters selection (action bar appears),
+  // Cmd/Ctrl+click on a card/row: toggle its selection and drive select mode
+  // from the result — first mod+click enters selection (action bar appears),
   // deselecting the last one leaves it again.
-  function shiftSelect(p: Prompt) {
+  function modSelect(p: Prompt) {
     const next = selectedIds.includes(p.id)
       ? selectedIds.filter((x) => x !== p.id)
       : [...selectedIds, p.id]
@@ -436,7 +436,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
-                onShiftSelect={shiftSelect}
+                onModSelect={modSelect}
               />
             ) : (
               <ListView
@@ -452,7 +452,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
-                onShiftSelect={shiftSelect}
+                onModSelect={modSelect}
               />
             )}
           </>

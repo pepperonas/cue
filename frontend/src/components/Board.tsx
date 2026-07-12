@@ -34,7 +34,7 @@ interface Props {
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
-  onShiftSelect?: (p: Prompt) => void
+  onModSelect?: (p: Prompt) => void
 }
 
 function group(prompts: Prompt[], columns: Status[]): Containers {
@@ -83,7 +83,7 @@ export function Board({
   selectMode,
   selectedIds,
   onToggleSelect,
-  onShiftSelect,
+  onModSelect,
 }: Props) {
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
   const [containers, setContainers] = useState<Containers>(() => group(prompts, columns))
@@ -206,7 +206,7 @@ export function Board({
                       selectMode={selectMode}
                       selectedForMerge={selectedIds?.includes(id)}
                       onToggleSelect={onToggleSelect}
-                      onShiftSelect={onShiftSelect}
+                      onModSelect={onModSelect}
                     />
                   )
                 })}

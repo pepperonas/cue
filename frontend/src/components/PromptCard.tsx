@@ -24,7 +24,7 @@ interface Props {
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
-  onShiftSelect?: (p: Prompt) => void
+  onModSelect?: (p: Prompt) => void
 }
 
 export function PromptCard({
@@ -40,7 +40,7 @@ export function PromptCard({
   selectMode,
   selectedForMerge,
   onToggleSelect,
-  onShiftSelect,
+  onModSelect,
 }: Props) {
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -66,13 +66,13 @@ export function PromptCard({
   )
 
   function handleClick(e: React.MouseEvent) {
-    // Shift+click toggles multi-select (works with or without select mode).
-    if (e.shiftKey && onShiftSelect) {
+    // Cmd/Ctrl+click toggles multi-select (works with or without select mode).
+    if ((e.metaKey || e.ctrlKey) && onModSelect) {
       if (clickTimer.current) {
         window.clearTimeout(clickTimer.current)
         clickTimer.current = null
       }
-      onShiftSelect(prompt)
+      onModSelect(prompt)
       return
     }
     if (selectMode) {
@@ -86,7 +86,7 @@ export function PromptCard({
     }, 200)
   }
   function handleDoubleClick(e: React.MouseEvent) {
-    if (e.shiftKey) return // two fast shift+clicks are selection toggles, not a copy
+    if (e.metaKey || e.ctrlKey) return // two fast mod+clicks are selection toggles, not a copy
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current)
       clickTimer.current = null

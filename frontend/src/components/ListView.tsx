@@ -21,7 +21,7 @@ interface Props {
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
-  onShiftSelect?: (p: Prompt) => void
+  onModSelect?: (p: Prompt) => void
 }
 
 const COLLAPSE_KEY = 'cue-list-collapsed'
@@ -48,7 +48,7 @@ export function ListView({
   selectMode,
   selectedIds,
   onToggleSelect,
-  onShiftSelect,
+  onModSelect,
 }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
 
@@ -111,7 +111,7 @@ export function ListView({
                           selectMode={selectMode}
                           selectedForMerge={selectedIds?.includes(p.id)}
                           onToggleSelect={onToggleSelect}
-                          onShiftSelect={onShiftSelect}
+                          onModSelect={onModSelect}
                         />
                       ))
                     )}
@@ -139,7 +139,7 @@ interface RowProps {
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
-  onShiftSelect?: (p: Prompt) => void
+  onModSelect?: (p: Prompt) => void
 }
 
 function ListRow({
@@ -155,7 +155,7 @@ function ListRow({
   selectMode,
   selectedForMerge,
   onToggleSelect,
-  onShiftSelect,
+  onModSelect,
 }: RowProps) {
   const canTest = p.status === 'running' || p.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
@@ -169,13 +169,13 @@ function ListRow({
     [],
   )
   function handleClick(e: React.MouseEvent) {
-    // Shift+click toggles multi-select (works with or without select mode).
-    if (e.shiftKey && onShiftSelect) {
+    // Cmd/Ctrl+click toggles multi-select (works with or without select mode).
+    if ((e.metaKey || e.ctrlKey) && onModSelect) {
       if (clickTimer.current) {
         window.clearTimeout(clickTimer.current)
         clickTimer.current = null
       }
-      onShiftSelect(p)
+      onModSelect(p)
       return
     }
     if (selectMode) {
@@ -189,7 +189,7 @@ function ListRow({
     }, 200)
   }
   function handleDoubleClick(e: React.MouseEvent) {
-    if (e.shiftKey) return // two fast shift+clicks are selection toggles, not a copy
+    if (e.metaKey || e.ctrlKey) return // two fast mod+clicks are selection toggles, not a copy
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current)
       clickTimer.current = null
