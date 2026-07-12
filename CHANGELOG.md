@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2026-07-12
+
+### Changed
+- **Remaining test gaps closed** (backend 90 → 117 tests, coverage 96 % → 99 %;
+  runner 56 → 65 tests, 81 % → 91 %): capture edge/error paths (blank prompts,
+  empty bearer token, non-deliverable sessions, terminal context cleared after
+  enqueue, settings for a deleted user), run lifecycle edges (blocked prompts
+  stay queued on run create, cancel keeps manually-moved prompts, heartbeat on
+  terminal runs), server-side prompt filters, expired-attachment tolerance
+  (serve 404, GC + duplicate skip missing files), forged-session/uid guards,
+  SPA fallbacks without index/static dir, idempotent DB migration, the OAuth
+  urllib helpers — and the runner's orchestration loops (delivery/capture
+  loops survive poll errors and always resolve claims, run_forever executes
+  claims concurrently under MAX_CONCURRENCY and shuts down cleanly on SIGTERM,
+  runner errors report the run as failed) plus every tmux/osascript delivery
+  failure stage.
+
 ## [0.14.2] - 2026-07-12
 
 ### Added

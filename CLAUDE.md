@@ -46,13 +46,13 @@ via the `posttest` hook).
 **Testing conventions:** three suites — `backend/tests/` (pytest, black-box over the HTTP
 API with a real tmp SQLite; shared fixtures/helpers in `conftest.py`: `client`, `auth()`,
 `make_user()`, `RUNNER_HDR`/`CAPTURE_HDR`), `cue-runner/tests/` (pytest + pytest-asyncio,
-fake subprocesses + httpx `MockTransport`, no network), `frontend/src/lib/*.test.ts`
+fake subprocesses + httpx `MockTransport` + a programmable `FakeApi` for the orchestration
+loops in `test_orchestration.py`, no network), `frontend/src/lib/*.test.ts`
 (Vitest, only pure lib modules — UI components are deliberately untested). Test behavior,
 not implementation; external deps (Google OAuth via monkeypatched `_post_form`/`_get_json`,
 subprocesses, browser APIs) are mocked; everything runs offline and deterministically.
-Coverage: backend 96 %, runner 81 % (`--cov=app` / `--cov=cue_runner`); remaining gaps are
-defensive except-branches + the runner's orchestration loop (`runner.py`, hard to test,
-low value). `scripts/update-badges.mjs` parses test counts from `pytest --collect-only` +
+Coverage: backend 99 %, runner 91 % (`--cov=app` / `--cov=cue_runner`); remaining gaps are
+defensive except-branches, `__main__.py` and a few executor cancel branches. `scripts/update-badges.mjs` parses test counts from `pytest --collect-only` +
 `vitest list` — never grep for `it()`.
 
 ## Architecture

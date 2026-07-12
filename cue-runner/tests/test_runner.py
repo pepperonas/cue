@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from cue_runner import executor
 from cue_runner.command import build_command
 from cue_runner.config import Config
@@ -627,3 +629,47 @@ async def test_handle_run_reports_crash_and_releases_slot(monkeypatch):
     assert "runner error" in api.results[0][2]["error"]
     assert not sem.locked()  # concurrency slot released for the next run
     assert active == set()  # cancel bookkeeping cleaned up
+
+
+@pytest.mark.asyncio
+async def test_deliver_iterm_reports_osascript_failure(monkeypatch):
+    from cue_runner import deliver
+
+    async def failing_run(argv, stdin=None):
+        return 1, "execution error: not authorised"
+
+    monkeypatch.setattr(deliver, "_run", failing_run)
+    status, error = await deliver._deliver_iterm(
+        {"iterm_session_id": "w0t0p0:AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", "text": "hi"}
+    )
+    assert status == "failed" and "not authorised" in error
+
+
+@pytest.mark.asyncio
+async def test_deliver_tmux_rejects_dash_socket():
+    from cue_runner import deliver
+
+    status, error = await deliver._deliver_tmux(
+        {"tmux_pane": "%1", "tmux_socket": "--evil", "text": "hi"}
+    )
+    assert status == "failed" and "socket" in error
+
+
+@pytest.mark.asyncio
+async def test_deliver_tmux_reports_each_stage_failure(monkeypatch):
+    from cue_runner import deliver
+
+    # Fail at load-buffer, then paste-buffer, then send-keys — each surfaces.
+    for fail_on, expected in (
+        ("load-buffer", "load-buffer"),
+        ("paste-buffer", "paste-buffer"),
+        ("send-keys", "send-keys"),
+    ):
+        async def staged_run(argv, stdin=None, _fail=fail_on):
+            return (1, f"tmux {_fail} failed") if _fail in argv else (0, "")
+
+        monkeypatch.setattr(deliver, "_run", staged_run)
+        status, error = await deliver._deliver_tmux(
+            {"tmux_pane": "%1", "tmux_socket": "", "text": "hi", "submit": True}
+        )
+        assert status == "failed" and expected in error
