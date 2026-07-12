@@ -1773,3 +1773,21 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
 }
 .snippet-abbr-input { font-family: var(--font-mono, ui-monospace, monospace); }
 .snippet-abbr-input.invalid { border-color: var(--md-error); }
+
+/* ── Klickbarer cue-Schriftzug (Reload) ──────────────────────────────── */
+.brand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.brand-btn .brand-name { transition: color 0.15s ease; }
+.brand-btn:hover .brand-name { color: var(--md-primary); }
+.brand-btn:active { transform: scale(0.97); }

@@ -43,10 +43,16 @@ export function TopBar({
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="logo">
-          <Icon name="bolt" />
-        </span>
-        <span className="brand-name">cue</span>
+        <button
+          className="brand-btn"
+          title="Neu laden"
+          onClick={() => window.location.reload()}
+        >
+          <span className="logo">
+            <Icon name="bolt" />
+          </span>
+          <span className="brand-name">cue</span>
+        </button>
         {projectLabel && (
           <motion.span
             // Remount per label so the spring entrance replays on each change.
