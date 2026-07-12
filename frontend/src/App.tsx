@@ -142,6 +142,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id],
     )
   }
+  // Shift+click on a card/row: toggle its selection and drive select mode from
+  // the result — first shift+click enters selection (action bar appears),
+  // deselecting the last one leaves it again.
+  function shiftSelect(p: Prompt) {
+    const next = selectedIds.includes(p.id)
+      ? selectedIds.filter((x) => x !== p.id)
+      : [...selectedIds, p.id]
+    setSelectedIds(next)
+    setSelectMode(next.length > 0)
+    if (next.length === 0) setMergeOpen(false)
+  }
 
   const pmap = useMemo(() => projectMap(projects), [projects])
 
@@ -425,6 +436,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
+                onShiftSelect={shiftSelect}
               />
             ) : (
               <ListView
@@ -440,6 +452,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
+                onShiftSelect={shiftSelect}
               />
             )}
           </>
@@ -497,14 +510,15 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         </motion.button>
       )}
 
-      <AnimatePresence>
-        {selectMode && !mergeOpen && (
+      {/* Deliberately NOT inside AnimatePresence: its exit never visibly played
+          (the bar froze ~2 s at full opacity, then popped away — regardless of
+          spring or tween). Spring entrance stays; removal is instant. */}
+      {selectMode && !mergeOpen && (
           <motion.div
             key="select-bar"
             className="select-bar"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
             transition={springs.spatial}
           >
             <span className="select-count">{selectedIds.length} ausgewählt</span>
@@ -544,8 +558,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               <Icon name="merge" /> Zusammenführen
             </button>
           </motion.div>
-        )}
-      </AnimatePresence>
+      )}
 
       <AnimatePresence>
         {composerOpen && (

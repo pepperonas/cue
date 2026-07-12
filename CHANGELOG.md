@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-07-12
+
+### Added
+- **Shift+click multi-select** on board cards and list rows: the first
+  shift+click selects a prompt and brings up the action bar (Löschen /
+  Ausführen / Zusammenführen), further shift+clicks toggle prompts in and out
+  of the selection; deselecting the last one dismisses the bar. The explicit
+  "Auswählen" mode keeps working as before.
+
+### Fixed
+- The selection action bar now disappears immediately when selection ends —
+  its AnimatePresence exit never visibly played (the bar froze ~2 s at full
+  opacity, then popped away). Spring entrance stays; removal is instant.
+
 ## [0.10.0] - 2026-07-12
 
 ### Added

@@ -21,6 +21,7 @@ interface Props {
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
+  onShiftSelect?: (p: Prompt) => void
 }
 
 const COLLAPSE_KEY = 'cue-list-collapsed'
@@ -47,6 +48,7 @@ export function ListView({
   selectMode,
   selectedIds,
   onToggleSelect,
+  onShiftSelect,
 }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
 
@@ -109,6 +111,7 @@ export function ListView({
                           selectMode={selectMode}
                           selectedForMerge={selectedIds?.includes(p.id)}
                           onToggleSelect={onToggleSelect}
+                          onShiftSelect={onShiftSelect}
                         />
                       ))
                     )}
@@ -136,6 +139,7 @@ interface RowProps {
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
+  onShiftSelect?: (p: Prompt) => void
 }
 
 function ListRow({
@@ -151,6 +155,7 @@ function ListRow({
   selectMode,
   selectedForMerge,
   onToggleSelect,
+  onShiftSelect,
 }: RowProps) {
   const canTest = p.status === 'running' || p.status === 'done'
   const tones = project ? projectTones(project.color, dark) : null
@@ -163,14 +168,28 @@ function ListRow({
     },
     [],
   )
-  function handleClick() {
+  function handleClick(e: React.MouseEvent) {
+    // Shift+click toggles multi-select (works with or without select mode).
+    if (e.shiftKey && onShiftSelect) {
+      if (clickTimer.current) {
+        window.clearTimeout(clickTimer.current)
+        clickTimer.current = null
+      }
+      onShiftSelect(p)
+      return
+    }
+    if (selectMode) {
+      onToggleSelect?.(p)
+      return
+    }
     if (clickTimer.current) window.clearTimeout(clickTimer.current)
     clickTimer.current = window.setTimeout(() => {
       clickTimer.current = null
       onOpen(p)
     }, 200)
   }
-  function handleDoubleClick() {
+  function handleDoubleClick(e: React.MouseEvent) {
+    if (e.shiftKey) return // two fast shift+clicks are selection toggles, not a copy
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current)
       clickTimer.current = null
@@ -189,7 +208,7 @@ function ListRow({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...springs.spatial, delay: Math.min(i * 0.02, 0.2) }}
-      onClick={selectMode ? () => onToggleSelect?.(p) : handleClick}
+      onClick={handleClick}
       onDoubleClick={selectMode ? undefined : handleDoubleClick}
       style={selected ? { outline: '2px solid var(--md-primary)' } : undefined}
     >

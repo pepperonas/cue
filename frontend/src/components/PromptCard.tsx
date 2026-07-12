@@ -24,6 +24,7 @@ interface Props {
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
+  onShiftSelect?: (p: Prompt) => void
 }
 
 export function PromptCard({
@@ -39,6 +40,7 @@ export function PromptCard({
   selectMode,
   selectedForMerge,
   onToggleSelect,
+  onShiftSelect,
 }: Props) {
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -63,14 +65,28 @@ export function PromptCard({
     [],
   )
 
-  function handleClick() {
+  function handleClick(e: React.MouseEvent) {
+    // Shift+click toggles multi-select (works with or without select mode).
+    if (e.shiftKey && onShiftSelect) {
+      if (clickTimer.current) {
+        window.clearTimeout(clickTimer.current)
+        clickTimer.current = null
+      }
+      onShiftSelect(prompt)
+      return
+    }
+    if (selectMode) {
+      onToggleSelect?.(prompt)
+      return
+    }
     if (clickTimer.current) window.clearTimeout(clickTimer.current)
     clickTimer.current = window.setTimeout(() => {
       clickTimer.current = null
       onOpen(prompt)
     }, 200)
   }
-  function handleDoubleClick() {
+  function handleDoubleClick(e: React.MouseEvent) {
+    if (e.shiftKey) return // two fast shift+clicks are selection toggles, not a copy
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current)
       clickTimer.current = null
@@ -96,7 +112,7 @@ export function PromptCard({
         title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
         {...(selectMode ? {} : attributes)}
         {...(selectMode ? {} : listeners)}
-        onClick={selectMode ? () => onToggleSelect?.(prompt) : handleClick}
+        onClick={handleClick}
         onDoubleClick={selectMode ? undefined : handleDoubleClick}
       >
         {selectMode && (
