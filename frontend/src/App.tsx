@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { api } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
+import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
   EXTRA_COLUMNS,
@@ -185,11 +186,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         : [...BOARD_COLUMNS, ...EXTRA_COLUMNS]
     return [...filtered]
       .sort(
-        (a, b) =>
-          order.indexOf(a.status) - order.indexOf(b.status) ||
-          Number(a.blocked) - Number(b.blocked) ||
-          a.sort_order - b.sort_order ||
-          a.id - b.id,
+        (a, b) => order.indexOf(a.status) - order.indexOf(b.status) || columnComparator(a, b),
       )
       .map((p) => p.id)
   }, [filtered, showExtra, view])

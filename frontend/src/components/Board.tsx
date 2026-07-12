@@ -15,6 +15,7 @@ import { AnimatePresence } from 'motion/react'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
+import { columnComparator } from '../lib/order'
 import { PromptCard } from './PromptCard'
 import { Icon } from './ui'
 
@@ -43,10 +44,9 @@ const COLUMN_CAP = 10
 function group(prompts: Prompt[], columns: Status[]): Containers {
   const out: Containers = {}
   columns.forEach((c) => (out[c] = []))
-  // Blocked prompts always sink to the bottom of their column.
-  const sorted = [...prompts].sort(
-    (a, b) => Number(a.blocked) - Number(b.blocked) || a.sort_order - b.sort_order || a.id - b.id,
-  )
+  // Blocked sinks to the bottom; in DONE, tested prompts sink below untested
+  // and sort by execution time (see lib/order.ts).
+  const sorted = [...prompts].sort(columnComparator)
   for (const p of sorted) {
     if (out[p.status]) out[p.status].push(p.id)
   }

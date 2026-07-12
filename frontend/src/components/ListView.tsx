@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { projectTones } from '../lib/color'
+import { columnComparator } from '../lib/order'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
@@ -68,10 +69,7 @@ export function ListView({
       {columns.map((status) => {
         const items = prompts
           .filter((p) => p.status === status)
-          .sort(
-            (a, b) =>
-              Number(a.blocked) - Number(b.blocked) || a.sort_order - b.sort_order || a.id - b.id,
-          )
+          .sort(columnComparator)
         const isCollapsed = collapsed.includes(status)
         return (
           <section className="list-group" key={status}>

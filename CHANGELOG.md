@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.3] - 2026-07-13
+
+### Changed
+- **Tested prompts sink in Done**: toggling the tested icon on a Done card
+  springs it below the untested ones; within the tested block cards sort by
+  execution time (most recently run on top). Board, list view and keyboard
+  navigation share one ordering (`lib/order.ts`, unit-tested).
+
 ## [0.15.2] - 2026-07-12
 
 ### Added
