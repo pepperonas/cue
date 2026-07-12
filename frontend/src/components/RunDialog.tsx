@@ -25,17 +25,57 @@ interface Props {
   onSubmit: (payload: RunPayload) => void
 }
 
+// Last-used run settings, restored when the dialog opens so the permission
+// setup doesn't have to be re-entered for every run. The subfolder is
+// deliberately NOT remembered (it changes per run).
+const RUN_PREFS_KEY = 'cue-run-prefs'
+
+interface RunPrefs {
+  base?: string
+  model?: string
+  permission_mode?: string
+  allowed_tools?: string
+  bare?: boolean
+  skip_permissions?: boolean
+  stop_on_error?: boolean
+}
+
+function loadPrefs(): RunPrefs {
+  try {
+    const raw = localStorage.getItem(RUN_PREFS_KEY)
+    const p = raw ? JSON.parse(raw) : null
+    return p && typeof p === 'object' ? (p as RunPrefs) : {}
+  } catch {
+    return {}
+  }
+}
+
 export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Props) {
   const byId = new Map(prompts.map((p) => [p.id, p]))
   const [order, setOrder] = useState<number[]>(prompts.map((p) => p.id))
-  const [base, setBase] = useState(config.allowed_bases[0] ?? '')
+  // Restore the last-used settings; anything no longer valid against the
+  // server-provided whitelists falls back to the previous defaults.
+  const prefs = loadPrefs()
+  const [base, setBase] = useState(() =>
+    prefs.base && config.allowed_bases.includes(prefs.base)
+      ? prefs.base
+      : config.allowed_bases[0] ?? '',
+  )
   const [subpath, setSubpath] = useState('')
-  const [model, setModel] = useState('')
-  const [permissionMode, setPermissionMode] = useState('acceptEdits')
-  const [allowedTools, setAllowedTools] = useState('Read,Edit,Bash')
-  const [bare, setBare] = useState(false)
-  const [skipPermissions, setSkipPermissions] = useState(false)
-  const [stopOnError, setStopOnError] = useState(true)
+  const [model, setModel] = useState(() =>
+    prefs.model && config.models.includes(prefs.model) ? prefs.model : '',
+  )
+  const [permissionMode, setPermissionMode] = useState(() =>
+    prefs.permission_mode && config.permission_modes.includes(prefs.permission_mode)
+      ? prefs.permission_mode
+      : 'acceptEdits',
+  )
+  const [allowedTools, setAllowedTools] = useState(
+    typeof prefs.allowed_tools === 'string' ? prefs.allowed_tools : 'Read,Edit,Bash',
+  )
+  const [bare, setBare] = useState(prefs.bare === true)
+  const [skipPermissions, setSkipPermissions] = useState(prefs.skip_permissions === true)
+  const [stopOnError, setStopOnError] = useState(prefs.stop_on_error !== false)
 
   const cleanSub = subpath.trim().replace(/^\/+/, '').replace(/\/+$/, '')
   const projectPath = base ? (cleanSub ? `${base}/${cleanSub}` : base) : ''
@@ -49,6 +89,20 @@ export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Pr
   }
 
   function submit() {
+    const nextPrefs: RunPrefs = {
+      base,
+      model,
+      permission_mode: permissionMode,
+      allowed_tools: allowedTools,
+      bare,
+      skip_permissions: skipPermissions,
+      stop_on_error: stopOnError,
+    }
+    try {
+      localStorage.setItem(RUN_PREFS_KEY, JSON.stringify(nextPrefs))
+    } catch {
+      /* quota/private mode — running still works, just no memory */
+    }
     onSubmit({
       kind,
       prompt_ids: order,

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-07-12
+
+### Added
+- **Run dialog remembers its settings**: project base, model, permission mode,
+  allowed tools, and the switches (stop on error, bare, skip permissions) are
+  restored from the last run when the dialog opens (`localStorage`
+  `cue-run-prefs`, validated against the server whitelists). Only the
+  **subfolder** intentionally starts empty each time.
+
 ## [0.9.0] - 2026-07-12
 
 ### Added
