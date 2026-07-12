@@ -1544,3 +1544,22 @@ kbd {
   font-size: 0.85rem;
   line-height: 1.45;
 }
+
+/* Theme-toggle circular reveal (like celox.io): while html.theme-transition
+   is set, the default view-transition cross-fade is disabled and the new
+   theme is clipped in as an expanding circle from the click point (the
+   clip-path is animated from JS on ::view-transition-new(root)). */
+html.theme-transition::view-transition-old(root),
+html.theme-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-transition::view-transition-new(root) { z-index: 2; }
+html.theme-transition::view-transition-old(root) { z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

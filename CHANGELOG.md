@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-12
+
+### Added
+- **Animated theme switch** (like celox.io): toggling light/dark reveals the
+  new theme as an expanding circle from the click point via the View
+  Transitions API (900 ms desktop, 520 ms on small/touch screens, emphasized
+  ease-out). Works from the topbar toggle and the theme chips in Settings;
+  keyboard activation reveals from the button's center. Falls back to an
+  instant switch without API support or under `prefers-reduced-motion`.
+
 ## [0.7.1] - 2026-07-12
 
 ### Changed

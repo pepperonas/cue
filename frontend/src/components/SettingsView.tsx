@@ -60,7 +60,13 @@ export function SettingsView({
               key={t.key}
               className="chip"
               data-active={s.theme === t.key}
-              onClick={() => s.setTheme(t.key)}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect()
+                s.setTheme(t.key, {
+                  x: e.clientX || r.left + r.width / 2,
+                  y: e.clientY || r.top + r.height / 2,
+                })
+              }}
             >
               <Icon name={t.icon} /> {t.label}
             </button>

@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { applyScheme, buildSchemes } from '../lib/color'
+import { prefersReducedMotion } from '../lib/motion'
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -12,7 +14,7 @@ interface Settings {
 
 interface SettingsCtx extends Settings {
   resolvedDark: boolean
-  setTheme: (t: ThemeMode) => void
+  setTheme: (t: ThemeMode, origin?: { x: number; y: number }) => void
   setSeed: (s: string) => void
   setCopyAdvancesStatus: (v: boolean) => void
 }
@@ -24,6 +26,17 @@ const DEFAULTS: Settings = {
 }
 
 const Ctx = createContext<SettingsCtx | null>(null)
+
+// Apply theme + dynamic color to the document. Kept outside React so the
+// view-transition callback can flip the theme synchronously (the new-state
+// snapshot is taken right after the callback returns).
+function applyDom(dark: boolean, seed: string) {
+  const schemes = buildSchemes(seed)
+  applyScheme(dark ? schemes.dark : schemes.light)
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', schemes[dark ? 'dark' : 'light'].surface)
+}
 
 function load(): Settings {
   return {
@@ -48,22 +61,74 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const resolvedDark = settings.theme === 'dark' || (settings.theme === 'system' && systemDark)
 
-  // Apply theme + dynamic color whenever they change.
+  // Apply theme + dynamic color whenever they change (idempotent — the
+  // animated toggle below already applied the same values synchronously).
   useEffect(() => {
-    const schemes = buildSchemes(settings.seed)
-    applyScheme(resolvedDark ? schemes.dark : schemes.light)
-    document.documentElement.dataset.theme = resolvedDark ? 'dark' : 'light'
-    const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', schemes[resolvedDark ? 'dark' : 'light'].surface)
+    applyDom(resolvedDark, settings.seed)
   }, [settings.seed, resolvedDark])
+
+  // Guards a running theme reveal so rapid clicks can't stack transitions.
+  const themeTransitionActive = useRef(false)
 
   const value = useMemo<SettingsCtx>(
     () => ({
       ...settings,
       resolvedDark,
-      setTheme: (theme) => {
+      setTheme: (theme, origin) => {
         localStorage.setItem('cue-theme', theme)
-        setSettings((s) => ({ ...s, theme }))
+        const nextDark = theme === 'dark' || (theme === 'system' && systemDark)
+        const commit = () => setSettings((s) => ({ ...s, theme }))
+
+        // Circular reveal from the click point (like celox.io): the new theme
+        // wipes over the old one via the View Transitions API. Skipped when
+        // nothing visually changes, on reduced motion, without API support,
+        // or while a reveal is still running.
+        if (
+          nextDark === resolvedDark ||
+          prefersReducedMotion() ||
+          !document.startViewTransition ||
+          themeTransitionActive.current
+        ) {
+          commit()
+          return
+        }
+        themeTransitionActive.current = true
+        const root = document.documentElement
+        root.classList.add('theme-transition')
+        const x = origin?.x ?? window.innerWidth / 2
+        const y = origin?.y ?? window.innerHeight / 2
+        const vt = document.startViewTransition(() => {
+          applyDom(nextDark, settings.seed)
+          flushSync(commit)
+        })
+        vt.ready
+          .then(() => {
+            const endRadius = Math.hypot(
+              Math.max(x, window.innerWidth - x),
+              Math.max(y, window.innerHeight - y),
+            )
+            // Shorter on small/touch screens — big snapshots animate a long
+            // clip there; keep it snappy instead of janky.
+            const small = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+            root.animate(
+              {
+                clipPath: [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                ],
+              },
+              {
+                duration: small ? 520 : 900,
+                easing: 'cubic-bezier(0.22, 0.08, 0, 1)',
+                pseudoElement: '::view-transition-new(root)',
+              },
+            )
+          })
+          .catch(() => undefined)
+        void vt.finished.finally(() => {
+          root.classList.remove('theme-transition')
+          themeTransitionActive.current = false
+        })
       },
       setSeed: (seed) => {
         localStorage.setItem('cue-seed', seed)
@@ -75,7 +140,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSettings((s) => ({ ...s, copyAdvancesStatus: v }))
       },
     }),
-    [settings, resolvedDark],
+    [settings, resolvedDark, systemDark],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

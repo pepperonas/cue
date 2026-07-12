@@ -68,7 +68,14 @@ export function TopBar({
       <IconButton
         icon={s.resolvedDark ? 'light_mode' : 'dark_mode'}
         label="Theme wechseln"
-        onClick={() => s.setTheme(s.resolvedDark ? 'light' : 'dark')}
+        onClick={(e) => {
+          // Keyboard activation reports clientX/Y = 0 — reveal from the button instead.
+          const r = e.currentTarget.getBoundingClientRect()
+          s.setTheme(s.resolvedDark ? 'light' : 'dark', {
+            x: e.clientX || r.left + r.width / 2,
+            y: e.clientY || r.top + r.height / 2,
+          })
+        }}
       />
       <IconButton icon="keyboard" label="Shortcuts (?)" onClick={onShortcuts} />
       <IconButton icon="settings" label="Einstellungen" onClick={() => onView('settings')} />
