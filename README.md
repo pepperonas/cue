@@ -172,6 +172,36 @@ docker compose up -d
 
 Alternativ jederzeit über die UI: **Settings → JSON-Backup / ZIP-Export** (pro Konto).
 
+## Snippets ↔ Inspector Rust (Roundtrip-Workflow)
+
+Der **Snippets**-Tab ist die Bearbeitungs-Werkbank für die AI-Prompt-Snippets aus
+Inspector Rust (IR). Der komplette Zyklus:
+
+1. **In IR exportieren**: Settings → Backup & restore → Export (unverschlüsselt —
+   verschlüsselte Backups lehnt cue mit klarer Meldung ab).
+2. **In cue importieren**: Snippets-Tab → „IR-Backup importieren" (oder die Datei
+   einfach auf die Ansicht ziehen). Das Ergebnis-Banner zeigt neu/aktualisiert/
+   Gruppen/übersprungen samt Fehlerliste; fehlerhafte Zeilen brechen den Import
+   nie ab. Gelesen werden der volle IR-Envelope, snippets-only-Backups und das
+   Legacy-Listenformat.
+3. **Bearbeiten**: Gruppen anlegen/umbenennen (Dialog mit Duplikat-Check),
+   Snippets per Griff zwischen Gruppen ziehen, Auswahl-Modus für Bulk-Verschieben/
+   -Löschen (Checkbox im Gruppen-Header wählt die ganze Gruppe), Suche über
+   Abkürzung/Titel/Body, 1-Klick-Copy des Bodys, Editor mit Monospace-Abkürzung
+   (Live-Duplikat-Check) und Markdown-Vorschau.
+4. **Exportieren**: „Als IR-Backup exportieren" lädt `ir-snippets-<Datum>.json`;
+   optional nur einzelne Gruppen (`GET /api/snippets/export?groups=a,b`).
+5. **In IR zurückspielen**: Settings → Backup & restore → Import.
+
+**Merge-Regeln (wichtig):** IR importiert mergend über die **Abkürzung** als
+Schlüssel. In cue gelöschte Snippets bleiben in IR bestehen (dort manuell
+löschen); eine geänderte Abkürzung legt in IR ein *neues* Snippet an. Gruppen
+reisen per Name — auch **leere Gruppen** und ihre Reihenfolge überleben den
+Roundtrip. Ein Snippet ohne Gruppe exportiert cue als `category: ""`
+(explizit ungruppiert); `null` bedeutet beim Lesen „Zuordnung in IR nicht
+anfassen". Zeichengenaue Bodies und Millisekunden-Zeitstempel sind durch einen
+Golden-Roundtrip-Test gegen ein echtes IR-Backup abgesichert.
+
 ## Konto / Abmelden
 
 Login & Identität laufen komplett über Google. **Settings → Konto** zeigt das angemeldete
