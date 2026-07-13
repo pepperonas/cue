@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.4] - 2026-07-13
+
+### Changed
+- **Tag autocomplete: curated list massively extended** — ~500 new categorized
+  software-development tags (UI components, UX/interaction incl. transition/gui,
+  frontend/backend tech, security, testing, DevOps/cloud, AI, mobile, process,
+  code quality, general engineering), programmatically deduplicated; a unit
+  test now guarantees the list stays free of case-insensitive duplicates and
+  single-token lowercase.
+
 ## [0.15.3] - 2026-07-13
 
 ### Changed

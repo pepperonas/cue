@@ -33,3 +33,19 @@ describe('DEV_TAGS', () => {
     expect(new Set(DEV_TAGS).size).toBe(DEV_TAGS.length)
   })
 })
+
+describe('DEV_TAGS curated list', () => {
+  it('has no case-insensitive duplicates', async () => {
+    const { DEV_TAGS } = await import('./tags')
+    const lower = DEV_TAGS.map((t) => t.toLowerCase())
+    expect(new Set(lower).size).toBe(DEV_TAGS.length)
+  })
+  it('contains only lowercase single-token tags (hyphens, no spaces)', async () => {
+    const { DEV_TAGS } = await import('./tags')
+    for (const t of DEV_TAGS) {
+      expect(t).toBe(t.toLowerCase())
+      expect(t).not.toMatch(/\s/)
+      expect(t.length).toBeGreaterThan(0)
+    }
+  })
+})
