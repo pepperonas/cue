@@ -92,6 +92,11 @@ export function SnippetEditor({ snippet, snippets, groups, onClose, onDelete }: 
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 style={{ font: 'var(--headline-m)', margin: 0 }}>
             {isEdit ? 'Snippet bearbeiten' : 'Neues Snippet'}
+            {isEdit && snippet && (
+              <span className="snippet-version" style={{ marginLeft: 10 }} title="Zählt bei inhaltlichen Änderungen hoch">
+                v{snippet.version}
+              </span>
+            )}
           </h2>
           <div className="row">
             <IconButton

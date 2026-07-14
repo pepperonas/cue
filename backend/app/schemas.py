@@ -356,6 +356,7 @@ class SnippetRead(BaseModel):
     body: str
     group_name: str | None
     sort_order: int
+    version: int
     created_at: datetime
     updated_at: datetime
 

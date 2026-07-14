@@ -65,6 +65,10 @@ def _migrate(engine: Engine) -> None:
         # allowlisted at login time, so they stay approved.
         "approved": "ALTER TABLE user ADD COLUMN approved BOOLEAN NOT NULL DEFAULT 0",
     }
+    snippet_additions = {
+        # Existing snippets start at v1 (DEFAULT covers the backfill).
+        "version": "ALTER TABLE snippet ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+    }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
         "iterm_session_id": "ALTER TABLE capture_session ADD COLUMN iterm_session_id VARCHAR NOT NULL DEFAULT ''",
@@ -76,6 +80,7 @@ def _migrate(engine: Engine) -> None:
             ("prompt", prompt_additions),
             ("project", project_additions),
             ("user", user_additions),
+            ("snippet", snippet_additions),
             ("capture_session", capture_session_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}

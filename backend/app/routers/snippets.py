@@ -267,6 +267,8 @@ async def import_backup(
                 groups_created += 1
             group_name = group.name
         if existing:
+            if item.title != existing.title or item.body != existing.body:
+                existing.version += 1  # content revision via import merge
             existing.title = item.title
             existing.body = item.body
             existing.group_name = group_name
@@ -409,19 +411,28 @@ def update_snippet(
     _csrf: None = Depends(require_csrf),
 ) -> Snippet:
     snippet = _owned(session, snippet_id, uid)
+    content_changed = False
     if payload.abbreviation is not None:
         abbreviation = payload.abbreviation.strip()
         if not abbreviation:
             raise HTTPException(status_code=400, detail="Abkürzung erforderlich")
         if _abbreviation_taken(session, uid, abbreviation, exclude_id=snippet.id):
             raise HTTPException(status_code=409, detail="Abkürzung existiert bereits")
+        if abbreviation != snippet.abbreviation:
+            content_changed = True
         snippet.abbreviation = abbreviation
     if payload.title is not None:
+        if payload.title.strip() != snippet.title:
+            content_changed = True
         snippet.title = payload.title.strip()
     if payload.body is not None:
         if not payload.body.strip():
             raise HTTPException(status_code=400, detail="Body erforderlich")
+        if payload.body != snippet.body:
+            content_changed = True
         snippet.body = payload.body
+    if content_changed:
+        snippet.version += 1
     if payload.group_name is not None:
         new_group = _resolve_group_name(session, uid, payload.group_name)
         if new_group != snippet.group_name:

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-07-14
+
+### Added
+- **Snippet versioning**: every snippet carries a version number (badge in the
+  list row and the editor header). New and existing snippets start at **v1**;
+  saving a CONTENT change (abbreviation, title or body — also via import
+  merge) bumps it by 1. Organizational actions (group moves, drag reorder,
+  bulk move) and no-op saves deliberately do not bump. cue-internal only —
+  the IR export envelope stays byte-identical.
+
 ## [0.16.0] - 2026-07-14
 
 ### Added

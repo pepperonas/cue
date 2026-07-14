@@ -728,6 +728,9 @@ function SnippetRow({
       )}
       <code className="snippet-abbr">{snippet.abbreviation}</code>
       <span className="lt grow">{snippet.title || snippet.body.split('\n')[0]}</span>
+      <span className="snippet-version" title={`Version ${snippet.version}`}>
+        v{snippet.version}
+      </span>
       <button
         className="mini-btn copy-btn"
         aria-label="Body kopieren"

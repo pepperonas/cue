@@ -290,3 +290,57 @@ def test_golden_roundtrip_against_ir_fixture(client):
     assert [c["name"] for c in exported["snippet_categories"]] == ["AI Prompts", "Scratch"]
 
     hdr = _hdr(csrf)  # noqa: F841 (symmetry with other tests)
+
+
+def test_snippet_version_bumps_on_content_change_only(client):
+    csrf = _auth(client)
+    hdr = _hdr(csrf)
+    s = _mk(client, hdr, "ver", body="v1 body")
+    assert s["version"] == 1  # new snippets start at v1
+
+    # Content changes bump: body, title, abbreviation.
+    r = client.patch(f"/api/snippets/{s['id']}", json={"body": "v2 body"}, headers=hdr)
+    assert r.json()["version"] == 2
+    r = client.patch(f"/api/snippets/{s['id']}", json={"title": "Neuer Titel"}, headers=hdr)
+    assert r.json()["version"] == 3
+    r = client.patch(f"/api/snippets/{s['id']}", json={"abbreviation": "ver2"}, headers=hdr)
+    assert r.json()["version"] == 4
+
+    # No-op save (same values) does NOT bump.
+    r = client.patch(
+        f"/api/snippets/{s['id']}",
+        json={"body": "v2 body", "title": "Neuer Titel", "abbreviation": "ver2"},
+        headers=hdr,
+    )
+    assert r.json()["version"] == 4
+
+    # Organizational changes (group move, reorder) do NOT bump.
+    r = client.patch(f"/api/snippets/{s['id']}", json={"group_name": "G"}, headers=hdr)
+    assert r.json()["version"] == 4
+    client.post(
+        "/api/snippets/reorder",
+        json={"items": [{"id": s["id"], "group_name": "G", "sort_order": 3}]},
+        headers=hdr,
+    )
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 4
+
+
+def test_snippet_version_bumps_on_import_merge_content_change(client):
+    csrf = _auth(client)
+    hdr = _hdr(csrf)
+    s = _mk(client, hdr, "imp", body="original")
+    doc = {"version": 2, "snippets": [{"abbreviation": "imp", "title": "", "body": "changed"}]}
+    client.post(
+        "/api/snippets/import",
+        content=json.dumps(doc),
+        headers={**hdr, "Content-Type": "application/json"},
+    )
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 2
+    # Identical re-import: updated counts, but no version bump.
+    doc["snippets"][0]["body"] = "changed"
+    client.post(
+        "/api/snippets/import",
+        content=json.dumps(doc),
+        headers={**hdr, "Content-Type": "application/json"},
+    )
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 2

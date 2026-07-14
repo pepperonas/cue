@@ -1811,3 +1811,14 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   margin-bottom: 8px;
   background: var(--md-surface-container-low);
 }
+
+/* ── Snippet-Versionsnummer ──────────────────────────────────────────── */
+.snippet-version {
+  font: var(--label-m, 500 0.72rem/1 system-ui);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+  flex: none;
+}

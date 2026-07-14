@@ -217,6 +217,7 @@ export interface Snippet {
   body: string
   group_name: string | null
   sort_order: number
+  version: number
   created_at: string
   updated_at: string
 }

@@ -267,5 +267,8 @@ class Snippet(SQLModel, table=True):
     body: str = Field(default="")
     group_name: str | None = Field(default=None, index=True)
     sort_order: int = Field(default=0)
+    # Content revision: starts at 1, bumped when abbreviation/title/body change
+    # (NOT on group moves/reorder — organizational changes aren't revisions).
+    version: int = Field(default=1)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
