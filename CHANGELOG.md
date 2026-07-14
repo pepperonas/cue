@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.6] - 2026-07-14
+
+### Changed
+- **Platform-correct save-shortcut hint**: the Speichern/Anlegen buttons in the
+  prompt composer and the snippet editor now show ⌘↵ on macOS and Strg+↵ on
+  Windows/Linux (`lib/platform.ts`, unit-tested). The handlers keep accepting
+  BOTH modifiers on every platform — so if a system-wide macOS shortcut ever
+  hijacks Cmd+Enter, Ctrl+Enter still saves.
+
 ## [0.15.5] - 2026-07-14
 
 ### Changed

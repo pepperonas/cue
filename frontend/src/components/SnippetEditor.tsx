@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
+import { IS_MAC } from '../lib/platform'
 import { abbreviationTaken } from '../lib/snippets'
 import type { Snippet } from '../lib/types'
 import { useCreateSnippet, useUpdateSnippet } from '../state/queries'
 import { useToast } from '../state/toast'
-import { Button, IconButton } from './ui'
+import { Button, Icon, IconButton } from './ui'
 
 interface Props {
   snippet: Snippet | null // null = create
@@ -189,7 +190,10 @@ export function SnippetEditor({ snippet, snippets, groups, onClose, onDelete }: 
             Abbrechen
           </Button>
           <Button icon="check" onClick={save} disabled={!canSave}>
-            {isEdit ? 'Speichern' : 'Anlegen'}
+            {isEdit ? 'Speichern' : 'Anlegen'}{' '}
+            <kbd style={{ marginLeft: 6 }} title={IS_MAC ? 'Cmd+Enter' : 'Strg+Enter'}>
+              {IS_MAC ? <Icon name="keyboard_command_key" /> : 'Strg'} ↵
+            </kbd>
           </Button>
         </div>
       </motion.div>

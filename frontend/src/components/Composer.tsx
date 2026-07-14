@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
+import { IS_MAC } from '../lib/platform'
 import { api } from '../lib/api'
 import type { Attachment, Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
@@ -500,8 +501,8 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           </Button>
           <Button icon="check" onClick={() => void triggerSave()} disabled={!body.trim()}>
             {isEdit ? 'Speichern' : 'Anlegen'}{' '}
-            <kbd style={{ marginLeft: 6 }}>
-              <Icon name="keyboard_command_key" /> ↵
+            <kbd style={{ marginLeft: 6 }} title={IS_MAC ? 'Cmd+Enter' : 'Strg+Enter'}>
+              {IS_MAC ? <Icon name="keyboard_command_key" /> : 'Strg'} ↵
             </kbd>
           </Button>
         </div>
