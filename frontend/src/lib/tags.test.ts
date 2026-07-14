@@ -49,3 +49,11 @@ describe('DEV_TAGS curated list', () => {
     }
   })
 })
+
+describe('DEV_TAGS spelling policy', () => {
+  it('uses American spelling only (no -isation/colour/behaviour/licence …)', async () => {
+    const { DEV_TAGS } = await import('./tags')
+    const british = /isation|iser$|colour|behaviour|licence|analyse|defence|catalogue|centre|artefact/
+    expect(DEV_TAGS.filter((t) => british.test(t))).toEqual([])
+  })
+})

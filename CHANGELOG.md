@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.5] - 2026-07-14
+
+### Changed
+- **Tag autocomplete: full-spectrum list** — another ~520 categorized entries
+  (languages, frameworks, protocols/networking, systems/low-level, build
+  tooling, editors, hardware/IoT, game dev, audio/video, docs, business/
+  product, reliability/ops, data engineering, auth/identity, UI content,
+  APIs/integration), total now ~1100. American spelling enforced by a new
+  unit test (no -isation/colour/behaviour/…), list stays duplicate-free.
+- Data fix: the typo tag `opimization` on 18 prompts was corrected to
+  `optimization` (deduped where both were present).
+
 ## [0.15.4] - 2026-07-13
 
 ### Changed
