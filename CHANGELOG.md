@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2026-07-14
+
+### Added
+- **Social sharing**: full Open-Graph + Twitter-Card meta tags (title,
+  description, locale, canonical) and a branded **1200×630 share thumbnail**
+  (`/og.png`, ~230 KB — WhatsApp-friendly) rendered from the app's design
+  language (bolt logo, tagline, mini board illustration). Excluded from the
+  PWA precache.
+
 ## [0.18.0] - 2026-07-14
 
 ### Added
