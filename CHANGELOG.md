@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.7] - 2026-07-14
+
+### Fixed
+- Tag autocomplete: the change-type category was missing the most obvious
+  entries — added `fix`, `bugfix`, `quickfix` and `workaround`.
+
 ## [0.15.6] - 2026-07-14
 
 ### Changed
