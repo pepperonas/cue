@@ -427,3 +427,23 @@ export function useImportSnippets() {
   const invalidate = useInvalidateSnippets()
   return useMutation({ mutationFn: snippetsApi.importBackup, onSuccess: invalidate })
 }
+
+// ---- Admin: user approval ----
+const ADMIN_USERS_KEY = ['admin-users'] as const
+
+export function useAdminUsers(enabled: boolean) {
+  return useQuery({
+    queryKey: ADMIN_USERS_KEY,
+    queryFn: api.adminListUsers,
+    enabled,
+  })
+}
+
+export function useSetUserApproval() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, approved }: { id: number; approved: boolean }) =>
+      api.adminSetApproval(id, approved),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ADMIN_USERS_KEY }),
+  })
+}

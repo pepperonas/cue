@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-07-14
+
+### Added
+- **In-app user approval (admin)**: sign-in via Google is now open — new users
+  land in a "wartet auf Freischaltung" state (data APIs return 403, a waiting
+  screen with logout is shown) instead of being rejected. The owner
+  (`OWNER_EMAIL`) gets a **Nutzerverwaltung** section in Settings listing
+  pending and approved accounts with Freischalten/Sperren (revoke locks the
+  user out on their very next request — the approval check sits in the
+  central `current_user_id` dependency). Allowlisted emails/domains and the
+  owner are auto-approved on login; existing users were backfilled as
+  approved. New endpoints: `GET /api/admin/users`,
+  `PATCH /api/admin/users/{id}` (owner-only; self-lockout blocked).
+
 ## [0.15.7] - 2026-07-14
 
 ### Fixed

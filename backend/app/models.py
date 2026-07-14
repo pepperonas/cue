@@ -38,6 +38,9 @@ class User(SQLModel, table=True):
     # Per-user prompt-capture config (multi-tenant): own token + project base.
     capture_token: str | None = Field(default=None, index=True)
     project_base: str | None = Field(default=None)
+    # Admin approval: sign-in is open (Google), data access only once approved.
+    # Allowlisted emails/domains and the owner are auto-approved on login.
+    approved: bool = Field(default=False)
 
 
 class Project(SQLModel, table=True):

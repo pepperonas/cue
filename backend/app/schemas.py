@@ -18,6 +18,8 @@ class UserRead(BaseModel):
 
 class MeResponse(BaseModel):
     authenticated: bool
+    approved: bool = True
+    is_admin: bool = False
     csrf_token: str | None = None
     user: UserRead | None = None
 
@@ -406,3 +408,18 @@ class SnippetImportResult(BaseModel):
     groups_created: int
     skipped: int
     errors: list[str] = []
+
+
+# ---- Admin: user approval ----
+class AdminUserRead(BaseModel):
+    id: int
+    email: str
+    name: str
+    picture: str
+    approved: bool
+    created_at: datetime
+    last_login_at: datetime
+
+
+class AdminUserUpdate(BaseModel):
+    approved: bool

@@ -61,6 +61,9 @@ def _migrate(engine: Engine) -> None:
     user_additions = {
         "capture_token": "ALTER TABLE user ADD COLUMN capture_token VARCHAR",
         "project_base": "ALTER TABLE user ADD COLUMN project_base VARCHAR",
+        # Backfilled below: users that existed before the approval feature were
+        # allowlisted at login time, so they stay approved.
+        "approved": "ALTER TABLE user ADD COLUMN approved BOOLEAN NOT NULL DEFAULT 0",
     }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
@@ -79,6 +82,9 @@ def _migrate(engine: Engine) -> None:
             for column, ddl in additions.items():
                 if column not in cols:
                     conn.execute(text(ddl))
+                    if table == "user" and column == "approved":
+                        # One-time backfill: pre-existing users were allowlisted.
+                        conn.exec_driver_sql("UPDATE user SET approved = 1")
         # Blocked only exists on queued prompts — clear stale flags from before
         # that rule (idempotent data fix).
         conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")

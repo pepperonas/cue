@@ -1791,3 +1791,23 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
 .brand-btn .brand-name { transition: color 0.15s ease; }
 .brand-btn:hover .brand-name { color: var(--md-primary); }
 .brand-btn:active { transform: scale(0.97); }
+
+/* ── Admin: Nutzerverwaltung ─────────────────────────────────────────── */
+.admin-subhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--title-s);
+  margin: var(--gap-4) 0 var(--gap-2);
+  color: var(--md-on-surface-variant);
+}
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 10px 12px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-s);
+  margin-bottom: 8px;
+  background: var(--md-surface-container-low);
+}

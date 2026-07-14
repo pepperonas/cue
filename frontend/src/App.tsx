@@ -7,6 +7,7 @@ import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
   EXTRA_COLUMNS,
+  type Me,
   type Prompt,
   type RunKind,
   type Status,
@@ -47,16 +48,16 @@ import { TopBar, type View } from './components/TopBar'
 import { Footer, Icon } from './components/ui'
 
 export default function App() {
-  const [authed, setAuthed] = useState<boolean | null>(null)
+  const [me, setMe] = useState<Me | null | 'loading'>('loading')
 
   useEffect(() => {
     api
       .me()
-      .then((m) => setAuthed(m.authenticated))
-      .catch(() => setAuthed(false))
+      .then((m) => setMe(m))
+      .catch(() => setMe(null))
   }, [])
 
-  if (authed === null) {
+  if (me === 'loading') {
     return (
       <div className="app">
         <div className="login-wrap">
@@ -65,8 +66,53 @@ export default function App() {
       </div>
     )
   }
-  if (!authed) return <Login />
-  return <Shell onLogout={() => setAuthed(false)} />
+  if (!me || !me.authenticated) return <Login />
+  if (!me.approved) return <PendingApproval onLogout={() => setMe(null)} />
+  return <Shell onLogout={() => setMe(null)} />
+}
+
+/** Signed in with Google, but the admin hasn't approved the account yet. */
+function PendingApproval({ onLogout }: { onLogout: () => void }) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="app">
+      <div className="login-wrap">
+        <motion.div
+          className="login-card"
+          initial={{ opacity: 0, y: 24, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={springs.bouncy}
+        >
+          <div className="logo-xl">
+            <Icon name="hourglass_top" />
+          </div>
+          <div>
+            <h1 style={{ font: 'var(--headline-l)', margin: 0 }}>Fast geschafft</h1>
+            <p className="muted" style={{ maxWidth: 340 }}>
+              Dein Konto wartet auf die Freischaltung durch den Administrator. Du bekommst
+              Zugriff, sobald dein Zugang bestätigt wurde — schau einfach später wieder vorbei.
+            </p>
+          </div>
+          <button
+            className="btn btn--outlined"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                await api.logout()
+              } catch {
+                /* ignore */
+              }
+              onLogout()
+            }}
+          >
+            <Icon name="logout" /> Abmelden
+          </button>
+        </motion.div>
+      </div>
+      <Footer />
+    </div>
+  )
 }
 
 function Shell({ onLogout }: { onLogout: () => void }) {

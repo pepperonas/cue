@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { PRESET_SEEDS } from '../lib/color'
 import type { Project } from '../lib/types'
-import { useCaptureSettings, useMe, useUpdateCaptureSettings } from '../state/queries'
+import { useAdminUsers, useCaptureSettings, useMe, useSetUserApproval, useUpdateCaptureSettings } from '../state/queries'
 import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
+import { Confirm } from './Confirm'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
   { key: 'light', icon: 'light_mode', label: 'Hell' },
@@ -254,6 +255,8 @@ export function SettingsView({
         </div>
       </div>
 
+      {me?.is_admin && <AdminUsersSection />}
+
       <div className="section">
         <h3>Konto</h3>
         {me?.user ? (
@@ -286,6 +289,116 @@ export function SettingsView({
           Abmelden
         </Button>
       </div>
+    </div>
+  )
+}
+
+
+/** Owner-only: approve/revoke user accounts (sign-in is open, data access
+ * requires approval — the gate sits in the backend's current_user_id). */
+function AdminUsersSection() {
+  const { data: users } = useAdminUsers(true)
+  const setApproval = useSetUserApproval()
+  const toast = useToast()
+  const [confirmRevoke, setConfirmRevoke] = useState<{ id: number; email: string } | null>(null)
+
+  const pending = (users ?? []).filter((u) => !u.approved)
+  const approved = (users ?? []).filter((u) => u.approved)
+
+  function approve(id: number, email: string) {
+    setApproval.mutate(
+      { id, approved: true },
+      {
+        onSuccess: () => toast.show(`${email} freigeschaltet`, 'success'),
+        onError: (e) => toast.show(e instanceof Error ? e.message : 'Fehlgeschlagen', 'error'),
+      },
+    )
+  }
+
+  return (
+    <div className="section">
+      <h3>Nutzerverwaltung</h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Neue Nutzer melden sich mit Google an und warten dann auf Freischaltung. Sperren
+        entzieht den Zugriff sofort — die Daten des Kontos bleiben erhalten.
+      </p>
+      {pending.length > 0 && (
+        <>
+          <h4 className="admin-subhead">
+            Wartet auf Freischaltung <span className="count">{pending.length}</span>
+          </h4>
+          {pending.map((u) => (
+            <AdminUserRow key={u.id} user={u}>
+              <Button icon="check" onClick={() => approve(u.id, u.email)}>
+                Freischalten
+              </Button>
+            </AdminUserRow>
+          ))}
+        </>
+      )}
+      <h4 className="admin-subhead">
+        Freigeschaltet <span className="count">{approved.length}</span>
+      </h4>
+      {approved.map((u) => (
+        <AdminUserRow key={u.id} user={u}>
+          <Button
+            variant="outlined"
+            icon="block"
+            onClick={() => setConfirmRevoke({ id: u.id, email: u.email })}
+          >
+            Sperren
+          </Button>
+        </AdminUserRow>
+      ))}
+      {confirmRevoke && (
+        <Confirm
+          title={`${confirmRevoke.email} sperren?`}
+          message="Der Zugriff endet mit dem nächsten Request. Die Daten des Kontos bleiben erhalten; eine erneute Freischaltung ist jederzeit möglich."
+          confirmLabel="Sperren"
+          onCancel={() => setConfirmRevoke(null)}
+          onConfirm={() => {
+            setApproval.mutate(
+              { id: confirmRevoke.id, approved: false },
+              {
+                onSuccess: () => toast.show(`${confirmRevoke.email} gesperrt`, 'success'),
+                onError: (e) =>
+                  toast.show(e instanceof Error ? e.message : 'Fehlgeschlagen', 'error'),
+              },
+            )
+            setConfirmRevoke(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function AdminUserRow({
+  user,
+  children,
+}: {
+  user: import('../lib/types').AdminUser
+  children: React.ReactNode
+}) {
+  return (
+    <div className="admin-user-row">
+      {user.picture ? (
+        <img src={user.picture} alt="" width={36} height={36} referrerPolicy="no-referrer"
+          style={{ borderRadius: '50%' }} />
+      ) : (
+        <span className="logo" style={{ width: 36, height: 36 }}>
+          <Icon name="account_circle" />
+        </span>
+      )}
+      <div className="grow" style={{ minWidth: 0 }}>
+        <div style={{ font: 'var(--title-s)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {user.name || user.email}
+        </div>
+        <div className="muted" style={{ fontSize: '0.8rem' }}>
+          {user.email} · seit {new Date(user.created_at).toLocaleDateString('de-DE')}
+        </div>
+      </div>
+      {children}
     </div>
   )
 }

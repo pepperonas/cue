@@ -54,7 +54,7 @@ def make_user(email: str = "owner@example.com", sub: str | None = None) -> int:
     from app.models import User
 
     with Session(db_module.engine) as s:
-        user = User(google_sub=sub or f"sub-{email}", email=email, name="Test")
+        user = User(google_sub=sub or f"sub-{email}", email=email, name="Test", approved=True)
         s.add(user)
         s.commit()
         s.refresh(user)

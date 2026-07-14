@@ -73,8 +73,20 @@ export interface User {
 
 export interface Me {
   authenticated: boolean
+  approved: boolean
+  is_admin: boolean
   csrf_token: string | null
   user: User | null
+}
+
+export interface AdminUser {
+  id: number
+  email: string
+  name: string
+  picture: string
+  approved: boolean
+  created_at: string
+  last_login_at: string
 }
 
 // ---- Run engine ----

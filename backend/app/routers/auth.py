@@ -150,13 +150,17 @@ def google_callback(
     email = (info.get("email") or "").strip().lower()
     if not sub or not email or not info.get("email_verified", False):
         return fail("profile")
-    if not _settings.is_email_allowed(email):
-        return fail("forbidden")
 
     user = session.exec(select(User).where(User.google_sub == sub)).first()
     if user is None:
         user = User(google_sub=sub, email=email)
         session.add(user)
+    # Auto-approve allowlisted emails/domains and the owner; everyone else may
+    # sign in but stays pending until the admin approves them in Settings.
+    if _settings.is_email_allowed(email) or (
+        _settings.owner_email and email == _settings.owner_email
+    ):
+        user.approved = True
     user.email = email
     user.name = info.get("name", "") or ""
     user.picture = info.get("picture", "") or ""
@@ -193,6 +197,8 @@ def me(request: Request, session: Session = Depends(get_session)) -> MeResponse:
         return MeResponse(authenticated=False)
     return MeResponse(
         authenticated=True,
+        approved=user.approved,
+        is_admin=bool(_settings.owner_email and user.email == _settings.owner_email),
         csrf_token=payload.get("csrf"),
         user=UserRead(email=user.email, name=user.name, picture=user.picture),
     )

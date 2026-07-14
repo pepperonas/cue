@@ -39,11 +39,25 @@ def current_session(request: Request) -> dict:
     return payload
 
 
-def current_user_id(session: dict = Depends(current_session)) -> int:
-    """The authenticated tenant's user id, taken from the signed session."""
+def current_user_id(
+    session: dict = Depends(current_session),
+    db: Session = Depends(get_session),
+) -> int:
+    """The authenticated + APPROVED tenant's user id.
+
+    Every data router hangs off this dependency, so revoking a user's approval
+    locks them out on their very next request (no waiting for session expiry).
+    """
     uid = session.get("uid")
     if not isinstance(uid, int):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    user = db.get(User, uid)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    if not user.approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Konto wartet auf Freischaltung"
+        )
     return uid
 
 

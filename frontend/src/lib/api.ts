@@ -1,6 +1,7 @@
 // Typed fetch client. Sends the CSRF double-submit header on mutations by
 // reading the readable `cue_csrf` cookie.
 import type {
+  AdminUser,
   Snippet,
   SnippetGroup,
   SnippetImportResult,
@@ -61,6 +62,11 @@ export const api = {
   me: () => request<Me>('GET', '/auth/me'),
   googleLoginUrl: '/api/auth/google/login',
   logout: () => request<{ ok: boolean }>('POST', '/auth/logout'),
+
+  // Admin: user approval (owner-only)
+  adminListUsers: () => request<AdminUser[]>('GET', '/admin/users'),
+  adminSetApproval: (id: number, approved: boolean) =>
+    request<AdminUser>('PATCH', `/admin/users/${id}`, { approved }),
 
   // Projects
   listProjects: () => request<Project[]>('GET', '/projects'),

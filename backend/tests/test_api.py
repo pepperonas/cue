@@ -994,13 +994,18 @@ def test_oauth_callback_handles_google_outage(client, monkeypatch):
     assert cb.headers["location"] == "/?auth_error=google"
 
 
-def test_oauth_callback_enforces_allowlist(client, monkeypatch):
+def test_oauth_callback_non_allowlisted_lands_pending(client, monkeypatch):
+    """Not on the allowlist -> signed in, but pending admin approval (no data)."""
     from app.routers import auth as auth_module
 
     monkeypatch.setattr(auth_module._settings, "allowed_emails", {"someone@else.com"})
+    monkeypatch.setattr(auth_module._settings, "owner_email", "someone@else.com")
     cb, _ = _oauth_callback(client, monkeypatch)
-    assert cb.headers["location"] == "/?auth_error=forbidden"
-    assert not client.cookies.get("cue_session")
+    assert cb.status_code == 302 and cb.headers["location"] == "/"
+    assert client.cookies.get("cue_session")
+    me = client.get("/api/auth/me").json()
+    assert me["authenticated"] is True and me["approved"] is False
+    assert client.get("/api/prompts").status_code == 403
 
 
 def test_oauth_callback_updates_existing_user(client, monkeypatch):
@@ -1027,7 +1032,13 @@ def test_oauth_callback_updates_existing_user(client, monkeypatch):
 
 def test_me_unauthenticated(client):
     me = client.get("/api/auth/me").json()
-    assert me == {"authenticated": False, "csrf_token": None, "user": None}
+    assert me == {
+        "authenticated": False,
+        "approved": True,
+        "is_admin": False,
+        "csrf_token": None,
+        "user": None,
+    }
     client.cookies.set("cue_session", "garbage-token")
     assert client.get("/api/auth/me").json()["authenticated"] is False
 

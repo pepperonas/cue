@@ -134,7 +134,8 @@ def test_capture_settings_regenerate_and_deleted_user(client):
     with Session(db_module.engine) as s:
         s.exec(delete(User))
         s.commit()
-    assert client.post("/api/capture/settings", json={}, headers=hdr).status_code == 404
+    # The tenant gate itself rejects a session whose user is gone.
+    assert client.post("/api/capture/settings", json={}, headers=hdr).status_code == 401
 
 
 # ------------------------------------------------------------------- runs ----
@@ -462,3 +463,94 @@ def test_spa_missing_index_and_missing_static_dir(tmp_path):
     finally:
         os.environ.pop("STATIC_DIR", None)
         config.get_settings.cache_clear()
+
+
+# ------------------------------------------------------------- user approval ----
+def _login_pending(client, email="pending@example.com"):
+    """A user who signed in but is not approved (created directly, like the
+    OAuth callback would for a non-allowlisted email)."""
+    import app.db as db_module
+    from sqlmodel import Session
+
+    from app import security
+    from app.models import User
+
+    with Session(db_module.engine) as s:
+        user = User(google_sub=f"sub-{email}", email=email, name="Pending", approved=False)
+        s.add(user)
+        s.commit()
+        s.refresh(user)
+        uid = user.id
+    token = security.issue_session(uid)
+    client.cookies.set("cue_session", token)
+    return uid, security.csrf_from_session(token)
+
+
+def test_pending_user_is_locked_out_until_approved(client):
+    uid, csrf = _login_pending(client)
+    me = client.get("/api/auth/me").json()
+    assert me["authenticated"] is True and me["approved"] is False and me["is_admin"] is False
+    # No data access while pending — reads and writes alike.
+    assert client.get("/api/prompts").status_code == 403
+    assert (
+        client.post("/api/prompts", json={"body": "x"}, headers={"X-CSRF-Token": csrf}).status_code
+        == 403
+    )
+    # ... but logout still works.
+    assert client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
+
+
+def test_admin_approves_and_revokes(client):
+    pending_uid, pending_csrf = _login_pending(client)
+    pending_cookie = client.cookies.get("cue_session")
+
+    owner_csrf = _auth(client)  # owner@example.com == OWNER_EMAIL in tests
+    owner_cookie = client.cookies.get("cue_session")
+    me = client.get("/api/auth/me").json()
+    assert me["is_admin"] is True
+
+    users = client.get("/api/admin/users").json()
+    target = next(u for u in users if u["id"] == pending_uid)
+    assert target["approved"] is False
+
+    r = client.patch(
+        f"/api/admin/users/{pending_uid}",
+        json={"approved": True},
+        headers={"X-CSRF-Token": owner_csrf},
+    )
+    assert r.status_code == 200 and r.json()["approved"] is True
+
+    # The approved user gets access with their EXISTING session.
+    client.cookies.set("cue_session", pending_cookie)
+    assert client.get("/api/prompts").status_code == 200
+    assert client.get("/api/auth/me").json()["approved"] is True
+
+    # Revoke -> locked out again on the next request.
+    client.cookies.set("cue_session", owner_cookie)
+    client.patch(
+        f"/api/admin/users/{pending_uid}",
+        json={"approved": False},
+        headers={"X-CSRF-Token": owner_csrf},
+    )
+    client.cookies.set("cue_session", pending_cookie)
+    assert client.get("/api/prompts").status_code == 403
+    del pending_csrf
+
+
+def test_admin_endpoints_owner_only_and_self_lockout_blocked(client):
+    _login_pending(client, "someone@example.com")
+    # Pending/non-owner users cannot reach the admin API.
+    assert client.get("/api/admin/users").status_code == 403
+
+    owner_csrf = _auth(client)
+    me = client.get("/api/auth/me").json()
+    assert me["is_admin"] is True
+    my_id = next(
+        u["id"] for u in client.get("/api/admin/users").json() if u["email"] == "owner@example.com"
+    )
+    r = client.patch(
+        f"/api/admin/users/{my_id}",
+        json={"approved": False},
+        headers={"X-CSRF-Token": owner_csrf},
+    )
+    assert r.status_code == 400  # cannot lock out yourself

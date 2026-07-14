@@ -2,11 +2,11 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-[![Version](https://img.shields.io/badge/version-0.15.7-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.16.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
-[![Tests](https://img.shields.io/badge/tests-272%20passing-brightgreen.svg)](backend/tests/test_api.py)
-[![LOC](https://img.shields.io/badge/LOC-14436-blue.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-275%20passing-brightgreen.svg)](backend/tests/test_api.py)
+[![LOC](https://img.shields.io/badge/LOC-14725-blue.svg)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -61,7 +61,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **MD3 Expressive**: Material-You-Dynamic-Color aus Seed, Light/Dark/System, sichtbare Physik, reduced-motion-aware. Der **Theme-Wechsel** blendet das neue Theme als **Circular Reveal** vom Klickpunkt auf (View Transitions API, wie auf celox.io); ohne API-Support oder bei `prefers-reduced-motion` sofortiger Wechsel.
 - **PWA**, installierbar, letzte Daten offline lesbar.
 - **Tastatur-Shortcuts** (`n` neu · `/` Suche · `c` kopieren · `j/k` Navigation · `e` editieren · `1/2/3` Status · `?` Overlay).
-- **Multi-Tenant**: Login via **Google OAuth** (Authorization-Code-Flow), jeder Nutzer hat eigene Prompts/Projekte; Zugang per E-Mail-/Domain-Allowlist.
+- **Multi-Tenant**: Login via **Google OAuth** (Authorization-Code-Flow), jeder Nutzer hat eigene Prompts/Projekte. Zugang per **In-App-Freischaltung durch den Admin** (neue Konten warten nach dem Google-Login auf Bestätigung; Settings → Nutzerverwaltung) — die E-Mail-/Domain-Allowlist wirkt zusätzlich als Auto-Freischaltung.
 - **Sicherheit**: signierte HttpOnly/Secure/SameSite=Strict-Session (Client-Secret bleibt serverseitig), CSRF-Double-Submit, OAuth-State-Schutz, strikte CSP + Security-Header.
 
 ## Tech-Stack
@@ -93,7 +93,10 @@ In der Google Cloud Console einen **OAuth-Client (Webanwendung)** anlegen:
 - **Autorisierte Weiterleitungs-URIs**: `https://cue.celox.io/api/auth/google/callback`
 
 Client-ID + Secret nach `.env` (`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) — niemals committen.
-Wer rein darf, steuern `GOOGLE_ALLOWED_EMAILS` / `GOOGLE_ALLOWED_DOMAINS`. `OWNER_EMAIL`
+Jeder kann sich mit Google anmelden, landet aber zunächst im Status „wartet auf
+Freischaltung" — der Admin (`OWNER_EMAIL`) schaltet Konten unter **Settings →
+Nutzerverwaltung** frei oder sperrt sie wieder. `GOOGLE_ALLOWED_EMAILS` /
+`GOOGLE_ALLOWED_DOMAINS` wirken als Auto-Freischaltung. `OWNER_EMAIL`
 übernimmt beim ersten Login die bestehenden (noch besitzerlosen) Daten.
 
 Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist offen.
@@ -103,13 +106,13 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 ### Tests
 
 Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
-gemockt) — zusammen **272 Tests**:
+gemockt) — zusammen **275 Tests**:
 
 ```bash
 npm test                             # alle drei Suiten + Badge-Update (posttest)
 
 # einzeln:
-cd backend    && uv run pytest                    # 137 Tests — API-Verhalten end-to-end
+cd backend    && uv run pytest                    # 140 Tests — API-Verhalten end-to-end
                                                   # (Auth/OAuth, Tenant-Isolation, CRUD,
                                                   #  Runs, Capture, SPA-Guard, CSP …)
 cd cue-runner && .venv/bin/python -m pytest       # 65 Tests — Executor, Orchestrierungs-Loops,
@@ -223,7 +226,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.15.7**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.16.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 
