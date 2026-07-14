@@ -1886,3 +1886,12 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   font-size: 0.78rem;
   margin: 0;
 }
+
+
+/* ── Brand-Icon (Familien-Stil: dunkle Kachel, Lavendel-Blitz) ───────── */
+.logo-img {
+  background: none !important;
+  display: block;
+  border-radius: 8px;
+}
+img.logo-xl { border-radius: 18px; }

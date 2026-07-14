@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.3] - 2026-07-15
+
+### Changed
+- **New app icon/logo**, aligned with the celox tool family (token-tracker,
+  celox-ops, code-bridge): near-black rounded tile with hairline border and a
+  single vivid accent motif — fading queue lines (waiting prompts) plus a
+  lavender bolt (execution). Applied everywhere: favicon (cache-busted
+  `?v=2`), PWA icons 192/512 + maskable (safe-zone scaled), topbar + login
+  logo, the OG share thumbnail, and all regenerated screenshots (README +
+  landing).
+
 ## [0.18.2] - 2026-07-14
 
 ### Changed

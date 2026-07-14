@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#6750A4"/>
-  <path d="M38 14 L22 36 H32 L26 50 L44 26 H34 Z" fill="#EADDFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Family style (token-tracker / celox-ops / code-bridge): near-black
+       rounded tile, hairline border, one vivid accent motif.
+       cue = queue lines (waiting prompts) + lavender bolt (execution). -->
+  <rect width="32" height="32" rx="6" fill="#0d1117"/>
+  <rect x="1" y="1" width="30" height="30" rx="5" fill="none" stroke="#30363d" stroke-width="1"/>
+  <!-- queue: next prompt brightest, the rest fading down -->
+  <line x1="7" y1="10" x2="13.5" y2="10" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" opacity="0.95"/>
+  <line x1="7" y1="16" x2="12" y2="16" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="7" y1="22" x2="10.5" y2="22" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" opacity="0.3"/>
+  <!-- bolt -->
+  <path d="M23.4 5.5 L14.8 17.3 H19.6 L16.6 26.5 L25.8 13.9 H20.6 Z" fill="#a78bfa"/>
 </svg>

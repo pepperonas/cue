@@ -26,9 +26,7 @@ export function Login() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={springs.bouncy}
         >
-          <div className="logo-xl">
-            <Icon name="bolt" />
-          </div>
+          <img className="logo-xl logo-img" src="/favicon.svg" alt="" width={84} height={84} />
           <div>
             <h1 style={{ font: 'var(--headline-l)', margin: 0 }}>cue</h1>
             <p className="muted">Prompt-Queue für Claude-Code-Sessions</p>

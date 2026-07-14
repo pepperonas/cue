@@ -48,9 +48,7 @@ export function TopBar({
           title="Neu laden"
           onClick={() => window.location.reload()}
         >
-          <span className="logo">
-            <Icon name="bolt" />
-          </span>
+          <img className="logo logo-img" src="/favicon.svg" alt="" width={34} height={34} />
           <span className="brand-name">cue</span>
         </button>
         {projectLabel && (
