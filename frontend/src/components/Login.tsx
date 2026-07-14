@@ -67,11 +67,100 @@ export function Login() {
           </a>
 
           <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>
-            Zugang nur für freigeschaltete Konten.
+            Neue Konten werden nach der Anmeldung vom Admin freigeschaltet.
           </p>
         </motion.div>
+
+        <LandingFeatures />
       </div>
       <Footer />
     </div>
+  )
+}
+
+
+const FEATURES: {
+  icon: string
+  title: string
+  text: string
+  shot?: { src: string; alt: string }
+}[] = [
+  {
+    icon: 'view_kanban',
+    title: 'Prompt-Queue als Kanban-Board',
+    text: 'Geplante Claude-Code-Prompts erfassen, nach Projekt gruppieren und per Drag & Drop durch Queued → Running → Done ziehen. Mit Tags, Bookmarks, Blocked-Status, „Getestet"-Haken und 1-Klick-Copy in die CLI.',
+    shot: { src: '/landing/board-demo.png', alt: 'cue-Board mit Beispiel-Prompts in drei Spalten' },
+  },
+  {
+    icon: 'play_circle',
+    title: 'Runs: Prompts headless ausführen',
+    text: 'Gespeicherte Prompts laufen über einen Runner direkt durch die Claude-Code-CLI — einzeln oder als Playbook in einer Session, bis zu drei parallel. Mit Live-Log, Kosten, Cancel und automatischem Verschieben nach Done.',
+    shot: { src: '/landing/runs-demo.png', alt: 'Runs-Ansicht mit laufendem und abgeschlossenem Run' },
+  },
+  {
+    icon: 'data_object',
+    title: 'Snippet-Werkbank für Inspector Rust',
+    text: 'IR-Backup importieren, Snippets gruppieren, versionieren und bearbeiten, wieder als IR-Backup exportieren — verlustfreier Roundtrip inklusive leerer Gruppen.',
+    shot: { src: '/landing/snippets-demo.png', alt: 'Snippet-Bibliothek mit Gruppen und Versionsnummern' },
+  },
+]
+
+const MORE: { icon: string; label: string }[] = [
+  { icon: 'history', label: 'CLI-Prompt-Capture mit Verlauf' },
+  { icon: 'send', label: 'Prompts in laufende Sessions tippen' },
+  { icon: 'merge', label: 'Prompts zusammenführen' },
+  { icon: 'upload_file', label: 'Import & Export (JSON/ZIP/IR)' },
+  { icon: 'install_mobile', label: 'Installierbare PWA' },
+  { icon: 'palette', label: 'Material You Dynamic Color' },
+  { icon: 'lock', label: 'Multi-Tenant mit Google-Login' },
+]
+
+/** Feature tour below the login card — the sign-in stays on top on purpose
+ * (the audience is small and approved manually; fast access matters more). */
+function LandingFeatures() {
+  return (
+    <section className="landing">
+      <h2 className="landing-title">Was cue kann</h2>
+      {FEATURES.map((f, i) => (
+        <motion.article
+          key={f.title}
+          className="landing-feature"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ ...springs.gentle, delay: Math.min(i * 0.05, 0.2) }}
+        >
+          <div className="landing-feature-head">
+            <span className="landing-icon">
+              <Icon name={f.icon} />
+            </span>
+            <div>
+              <h3>{f.title}</h3>
+              <p className="muted">{f.text}</p>
+            </div>
+          </div>
+          {f.shot && (
+            <img
+              className="landing-shot"
+              src={f.shot.src}
+              alt={f.shot.alt}
+              loading="lazy"
+              width={1280}
+              height={820}
+            />
+          )}
+        </motion.article>
+      ))}
+      <div className="landing-more">
+        {MORE.map((m) => (
+          <span key={m.label} className="chip landing-chip">
+            <Icon name={m.icon} /> {m.label}
+          </span>
+        ))}
+      </div>
+      <p className="muted landing-note">
+        Die Screenshots zeigen Demo-Inhalte. Anmeldung oben — neue Konten schaltet der Admin frei.
+      </p>
+    </section>
   )
 }

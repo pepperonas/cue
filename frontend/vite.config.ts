@@ -26,6 +26,8 @@ export default defineConfig({
       workbox: {
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Landing screenshots are only shown pre-login — don't bloat the PWA cache.
+        globIgnores: ['**/landing/**'],
       },
     }),
   ],

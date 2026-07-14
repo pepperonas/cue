@@ -1826,3 +1826,63 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   color: var(--md-on-surface-variant);
   flex: none;
 }
+
+/* ── Landing (Feature-Tour unter dem Login) ──────────────────────────── */
+.login-wrap {
+  align-content: start;
+  overflow-y: auto;
+}
+.login-wrap > .login-card { margin-top: max(6vh, 24px); }
+.landing {
+  width: min(860px, 100%);
+  margin: 56px auto 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+.landing-title {
+  font: var(--headline-m);
+  text-align: center;
+  margin: 0;
+}
+.landing-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.landing-feature-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.landing-feature-head h3 { margin: 0 0 4px; font: var(--title-m); }
+.landing-feature-head p { margin: 0; line-height: 1.55; max-width: 62ch; }
+.landing-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--shape-s);
+  background: color-mix(in srgb, var(--md-primary) 16%, transparent);
+  color: var(--md-primary);
+}
+.landing-shot {
+  width: 100%;
+  height: auto;
+  border-radius: var(--shape-l);
+  border: 1px solid var(--md-outline-variant);
+  box-shadow: var(--elev-2);
+}
+.landing-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.landing-chip { pointer-events: none; }
+.landing-note {
+  text-align: center;
+  font-size: 0.78rem;
+  margin: 0;
+}

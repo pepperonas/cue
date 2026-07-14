@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-07-14
+
+### Added
+- **Landing page for signed-out visitors**: below the (unchanged, top-priority)
+  login card, a "Was cue kann" section explains the main features — board,
+  runs and the IR snippet workbench with real app screenshots showing
+  fictional demo content (webshop/mobile-app sample prompts, demo snippets),
+  plus a chip row for the remaining features. Screenshots live under
+  `/landing/` and are lazy-loaded, deliberately excluded from the PWA
+  precache.
+
 ## [0.17.1] - 2026-07-14
 
 ### Fixed
