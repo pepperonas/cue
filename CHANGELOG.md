@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.2] - 2026-07-14
+
+### Changed
+- **Badge automation expanded**: the README now carries 11 dynamic badges,
+  all computed from real sources on every `npm test` — version (synced from
+  `backend/app/main.py`), tests total + per suite, backend/runner **coverage**
+  (parsed from `pytest --cov`, threshold-colored), LOC total + Python/
+  TypeScript split, and the API-endpoint count. Marker-based in-place
+  replacement (`<!-- badges:dynamic -->`), idempotent. Static badge rows
+  extended (pytest, Vitest, TanStack Query, dnd-kit, Motion, Material 3,
+  Google OAuth, Conventional Commits, self-hosted).
+- **README screenshots regenerated** with the fictional demo content
+  (board, prompt detail, runs, snippet workbench, grouped list, mobile,
+  light theme) — reproducible via the seeded-demo screenshot pipeline.
+
 ## [0.18.1] - 2026-07-14
 
 ### Added

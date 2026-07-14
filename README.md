@@ -2,21 +2,42 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-[![Version](https://img.shields.io/badge/version-0.18.1-blue.svg)](CHANGELOG.md)
+<!-- badges:dynamic -->
+[![version](https://img.shields.io/badge/version-0.18.2-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-277%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-142-brightgreen.svg)](backend/tests/)
+[![runner tests](https://img.shields.io/badge/runner%20tests-65-brightgreen.svg)](cue-runner/tests/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-70-brightgreen.svg)](frontend/src/lib/)
+[![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
+[![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
+[![LOC](https://img.shields.io/badge/LOC-14911-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-4306-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-8713-3178C6.svg)](#)
+[![API endpoints](https://img.shields.io/badge/API%20endpoints-64-8A2BE2.svg)](backend/app/routers/)
+<!-- /badges:dynamic -->
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
-[![Tests](https://img.shields.io/badge/tests-277%20passing-brightgreen.svg)](backend/tests/test_api.py)
-[![LOC](https://img.shields.io/badge/LOC-14764-blue.svg)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/)
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![SQLModel](https://img.shields.io/badge/SQLModel-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![SQLModel](https://img.shields.io/badge/SQLModel-SQLite%20WAL-003B57?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![pytest](https://img.shields.io/badge/pytest-9-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-2-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+
+[![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154?logo=reactquery&logoColor=white)](https://tanstack.com/query)
+[![dnd-kit](https://img.shields.io/badge/dnd--kit-drag%20%26%20drop-6332F6)](https://dndkit.com/)
+[![Motion](https://img.shields.io/badge/Motion-springs-FFF42B?logo=framer&logoColor=black)](https://motion.dev/)
+[![Material 3](https://img.shields.io/badge/Material%203-Expressive-6750A4?logo=materialdesign&logoColor=white)](https://m3.material.io/)
+[![Google OAuth](https://img.shields.io/badge/Auth-Google%20OAuth%202.0-4285F4?logo=google&logoColor=white)](https://developers.google.com/identity/protocols/oauth2)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
+[![Self-hosted](https://img.shields.io/badge/Self--hosted-cue.celox.io-1a1c22)](https://cue.celox.io)
 
 `cue` (≈ *queue*, „Stichwort zum Handeln") ist eine durchdachte Prompt-/Todo-Queue:
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
@@ -25,16 +46,24 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 
 ## Screenshots
 
+*Alle Screenshots zeigen fiktive Demo-Inhalte.*
+
 ![cue – Board (Dark)](docs/screenshots/board-dark.png)
 
-| Detail mit Live-Vorschau | Gruppierte Liste | Mobil |
-| --- | --- | --- |
-| ![Detail](docs/screenshots/detail-dark.png) | ![Liste](docs/screenshots/list-dark.png) | ![Mobil](docs/screenshots/mobile-dark.png) |
+| Prompt-Detail | Runs (Headless-Ausführung) |
+| --- | --- |
+| ![Detail](docs/screenshots/detail-dark.png) | ![Runs](docs/screenshots/runs-dark.png) |
+
+| Snippet-Werkbank (Inspector-Rust-Roundtrip) | Gruppierte Liste |
+| --- | --- |
+| ![Snippets](docs/screenshots/snippets-dark.png) | ![Liste](docs/screenshots/list-dark.png) |
 
 <details>
-<summary>Light Theme</summary>
+<summary>Mobil & Light Theme</summary>
 
-![cue – Board (Light)](docs/screenshots/board.png)
+| Mobil | Light |
+| --- | --- |
+| ![Mobil](docs/screenshots/mobile-dark.png) | ![cue – Board (Light)](docs/screenshots/board.png) |
 
 </details>
 
@@ -130,10 +159,19 @@ liegen in `backend/tests/conftest.py`.
 
 ### README-Badges (LOC + Testanzahl)
 
-`scripts/update-badges.mjs` hält die Badges ehrlich: Source-LOC (ohne Tests,
-`node_modules`, `dist`, Generiertes) und die Testanzahl **aus echtem
-Runner-Output** (`pytest --collect-only` + `vitest list`, kein `it()`-Grep).
-Läuft idempotent, automatisch nach `npm test` (posttest-Hook) oder manuell:
+`scripts/update-badges.mjs` hält alle **dynamischen Badges** ehrlich — komplett
+aus echten Quellen berechnet, nichts hardcodiert:
+
+| Badge | Quelle |
+| --- | --- |
+| Version | `backend/app/main.py` (`version="…"`) |
+| Tests gesamt + je Suite | `pytest --collect-only` / `vitest list` (kein `it()`-Grep — Skips/Todos würden mitzählen) |
+| Coverage Backend/Runner | `pytest --cov` (TOTAL-Zeile), Ampelfarbe nach Schwellwert |
+| LOC gesamt + Python/TypeScript | Source-Zeilen ohne Tests, `node_modules`, `dist`, Generiertes |
+| API-Endpoints | gezählte Route-Dekoratoren im Backend |
+
+Die Badges leben zwischen `<!-- badges:dynamic -->`-Markern im README und werden
+in-place ersetzt — idempotent, automatisch nach `npm test` (posttest-Hook) oder manuell:
 
 ```bash
 npm run update-badges
@@ -226,7 +264,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.18.1**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.18.2**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 
