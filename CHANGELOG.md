@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2026-07-14
+
+### Fixed
+- Snippet list: the version badge now sits flush right in each row (the title
+  did not expand — `.grow` was scoped to list items only), version + copy
+  button align at the row's right edge.
+
 ## [0.17.0] - 2026-07-14
 
 ### Added

@@ -1762,6 +1762,10 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
 .snippet-row:hover { background: var(--md-surface-container-high); }
 .snippet-row.dragging { opacity: 0.55; }
 .snippet-row .lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* .grow is scoped to .list-item elsewhere — the snippet row needs its own so
+   the title expands and version + copy button sit flush RIGHT. */
+.snippet-row .grow { flex: 1 1 auto; min-width: 0; }
+.snippet-row .snippet-version { margin-left: auto; }
 .snippet-abbr {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.8rem;
