@@ -267,8 +267,12 @@ async def import_backup(
                 groups_created += 1
             group_name = group.name
         if existing:
+            incoming_version = item.version or 1
             if item.title != existing.title or item.body != existing.body:
-                existing.version += 1  # content revision via import merge
+                # Shared cue<->IR merge rule: content changed.
+                existing.version = max(incoming_version, existing.version + 1)
+            else:
+                existing.version = max(incoming_version, existing.version)
             existing.title = item.title
             existing.body = item.body
             existing.group_name = group_name
@@ -284,6 +288,7 @@ async def import_backup(
                     body=item.body,
                     group_name=group_name,
                     sort_order=_next_snippet_order(session, uid, group_name),
+                    version=max(item.version or 1, 1),
                     created_at=_from_ms(item.created_at_ms) or utcnow(),
                     updated_at=_from_ms(item.updated_at_ms) or utcnow(),
                 )
@@ -339,6 +344,7 @@ def export_backup(
                 "group_name": s.group_name,
                 "created_at_ms": _to_ms(s.created_at),
                 "updated_at_ms": _to_ms(s.updated_at),
+                "version": s.version,
             }
             for s in snippets
         ],

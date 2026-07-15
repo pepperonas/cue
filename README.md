@@ -3,15 +3,15 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.18.4-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-277%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-142-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.19.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-279%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-144-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-65-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-70-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
-[![LOC](https://img.shields.io/badge/LOC-14915-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-4306-3776AB.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-14936-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-4327-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-8710-3178C6.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-64-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
@@ -135,13 +135,13 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 ### Tests
 
 Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
-gemockt) — zusammen **277 Tests**:
+gemockt) — zusammen **279 Tests**:
 
 ```bash
 npm test                             # alle drei Suiten + Badge-Update (posttest)
 
 # einzeln:
-cd backend    && uv run pytest                    # 142 Tests — API-Verhalten end-to-end
+cd backend    && uv run pytest                    # 144 Tests — API-Verhalten end-to-end
                                                   # (Auth/OAuth, Tenant-Isolation, CRUD,
                                                   #  Runs, Capture, SPA-Guard, CSP …)
 cd cue-runner && .venv/bin/python -m pytest       # 65 Tests — Executor, Orchestrierungs-Loops,
@@ -241,7 +241,10 @@ reisen per Name — auch **leere Gruppen** und ihre Reihenfolge überleben den
 Roundtrip. Ein Snippet ohne Gruppe exportiert cue als `category: ""`
 (explizit ungruppiert); `null` bedeutet beim Lesen „Zuordnung in IR nicht
 anfassen". Zeichengenaue Bodies und Millisekunden-Zeitstempel sind durch einen
-Golden-Roundtrip-Test gegen ein echtes IR-Backup abgesichert.
+Golden-Roundtrip-Test gegen ein echtes IR-Backup abgesichert. Die
+**Snippet-Version** reist als additives Feld mit (ältere IR-Builds ignorieren
+es); beim Merge gilt beidseitig: Inhalt geändert → `max(incoming, lokal+1)`,
+identisch → `max(incoming, lokal)`.
 
 ## Konto / Abmelden
 
@@ -264,7 +267,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.18.4**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.19.0**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 

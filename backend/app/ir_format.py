@@ -17,6 +17,10 @@ Write-side invariants (IR reads precisely this):
     null     -> leave IR's existing assignment untouched (read-side legacy
                 tolerance only — cue always WRITES "" for ungrouped).
 - history/notes/totp_entries/settings stay empty so IR leaves them alone.
+- `version` per snippet is an ADDITIVE field shared with IR's snippet
+  versioning: written always, read tolerantly (missing/0 -> 1). Merge rule on
+  BOTH sides: content differs -> max(incoming, local + 1); content identical
+  -> max(incoming, local).
 """
 from __future__ import annotations
 
@@ -37,6 +41,9 @@ class ParsedSnippet:
     category: str | None
     created_at_ms: int | None = None
     updated_at_ms: int | None = None
+    # Content revision (additive field, shared with IR >= versioning support).
+    # None = the source file predates the field -> treated as 1 when merging.
+    version: int | None = None
 
 
 @dataclass
@@ -84,6 +91,10 @@ def _parse_items(items, out: ParsedSnippets, categories_known: bool) -> None:
         else:
             # Legacy format knows no categories -> everything lands ungrouped.
             category = ""
+        try:
+            raw_version = int(item.get("version") or 0)
+        except (TypeError, ValueError):
+            raw_version = 0
         out.snippets.append(
             ParsedSnippet(
                 abbreviation=abbreviation,
@@ -92,6 +103,7 @@ def _parse_items(items, out: ParsedSnippets, categories_known: bool) -> None:
                 category=category,
                 created_at_ms=_ms(item.get("created_at")),
                 updated_at_ms=_ms(item.get("updated_at")),
+                version=raw_version if raw_version > 0 else None,
             )
         )
 
@@ -171,6 +183,9 @@ def build_ir_backup(snippets, groups, now_ms: int) -> dict:
                 "body": _get(s, "body"),
                 "created_at": _get(s, "created_at_ms") or now_ms,
                 "updated_at": _get(s, "updated_at_ms") or now_ms,
+                # Additive field (IR ignores unknown keys pre-versioning; with
+                # versioning both sides converge via the shared max() merge).
+                "version": _get(s, "version") or 1,
                 # cue always writes "" for ungrouped (never null): "" is IR's
                 # explicit "ungroup", null would leave IR's assignment as-is.
                 "category": _get(s, "group_name") or "",

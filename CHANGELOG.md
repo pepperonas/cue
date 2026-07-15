@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-07-15
+
+### Changed
+- **Snippet version travels the IR roundtrip** (protocol shared with Inspector
+  Rust): the export envelope now carries an ADDITIVE `version` field per
+  snippet (older IR builds ignore unknown keys — fully backward compatible),
+  and the import merges with the shared rule: content differs →
+  `max(incoming, local + 1)`, content identical → `max(incoming, local)`,
+  missing/0 → treated as 1. Re-importing cue's own export is a no-op; both
+  sides converge on the same number after every roundtrip. Supersedes
+  0.17.0's "cue-internal only" stance.
+
 ## [0.18.4] - 2026-07-15
 
 ### Added

@@ -344,3 +344,65 @@ def test_snippet_version_bumps_on_import_merge_content_change(client):
         headers={**hdr, "Content-Type": "application/json"},
     )
     assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 2
+
+
+def test_version_merge_rule_matches_ir_protocol(client):
+    """Shared cue<->IR rule: content differs -> max(incoming, local+1);
+    identical -> max(incoming, local); missing incoming -> 1."""
+    csrf = _auth(client)
+    hdr = _hdr(csrf)
+
+    def imp(items):
+        doc = {"version": 2, "snippets": items}
+        return client.post(
+            "/api/snippets/import",
+            content=json.dumps(doc),
+            headers={**hdr, "Content-Type": "application/json"},
+        )
+
+    # New snippet carrying version 5 keeps it.
+    imp([{"abbreviation": "vv", "title": "", "body": "a", "version": 5}])
+    s = next(x for x in client.get("/api/snippets").json() if x["abbreviation"] == "vv")
+    assert s["version"] == 5
+
+    # Identical content, lower incoming -> local wins (no downgrade).
+    imp([{"abbreviation": "vv", "title": "", "body": "a", "version": 2}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 5
+
+    # Identical content, higher incoming -> adopt.
+    imp([{"abbreviation": "vv", "title": "", "body": "a", "version": 9}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 9
+
+    # Content differs, incoming lower -> local+1 wins.
+    imp([{"abbreviation": "vv", "title": "", "body": "b", "version": 3}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 10
+
+    # Content differs, incoming higher -> incoming wins.
+    imp([{"abbreviation": "vv", "title": "", "body": "c", "version": 42}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 42
+
+    # Legacy file without version field: differs -> local+1; identical -> keep.
+    imp([{"abbreviation": "vv", "title": "", "body": "d"}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 43
+    imp([{"abbreviation": "vv", "title": "", "body": "d"}])
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 43
+
+
+def test_version_survives_export_import_roundtrip(client):
+    csrf = _auth(client)
+    hdr = _hdr(csrf)
+    s = _mk(client, hdr, "rt", body="one")
+    client.patch(f"/api/snippets/{s['id']}", json={"body": "two"}, headers=hdr)
+    client.patch(f"/api/snippets/{s['id']}", json={"body": "three"}, headers=hdr)  # v3
+
+    exported = client.get("/api/snippets/export").json()
+    row = next(x for x in exported["snippets"] if x["abbreviation"] == "rt")
+    assert row["version"] == 3  # additive field in the envelope
+
+    # Re-import of our own export is a no-op (identical content, same version).
+    client.post(
+        "/api/snippets/import",
+        content=json.dumps(exported),
+        headers={**hdr, "Content-Type": "application/json"},
+    )
+    assert client.get(f"/api/snippets/{s['id']}").json()["version"] == 3
