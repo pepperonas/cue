@@ -3,16 +3,16 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.18.3-blue.svg)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.18.4-blue.svg)](CHANGELOG.md)
 [![tests](https://img.shields.io/badge/tests-277%20passing-brightgreen.svg)](backend/tests/)
 [![backend tests](https://img.shields.io/badge/backend%20tests-142-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-65-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-70-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
-[![LOC](https://img.shields.io/badge/LOC-14914-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-14915-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-4306-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-8709-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-8710-3178C6.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-64-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
 
@@ -264,7 +264,7 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.18.3**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Aktuelle Version: **0.18.4**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 

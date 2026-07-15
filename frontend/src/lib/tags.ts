@@ -27,6 +27,7 @@ export const DEV_TAGS: string[] = [
   // change type
   'feature',
   'enhancement',
+  'improvement',
   'bug',
   'fix',
   'bugfix',
