@@ -51,7 +51,7 @@ loops in `test_orchestration.py`, no network), `frontend/src/lib/*.test.ts`
 (Vitest, only pure lib modules — UI components are deliberately untested). Test behavior,
 not implementation; external deps (Google OAuth via monkeypatched `_post_form`/`_get_json`,
 subprocesses, browser APIs) are mocked; everything runs offline and deterministically.
-Coverage: backend 99 %, runner 91 % (`--cov=app` / `--cov=cue_runner`); remaining gaps are
+Coverage: backend 98 %, runner 91 % (`--cov=app` / `--cov=cue_runner`); remaining gaps are
 defensive except-branches, `__main__.py` and a few executor cancel branches. `scripts/update-badges.mjs` maintains 11 DYNAMIC badges between `<!-- badges:dynamic -->` markers in README.md (marker block must exist): version (single source = `backend/app/main.py` — the badge syncs automatically, only bump main.py), tests total + per suite (`pytest --collect-only` / `vitest list`, never grep `it()`), backend+runner coverage (`pytest --cov` TOTAL, threshold colors), LOC total + Python/TS split, API-endpoint count (route decorators). Runs on every `npm test` via posttest; idempotent.
 
 ## Architecture
