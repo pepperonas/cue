@@ -101,7 +101,7 @@ export function TopBar({
           })
         }}
       />
-      <IconButton icon="keyboard" label="Shortcuts (?)" onClick={onShortcuts} />
+      <IconButton icon="keyboard" label="Shortcuts (?)" className="hide-mobile" onClick={onShortcuts} />
       <IconButton icon="settings" label="Einstellungen" onClick={() => onView('settings')} />
     </header>
   )

@@ -1480,19 +1480,36 @@ kbd {
     padding: var(--gap-3) var(--gap-3) 140px;
   }
   .topbar {
-    gap: var(--gap-2);
-    padding: var(--gap-2) var(--gap-3);
+    gap: var(--gap-1);
+    padding: var(--gap-2);
   }
   /* Logo-only brand to save width. */
   .brand-name {
     display: none;
   }
-  /* Icon-only tabs so the bar never overflows the viewport. */
+  .topbar-spacer {
+    display: none;
+  }
+  /* Keyboard-shortcut help is pointless on touch — reclaim its width. */
+  .topbar .hide-mobile {
+    display: none;
+  }
+  /* Icon-only tabs; if they still exceed the width, the pill SCROLLS
+     horizontally instead of pushing the action icons off-screen. */
   .tabs {
     gap: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
   }
   .tab {
-    padding: 8px 12px;
+    padding: 8px 10px;
+    flex: none;
   }
   .tab-label {
     display: none;

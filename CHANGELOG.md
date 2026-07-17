@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1] - 2026-07-17
+
+### Fixed
+- **Mobile topbar was unusable** — with seven tabs the header overflowed the
+  viewport and pushed the theme/settings icons off-screen. The tab pill now
+  scrolls horizontally on its own (hidden scrollbar) while brand and action
+  icons stay fixed and visible; the keyboard-shortcuts button is hidden on
+  touch widths (pointless there) and the spacer collapses. Verified down to
+  320 px with no page-level horizontal scroll.
+
 ## [0.19.0] - 2026-07-15
 
 ### Changed
