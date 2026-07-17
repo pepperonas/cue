@@ -4,8 +4,8 @@
 
 <!-- badges:dynamic -->
 [![version](https://img.shields.io/badge/version-0.19.1-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-279%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-144-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-290%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-155-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-65-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-70-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
@@ -135,13 +135,13 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 ### Tests
 
 Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
-gemockt) — zusammen **279 Tests**:
+gemockt) — zusammen **290 Tests**:
 
 ```bash
 npm test                             # alle drei Suiten + Badge-Update (posttest)
 
 # einzeln:
-cd backend    && uv run pytest                    # 144 Tests — API-Verhalten end-to-end
+cd backend    && uv run pytest                    # 155 Tests — API-Verhalten end-to-end
                                                   # (Auth/OAuth, Tenant-Isolation, CRUD,
                                                   #  Runs, Capture, SPA-Guard, CSP …)
 cd cue-runner && .venv/bin/python -m pytest       # 65 Tests — Executor, Orchestrierungs-Loops,
