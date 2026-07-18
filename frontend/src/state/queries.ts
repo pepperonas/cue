@@ -68,6 +68,20 @@ export function useDuplicatePrompt() {
   })
 }
 
+export function useDuplicateInPlace() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.duplicatePromptInPlace(id),
+    onSuccess: (prompt) => {
+      // Appending is enough for instant feedback: the copy shares the source's
+      // sort_order, so columnComparator slots it right below the original.
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) => [...(old ?? []), prompt])
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
 export function useDeletePrompt() {
   const qc = useQueryClient()
   return useMutation({

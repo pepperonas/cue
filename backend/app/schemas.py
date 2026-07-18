@@ -127,6 +127,10 @@ class BookmarkReorderRequest(BaseModel):
 class DuplicateRequest(BaseModel):
     # Target project for the copy (None = no project).
     project_id: int | None = None
+    # True = full in-place duplicate: same project + status as the source,
+    # title suffixed "(n+1)", placed directly below the original. project_id
+    # is ignored in this mode.
+    in_place: bool = False
 
 
 class MergeRequest(BaseModel):

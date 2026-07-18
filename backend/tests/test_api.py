@@ -234,6 +234,89 @@ def test_duplicate_prompt_to_project(client):
     assert bad.status_code == 400
 
 
+def test_duplicate_in_place(client):
+    """in_place=true: full copy next to the original — same project + status,
+    title suffixed "(2)" / incremented "(n+1)", same sort_order (id tie-breaks
+    the copy directly below), attachments cloned."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    proj = client.post(
+        "/api/projects", json={"name": "dupes", "color": "#2E7D55"}, headers=headers
+    ).json()
+    up = client.post(
+        "/api/attachments",
+        files={"file": ("shot.png", io.BytesIO(_PNG), "image/png")},
+        headers=headers,
+    )
+    aid = up.json()["id"]
+    src = client.post(
+        "/api/prompts",
+        json={"title": "Fix login", "body": "fix it", "tags": "auth",
+              "project_id": proj["id"], "attachment_ids": [aid]},
+        headers=headers,
+    ).json()
+
+    dup = client.post(
+        f"/api/prompts/{src['id']}/duplicate", json={"in_place": True}, headers=headers
+    )
+    assert dup.status_code == 201, dup.text
+    copy = dup.json()
+    assert copy["title"] == "Fix login (2)"
+    assert copy["body"] == "fix it" and copy["tags"] == "auth"
+    assert copy["project_id"] == proj["id"]
+    assert copy["status"] == "queued"  # same status as the source, NOT forced
+    assert copy["sort_order"] == src["sort_order"]  # sits directly below (id tie-break)
+    assert len(copy["attachments"]) == 1 and copy["attachments"][0]["id"] != aid
+
+    # Duplicating the copy increments the existing counter instead of nesting.
+    dup2 = client.post(
+        f"/api/prompts/{copy['id']}/duplicate", json={"in_place": True}, headers=headers
+    ).json()
+    assert dup2["title"] == "Fix login (3)"
+
+    # Listing keeps original -> (2) -> (3) adjacency within the column.
+    titles = [p["title"] for p in client.get("/api/prompts").json() if p["status"] == "queued"]
+    assert titles == ["Fix login", "Fix login (2)", "Fix login (3)"]
+
+
+def test_duplicate_in_place_carries_status_blocked_and_bookmark(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    # A done + bookmarked source: the copy stays done, gets a fresh ran_at,
+    # keeps the bookmark (appended to the bookmark order), but is never tested.
+    done = client.post(
+        "/api/prompts", json={"title": "Ship", "body": "b", "status": "done"}, headers=headers
+    ).json()
+    client.patch(f"/api/prompts/{done['id']}", json={"bookmarked": True, "tested": True},
+                 headers=headers)
+    copy = client.post(
+        f"/api/prompts/{done['id']}/duplicate", json={"in_place": True}, headers=headers
+    ).json()
+    assert copy["status"] == "done" and copy["ran_at"] is not None
+    assert copy["bookmarked"] is True and copy["bookmark_order"] > 0
+    assert copy["tested"] is False  # a duplicate hasn't been verified
+
+    # A blocked queued source stays blocked in the copy.
+    q = client.post("/api/prompts", json={"title": "Blocked one", "body": "b"}, headers=headers).json()
+    client.patch(f"/api/prompts/{q['id']}", json={"blocked": True}, headers=headers)
+    bcopy = client.post(
+        f"/api/prompts/{q['id']}/duplicate", json={"in_place": True}, headers=headers
+    ).json()
+    assert bcopy["blocked"] is True and bcopy["status"] == "queued"
+
+    # in_place ignores any project_id sent along: the copy stays in place.
+    proj = client.post("/api/projects", json={"name": "other", "color": "#333333"},
+                       headers=headers).json()
+    icopy = client.post(
+        f"/api/prompts/{q['id']}/duplicate",
+        json={"in_place": True, "project_id": proj["id"]},
+        headers=headers,
+    ).json()
+    assert icopy["project_id"] is None
+
+
 def test_tenant_isolation(client):
     # User A creates a prompt.
     csrf_a = _auth(client, email="a@example.com", sub="sub-a")

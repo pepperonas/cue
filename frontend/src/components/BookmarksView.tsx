@@ -27,6 +27,7 @@ interface Props {
   selectedId: number | null
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onDuplicate?: (p: Prompt) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
   onReorder: (items: { id: number; bookmark_order: number }[]) => void
@@ -39,6 +40,7 @@ export function BookmarksView({
   selectedId,
   onOpen,
   onCopy,
+  onDuplicate,
   onToggleBookmark,
   onToggleTested,
   onReorder,
@@ -125,6 +127,7 @@ export function BookmarksView({
                   selected={selectedId === id}
                   onOpen={onOpen}
                   onCopy={onCopy}
+                  onDuplicate={onDuplicate}
                   onToggleBookmark={onToggleBookmark}
                   onToggleTested={onToggleTested}
                 />

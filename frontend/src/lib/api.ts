@@ -114,6 +114,8 @@ export const api = {
   // Copy a prompt (incl. screenshots) into another project; lands as queued.
   duplicatePrompt: (id: number, project_id: number | null) =>
     request<Prompt>('POST', `/prompts/${id}/duplicate`, { project_id }),
+  duplicatePromptInPlace: (id: number) =>
+    request<Prompt>('POST', `/prompts/${id}/duplicate`, { in_place: true }),
   reorder: (items: { id: number; status: Status; sort_order: number }[]) =>
     request<Prompt[]>('POST', '/prompts/reorder', { items }),
   reorderBookmarks: (items: { id: number; bookmark_order: number }[]) =>

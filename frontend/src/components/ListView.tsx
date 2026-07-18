@@ -18,6 +18,7 @@ interface Props {
   selectedId: number | null
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
@@ -46,6 +47,7 @@ export function ListView({
   selectedId,
   onOpen,
   onCopy,
+  onDuplicate,
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
@@ -110,6 +112,7 @@ export function ListView({
                           selected={selectedId === p.id}
                           onOpen={onOpen}
                           onCopy={onCopy}
+                          onDuplicate={onDuplicate}
                           onToggleBookmark={onToggleBookmark}
                           onToggleTested={onToggleTested}
                           onToggleBlocked={onToggleBlocked}
@@ -139,6 +142,7 @@ interface RowProps {
   selected: boolean
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
@@ -156,6 +160,7 @@ function ListRow({
   selected,
   onOpen,
   onCopy,
+  onDuplicate,
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
@@ -245,6 +250,19 @@ function ListRow({
       )}
       {onToggleBookmark && (
         <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />
+      )}
+      {onDuplicate && (
+        <button
+          className="mini-btn"
+          aria-label="Duplizieren"
+          title="Duplizieren"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDuplicate(p)
+          }}
+        >
+          <Icon name="control_point_duplicate" />
+        </button>
       )}
       <button
         className="mini-btn copy-btn"

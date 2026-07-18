@@ -16,6 +16,7 @@ import {
   projectMap,
   useCreateRun,
   useDeletePrompt,
+  useDuplicateInPlace,
   useDuplicatePrompt,
   useMergePrompts,
   usePrompts,
@@ -125,6 +126,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
   const duplicate = useDuplicatePrompt()
+  const duplicateInPlace = useDuplicateInPlace()
   const merge = useMergePrompts()
   const runConfigQ = useRunConfig()
   const canRun = runConfigQ.isSuccess
@@ -262,6 +264,19 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       toast.show(p.bookmarked ? 'Bookmark entfernt' : 'Gebookmarkt', 'success')
     },
     [toast, update],
+  )
+
+  const handleDuplicate = useCallback(
+    (p: Prompt) => {
+      duplicateInPlace.mutate(p.id, {
+        onSuccess: (copy) => {
+          vibrate(8)
+          toast.show(`Dupliziert: „${copy.title}"`, 'success')
+        },
+        onError: () => toast.show('Duplizieren fehlgeschlagen', 'error'),
+      })
+    },
+    [duplicateInPlace, toast],
   )
 
   const handleToggleBlocked = useCallback(
@@ -516,6 +531,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectedId={selectedId}
                 onOpen={openDetail}
                 onCopy={handleCopy}
+                onDuplicate={handleDuplicate}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
                 onToggleBlocked={handleToggleBlocked}
@@ -534,6 +550,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 selectedId={selectedId}
                 onOpen={openDetail}
                 onCopy={handleCopy}
+                onDuplicate={handleDuplicate}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
                 onToggleBlocked={handleToggleBlocked}
@@ -554,6 +571,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             selectedId={selectedId}
             onOpen={openDetail}
             onCopy={handleCopy}
+            onDuplicate={handleDuplicate}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
             onReorder={(items) => reorderBookmarks.mutate(items)}

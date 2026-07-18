@@ -1,6 +1,8 @@
 """Prompt CRUD, filtering, and reorder endpoints (scoped to the authenticated user)."""
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, update
 from sqlmodel import Session, select
@@ -61,6 +63,18 @@ def _derive_title(title: str, body: str) -> str:
     # Strip a leading markdown heading marker for a cleaner title.
     cleaned = first_line.lstrip("#").strip()
     return cleaned[:120] if cleaned else "Untitled prompt"
+
+
+# Trailing "(n)" counter on duplicated titles, e.g. "Fix login (2)".
+_DUP_SUFFIX = re.compile(r"^(?P<base>.*\S)\s*\((?P<n>\d+)\)$")
+
+
+def _dup_title(title: str) -> str:
+    """Title for an in-place duplicate: append "(2)", or bump an existing "(n)"."""
+    m = _DUP_SUFFIX.match(title)
+    if m:
+        return f"{m.group('base')} ({int(m.group('n')) + 1})"
+    return f"{title} (2)" if title else "Untitled prompt (2)"
 
 
 def _next_sort_order(session: Session, status_value: PromptStatus, uid: int) -> int:
@@ -258,22 +272,43 @@ def duplicate_prompt(
     uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> Prompt:
-    """Copy a prompt into another project (title/body/tags + screenshots).
+    """Copy a prompt (title/body/tags + screenshots).
 
-    The copy always starts as `queued` in the target project; attachment files
-    are duplicated on disk so the copy owns its screenshots independently."""
+    Default mode copies into another project: the copy always starts as
+    `queued` in the target project with the title verbatim. `in_place=true`
+    instead duplicates everything where it is: same project AND status, title
+    suffixed "(n+1)", same sort_order as the source (the higher id tie-breaks
+    it directly below the original). Attachment files are duplicated on disk
+    either way so the copy owns its screenshots independently."""
     src = _owned(session, prompt_id, uid)
-    _check_project(session, payload.project_id, uid)
 
-    copy = Prompt(
-        user_id=uid,
-        title=src.title,
-        body=src.body,
-        project_id=payload.project_id,
-        status=PromptStatus.queued,
-        tags=src.tags,
-        sort_order=_next_sort_order(session, PromptStatus.queued, uid),
-    )
+    if payload.in_place:
+        copy = Prompt(
+            user_id=uid,
+            title=_dup_title(src.title),
+            body=src.body,
+            project_id=src.project_id,
+            status=src.status,
+            tags=src.tags,
+            sort_order=src.sort_order,
+            blocked=src.blocked,
+        )
+        if src.bookmarked:
+            copy.bookmarked = True
+            copy.bookmark_order = _next_bookmark_order(session, uid)
+        if src.status in _RAN_STATUSES:
+            copy.ran_at = utcnow()
+    else:
+        _check_project(session, payload.project_id, uid)
+        copy = Prompt(
+            user_id=uid,
+            title=src.title,
+            body=src.body,
+            project_id=payload.project_id,
+            status=PromptStatus.queued,
+            tags=src.tags,
+            sort_order=_next_sort_order(session, PromptStatus.queued, uid),
+        )
     session.add(copy)
     session.flush()  # assign copy.id for the cloned attachments
 

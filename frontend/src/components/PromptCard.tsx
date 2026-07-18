@@ -20,6 +20,7 @@ interface Props {
   index: number
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
@@ -37,6 +38,7 @@ export function PromptCard({
   index,
   onOpen,
   onCopy,
+  onDuplicate,
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
@@ -171,6 +173,17 @@ export function PromptCard({
                 className={`st-icon ${STATUS_CLASS[prompt.status]}`}
               />
             </button>
+            {onDuplicate && (
+              <button
+                className="mini-btn"
+                aria-label="Duplizieren"
+                title="Duplizieren"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onDuplicate(prompt)}
+              >
+                <Icon name="control_point_duplicate" />
+              </button>
+            )}
             <button
               className="mini-btn copy-btn"
               aria-label="Kopieren"

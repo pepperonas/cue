@@ -29,6 +29,7 @@ interface Props {
   selectedId: number | null
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
@@ -83,6 +84,7 @@ export function Board({
   selectedId,
   onOpen,
   onCopy,
+  onDuplicate,
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
@@ -223,6 +225,7 @@ export function Board({
                       selected={selectedId === id}
                       onOpen={onOpen}
                       onCopy={onCopy}
+                      onDuplicate={onDuplicate}
                       onToggleBookmark={onToggleBookmark}
                       onToggleTested={onToggleTested}
                       onToggleBlocked={onToggleBlocked}

@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-07-18
+
+### Added
+- **One-click duplicate on cards and list rows** — a new duplicate button
+  (⧉, next to the copy button) clones a prompt without opening the detail
+  view. `POST /prompts/{id}/duplicate` gained an `in_place` mode: unlike the
+  existing copy-to-project (which always lands queued in the target), an
+  in-place duplicate copies EVERYTHING where it is — same project, same
+  status, tags, blocked flag, bookmark (appended to the bookmarks section),
+  cloned screenshot files — and titles the copy with an incrementing counter:
+  `Titel` → `Titel (2)` → `Titel (3)`. The copy shares the source's
+  `sort_order`, so it appears directly below the original in its column.
+  `tested` and `ran_at` are deliberately not inherited (a duplicate hasn't
+  been verified; done/running copies get a fresh `ran_at`).
+
 ## [0.19.1] - 2026-07-17
 
 ### Fixed
