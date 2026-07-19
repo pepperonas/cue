@@ -29,11 +29,15 @@ import {
   useReorderSnippets,
   useSnippetGroups,
   useSnippets,
+  useSyncSettings,
+  useToggleGroupSync,
+  useUpdateSyncSettings,
 } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Confirm } from './Confirm'
 import { InputDialog } from './InputDialog'
 import { SnippetEditor } from './SnippetEditor'
+import { ToggleIconButton } from './ToggleIconButton'
 import { Button, Icon, IconButton } from './ui'
 
 const COLLAPSE_KEY = 'cue-snippet-collapsed'
@@ -66,6 +70,13 @@ export function SnippetsView() {
   const deleteGroup = useDeleteSnippetGroup()
   const del = useDeleteSnippet()
   const importBackup = useImportSnippets()
+  const { data: syncSettings } = useSyncSettings()
+  const toggleGroupSync = useToggleGroupSync()
+  const updateSync = useUpdateSyncSettings()
+  const syncedByGroupId = useMemo(
+    () => new Map((groups ?? []).map((g) => [g.id, g.synced])),
+    [groups],
+  )
 
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
   const [editing, setEditing] = useState<Snippet | null>(null)
@@ -378,6 +389,24 @@ export function SnippetsView() {
                 byId={byId}
                 collapsed={collapsed.includes(sec.key)}
                 dragDisabled={searching || selectMode}
+                synced={
+                  sec.groupId != null
+                    ? (syncedByGroupId.get(sec.groupId) ?? false)
+                    : (syncSettings?.sync_ungrouped ?? false)
+                }
+                onToggleSync={(next) => {
+                  if (sec.groupId != null) {
+                    toggleGroupSync.mutate({ id: sec.groupId, synced: next })
+                  } else {
+                    updateSync.mutate({ sync_ungrouped: next })
+                  }
+                  toast.show(
+                    next
+                      ? `„${sec.key === UNGROUPED_KEY ? UNGROUPED_LABEL : sec.name}" wird mit Inspector Rust synchronisiert`
+                      : 'Sync für diese Gruppe deaktiviert',
+                    'success',
+                  )
+                }}
                 onToggle={() => toggleCollapse(sec.key)}
                 onRename={
                   sec.groupId != null
@@ -560,6 +589,8 @@ function SnippetSectionView({
   byId,
   collapsed,
   dragDisabled,
+  synced,
+  onToggleSync,
   onToggle,
   onRename,
   onDelete,
@@ -577,6 +608,8 @@ function SnippetSectionView({
   byId: Map<number, Snippet>
   collapsed: boolean
   dragDisabled: boolean
+  synced: boolean
+  onToggleSync: (next: boolean) => void
   onToggle: () => void
   onRename?: () => void
   onDelete?: () => void
@@ -634,6 +667,15 @@ function SnippetSectionView({
           <span className="list-group-label">{name}</span>
           <span className="count">{ids.length}</span>
         </button>
+        <ToggleIconButton
+          active={synced}
+          onToggle={() => onToggleSync(!synced)}
+          iconOn="cloud_sync"
+          iconOff="cloud_off"
+          labelOn="Sync mit Inspector Rust aktiv — klicken zum Deaktivieren"
+          labelOff="Mit Inspector Rust synchronisieren"
+          baseClass="sync-btn"
+        />
         {onRename && <IconButton icon="edit" label="Umbenennen" onClick={onRename} />}
         {onDelete && <IconButton icon="delete" label="Gruppe löschen" onClick={onDelete} />}
       </div>

@@ -17,7 +17,18 @@ from sqlmodel import Session
 
 from .config import get_settings
 from .db import engine, init_db
-from .routers import admin, attachments, auth, capture, importexport, projects, prompts, runs, snippets
+from .routers import (
+    admin,
+    attachments,
+    auth,
+    capture,
+    importexport,
+    projects,
+    prompts,
+    runs,
+    snippets,
+    sync,
+)
 
 _settings = get_settings()
 
@@ -64,7 +75,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.20.0",
+    version="0.21.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -117,6 +128,7 @@ api.include_router(attachments.router)
 api.include_router(runs.router)
 api.include_router(capture.router)
 api.include_router(snippets.router)
+api.include_router(sync.router)
 api.include_router(importexport.router)
 
 

@@ -5,6 +5,7 @@ import type {
   Snippet,
   SnippetGroup,
   SnippetImportResult,
+  SyncSettings,
   Attachment,
   CaptureSession,
   CaptureSessionDetail,
@@ -227,6 +228,8 @@ export const snippetsApi = {
   createGroup: (name: string) => request<SnippetGroup>('POST', '/snippets/groups', { name }),
   renameGroup: (id: number, name: string) =>
     request<SnippetGroup>('PATCH', `/snippets/groups/${id}`, { name }),
+  setGroupSynced: (id: number, synced: boolean) =>
+    request<SnippetGroup>('PATCH', `/snippets/groups/${id}`, { synced }),
   deleteGroup: (id: number) => request<void>('DELETE', `/snippets/groups/${id}`),
   reorderGroups: (items: { id: number; sort_order: number }[]) =>
     request<SnippetGroup[]>('POST', '/snippets/groups/reorder', { items }),
@@ -244,4 +247,7 @@ export const snippetsApi = {
     if (!res.ok) throw new Error(data?.detail || 'Import fehlgeschlagen')
     return data as SnippetImportResult
   },
+  getSyncSettings: () => request<SyncSettings>('GET', '/sync/settings'),
+  updateSyncSettings: (patch: { regenerate?: boolean; sync_ungrouped?: boolean }) =>
+    request<SyncSettings>('POST', '/sync/settings', patch),
 }

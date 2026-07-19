@@ -41,6 +41,12 @@ class User(SQLModel, table=True):
     # Admin approval: sign-in is open (Google), data access only once approved.
     # Allowlisted emails/domains and the owner are auto-approved on login.
     approved: bool = Field(default=False)
+    # Snippet sync with Inspector Rust: Bearer token for the /api/sync
+    # endpoints (IR is the polling client), whether ungrouped snippets are in
+    # the sync scope, and when the last sync cycle touched this account.
+    snippet_sync_token: str | None = Field(default=None, index=True)
+    sync_ungrouped: bool = Field(default=False)
+    snippet_sync_last: datetime | None = Field(default=None)
 
 
 class Project(SQLModel, table=True):
@@ -249,6 +255,27 @@ class SnippetGroup(SQLModel, table=True):
     # would collide with snippet.group_name's (ix_snippet_group_name).
     name: str = Field(default="")
     sort_order: int = Field(default=0)
+    # Sync scope: groups toggled on here are exchanged with Inspector Rust.
+    synced: bool = Field(default=False)
+
+
+class SnippetTombstone(SQLModel, table=True):
+    """Remembers a deleted (or renamed-away) snippet abbreviation so the
+    deletion propagates to Inspector Rust instead of the snippet being
+    resurrected by the next sync cycle. Pruned after ~90 days.
+
+    `version` is the revision the snippet had when it died: a peer only
+    deletes its copy if that copy isn't newer (peer.version <= version), and a
+    recreation must start at version + 1 or the tombstone would kill it again."""
+
+    __tablename__ = "snippet_tombstone"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    abbreviation: str = Field(index=True)
+    group_name: str | None = Field(default=None)
+    version: int = Field(default=1)
+    deleted_at: datetime = Field(default_factory=utcnow)
 
 
 class Snippet(SQLModel, table=True):

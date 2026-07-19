@@ -226,6 +226,15 @@ export interface SnippetGroup {
   id: number
   name: string
   sort_order: number
+  // In the Inspector-Rust sync scope (toggled in the group header).
+  synced: boolean
+}
+
+export interface SyncSettings {
+  has_token: boolean
+  sync_ungrouped: boolean
+  last_sync: string | null
+  token?: string | null
 }
 
 export interface SnippetImportResult {

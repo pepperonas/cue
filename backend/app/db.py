@@ -64,10 +64,16 @@ def _migrate(engine: Engine) -> None:
         # Backfilled below: users that existed before the approval feature were
         # allowlisted at login time, so they stay approved.
         "approved": "ALTER TABLE user ADD COLUMN approved BOOLEAN NOT NULL DEFAULT 0",
+        "snippet_sync_token": "ALTER TABLE user ADD COLUMN snippet_sync_token VARCHAR",
+        "sync_ungrouped": "ALTER TABLE user ADD COLUMN sync_ungrouped BOOLEAN NOT NULL DEFAULT 0",
+        "snippet_sync_last": "ALTER TABLE user ADD COLUMN snippet_sync_last TIMESTAMP",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).
         "version": "ALTER TABLE snippet ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+    }
+    snippet_group_additions = {
+        "synced": "ALTER TABLE snippet_group ADD COLUMN synced BOOLEAN NOT NULL DEFAULT 0",
     }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
@@ -81,6 +87,7 @@ def _migrate(engine: Engine) -> None:
             ("project", project_additions),
             ("user", user_additions),
             ("snippet", snippet_additions),
+            ("snippet_group", snippet_group_additions),
             ("capture_session", capture_session_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}

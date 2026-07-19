@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { PRESET_SEEDS } from '../lib/color'
 import type { Project } from '../lib/types'
-import { useAdminUsers, useCaptureSettings, useMe, useSetUserApproval, useUpdateCaptureSettings } from '../state/queries'
+import { useAdminUsers, useCaptureSettings, useMe, useSetUserApproval, useSyncSettings, useUpdateCaptureSettings, useUpdateSyncSettings } from '../state/queries'
 import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
@@ -38,6 +38,10 @@ export function SettingsView({
   useEffect(() => {
     if (capture) setCaptureBase(capture.project_base)
   }, [capture?.project_base])
+
+  const { data: syncSettings } = useSyncSettings()
+  const updateSync = useUpdateSyncSettings()
+  const [newSyncToken, setNewSyncToken] = useState<string | null>(null)
 
   async function doImport(files: FileList | null) {
     if (!files || !files.length) return
@@ -252,6 +256,76 @@ export function SettingsView({
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="section">
+        <h3>Snippet-Sync (Inspector Rust)</h3>
+        <p className="muted" style={{ fontSize: '0.85rem', marginTop: -4 }}>
+          Synchronisiert Snippets automatisch mit Inspector Rust — in beide Richtungen.
+          Welche Gruppen mitmachen, schaltest du direkt im Snippets-Tab am ☁️-Symbol im
+          Gruppen-Header um. Löschungen werden mitgeführt; bei gleichzeitiger Bearbeitung
+          gewinnt die höhere Version (bei Gleichstand cue).
+        </p>
+        <div className="field">
+          <label>Sync-Token</label>
+          <div className="row">
+            <span className="muted" style={{ flex: 1 }}>
+              {syncSettings?.has_token ? 'Token gesetzt.' : 'Noch kein Token.'} In Inspector
+              Rust unter {'„Settings → Cloud-Sync (cue)"'} eintragen.
+            </span>
+            <Button
+              variant="outlined"
+              icon="key"
+              onClick={() =>
+                updateSync.mutate(
+                  { regenerate: true },
+                  {
+                    onSuccess: (d) => {
+                      setNewSyncToken(d.token ?? null)
+                      toast.show('Neues Sync-Token erzeugt', 'success')
+                    },
+                  },
+                )
+              }
+            >
+              {syncSettings?.has_token ? 'Neu generieren' : 'Token generieren'}
+            </Button>
+          </div>
+          {newSyncToken && (
+            <div className="field">
+              <label style={{ color: 'var(--md-error)' }}>
+                ⚠️ Nur jetzt sichtbar — in Inspector Rust einfügen:
+              </label>
+              <div className="row">
+                <code
+                  style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    background: 'var(--md-surface-container-lowest)',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--shape-s)',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {newSyncToken}
+                </code>
+                <IconButton
+                  icon="content_copy"
+                  label="Kopieren"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(newSyncToken)
+                    toast.show('Kopiert', 'success')
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="muted" style={{ fontSize: '0.78rem' }}>
+            {syncSettings?.last_sync
+              ? `Zuletzt synchronisiert: ${new Date(syncSettings.last_sync).toLocaleString()}`
+              : 'Noch nie synchronisiert.'}
+          </div>
         </div>
       </div>
 

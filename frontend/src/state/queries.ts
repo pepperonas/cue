@@ -330,6 +330,7 @@ export function projectMap(projects: Project[] | undefined): Map<number, Project
 
 // ---- Snippets ----
 import { snippetsApi } from '../lib/api'
+import type { SnippetGroup } from '../lib/types'
 
 const SNIPPETS_KEY = ['snippets'] as const
 const SNIPPET_GROUPS_KEY = ['snippet-groups'] as const
@@ -440,6 +441,43 @@ export function useReorderSnippetGroups() {
 export function useImportSnippets() {
   const invalidate = useInvalidateSnippets()
   return useMutation({ mutationFn: snippetsApi.importBackup, onSuccess: invalidate })
+}
+
+// ---- Snippet sync with Inspector Rust ----
+const SYNC_SETTINGS_KEY = ['sync-settings'] as const
+
+export function useSyncSettings() {
+  return useQuery({ queryKey: SYNC_SETTINGS_KEY, queryFn: snippetsApi.getSyncSettings })
+}
+
+export function useUpdateSyncSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { regenerate?: boolean; sync_ungrouped?: boolean }) =>
+      snippetsApi.updateSyncSettings(patch),
+    onSuccess: (data) => qc.setQueryData(SYNC_SETTINGS_KEY, data),
+  })
+}
+
+// Optimistic per-group sync toggle so the header button flips instantly.
+export function useToggleGroupSync() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, synced }: { id: number; synced: boolean }) =>
+      snippetsApi.setGroupSynced(id, synced),
+    onMutate: async ({ id, synced }) => {
+      await qc.cancelQueries({ queryKey: SNIPPET_GROUPS_KEY })
+      const prev = qc.getQueryData<SnippetGroup[]>(SNIPPET_GROUPS_KEY)
+      qc.setQueryData<SnippetGroup[]>(SNIPPET_GROUPS_KEY, (old) =>
+        (old ?? []).map((g) => (g.id === id ? { ...g, synced } : g)),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(SNIPPET_GROUPS_KEY, ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: SNIPPET_GROUPS_KEY }),
+  })
 }
 
 // ---- Admin: user approval ----

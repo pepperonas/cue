@@ -21,7 +21,7 @@ from sqlmodel import Session, select
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
 from ..ir_format import IRFormatError, build_ir_backup, parse_ir_backup
-from ..models import Snippet, SnippetGroup, utcnow
+from ..models import Snippet, SnippetGroup, SnippetTombstone, utcnow
 from ..schemas import (
     SnippetBulkDeleteRequest,
     SnippetBulkMoveRequest,
@@ -77,6 +77,49 @@ def _abbreviation_taken(
     )
     existing = session.exec(stmt).first()
     return existing is not None and existing.id != exclude_id
+
+
+# ---- Tombstones (deletion sync with Inspector Rust) ----
+def tombstone_for(session: Session, uid: int, abbreviation: str) -> SnippetTombstone | None:
+    return session.exec(
+        select(SnippetTombstone).where(
+            SnippetTombstone.user_id == uid, SnippetTombstone.abbreviation == abbreviation
+        )
+    ).first()
+
+
+def record_tombstone(
+    session: Session, uid: int, abbreviation: str, group_name: str | None, version: int
+) -> None:
+    """Upsert a tombstone at max(version) so a deletion can propagate via sync.
+
+    deleted_at only refreshes when the version increases — tombstones echoed
+    back by the peer every cycle must not keep the row alive past the TTL."""
+    existing = tombstone_for(session, uid, abbreviation)
+    if existing:
+        if version > existing.version:
+            existing.version = version
+            existing.group_name = group_name
+            existing.deleted_at = utcnow()
+        session.add(existing)
+    else:
+        session.add(
+            SnippetTombstone(
+                user_id=uid, abbreviation=abbreviation, group_name=group_name, version=version
+            )
+        )
+
+
+def resurrect_floor(session: Session, uid: int, abbreviation: str, version: int) -> int:
+    """Version for a snippet (re)created over a tombstone: it must start ABOVE
+    the tombstone's version or the next sync would delete it again. Clears the
+    tombstone. Returns max(version, tombstone.version + 1)."""
+    ts = tombstone_for(session, uid, abbreviation)
+    if ts is None:
+        return version
+    floor = ts.version + 1
+    session.delete(ts)
+    return max(version, floor)
 
 
 def _next_snippet_order(session: Session, uid: int, group_name: str | None) -> int:
@@ -149,31 +192,35 @@ def create_group(
 
 
 @router.patch("/groups/{group_id}", response_model=SnippetGroupRead)
-def rename_group(
+def update_group(
     group_id: int,
     payload: SnippetGroupUpdate,
     session: Session = Depends(get_session),
     uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> SnippetGroup:
+    """Rename a group and/or toggle its Inspector-Rust sync scope."""
     group = _owned_group(session, group_id, uid)
-    name = payload.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Name required")
-    duplicate = session.exec(
-        select(SnippetGroup).where(SnippetGroup.user_id == uid, SnippetGroup.name == name)
-    ).first()
-    if duplicate and duplicate.id != group.id:
-        raise HTTPException(status_code=409, detail="Group already exists")
-    old_name = group.name
-    group.name = name
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name required")
+        duplicate = session.exec(
+            select(SnippetGroup).where(SnippetGroup.user_id == uid, SnippetGroup.name == name)
+        ).first()
+        if duplicate and duplicate.id != group.id:
+            raise HTTPException(status_code=409, detail="Group already exists")
+        old_name = group.name
+        group.name = name
+        # Back-fill the denormalized column in the same transaction.
+        for snippet in session.exec(
+            select(Snippet).where(Snippet.user_id == uid, Snippet.group_name == old_name)
+        ).all():
+            snippet.group_name = name
+            session.add(snippet)
+    if payload.synced is not None:
+        group.synced = payload.synced
     session.add(group)
-    # Back-fill the denormalized column in the same transaction.
-    for snippet in session.exec(
-        select(Snippet).where(Snippet.user_id == uid, Snippet.group_name == old_name)
-    ).all():
-        snippet.group_name = name
-        session.add(snippet)
     session.commit()
     session.refresh(group)
     return group
@@ -288,7 +335,9 @@ async def import_backup(
                     body=item.body,
                     group_name=group_name,
                     sort_order=_next_snippet_order(session, uid, group_name),
-                    version=max(item.version or 1, 1),
+                    version=resurrect_floor(
+                        session, uid, item.abbreviation, max(item.version or 1, 1)
+                    ),
                     created_at=_from_ms(item.created_at_ms) or utcnow(),
                     updated_at=_from_ms(item.updated_at_ms) or utcnow(),
                 )
@@ -392,6 +441,8 @@ def create_snippet(
         body=payload.body,
         group_name=group_name,
         sort_order=_next_snippet_order(session, uid, group_name),
+        # Recreating over a tombstone must land above it or sync re-deletes it.
+        version=resurrect_floor(session, uid, abbreviation, 1),
     )
     session.add(snippet)
     session.commit()
@@ -426,6 +477,11 @@ def update_snippet(
             raise HTTPException(status_code=409, detail="Abkürzung existiert bereits")
         if abbreviation != snippet.abbreviation:
             content_changed = True
+            # A rename is delete(old) + create(new) from sync's perspective:
+            # tombstone the old key so IR drops its orphan copy.
+            record_tombstone(
+                session, uid, snippet.abbreviation, snippet.group_name, snippet.version
+            )
         snippet.abbreviation = abbreviation
     if payload.title is not None:
         if payload.title.strip() != snippet.title:
@@ -439,6 +495,8 @@ def update_snippet(
         snippet.body = payload.body
     if content_changed:
         snippet.version += 1
+    # Renaming onto a tombstoned abbreviation must land above the tombstone.
+    snippet.version = resurrect_floor(session, uid, snippet.abbreviation, snippet.version)
     if payload.group_name is not None:
         new_group = _resolve_group_name(session, uid, payload.group_name)
         if new_group != snippet.group_name:
@@ -459,6 +517,7 @@ def delete_snippet(
     _csrf: None = Depends(require_csrf),
 ) -> None:
     snippet = _owned(session, snippet_id, uid)
+    record_tombstone(session, uid, snippet.abbreviation, snippet.group_name, snippet.version)
     session.delete(snippet)
     session.commit()
 
@@ -523,5 +582,8 @@ def bulk_delete(
     for sid in payload.ids:
         snippet = session.get(Snippet, sid)
         if snippet and snippet.user_id == uid:
+            record_tombstone(
+                session, uid, snippet.abbreviation, snippet.group_name, snippet.version
+            )
             session.delete(snippet)
     session.commit()

@@ -17,9 +17,9 @@ function snip(id: number, abbreviation: string, group: string | null, sort = 0):
 }
 
 const groups: SnippetGroup[] = [
-  { id: 2, name: 'Zwei', sort_order: 2 },
-  { id: 1, name: 'Eins', sort_order: 1 },
-  { id: 3, name: 'Leer', sort_order: 3 },
+  { id: 2, name: 'Zwei', sort_order: 2, synced: false },
+  { id: 1, name: 'Eins', sort_order: 1, synced: false },
+  { id: 3, name: 'Leer', sort_order: 3, synced: false },
 ]
 
 describe('groupSnippets', () => {

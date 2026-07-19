@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-07-19
+
+### Added
+- **Automatic bidirectional snippet sync with Inspector Rust.** IR polls new
+  token-guarded endpoints (`GET/POST /api/sync/snippets`, per-user
+  `snippet_sync_token`) every 60 s and after every snippet mutation; both
+  sides apply the same deterministic merge (higher version wins content;
+  equal versions + identical content = no-op; equal-version conflicts go to
+  cue; grouping always follows cue — it is the organizational master).
+  **Deletions propagate via tombstones** (`snippet_tombstone` table, 90-day
+  TTL): deleting or renaming-away an abbreviation records `{abbreviation,
+  version}`; the peer deletes its copy only if it isn't newer (a later edit
+  beats the deletion), and recreations start above the tombstone so they
+  survive the next cycle. The **sync scope is configured only in cue**: a
+  ☁️-toggle in every snippet-group header (plus one on „Ohne Gruppe")
+  controls which groups participate; Settings → „Snippet-Sync (Inspector
+  Rust)" generates the token and shows the last sync time. Verified
+  end-to-end against a real IR sync cycle (live HTTP, convergence after one
+  cycle, second cycle no-op).
+
 ## [0.20.0] - 2026-07-18
 
 ### Added

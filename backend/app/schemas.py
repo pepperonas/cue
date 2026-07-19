@@ -370,13 +370,16 @@ class SnippetGroupCreate(BaseModel):
 
 
 class SnippetGroupUpdate(BaseModel):
-    name: str
+    name: str | None = None
+    # Toggle whether this group is in the Inspector-Rust sync scope.
+    synced: bool | None = None
 
 
 class SnippetGroupRead(BaseModel):
     id: int
     name: str
     sort_order: int
+    synced: bool
 
 
 class SnippetReorderItem(BaseModel):
@@ -405,6 +408,58 @@ class SnippetBulkMoveRequest(BaseModel):
 
 class SnippetBulkDeleteRequest(BaseModel):
     ids: list[int]
+
+
+# ---- Snippet sync with Inspector Rust (IR polls /api/sync/snippets) ----
+class SyncSnippetItem(BaseModel):
+    abbreviation: str
+    title: str = ""
+    body: str = ""
+    # Group NAME; "" = ungrouped (groups travel by name, like the IR backup).
+    category: str = ""
+    version: int = 1
+
+
+class SyncTombstoneItem(BaseModel):
+    abbreviation: str
+    # Revision the snippet had when deleted (peer deletes only if not newer).
+    version: int = 1
+    deleted_at_ms: int = 0
+
+
+class SyncPullResponse(BaseModel):
+    # The sync scope, managed in cue: enabled group names + the ungrouped flag.
+    groups: list[str]
+    sync_ungrouped: bool
+    snippets: list[SyncSnippetItem]
+    tombstones: list[SyncTombstoneItem]
+
+
+class SyncPushRequest(BaseModel):
+    snippets: list[SyncSnippetItem] = []
+    tombstones: list[SyncTombstoneItem] = []
+
+
+class SyncPushResult(BaseModel):
+    created: int
+    updated: int
+    unchanged: int
+    kept_local: int  # local copy was newer (or won the tie) — nothing applied
+    deleted: int  # removed via incoming tombstones
+    ignored: int  # out of scope or tombstoned here
+
+
+class SyncSettingsRead(BaseModel):
+    has_token: bool
+    sync_ungrouped: bool
+    last_sync: datetime | None = None
+    # Shown exactly once, right after regeneration.
+    token: str | None = None
+
+
+class SyncSettingsUpdate(BaseModel):
+    regenerate: bool = False
+    sync_ungrouped: bool | None = None
 
 
 class SnippetImportResult(BaseModel):
