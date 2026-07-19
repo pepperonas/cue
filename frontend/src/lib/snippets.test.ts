@@ -30,12 +30,13 @@ describe('groupSnippets', () => {
     expect(sections[3].snippets.map((s) => s.abbreviation)).toEqual(['b'])
   })
 
-  it('sorts snippets inside a section by sort_order then id', () => {
+  it('sorts snippets inside a section alphabetically by abbreviation (like IR)', () => {
     const sections = groupSnippets(
-      [snip(5, 'later', 'Eins', 2), snip(9, 'tie-b', 'Eins', 1), snip(4, 'tie-a', 'Eins', 1)],
+      [snip(5, 'zeta', 'Eins', 1), snip(9, 'Beta', 'Eins', 2), snip(4, 'alpha', 'Eins', 3)],
       groups,
     )
-    expect(sections[0].snippets.map((s) => s.abbreviation)).toEqual(['tie-a', 'tie-b', 'later'])
+    // Case-insensitive, sort_order ignored — manual reordering is gone.
+    expect(sections[0].snippets.map((s) => s.abbreviation)).toEqual(['alpha', 'Beta', 'zeta'])
   })
 
   it('renders orphaned group names instead of losing snippets', () => {

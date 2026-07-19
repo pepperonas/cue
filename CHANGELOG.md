@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1] - 2026-07-19
+
+### Changed
+- **Snippets sort alphabetically — manual reordering removed.** Snippets
+  inside each group now sort by abbreviation (case-insensitive), exactly like
+  Inspector Rust, so both sides of the sync show the same order. Row drag
+  handles and drag-to-move are gone (a manual order would be overridden by
+  the sort anyway); moving a snippet to another group still works via the
+  editor's group field or the multi-select "Verschieben nach…" action.
+  Group headers remain drag-sortable.
+
 ## [0.21.0] - 2026-07-19
 
 ### Added

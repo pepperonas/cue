@@ -12,9 +12,10 @@ export interface SnippetSection {
 }
 
 /** Group snippets into ordered sections: groups by their sort_order (EMPTY
- * groups included), snippets inside by sort_order/id, "Ohne Gruppe" last.
- * Snippets pointing at an unknown group name get a trailing section so
- * nothing ever disappears from the UI. */
+ * groups included), snippets inside ALPHABETICALLY by abbreviation (matching
+ * Inspector Rust — manual snippet reordering is gone on purpose), "Ohne
+ * Gruppe" last. Snippets pointing at an unknown group name get a trailing
+ * section so nothing ever disappears from the UI. */
 export function groupSnippets(snippets: Snippet[], groups: SnippetGroup[]): SnippetSection[] {
   const byGroup = new Map<string, Snippet[]>()
   for (const s of snippets) {
@@ -24,7 +25,11 @@ export function groupSnippets(snippets: Snippet[], groups: SnippetGroup[]): Snip
     byGroup.set(key, list)
   }
   const sortSnips = (list: Snippet[]) =>
-    [...list].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+    [...list].sort(
+      (a, b) =>
+        a.abbreviation.localeCompare(b.abbreviation, undefined, { sensitivity: 'base' }) ||
+        a.id - b.id,
+    )
 
   const sections: SnippetSection[] = []
   const known = new Set<string>()

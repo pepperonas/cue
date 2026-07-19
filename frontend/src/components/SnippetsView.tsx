@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   TouchSensor,
   closestCorners,
-  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AnimatePresence, motion } from 'motion/react'
@@ -26,7 +24,6 @@ import {
   useImportSnippets,
   useRenameSnippetGroup,
   useReorderSnippetGroups,
-  useReorderSnippets,
   useSnippetGroups,
   useSnippets,
   useSyncSettings,
@@ -61,7 +58,6 @@ export function SnippetsView() {
   const toast = useToast()
   const { data: snippets, isLoading } = useSnippets()
   const { data: groups } = useSnippetGroups()
-  const reorder = useReorderSnippets()
   const reorderGroups = useReorderSnippetGroups()
   const bulkMove = useBulkMoveSnippets()
   const bulkDelete = useBulkDeleteSnippets()
@@ -114,8 +110,6 @@ export function SnippetsView() {
     }
   }, [sections])
 
-  const [activeId, setActiveId] = useState<number | string | null>(null)
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
@@ -129,84 +123,25 @@ export function SnippetsView() {
     })
   }
 
-  function findContainer(id: number | string): string | undefined {
-    if (isSec(id)) return id.slice(4)
-    for (const key of Object.keys(containers)) {
-      if (containers[key]?.includes(id as number)) return key
-    }
-    return undefined
-  }
-
-  function onDragStart(e: DragStartEvent) {
+  function onDragStart(_e: DragStartEvent) {
     dragging.current = true
-    setActiveId(e.active.id)
   }
 
-  function onDragOver(e: DragOverEvent) {
-    const { active, over } = e
-    if (!over || isSec(active.id)) return
-    const from = findContainer(active.id)
-    const to = findContainer(over.id)
-    if (!from || to === undefined || from === to) return
-    setContainers((prev) => {
-      const next = { ...prev }
-      next[from] = (next[from] ?? []).filter((x) => x !== active.id)
-      const target = [...(next[to] ?? [])]
-      const overIndex = target.indexOf(over.id as number)
-      const insertAt = overIndex >= 0 ? overIndex : target.length
-      target.splice(insertAt, 0, active.id as number)
-      next[to] = target
-      return next
-    })
-  }
-
+  // Snippets sort alphabetically (like IR) — only GROUP headers are
+  // draggable; manual snippet reordering is gone on purpose.
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
     dragging.current = false
-    setActiveId(null)
-    if (!over) return
-
-    // Group header dragged onto another header -> group reorder.
-    if (isSec(active.id)) {
-      if (!isSec(over.id) || active.id === over.id) return
-      const orderable = sections.filter((s) => s.groupId != null)
-      const names = orderable.map((s) => s.key)
-      const fromIdx = names.indexOf((active.id as string).slice(4))
-      const toIdx = names.indexOf((over.id as string).slice(4))
-      if (fromIdx < 0 || toIdx < 0) return
-      const moved = [...orderable]
-      moved.splice(toIdx, 0, moved.splice(fromIdx, 1)[0])
-      vibrate(8)
-      reorderGroups.mutate(moved.map((s, i) => ({ id: s.groupId as number, sort_order: i + 1 })))
-      return
-    }
-
-    const from = findContainer(active.id)
-    const to = findContainer(over.id)
-    if (!from || to === undefined) return
-    let next = containers
-    if (from === to && !isSec(over.id)) {
-      const items = [...(containers[to] ?? [])]
-      const oldIndex = items.indexOf(active.id as number)
-      const newIndex = items.indexOf(over.id as number)
-      if (oldIndex !== newIndex && newIndex >= 0) {
-        items.splice(newIndex, 0, items.splice(oldIndex, 1)[0])
-        next = { ...containers, [to]: items }
-        setContainers(next)
-      }
-    }
+    if (!over || !isSec(active.id) || !isSec(over.id) || active.id === over.id) return
+    const orderable = sections.filter((s) => s.groupId != null)
+    const names = orderable.map((s) => s.key)
+    const fromIdx = names.indexOf((active.id as string).slice(4))
+    const toIdx = names.indexOf((over.id as string).slice(4))
+    if (fromIdx < 0 || toIdx < 0) return
+    const moved = [...orderable]
+    moved.splice(toIdx, 0, moved.splice(fromIdx, 1)[0])
     vibrate(8)
-    const payload: { id: number; group_name: string; sort_order: number }[] = []
-    for (const key of new Set([from, to])) {
-      next[key]?.forEach((id, idx) => {
-        const s = byId.get(id)
-        if (!s) return
-        if ((s.group_name ?? UNGROUPED_KEY) !== key || s.sort_order !== idx + 1) {
-          payload.push({ id, group_name: key, sort_order: idx + 1 })
-        }
-      })
-    }
-    if (payload.length) reorder.mutate(payload)
+    reorderGroups.mutate(moved.map((s, i) => ({ id: s.groupId as number, sort_order: i + 1 })))
   }
 
   function toggleSelect(s: Snippet) {
@@ -254,7 +189,6 @@ export function SnippetsView() {
     })
   }
 
-  const activeSnippet = typeof activeId === 'number' ? byId.get(activeId) : undefined
   const groupChoices = sections.filter((s) => s.groupId != null).map((s) => s.name)
 
   return (
@@ -372,7 +306,6 @@ export function SnippetsView() {
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={onDragStart}
-          onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
           <SortableContext
@@ -432,14 +365,6 @@ export function SnippetsView() {
               />
             ))}
           </SortableContext>
-          <DragOverlay>
-            {activeSnippet ? (
-              <div className="snippet-row dragging">
-                <code className="snippet-abbr">{activeSnippet.abbreviation}</code>
-                <span className="lt">{activeSnippet.title || activeSnippet.body.slice(0, 60)}</span>
-              </div>
-            ) : null}
-          </DragOverlay>
         </DndContext>
       )}
 
@@ -626,10 +551,6 @@ function SnippetSectionView({
     disabled: groupId == null || dragDisabled,
   })
   const allSelected = ids.length > 0 && ids.every((id) => selectedIds.includes(id))
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: secId(sectionKey),
-    data: { section: sectionKey },
-  })
   const headerStyle = {
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
@@ -641,7 +562,7 @@ function SnippetSectionView({
       ref={sortable.setNodeRef}
       style={headerStyle}
     >
-      <div className="snippet-group-head" data-over={isOver}>
+      <div className="snippet-group-head">
         {selectMode && ids.length > 0 && (
           <button
             className="mini-btn"
@@ -680,29 +601,26 @@ function SnippetSectionView({
         {onDelete && <IconButton icon="delete" label="Gruppe löschen" onClick={onDelete} />}
       </div>
       {!collapsed && (
-        <div ref={setDropRef} className="snippet-list" data-over={isOver}>
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            {ids.length === 0 ? (
-              <div className="muted list-group-empty">Leer — Snippets hierher ziehen</div>
-            ) : (
-              ids.map((id) => {
-                const s = byId.get(id)
-                if (!s) return null
-                return (
-                  <SnippetRow
-                    key={id}
-                    snippet={s}
-                    selected={selectedIds.includes(id)}
-                    selectMode={selectMode}
-                    dragDisabled={dragDisabled}
-                    onToggleSelect={() => onToggleSelect(s)}
-                    onEdit={() => onEdit(s)}
-                    onCopy={() => onCopy(s)}
-                  />
-                )
-              })
-            )}
-          </SortableContext>
+        <div className="snippet-list">
+          {ids.length === 0 ? (
+            <div className="muted list-group-empty">Leer</div>
+          ) : (
+            ids.map((id) => {
+              const s = byId.get(id)
+              if (!s) return null
+              return (
+                <SnippetRow
+                  key={id}
+                  snippet={s}
+                  selected={selectedIds.includes(id)}
+                  selectMode={selectMode}
+                  onToggleSelect={() => onToggleSelect(s)}
+                  onEdit={() => onEdit(s)}
+                  onCopy={() => onCopy(s)}
+                />
+              )
+            })
+          )}
         </div>
       )}
     </section>
@@ -713,7 +631,6 @@ function SnippetRow({
   snippet,
   selected,
   selectMode,
-  dragDisabled,
   onToggleSelect,
   onEdit,
   onCopy,
@@ -721,20 +638,13 @@ function SnippetRow({
   snippet: Snippet
   selected: boolean
   selectMode: boolean
-  dragDisabled: boolean
   onToggleSelect: () => void
   onEdit: () => void
   onCopy: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: snippet.id,
-    disabled: dragDisabled,
-  })
   return (
     <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`snippet-row ${isDragging ? 'dragging' : ''} ${selected ? 'merge-selected' : ''} ${
+      className={`snippet-row ${selected ? 'merge-selected' : ''} ${
         selectMode ? 'selecting' : ''
       }`}
       onClick={(e) => {
@@ -747,26 +657,14 @@ function SnippetRow({
       title={
         selectMode
           ? 'Klick zum Auswählen'
-          : 'Klick zum Bearbeiten · Cmd/Ctrl+Klick zum Auswählen · am Griff ziehen zum Verschieben'
+          : 'Klick zum Bearbeiten · Cmd/Ctrl+Klick zum Auswählen'
       }
     >
-      {selectMode ? (
+      {selectMode && (
         <Icon
           name={selected ? 'check_box' : 'check_box_outline_blank'}
           className="merge-check-icon"
         />
-      ) : (
-        !dragDisabled && (
-          <span
-            className="drag-handle"
-            title="Ziehen zum Verschieben"
-            onClick={(e) => e.stopPropagation()}
-            {...attributes}
-            {...listeners}
-          >
-            <Icon name="drag_indicator" />
-          </span>
-        )
       )}
       <code className="snippet-abbr">{snippet.abbreviation}</code>
       <span className="lt grow">{snippet.title || snippet.body.split('\n')[0]}</span>
