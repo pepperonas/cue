@@ -211,7 +211,12 @@ def update_prompt(
         if payload.bookmarked:
             prompt.bookmark_order = _next_bookmark_order(session, uid)
 
+    # Tested only exists on done prompts: marking anything else is rejected,
+    # and leaving done clears the flag (see the status block below).
     if payload.tested is not None:
+        target = payload.status if payload.status is not None else prompt.status
+        if payload.tested and target != PromptStatus.done:
+            raise HTTPException(status_code=400, detail="Only done prompts can be marked tested")
         prompt.tested = payload.tested
 
     # Apply blocked BEFORE the status guard so unblock+move works in one PATCH.
@@ -228,6 +233,10 @@ def update_prompt(
             raise HTTPException(status_code=400, detail="Prompt is blocked")
         if payload.status != PromptStatus.queued:
             prompt.blocked = False
+        # Leaving done invalidates the test result (back to queued/running the
+        # feature is being worked on again).
+        if payload.status != PromptStatus.done:
+            prompt.tested = False
         prompt.status = payload.status
         # Freshly-done prompts always surface at the TOP of the done column;
         # every other status change appends at the bottom as before.
@@ -424,6 +433,9 @@ def reorder_prompts(
             # Blocked only exists on queued prompts — leaving queued clears it.
             if item.status != PromptStatus.queued:
                 prompt.blocked = False
+            # Tested only exists on done prompts — leaving done clears it.
+            if item.status != PromptStatus.done:
+                prompt.tested = False
             if item.status in _RAN_STATUSES and prompt.ran_at is None:
                 prompt.ran_at = utcnow()
         prompt.sort_order = item.sort_order

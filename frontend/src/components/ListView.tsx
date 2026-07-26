@@ -243,7 +243,11 @@ function ListRow({
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
       )}
       {onToggleTested && canTest && (
-        <TestedButton tested={p.tested} onToggle={() => onToggleTested(p)} />
+        <TestedButton
+          tested={p.tested}
+          disabled={p.status !== 'done'}
+          onToggle={() => onToggleTested(p)}
+        />
       )}
       {onToggleBlocked && canBlock && (
         <BlockedButton blocked={p.blocked} onToggle={() => onToggleBlocked(p)} />

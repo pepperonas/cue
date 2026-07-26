@@ -568,7 +568,8 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mini-btn:disabled {
+.mini-btn:disabled,
+.icon-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }

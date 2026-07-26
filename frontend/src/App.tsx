@@ -300,8 +300,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [toast, update],
   )
 
+  // Only done prompts carry a tested flag (the toggle is disabled elsewhere —
+  // this is the guard for any other path into it).
   const handleToggleTested = useCallback(
     (p: Prompt) => {
+      if (p.status !== 'done') {
+        toast.show('Nur erledigte Prompts können als getestet markiert werden', 'error')
+        return
+      }
       update.mutate({ id: p.id, patch: { tested: !p.tested } })
       vibrate(8)
       toast.show(p.tested ? 'Als ungetestet markiert' : 'Als getestet markiert', 'success')

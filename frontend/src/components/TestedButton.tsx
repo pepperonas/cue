@@ -4,11 +4,13 @@ interface Props {
   tested: boolean
   onToggle: () => void
   variant?: 'mini-btn' | 'icon-btn'
+  disabled?: boolean
 }
 
 /** "Feature tested?" toggle — green fill + highlight when marked tested.
- *  Only meaningful for running/done prompts (the caller gates rendering). */
-export function TestedButton({ tested, onToggle, variant }: Props) {
+ *  Rendered for running/done prompts (the caller gates that), but only
+ *  ENABLED on done ones — on running it shows grayed out. */
+export function TestedButton({ tested, onToggle, variant, disabled }: Props) {
   return (
     <ToggleIconButton
       active={tested}
@@ -19,6 +21,8 @@ export function TestedButton({ tested, onToggle, variant }: Props) {
       labelOff="Als getestet markieren"
       baseClass="tested-btn"
       variant={variant}
+      disabled={disabled}
+      disabledLabel="Nur erledigte Prompts können als getestet markiert werden"
     />
   )
 }

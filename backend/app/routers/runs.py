@@ -96,6 +96,7 @@ def _prompts_to_running(session: Session, run: Run) -> None:
         if prompt is None or prompt.blocked or prompt.status == PromptStatus.running:
             continue
         prompt.status = PromptStatus.running
+        prompt.tested = False  # re-running invalidates a previous test result
         prompt.sort_order = _next_sort_order(session, PromptStatus.running, prompt.user_id)
         if prompt.ran_at is None:
             prompt.ran_at = now
@@ -118,6 +119,7 @@ def _release_unfinished_prompts(session: Session, run: Run) -> None:
         if prompt is None or prompt.status != PromptStatus.running:
             continue
         prompt.status = PromptStatus.queued
+        prompt.tested = False
         prompt.sort_order = _next_sort_order(session, PromptStatus.queued, prompt.user_id)
         session.add(prompt)
 

@@ -150,7 +150,11 @@ export function PromptCard({
           )}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
             {onToggleTested && canTest && (
-              <TestedButton tested={prompt.tested} onToggle={() => onToggleTested(prompt)} />
+              <TestedButton
+                tested={prompt.tested}
+                disabled={prompt.status !== 'done'}
+                onToggle={() => onToggleTested(prompt)}
+              />
             )}
             {onToggleBlocked && canBlock && (
               <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />

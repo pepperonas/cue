@@ -142,6 +142,7 @@ export function DetailSheet({
               <TestedButton
                 variant="icon-btn"
                 tested={prompt.tested}
+                disabled={prompt.status !== 'done'}
                 onToggle={() => onToggleTested(prompt)}
               />
             )}

@@ -12,6 +12,9 @@ interface Props {
   // Styling hook on the <button>; the active state also gets `.active`.
   baseClass: string
   variant?: 'mini-btn' | 'icon-btn'
+  disabled?: boolean
+  // Tooltip/aria label while disabled — should explain why.
+  disabledLabel?: string
 }
 
 /** Generic icon toggle: tints + fills when active and pops on each flip. */
@@ -24,18 +27,22 @@ export function ToggleIconButton({
   labelOff,
   baseClass,
   variant = 'mini-btn',
+  disabled = false,
+  disabledLabel,
 }: Props) {
   const reduce = prefersReducedMotion()
-  const label = active ? labelOn : labelOff
+  const label = (disabled && disabledLabel) || (active ? labelOn : labelOff)
   return (
     <button
       className={`${variant} ${baseClass} ${active ? 'active' : ''}`}
       aria-label={label}
       aria-pressed={active}
       title={label}
+      disabled={disabled}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation()
+        if (disabled) return
         onToggle()
       }}
     >

@@ -51,8 +51,8 @@ def test_full_flow(client):
     assert rr.status_code == 200, rr.text
     assert rr.json()[0]["ran_at"] is not None
 
-    # Mark the feature as tested.
-    tj = client.patch(f"/api/prompts/{pid}", json={"tested": True}, headers=headers)
+    # Mark the feature as tested (only allowed once the prompt is done).
+    tj = client.patch(f"/api/prompts/{pid}", json={"status": "done", "tested": True}, headers=headers)
     assert tj.status_code == 200, tj.text
     assert tj.json()["tested"] is True
 
@@ -504,6 +504,40 @@ def test_done_status_goes_to_top(client):
     assert rb.json()["sort_order"] < ra.json()["sort_order"]
     done = [p["id"] for p in client.get("/api/prompts?status=done").json()]
     assert done.index(b) < done.index(a)
+
+
+def test_tested_requires_done_and_resets_on_status_change(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers)
+
+    # Queued/running prompts can't be marked tested.
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"tested": True}, headers=headers).status_code
+        == 400
+    )
+    client.patch(f"/api/prompts/{pid}", json={"status": "running"}, headers=headers)
+    assert (
+        client.patch(f"/api/prompts/{pid}", json={"tested": True}, headers=headers).status_code
+        == 400
+    )
+
+    # Done + tested — also in a single PATCH that moves and marks at once.
+    r = client.patch(f"/api/prompts/{pid}", json={"status": "done", "tested": True}, headers=headers)
+    assert r.status_code == 200 and r.json()["tested"] is True
+
+    # Moving back to running clears the test result ...
+    r = client.patch(f"/api/prompts/{pid}", json={"status": "running"}, headers=headers)
+    assert r.json()["tested"] is False
+
+    # ... and so does a drag back to queued via reorder.
+    client.patch(f"/api/prompts/{pid}", json={"status": "done", "tested": True}, headers=headers)
+    r = client.post(
+        "/api/prompts/reorder",
+        json={"items": [{"id": pid, "status": "queued", "sort_order": 1}]},
+        headers=headers,
+    )
+    assert r.status_code == 200 and r.json()[0]["tested"] is False
 
 
 def test_blocked_flow(client):
