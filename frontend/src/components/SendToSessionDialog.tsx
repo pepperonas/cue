@@ -6,6 +6,7 @@ import type { CaptureSession } from '../lib/types'
 import { useSendToSession, useSessions } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Button, IconButton, Switch } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 interface Props {
   text: string
@@ -20,6 +21,8 @@ function label(s: CaptureSession): string {
 }
 
 export function SendToSessionDialog({ text, projectId, onClose }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   const { data: sessions } = useSessions(true)
   const send = useSendToSession()
   const toast = useToast()

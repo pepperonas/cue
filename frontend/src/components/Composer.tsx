@@ -12,6 +12,7 @@ import { DEV_TAGS, normalizeTags } from '../lib/tags'
 import { useDictation } from '../lib/speech'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
+import { useBackDismiss } from '../state/overlays'
 
 const DRAFT_KEY = 'cue-draft'
 const LAST_PROJECT_KEY = 'cue-last-project'
@@ -25,6 +26,8 @@ interface Props {
 }
 
 export function Composer({ projects, editing, defaultProjectId, onClose }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   const isEdit = !!editing
   const create = useCreatePrompt()
   const update = useUpdatePrompt()

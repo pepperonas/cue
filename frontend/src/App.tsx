@@ -32,6 +32,7 @@ import {
   useStartOptimizeBatch,
   useUpdatePrompt,
 } from './state/queries'
+import { useCloseTopOverlay } from './state/overlays'
 import { useSettings } from './state/settings'
 import { useToast } from './state/toast'
 import { Board } from './components/Board'
@@ -130,6 +131,7 @@ function PendingApproval({ onLogout }: { onLogout: () => void }) {
 function Shell({ onLogout }: { onLogout: () => void }) {
   const settings = useSettings()
   const toast = useToast()
+  const closeTopOverlay = useCloseTopOverlay()
   const { data: prompts, isLoading } = usePrompts()
   const { data: projects } = useProjects()
   const reorder = useReorder()
@@ -434,15 +436,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           target.isContentEditable)
 
       if (e.key === 'Escape') {
-        if (shortcuts) setShortcuts(false)
-        else if (sendTarget) setSendTarget(null)
-        else if (runDialog) setRunDialog(null)
-        else if (mergeOpen) setMergeOpen(false)
-        else if (composerOpen) {
-          setComposerOpen(false)
-          setEditing(null)
-        } else if (detail) setDetail(null)
-        else if (selectMode) exitSelect()
+        // The overlay stack knows the real z-order (including dialogs nested
+        // inside views), so Escape and the back gesture behave identically.
+        if (closeTopOverlay()) return
+        if (selectMode) exitSelect()
         return
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return
@@ -505,6 +502,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   }, [
     anyModalOpen,
     applyStatus,
+    closeTopOverlay,
     composerOpen,
     detail,
     detailLive,

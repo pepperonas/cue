@@ -4,6 +4,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import App from './App'
+import { OverlayStackProvider } from './state/overlays'
 import { SettingsProvider } from './state/settings'
 import { ToastProvider } from './state/toast'
 import './styles/global.css'
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
       <SettingsProvider>
         <ToastProvider>
-          <App />
+          <OverlayStackProvider>
+            <App />
+          </OverlayStackProvider>
         </ToastProvider>
       </SettingsProvider>
     </PersistQueryClientProvider>

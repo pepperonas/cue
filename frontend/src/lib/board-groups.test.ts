@@ -1,0 +1,90 @@
+import { describe, expect, it } from 'vitest'
+import { AUTO_COLLAPSE_FROM, defaultGroupsOpen, groupByProject, isOpen, NO_PROJECT } from './board-groups'
+import type { Project, Prompt } from './types'
+
+function prompt(id: number, projectId: number | null): Prompt {
+  return {
+    id,
+    title: `p${id}`,
+    body: 'b',
+    project_id: projectId,
+    status: 'queued',
+    sort_order: id,
+    tags: '',
+    bookmarked: false,
+    bookmark_order: 0,
+    tested: false,
+    blocked: false,
+    optimized: false,
+    optimized_body: null,
+    optimized_at: null,
+    optimization_model: '',
+    optimization_version: 0,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ran_at: null,
+    attachments: [],
+  }
+}
+
+const projects = new Map<number, Project>([
+  [1, { id: 1, name: 'cue', color: '#6750A4', sort_order: 1, created_at: '' } as Project],
+  [2, { id: 2, name: 'zauberkoch', color: '#9A3B3B', sort_order: 2, created_at: '' } as Project],
+])
+
+function build(ids: number[], mapping: Record<number, number | null>) {
+  const byId = new Map(ids.map((id) => [id, prompt(id, mapping[id] ?? null)]))
+  return groupByProject(ids, byId, projects, 'queued')
+}
+
+describe('groupByProject', () => {
+  it('keeps card order and names the group after its project', () => {
+    const groups = build([5, 6, 7], { 5: 1, 6: 1, 7: 2 })
+    expect(groups.map((g) => g.name)).toEqual(['cue', 'zauberkoch'])
+    expect(groups[0].ids).toEqual([5, 6])
+    expect(groups[0].color).toBe('#6750A4')
+    expect(groups[0].id).toBe('queued:1')
+  })
+
+  it('orders groups by their first card, not by the project list', () => {
+    const groups = build([9, 8], { 9: 2, 8: 1 })
+    expect(groups.map((g) => g.key)).toEqual([2, 1])
+  })
+
+  it('collects prompts without a project into a trailing group', () => {
+    const groups = build([1, 2, 3], { 1: null, 2: 1, 3: null })
+    expect(groups.map((g) => g.key)).toEqual([1, NO_PROJECT])
+    const rest = groups[groups.length - 1]
+    expect(rest.name).toBe('Ohne Projekt')
+    expect(rest.ids).toEqual([1, 3])
+    expect(rest.id).toBe('queued:none')
+  })
+
+  it('falls back gracefully for a project that is no longer loaded', () => {
+    const byId = new Map([[1, prompt(1, 99)]])
+    const groups = groupByProject([1], byId, projects, 'done')
+    expect(groups[0].name).toBe('Ohne Projekt')
+    expect(groups[0].key).toBe(99)
+  })
+
+  it('ignores ids without a prompt and handles an empty column', () => {
+    expect(groupByProject([42], new Map(), projects, 'queued')).toEqual([])
+    expect(groupByProject([], new Map(), projects, 'queued')).toEqual([])
+  })
+})
+
+describe('open-state defaults', () => {
+  it('keeps short columns expanded and collapses long ones', () => {
+    expect(defaultGroupsOpen(3)).toBe(true)
+    expect(defaultGroupsOpen(AUTO_COLLAPSE_FROM - 1)).toBe(true)
+    expect(defaultGroupsOpen(AUTO_COLLAPSE_FROM)).toBe(false)
+    expect(defaultGroupsOpen(120)).toBe(false)
+  })
+
+  it('lets an explicit choice win over the default', () => {
+    expect(isOpen({}, 'queued:1', true)).toBe(true)
+    expect(isOpen({ 'queued:1': false }, 'queued:1', true)).toBe(false)
+    expect(isOpen({ 'queued:1': true }, 'queued:1', false)).toBe(true)
+    expect(isOpen({ other: false }, 'queued:1', false)).toBe(false)
+  })
+})

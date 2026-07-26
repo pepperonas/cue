@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { Button, Icon } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 interface Props {
   title: string
@@ -30,6 +31,8 @@ export function InputDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onCancel)
   const [value, setValue] = useState(initialValue)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)

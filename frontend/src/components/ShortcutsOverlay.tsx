@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { IconButton } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 const SHORTCUTS: [string, string][] = [
   ['n', 'Neuer Prompt'],
@@ -15,6 +16,8 @@ const SHORTCUTS: [string, string][] = [
 ]
 
 export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   return (
     <div className="scrim" onClick={onClose}>
       <motion.div

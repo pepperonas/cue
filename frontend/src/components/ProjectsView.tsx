@@ -1,11 +1,7 @@
 import { useState } from 'react'
 import {
   DndContext,
-  PointerSensor,
-  TouchSensor,
   closestCenter,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import {
@@ -29,6 +25,7 @@ import {
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton } from './ui'
 import { Confirm } from './Confirm'
+import { useDragSensors } from '../lib/dnd'
 
 interface RowProps {
   p: Project
@@ -117,10 +114,7 @@ export function ProjectsView({ dark }: { dark: boolean }) {
   const [editing, setEditing] = useState<Project | null>(null)
   const [confirm, setConfirm] = useState<Project | null>(null)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
-  )
+  const sensors = useDragSensors()
 
   const list = projects ?? []
 

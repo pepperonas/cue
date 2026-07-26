@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
-  PointerSensor,
-  TouchSensor,
   closestCorners,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -36,6 +32,7 @@ import { InputDialog } from './InputDialog'
 import { SnippetEditor } from './SnippetEditor'
 import { ToggleIconButton } from './ToggleIconButton'
 import { Button, Icon, IconButton } from './ui'
+import { useDragSensors } from '../lib/dnd'
 
 const COLLAPSE_KEY = 'cue-snippet-collapsed'
 
@@ -110,10 +107,7 @@ export function SnippetsView() {
     }
   }, [sections])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
-  )
+  const sensors = useDragSensors()
 
   function toggleCollapse(key: string) {
     setCollapsed((prev) => {

@@ -5,6 +5,7 @@ import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
 import { Button, Icon, IconButton } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 type Format = 'headings' | 'rule' | 'blank'
 type Originals = 'delete' | 'archive' | 'keep'
@@ -44,6 +45,8 @@ function buildBody(parts: Prompt[], format: Format): string {
 }
 
 export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts])
 
   // Smart prefills: common project (or none), union of tags.

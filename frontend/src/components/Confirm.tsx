@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { Button } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 interface Props {
   title: string
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function Confirm({ title, message, confirmLabel = 'Löschen', onConfirm, onCancel }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onCancel)
   return (
     <div className="scrim" onClick={onCancel}>
       <motion.div

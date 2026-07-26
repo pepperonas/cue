@@ -2,11 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
-  TouchSensor,
   closestCenter,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import {
@@ -19,6 +15,7 @@ import type { Project, Prompt } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
 import { PromptCard } from './PromptCard'
 import { Icon } from './ui'
+import { useDragSensors } from '../lib/dnd'
 
 interface Props {
   prompts: Prompt[]
@@ -65,10 +62,7 @@ export function BookmarksView({
     if (!dragging.current) setOrder(serverOrder)
   }, [serverOrder])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
-  )
+  const sensors = useDragSensors()
 
   function onDragStart(e: DragStartEvent) {
     dragging.current = true

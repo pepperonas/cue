@@ -1,17 +1,16 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
-  PointerSensor,
-  TouchSensor,
   closestCenter,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Project } from '../lib/types'
 import { useReorderProjects } from '../state/queries'
+import { useDragSensors } from '../lib/dnd'
+import { useMediaQuery } from '../lib/media'
+import { Icon } from './ui'
 
 type Filter = number | 'all' | 'none'
 
@@ -59,13 +58,15 @@ export function ProjectChips({
   setFilter: (f: Filter) => void
 }) {
   const reorder = useReorderProjects()
+  // On a phone 36 projects wrap into six rows and push the board off-screen.
+  // Collapsed = one horizontally scrollable line; the toggle shows them all.
+  const isNarrow = useMediaQuery('(max-width: 640px)')
+  const [showAll, setShowAll] = useState(false)
+  const collapsed = isNarrow && !showAll
   // Suppress the click that fires on drop, so finishing a drag doesn't also
   // toggle the chip's filter.
   const justDragged = useRef(false)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
-  )
+  const sensors = useDragSensors()
 
   function onDragEnd(e: DragEndEvent) {
     justDragged.current = true
@@ -85,7 +86,7 @@ export function ProjectChips({
   }
 
   return (
-    <div className="chips">
+    <div className="chips" data-collapsed={collapsed}>
       <button className="chip" data-active={filter === 'all'} onClick={() => setFilter('all')}>
         Alle
       </button>
@@ -99,6 +100,17 @@ export function ProjectChips({
           ))}
         </SortableContext>
       </DndContext>
+      {isNarrow && projects.length > 4 && (
+        <button
+          className="chip chips-toggle"
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+          title={showAll ? 'Projektfilter einklappen' : 'Alle Projekte anzeigen'}
+        >
+          <Icon name={showAll ? 'unfold_less' : 'unfold_more'} />
+          {showAll ? 'Weniger' : `Alle ${projects.length}`}
+        </button>
+      )}
     </div>
   )
 }

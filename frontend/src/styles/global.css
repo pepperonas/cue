@@ -2948,3 +2948,189 @@ img.logo-xl { border-radius: 18px; }
     max-width: none;
   }
 }
+
+/* ============================================================
+   Mobile board: collapsible status sections + project groups
+   Desktop keeps the plain three-column grid — everything below is scoped to
+   the mobile markup (.column--mobile / .pgroup) or the ≤900px media query.
+   ============================================================ */
+.board--mobile {
+  gap: var(--gap-3);
+}
+.column--mobile {
+  padding: 0;
+  overflow: hidden; /* keeps the collapse animation inside the rounded corners */
+  min-height: 0;
+}
+/* Section headers are the primary touch targets: full width, 52px tall. */
+.column-head--toggle,
+.pgroup-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 52px;
+  padding: 10px var(--gap-3);
+  -webkit-tap-highlight-color: transparent;
+}
+.column-head--toggle {
+  font: var(--title-m);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--md-surface-container-low);
+}
+.column-head--toggle:active,
+.pgroup-head:active {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+}
+.column-head-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sect-chevron {
+  transition: transform var(--dur-short, 0.2s) ease;
+  color: var(--md-on-surface-variant);
+  flex: none;
+}
+.sect-chevron.open {
+  transform: rotate(90deg);
+}
+.column--mobile .column-list {
+  padding: 0 var(--gap-3) var(--gap-3);
+  gap: var(--gap-2);
+}
+
+/* ---- Project group inside a status section ---- */
+.pgroup {
+  border-radius: var(--shape-m, 16px);
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  overflow: hidden;
+}
+.pgroup[data-open='true'] {
+  background: color-mix(in srgb, var(--md-surface-container) 60%, transparent);
+}
+.pgroup-head {
+  font: var(--label-l);
+  min-height: 48px;
+  padding: 8px var(--gap-3);
+}
+.pgroup-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.pgroup-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.pgroup-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: 0 var(--gap-2) var(--gap-2);
+}
+.pgroup .count,
+.column-head--toggle .count {
+  margin-left: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dragging feedback: the lifted copy is tilted and shadowed, the source dims. */
+.card--drag-preview {
+  box-shadow: var(--elev-3, 0 16px 40px rgba(0, 0, 0, 0.45));
+  transform: rotate(1.2deg) scale(1.02);
+  border-color: var(--md-primary);
+}
+.card.dragging {
+  opacity: 0.4;
+}
+
+@media (max-width: 900px) {
+  /* Cards inside groups: less chrome, more content per screen. */
+  .board--mobile .card {
+    padding: var(--gap-3);
+    border-radius: var(--shape-m, 16px);
+    gap: 6px;
+  }
+  .board--mobile .card-body-preview {
+    -webkit-line-clamp: 2;
+  }
+  /* The group header already names the project — repeating it on every card
+     inside costs a line per card. */
+  .board--mobile .pgroup .card .badge {
+    display: none;
+  }
+}
+
+/* Touch-capable devices AND every narrow viewport: a resized desktop window is
+   the environment used to verify mobile, and `touch-action` is a no-op for a
+   mouse anyway. */
+@media (pointer: coarse), (max-width: 900px) {
+  /* 40px minimum touch target (WCAG 2.5.8 / Material) without changing the
+     visual size of the icon on desktop. */
+  .mini-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .card-actions {
+    gap: 2px;
+  }
+  /* A card is only draggable after the long-press delay — until then the
+     browser must be free to scroll the page. */
+  .card,
+  .list-item {
+    touch-action: pan-y;
+  }
+  /* Sheets keep their own scroll instead of chaining to the page behind. */
+  .detail-scroll,
+  .composer-scroll,
+  .sheet {
+    overscroll-behavior: contain;
+  }
+}
+
+/* Project filter chips: one scrollable row on phones instead of six wrapped
+   ones, with a toggle that expands to the full wrapped list. */
+@media (max-width: 640px) {
+  .chips[data-collapsed='true'] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .chips[data-collapsed='true']::-webkit-scrollbar {
+    display: none;
+  }
+  .chips[data-collapsed='true'] .chip {
+    flex: none;
+  }
+  /* Pinned to the right edge of the scrolling row so it stays reachable no
+     matter how far the chips are scrolled. */
+  .chips[data-collapsed='true'] .chips-toggle {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    box-shadow: -12px 0 12px -6px var(--md-background);
+  }
+  .chips-toggle {
+    flex: none;
+    align-self: center;
+    background: var(--md-surface-container-high);
+  }
+}

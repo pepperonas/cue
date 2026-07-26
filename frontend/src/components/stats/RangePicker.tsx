@@ -6,6 +6,7 @@ import { motion } from 'motion/react'
 import { springs } from '../../lib/motion'
 import { RANGE_OPTIONS, formatDay, isoDaysAgo } from '../../lib/stats'
 import type { StatsQuery, StatsRangeKey } from '../../lib/types'
+import { useBackDismiss } from '../../state/overlays'
 import { Button, Icon } from '../ui'
 
 export function RangePicker({
@@ -23,6 +24,7 @@ export function RangePicker({
   const [from, setFrom] = useState(query.from ?? isoDaysAgo(14))
   const [to, setTo] = useState(query.to ?? isoDaysAgo(0))
   const popRef = useRef<HTMLDivElement>(null)
+  useBackDismiss(() => setOpen(false), open)
 
   // Close the popover on an outside click / Escape (Escape must not bubble to
   // the app-level handlers while the popover owns the interaction).

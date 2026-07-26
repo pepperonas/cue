@@ -10,6 +10,7 @@ import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
 import { OptimizeButton } from './optimize/OptimizeButton'
+import { useBackDismiss } from '../state/overlays'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -69,6 +70,9 @@ export function DetailSheet({
   onOptimize,
   onCancelOptimize,
 }: Props) {
+  // Back closes the sheet; the nested lightbox and the project popover
+  // register on top of it, so back peels them off one by one.
+  useBackDismiss(onClose)
   const [showRaw, setShowRaw] = useState(false)
   // Which text the sheet renders: the untouched original, the optimized
   // version, or the diff between them. Reset whenever another prompt opens.
@@ -83,6 +87,8 @@ export function DetailSheet({
   const canBlock = prompt.status === 'queued'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
+  useBackDismiss(() => setLightbox(null), lightbox !== null)
+  useBackDismiss(() => setProjMenu(false), projMenu)
 
   // A different prompt (or a fresh optimization) resets the variant switch.
   useEffect(() => {

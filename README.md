@@ -3,16 +3,16 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.23.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-393%20passing-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.24.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-409%20passing-brightgreen.svg)](backend/tests/)
 [![backend tests](https://img.shields.io/badge/backend%20tests-216-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-82-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-95-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-111-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
-[![LOC](https://img.shields.io/badge/LOC-21426-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-22233-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-7075-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-11419-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-12046-3178C6.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-80-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
 
@@ -80,6 +80,9 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **Run-Engine**: gespeicherte Prompts headless über die **Claude-Code-CLI** ausführen — einzeln oder als **Playbook** (Prompt-Folge in einer Session, Schritte standardmäßig in der **Board-Reihenfolge der Queued-Spalte** — von oben nach unten, unabhängig von der Klick-Reihenfolge). Ein Mac-Runner (`cue-runner/`) pollt cue, führt aus und schreibt Ergebnisse + Live-Log zurück. Owner-only, Pfad-Whitelist, eigener Runs-Tab mit Live-Tail, Cancel & Re-run. Der Run-Dialog **merkt sich die zuletzt genutzten Einstellungen** (Basis, Modell, Permissions, Tools, Schalter) — nur der Unterordner startet leer. Erfolgreiche Steps verschieben ihren Prompt automatisch auf **Done** (fehlgeschlagene auf Failed), ein **schwebendes Status-Overlay** zeigt aktive Runs in jeder Ansicht, und der Runner führt bis zu **3 Runs parallel** aus (`MAX_CONCURRENCY`).
 - **Prompt-Capture**: ein `UserPromptSubmit`-Hook protokolliert **jeden** in der Claude-Code-CLI eingegebenen Prompt in cue (Ansicht „Verlauf": eine Karte je Projekt, Sessions als aufklappbare Untergruppen → Prompt-Timeline (neueste zuerst), „in Queue übernehmen"). Projekt-Ableitung übers **Git-Root** des cwd (Gruppierungsordner wie `_customers/` werden übersprungen — jedes Repo wird ein eigenes Projekt), Fallback aufs erste Nicht-`_`-Pfadsegment; per-User Token + Basis-Pfad (multi-tenant).
 - **An CLI-Session senden** (Gegenrichtung, owner-only): einen Prompt aus cue direkt in eine **laufende** Claude-Code-Session tippen — nur einfügen oder gleich ausführen. Über den Mac-Runner via iTerm2 (AppleScript) bzw. tmux (bracketed paste); der Capture-Hook liefert den Terminal-Kontext.
+- **Mobile-Board**: auf dem Smartphone werden die Status-Bereiche zu **einklappbaren Sektionen**, deren Karten nach **Projekt gruppiert** sind — eingeklappt bleiben Projektname, Farbe und Kartenanzahl sichtbar, lange Spalten starten zusammengeklappt und der Zustand hält die Sitzung über. Dazu: Projektfilter als eine scrollbare Zeile statt sechs, 40-px-Touch-Ziele, kompaktere Karten.
+- **Zurück-Geste schließt Dialoge** statt die App: jedes Overlay registriert sich in einem History-Stack, verschachtelte Dialoge werden nacheinander abgebaut, und erst der leere Stack verlässt die App. Escape nutzt exakt dieselbe Reihenfolge.
+- **Touch-Drag & Drop**: Karten lassen sich per Long-Press ziehen, ein normaler Wisch scrollt weiterhin (vorher startete jede Fingerbewegung über einer Karte einen Drag). Inklusive Auto-Scroll am Rand, Haptik beim Aufnehmen, sauberem Abbruch per Escape und Tastatur-Bedienung.
 - **KI-Prompt-Optimierung**: ✨-Button auf jeder Karte/Zeile schreibt den Prompt per **Claude Code CLI** um (Meta-Prompt für Struktur, Rollenklarheit, Ausgabeformate). Das **Original bleibt immer erhalten** — die optimierte Fassung liegt daneben, umschaltbar über **Original / Optimierte Version / Unterschiede** mit **GitHub-artigem Diff** (grün/rot, wortgenau). **Erneut optimieren** schickt Original *und* letzte Fassung an Claude und legt eine neue Version an; ältere Versionen bleiben über die Historie (v1, v2, …) abrufbar, inklusive Modell, Dauer, Kosten und Tokens. **„Alle optimieren"** arbeitet alle noch nicht optimierten Prompts **nacheinander** ab (Fortschrittsanzeige „12 / 143", Abbrechen, fehlerhafte werden übersprungen und am Ende gezählt). Ausgeführt wird auf dem Mac-Runner — der Server ruft nie eine Shell auf; Provider-Architektur, sodass später OpenAI/Gemini/Ollama ohne Änderung am Rest ergänzt werden können.
 - **Statistiken**: eigener Tab mit Analytics-Dashboard — KPI-Kacheln mit Sparkline und Vergleich zur Vorperiode (erstellt / erledigt / bearbeitet / gelöscht / CLI-Prompts / Serie / Durchlaufzeit / Backlog) und Sektionen für **Prompts** (Zeitverlauf, Statusverteilung, Längen), **Nutzung** (Aktivitätskalender, Wochentag×Stunde-Heatmap, Wochentags-Radar, Tageszeiten, Streaks), **Projekte** (Top-Listen, Treemap, zuletzt verwendet), **Tags** (Top, Wolke, Vokabular-Wachstum) und **KI-Runs** (Kostenverlauf, Erfolgsquote, Laufzeit). Zeitraum umschaltbar von **Heute bis Gesamt** inkl. **benutzerdefiniertem** Bereich; Tages-/Stundenraster in der **Zeitzone des Browsers**. Charts mit Recharts, nur in diesem Tab nachgeladen.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.

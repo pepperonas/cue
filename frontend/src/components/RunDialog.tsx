@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import type { Prompt, RunConfig, RunKind } from '../lib/types'
 import { Button, Icon, IconButton, Switch } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 export interface RunPayload {
   kind: RunKind
@@ -51,6 +52,8 @@ function loadPrefs(): RunPrefs {
 }
 
 export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   const byId = new Map(prompts.map((p) => [p.id, p]))
   // Steps default to the board order of the Queued column (top to bottom),
   // regardless of the click order during selection. ↑/↓ still allow overrides.

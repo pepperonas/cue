@@ -8,6 +8,7 @@ import type { Snippet } from '../lib/types'
 import { useCreateSnippet, useUpdateSnippet } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton } from './ui'
+import { useBackDismiss } from '../state/overlays'
 
 interface Props {
   snippet: Snippet | null // null = create
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export function SnippetEditor({ snippet, snippets, groups, onClose, onDelete }: Props) {
+  // Back gesture / browser back closes this overlay instead of the app.
+  useBackDismiss(onClose)
   const isEdit = !!snippet
   const create = useCreateSnippet()
   const update = useUpdateSnippet()
