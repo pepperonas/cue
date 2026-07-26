@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_COLLAPSE_FROM, defaultGroupsOpen, groupByProject, isOpen, NO_PROJECT } from './board-groups'
+import { AUTO_COLLAPSE_FROM, NO_PROJECT, countOpenByProject, defaultGroupsOpen, groupByProject, isOpen } from './board-groups'
 import type { Project, Prompt } from './types'
 
 function prompt(id: number, projectId: number | null): Prompt {
@@ -86,5 +86,39 @@ describe('open-state defaults', () => {
     expect(isOpen({ 'queued:1': false }, 'queued:1', true)).toBe(false)
     expect(isOpen({ 'queued:1': true }, 'queued:1', false)).toBe(true)
     expect(isOpen({ other: false }, 'queued:1', false)).toBe(false)
+  })
+})
+
+describe('countOpenByProject', () => {
+  const p = (id: number, projectId: number | null, status: Prompt['status']) => ({
+    ...prompt(id, projectId),
+    status,
+  })
+
+  it('counts only queued and running prompts', () => {
+    const counts = countOpenByProject([
+      p(1, 1, 'queued'),
+      p(2, 1, 'running'),
+      p(3, 1, 'done'),
+      p(4, 1, 'failed'),
+      p(5, 1, 'archived'),
+    ])
+    expect(counts.get(1)).toBe(2)
+  })
+
+  it('buckets prompts without a project separately', () => {
+    const counts = countOpenByProject([p(1, null, 'queued'), p(2, null, 'running'), p(3, 2, 'queued')])
+    expect(counts.get(NO_PROJECT)).toBe(2)
+    expect(counts.get(2)).toBe(1)
+  })
+
+  it('omits projects without open prompts entirely (no zero entries)', () => {
+    const counts = countOpenByProject([p(1, 1, 'done')])
+    expect(counts.has(1)).toBe(false)
+    expect(counts.size).toBe(0)
+  })
+
+  it('handles an empty board', () => {
+    expect(countOpenByProject([]).size).toBe(0)
   })
 })

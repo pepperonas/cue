@@ -3291,3 +3291,25 @@ img.logo-xl { border-radius: 18px; }
     flex: 1 1 100%;
   }
 }
+
+/* Open-prompt counter on a project chip (queued + running). Sits right of the
+   name, uses the chip's own colour so it stays legible in the active state. */
+.chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--shape-full);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  color: inherit;
+  font: var(--label-m);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  flex: none;
+}
+.chip[data-active='true'] .chip-count {
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}

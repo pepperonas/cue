@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { api } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
+import { countOpenByProject } from './lib/board-groups'
 import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
@@ -199,6 +200,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     localStorage.setItem('cue-project-filter', String(projectFilter))
   }, [projectFilter])
   const [showExtra, setShowExtra] = useState(false)
+
+  // Open prompts (queued + running) per project for the chip badges. Derived
+  // from the UNFILTERED prompt list, so filtering doesn't zero the others, and
+  // it re-renders with every optimistic status change — no refresh needed.
+  const openCounts = useMemo(() => countOpenByProject(prompts ?? []), [prompts])
 
   // If the persisted filter points at a project that no longer exists, reset.
   useEffect(() => {
@@ -603,6 +609,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               projects={projects ?? []}
               filter={projectFilter}
               setFilter={setProjectFilter}
+              openCounts={openCounts}
             />
 
             {isLoading ? (

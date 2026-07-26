@@ -540,7 +540,6 @@ function ProjectSection({ data, theme }: { data: Stats; theme: Theme }) {
               <Treemap
                 data={p.treemap}
                 dataKey="value"
-                stroke={theme.surface}
                 animationDuration={600}
                 content={<TreemapTile />}
               >
@@ -586,16 +585,43 @@ function TreemapTile(props: Record<string, unknown> = {}) {
   // the grand total that would peek through the gaps between the real ones.
   if (Number(props.depth ?? 1) === 0) return <g />
   const showLabel = width > 62 && height > 28
+  // Ink is chosen per tile (project colours are user-defined). `stroke="none"`
+  // is essential: anything inherited would outline the glyphs and turn the
+  // label into mush — the tile border is drawn by the rect, not by the group.
   const ink = readableInk(fill)
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} rx={10} fill={fill} fillOpacity={0.88} />
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={10}
+        fill={fill}
+        stroke="var(--md-surface-container)"
+        strokeWidth={2}
+      />
       {showLabel && (
         <>
-          <text x={x + 10} y={y + 20} fill={ink} fontSize={12} fontWeight={600}>
+          <text
+            x={x + 10}
+            y={y + 21}
+            fill={ink}
+            stroke="none"
+            fontSize={13}
+            fontWeight={700}
+          >
             {name.length > 16 ? `${name.slice(0, 15)}…` : name}
           </text>
-          <text x={x + 10} y={y + 36} fill={ink} fontSize={11} opacity={0.75}>
+          <text
+            x={x + 10}
+            y={y + 37}
+            fill={ink}
+            stroke="none"
+            fontSize={11.5}
+            fontWeight={500}
+            opacity={0.88}
+          >
             {value}
           </text>
         </>

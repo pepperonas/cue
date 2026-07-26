@@ -14,13 +14,27 @@ import { Icon } from './ui'
 
 type Filter = number | 'all' | 'none'
 
+/** Open prompts (queued + running) per project; 'none' = prompts without one. */
+export type OpenCounts = Map<number | 'none', number>
+
 interface ChipProps {
   p: Project
   active: boolean
+  count: number
   onClick: () => void
 }
 
-function SortableChip({ p, active, onClick }: ChipProps) {
+/** Badge with the number of open prompts. Zero is not rendered at all. */
+function OpenBadge({ count }: { count: number }) {
+  if (!count) return null
+  return (
+    <span className="chip-count" title={`${count} offen (Queued + Running)`}>
+      {count}
+    </span>
+  )
+}
+
+function SortableChip({ p, active, count, onClick }: ChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: p.id,
   })
@@ -41,6 +55,7 @@ function SortableChip({ p, active, onClick }: ChipProps) {
     >
       <span className="dot" style={{ background: p.color }} />
       {p.name}
+      <OpenBadge count={count} />
     </button>
   )
 }
@@ -52,10 +67,14 @@ export function ProjectChips({
   projects,
   filter,
   setFilter,
+  openCounts,
 }: {
   projects: Project[]
   filter: Filter
   setFilter: (f: Filter) => void
+  /** Live count of open prompts per project (see App: derived from the
+   *  prompts query, so it follows every status change without a refresh). */
+  openCounts?: OpenCounts
 }) {
   const reorder = useReorderProjects()
   // On a phone 36 projects wrap into six rows and push the board off-screen.
@@ -92,11 +111,18 @@ export function ProjectChips({
       </button>
       <button className="chip" data-active={filter === 'none'} onClick={() => setFilter('none')}>
         Ohne Projekt
+        <OpenBadge count={openCounts?.get('none') ?? 0} />
       </button>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={projects.map((p) => p.id)} strategy={rectSortingStrategy}>
           {projects.map((p) => (
-            <SortableChip key={p.id} p={p} active={filter === p.id} onClick={() => select(p.id)} />
+            <SortableChip
+              key={p.id}
+              p={p}
+              active={filter === p.id}
+              count={openCounts?.get(p.id) ?? 0}
+              onClick={() => select(p.id)}
+            />
           ))}
         </SortableContext>
       </DndContext>

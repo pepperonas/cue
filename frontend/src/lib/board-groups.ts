@@ -84,3 +84,21 @@ export function isOpen(
 ): boolean {
   return overrides[id] ?? fallback
 }
+
+
+/**
+ * Open prompts (queued + running) per project, keyed by project id with
+ * `NO_PROJECT` for the unassigned bucket.
+ *
+ * Always call this with the UNFILTERED prompt list: the counts describe the
+ * whole board, so filtering to one project must not zero the other badges.
+ */
+export function countOpenByProject(prompts: Prompt[]): Map<number | typeof NO_PROJECT, number> {
+  const counts = new Map<number | typeof NO_PROJECT, number>()
+  for (const prompt of prompts) {
+    if (prompt.status !== 'queued' && prompt.status !== 'running') continue
+    const key: GroupKey = prompt.project_id ?? NO_PROJECT
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return counts
+}
