@@ -12,7 +12,14 @@ dependencies = [
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    # Used by scripts/update-badges.mjs for the runner coverage badge.
+    "pytest-cov>=5.0",
 ]
+
+# Explicit discovery: with `tests/` next to the package, setuptools' automatic
+# discovery bails out ("multiple top-level packages").
+[tool.setuptools.packages.find]
+include = ["cue_runner*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

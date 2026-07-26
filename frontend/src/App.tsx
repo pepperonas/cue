@@ -15,6 +15,8 @@ import {
 } from './lib/types'
 import {
   projectMap,
+  useActiveOptimizations,
+  useCancelOptimization,
   useCreateRun,
   useDeletePrompt,
   useDuplicateInPlace,
@@ -24,7 +26,10 @@ import {
   useProjects,
   useReorder,
   useReorderBookmarks,
+  useOptimizeConfig,
+  useOptimizePrompt,
   useRunConfig,
+  useStartOptimizeBatch,
   useUpdatePrompt,
 } from './state/queries'
 import { useSettings } from './state/settings'
@@ -37,6 +42,7 @@ import { RunDialog, type RunPayload } from './components/RunDialog'
 import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
 import { RunTicker } from './components/RunTicker'
+import { BatchTicker } from './components/optimize/BatchTicker'
 import { SessionsView } from './components/SessionsView'
 import { SnippetsView } from './components/SnippetsView'
 import { DetailSheet } from './components/DetailSheet'
@@ -136,6 +142,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const runConfigQ = useRunConfig()
   const canRun = runConfigQ.isSuccess
   const createRun = useCreateRun()
+  // Prompt optimization: owner-only, so a 403 on the config hides everything.
+  const optimizeConfigQ = useOptimizeConfig()
+  const canOptimize = optimizeConfigQ.isSuccess && optimizeConfigQ.data.enabled
+  const optimizePrompt = useOptimizePrompt()
+  const cancelOptimization = useCancelOptimization()
+  const startBatch = useStartOptimizeBatch()
+  const { data: activeOptimizations } = useActiveOptimizations(canOptimize)
+  const optimizingIds = useMemo(
+    () => (activeOptimizations ?? []).map((o) => o.prompt_id),
+    [activeOptimizations],
+  )
 
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('cue-view')
@@ -321,6 +338,45 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   // Only done prompts carry a tested flag (the toggle is disabled elsewhere —
   // this is the guard for any other path into it).
+  // Queue an optimization for one prompt. The runner picks it up; the button
+  // spins until the job leaves the active list.
+  const handleOptimize = useCallback(
+    (p: Prompt) => {
+      optimizePrompt.mutate(
+        { promptId: p.id },
+        {
+          onSuccess: () =>
+            toast.show(
+              p.optimized ? 'Erneute Optimierung gestartet' : 'Optimierung gestartet',
+              'success',
+            ),
+          onError: (err) =>
+            toast.show(
+              err instanceof Error ? err.message : 'Optimierung fehlgeschlagen',
+              'error',
+            ),
+        },
+      )
+      vibrate(8)
+    },
+    [optimizePrompt, toast],
+  )
+
+  const handleOptimizeAll = useCallback(() => {
+    startBatch.mutate(
+      {
+        project_id: typeof projectFilter === 'number' ? projectFilter : null,
+        only_pending: true,
+      },
+      {
+        onSuccess: (batch) =>
+          toast.show(`Sammel-Optimierung gestartet: ${batch.total} Prompts`, 'success'),
+        onError: (err) =>
+          toast.show(err instanceof Error ? err.message : 'Start fehlgeschlagen', 'error'),
+      },
+    )
+  }, [projectFilter, startBatch, toast])
+
   const handleToggleTested = useCallback(
     (p: Prompt) => {
       if (p.status !== 'done') {
@@ -517,6 +573,20 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                   <Icon name={showExtra ? 'unfold_less' : 'unfold_more'} /> Failed / Archived
                 </button>
               )}
+              {canOptimize && (view === 'board' || view === 'list') && (
+                <button
+                  className="chip chip--optimize"
+                  disabled={startBatch.isPending}
+                  onClick={handleOptimizeAll}
+                  title={
+                    typeof projectFilter === 'number'
+                      ? 'Alle noch nicht optimierten Prompts dieses Projekts optimieren'
+                      : 'Alle noch nicht optimierten Prompts optimieren'
+                  }
+                >
+                  <Icon name="auto_awesome" /> Alle optimieren
+                </button>
+              )}
               {(view === 'board' || view === 'list') && (
                 <button
                   className="chip"
@@ -559,6 +629,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onDuplicate={handleDuplicate}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
+                onOptimize={canOptimize ? handleOptimize : undefined}
+                optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
                 onReorder={(items) => reorder.mutate(items)}
                 selectMode={selectMode}
@@ -578,6 +650,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onDuplicate={handleDuplicate}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}
+                onOptimize={canOptimize ? handleOptimize : undefined}
+                optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
@@ -632,6 +706,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       <Footer />
 
       <RunTicker enabled={canRun && view !== 'runs'} onOpen={() => setView('runs')} />
+      <BatchTicker enabled={canOptimize} />
 
       {(view === 'board' || view === 'list') && !composerOpen && !selectMode && (
         <motion.button
@@ -731,6 +806,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
             onToggleBlocked={handleToggleBlocked}
+            canOptimize={canOptimize}
+            optimizeBusy={optimizingIds.includes(detailLive.id)}
+            activeOptimization={
+              (activeOptimizations ?? []).find((o) => o.prompt_id === detailLive.id) ?? null
+            }
+            onOptimize={handleOptimize}
+            onCancelOptimize={(id) => cancelOptimization.mutate(id)}
             onMoveProject={(p, pid) => {
               update.mutate({
                 id: p.id,

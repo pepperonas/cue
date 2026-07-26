@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from .models import PromptStatus, RunKind, RunStatus
+from .models import OptimizationStatus, PromptStatus, RunKind, RunStatus
 
 
 # ---- Auth ----
@@ -102,6 +102,12 @@ class PromptRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     ran_at: datetime | None
+    # AI optimization state (the original `body` above is never overwritten).
+    optimized: bool = False
+    optimized_body: str | None = None
+    optimized_at: datetime | None = None
+    optimization_model: str = ""
+    optimization_version: int = 0
     attachments: list[AttachmentRead] = []
 
 
@@ -483,3 +489,101 @@ class AdminUserRead(BaseModel):
 
 class AdminUserUpdate(BaseModel):
     approved: bool
+
+
+# ---- Prompt optimization ----
+class OptimizationCreate(BaseModel):
+    prompt_id: int
+    # Optimizer backend id; omitted = the configured default.
+    provider: str | None = None
+
+
+class OptimizationBatchCreate(BaseModel):
+    project_id: int | None = None
+    # False re-optimizes prompts that already have a version.
+    only_pending: bool = True
+    provider: str | None = None
+
+
+class OptimizationRead(BaseModel):
+    """History entry / job state. Texts travel along so the diff view needs no
+    second request."""
+
+    id: int
+    prompt_id: int
+    batch_id: str | None
+    version: int
+    status: OptimizationStatus
+    provider: str
+    model: str
+    meta_prompt_version: int
+    original_text: str
+    previous_text: str | None
+    optimized_text: str | None
+    exit_code: int | None
+    duration_ms: int | None
+    cost_usd: float | None
+    input_tokens: int | None
+    output_tokens: int | None
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class OptimizationBatchRead(BaseModel):
+    id: str
+    provider: str
+    total: int
+    done: int
+    failed: int
+    pending: int
+    canceled: bool
+    created_at: datetime
+    finished_at: datetime | None
+
+
+class OptimizationProviderRead(BaseModel):
+    id: str
+    label: str
+    description: str
+    executed_by: str
+
+
+class OptimizationConfigRead(BaseModel):
+    enabled: bool
+    default_provider: str
+    providers: list[OptimizationProviderRead]
+    timeout_s: int
+    max_chars: int
+    meta_prompt_version: int
+
+
+# ---- Runner-facing (Bearer RUNNER_TOKEN) ----
+class OptimizationClaimRequest(BaseModel):
+    runner_id: str = "mac-runner"
+
+
+class OptimizationClaimResponse(BaseModel):
+    id: int
+    provider: str
+    model: str
+    # Fully built meta prompt — the executor never assembles prompts itself.
+    prompt: str
+    timeout_s: int
+    max_chars: int
+    max_retries: int
+    prompt_id: int
+    version: int
+
+
+class OptimizationResultRequest(BaseModel):
+    status: OptimizationStatus
+    optimized_text: str | None = None
+    model: str = ""
+    exit_code: int | None = None
+    duration_ms: int | None = None
+    cost_usd: float | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    error: str | None = None

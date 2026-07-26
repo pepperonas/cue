@@ -74,6 +74,44 @@ class RunnerApi:
             json={"status": status, "error": error},
         )
 
+    async def claim_optimization(self) -> dict | None:
+        r = await self.client.post(
+            "/api/optimizations/claim", json={"runner_id": self.cfg.runner_id}
+        )
+        if r.status_code == 204:
+            return None
+        r.raise_for_status()
+        return r.json()
+
+    async def optimization_result(
+        self,
+        optimization_id: int,
+        *,
+        status: str,
+        optimized_text: str | None = None,
+        model: str = "",
+        exit_code: int | None = None,
+        duration_ms: int | None = None,
+        cost_usd: float | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        error: str | None = None,
+    ) -> None:
+        await self.client.post(
+            f"/api/optimizations/{optimization_id}/result",
+            json={
+                "status": status,
+                "optimized_text": optimized_text,
+                "model": model,
+                "exit_code": exit_code,
+                "duration_ms": duration_ms,
+                "cost_usd": cost_usd,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "error": error,
+            },
+        )
+
     async def capture(self, items: list[dict]) -> dict:
         # Capture uses its own token (not the runner token).
         r = await self.client.post(

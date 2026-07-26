@@ -14,6 +14,9 @@ import type {
   CaptureSettings,
   Delivery,
   Me,
+  Optimization,
+  OptimizationBatch,
+  OptimizationConfig,
   Project,
   Prompt,
   Run,
@@ -209,6 +212,22 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, 'Import failed')
     return res.json()
   },
+  // ---- Prompt optimization (owner-only; executed by the Mac runner) ----
+  optimizeConfig: () => request<OptimizationConfig>('GET', '/optimizations/config'),
+  optimizePrompt: (prompt_id: number, provider?: string) =>
+    request<Optimization>('POST', '/optimizations', { prompt_id, provider }),
+  optimizationHistory: (prompt_id: number) =>
+    request<Optimization[]>('GET', `/optimizations?prompt_id=${prompt_id}`),
+  activeOptimizations: () => request<Optimization[]>('GET', '/optimizations'),
+  cancelOptimization: (id: number) =>
+    request<Optimization>('POST', `/optimizations/${id}/cancel`),
+  startOptimizationBatch: (input: { project_id?: number | null; only_pending?: boolean }) =>
+    request<OptimizationBatch>('POST', '/optimizations/batch', input),
+  activeOptimizationBatch: () =>
+    request<OptimizationBatch | null>('GET', '/optimizations/batch/active'),
+  cancelOptimizationBatch: (id: string) =>
+    request<OptimizationBatch>('POST', `/optimizations/batch/${id}/cancel`),
+
   // Statistics dashboard. The browser's IANA timezone travels with every call
   // so day/hour buckets line up with the viewer's calendar, not with UTC.
   stats: (query: StatsQuery) => {

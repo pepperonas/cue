@@ -17,6 +17,7 @@ from sqlmodel import Session
 
 from . import events
 from .config import get_settings
+from .optimization import PromptOptimizationService
 from .db import engine, init_db
 from .routers import (
     admin,
@@ -24,6 +25,7 @@ from .routers import (
     auth,
     capture,
     importexport,
+    optimize,
     projects,
     prompts,
     runs,
@@ -50,11 +52,13 @@ async def _attachment_gc_loop() -> None:
 
 async def _run_reaper_loop() -> None:
     """Fail runs whose runner stopped heart-beating (also cleans up runs left
-    in-flight across a backend restart). Runs immediately, then every 60 s."""
+    in-flight across a backend restart). Runs immediately, then every 60 s.
+    The same tick reaps optimization jobs whose executor never reported back."""
     while True:
         try:
             with Session(engine) as session:
                 runs.reap_stale(session, _settings.run_stale_timeout)
+                PromptOptimizationService(session, _settings).reap_stale()
         except Exception:
             pass
         await asyncio.sleep(60)
@@ -79,7 +83,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.22.0",
+    version="0.23.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -135,6 +139,7 @@ api.include_router(snippets.router)
 api.include_router(sync.router)
 api.include_router(importexport.router)
 api.include_router(stats.router)
+api.include_router(optimize.router)
 
 
 @api.get("/health")

@@ -33,6 +33,9 @@ interface Props {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  // Prompt optimization (owner-only): undefined hides the button on the cards.
+  onOptimize?: (p: Prompt) => void
+  optimizingIds?: number[]
   onReorder: (items: { id: number; status: Status; sort_order: number }[]) => void
   selectMode?: boolean
   selectedIds?: number[]
@@ -87,6 +90,8 @@ export function Board({
   onDuplicate,
   onToggleBookmark,
   onToggleTested,
+  onOptimize,
+  optimizingIds,
   onToggleBlocked,
   onReorder,
   selectMode,
@@ -228,6 +233,8 @@ export function Board({
                       onDuplicate={onDuplicate}
                       onToggleBookmark={onToggleBookmark}
                       onToggleTested={onToggleTested}
+                      onOptimize={onOptimize}
+                      optimizeBusy={optimizingIds?.includes(p.id) ?? false}
                       onToggleBlocked={onToggleBlocked}
                       selectMode={selectMode}
                       selectedForMerge={selectedIds?.includes(id)}

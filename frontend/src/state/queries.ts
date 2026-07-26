@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Project, Prompt, StatsQuery, Status } from '../lib/types'
+import type { Optimization, Project, Prompt, StatsQuery, Status } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
 const PROMPTS_KEY = ['prompts'] as const
@@ -509,5 +509,86 @@ export function useSetUserApproval() {
     mutationFn: ({ id, approved }: { id: number; approved: boolean }) =>
       api.adminSetApproval(id, approved),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ADMIN_USERS_KEY }),
+  })
+}
+
+// ---- Prompt optimization -------------------------------------------------
+// Owner-only, executed by the Mac runner: the hooks poll while something is in
+// flight and stop as soon as the queue is empty (same pattern as runs).
+const OPTIMIZATIONS_KEY = ['optimizations'] as const
+
+export function useOptimizeConfig() {
+  return useQuery({
+    queryKey: ['optimize-config'],
+    queryFn: () => api.optimizeConfig(),
+    retry: false, // a 403 means "not the owner" -> hide the feature
+  })
+}
+
+/** All queued/running jobs — drives the per-prompt spinner and the ticker. */
+export function useActiveOptimizations(enabled: boolean) {
+  return useQuery({
+    queryKey: OPTIMIZATIONS_KEY,
+    queryFn: () => api.activeOptimizations(),
+    enabled,
+    refetchInterval: (q) => ((q.state.data ?? []).length ? 2000 : false),
+  })
+}
+
+export function useOptimizationHistory(promptId: number | null) {
+  return useQuery({
+    queryKey: ['optimizations', promptId],
+    queryFn: () => api.optimizationHistory(promptId as number),
+    enabled: promptId !== null,
+  })
+}
+
+export function useOptimizeBatch(enabled: boolean) {
+  return useQuery({
+    queryKey: ['optimize-batch'],
+    queryFn: () => api.activeOptimizationBatch(),
+    enabled,
+    refetchInterval: (q) => (q.state.data && !q.state.data.finished_at ? 2000 : false),
+  })
+}
+
+export function useOptimizePrompt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ promptId, provider }: { promptId: number; provider?: string }) =>
+      api.optimizePrompt(promptId, provider),
+    onSuccess: (job) => {
+      // Show the spinner immediately instead of waiting for the next poll.
+      qc.setQueryData<Optimization[]>(OPTIMIZATIONS_KEY, (old) => [...(old ?? []), job])
+      qc.invalidateQueries({ queryKey: ['optimizations', job.prompt_id] })
+    },
+  })
+}
+
+export function useCancelOptimization() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.cancelOptimization(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY }),
+  })
+}
+
+export function useStartOptimizeBatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.startOptimizationBatch,
+    onSuccess: (batch) => {
+      qc.setQueryData(['optimize-batch'], batch)
+      qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY })
+    },
+  })
+}
+
+export function useCancelOptimizeBatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.cancelOptimizationBatch(id),
+    onSuccess: (batch) => qc.setQueryData(['optimize-batch'], batch),
+    onSettled: () => qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY }),
   })
 }

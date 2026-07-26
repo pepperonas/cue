@@ -58,6 +58,12 @@ export interface Prompt {
   bookmarked: boolean
   bookmark_order: number
   tested: boolean
+  // AI optimization — `body` above always stays the untouched original.
+  optimized: boolean
+  optimized_body: string | null
+  optimized_at: string | null
+  optimization_model: string
+  optimization_version: number
   blocked: boolean
   created_at: string
   updated_at: string
@@ -394,4 +400,61 @@ export interface StatsQuery {
   range: StatsRangeKey
   from?: string
   to?: string
+}
+
+// ---- Prompt optimization (AI) ----
+export type OptimizationStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
+
+export const OPTIMIZATION_ACTIVE: OptimizationStatus[] = ['queued', 'running']
+
+/** One optimization attempt — a job while it runs, a history entry afterwards. */
+export interface Optimization {
+  id: number
+  prompt_id: number
+  batch_id: string | null
+  version: number
+  status: OptimizationStatus
+  provider: string
+  model: string
+  meta_prompt_version: number
+  original_text: string
+  previous_text: string | null
+  optimized_text: string | null
+  exit_code: number | null
+  duration_ms: number | null
+  cost_usd: number | null
+  input_tokens: number | null
+  output_tokens: number | null
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface OptimizationBatch {
+  id: string
+  provider: string
+  total: number
+  done: number
+  failed: number
+  pending: number
+  canceled: boolean
+  created_at: string
+  finished_at: string | null
+}
+
+export interface OptimizationProvider {
+  id: string
+  label: string
+  description: string
+  executed_by: string
+}
+
+export interface OptimizationConfig {
+  enabled: boolean
+  default_provider: string
+  providers: OptimizationProvider[]
+  timeout_s: number
+  max_chars: number
+  meta_prompt_version: number
 }

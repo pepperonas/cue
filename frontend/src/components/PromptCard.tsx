@@ -10,6 +10,7 @@ import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { OptimizeButton } from './optimize/OptimizeButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -23,6 +24,9 @@ interface Props {
   onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
+  // Prompt optimization (owner-only): undefined hides the button entirely.
+  onOptimize?: (p: Prompt) => void
+  optimizeBusy?: boolean
   onToggleBlocked?: (p: Prompt) => void
   selectMode?: boolean
   selectedForMerge?: boolean
@@ -41,6 +45,8 @@ export function PromptCard({
   onDuplicate,
   onToggleBookmark,
   onToggleTested,
+  onOptimize,
+  optimizeBusy = false,
   onToggleBlocked,
   selectMode,
   selectedForMerge,
@@ -149,6 +155,13 @@ export function PromptCard({
             </span>
           )}
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+            {onOptimize && (
+              <OptimizeButton
+                prompt={prompt}
+                busy={optimizeBusy}
+                onOptimize={onOptimize}
+              />
+            )}
             {onToggleTested && canTest && (
               <TestedButton
                 tested={prompt.tested}

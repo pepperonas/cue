@@ -88,6 +88,22 @@ class Settings:
         # A run/step with no runner heartbeat for this long is reaped as failed.
         self.run_stale_timeout: int = int(os.environ.get("RUN_STALE_TIMEOUT", "300"))
 
+        # ---- Prompt optimization (see app/optimization/) ----
+        # Central knobs — never hard-code any of these at a call site.
+        self.optimize_enabled: bool = _bool(os.environ.get("OPTIMIZE_ENABLED"), default=True)
+        # Default optimizer backend (id from app.optimization.providers).
+        self.optimize_provider: str = os.environ.get("OPTIMIZE_PROVIDER", "claude_cli")
+        # Model hint handed to the executor; empty = let the provider decide.
+        self.optimize_model: str = os.environ.get("OPTIMIZE_MODEL", "")
+        # Hard wall-clock limit for one optimization on the executor (seconds).
+        self.optimize_timeout: int = int(os.environ.get("OPTIMIZE_TIMEOUT", "180"))
+        # Reject prompts longer than this (characters) before queueing them.
+        self.optimize_max_chars: int = int(os.environ.get("OPTIMIZE_MAX_CHARS", "24000"))
+        # Executor-side retries for a transient CLI failure.
+        self.optimize_max_retries: int = int(os.environ.get("OPTIMIZE_MAX_RETRIES", "1"))
+        # A claimed job without a result after timeout + this grace is reaped.
+        self.optimize_stale_grace: int = int(os.environ.get("OPTIMIZE_STALE_GRACE", "120"))
+
         # ---- Prompt capture ----
         # Shared secret the capture forwarder presents (Bearer). Maps to OWNER_EMAIL.
         self.capture_token: str = os.environ.get("CAPTURE_TOKEN", "")

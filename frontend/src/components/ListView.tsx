@@ -8,6 +8,7 @@ import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { OptimizeButton } from './optimize/OptimizeButton'
 import { Icon } from './ui'
 
 interface Props {
@@ -22,6 +23,9 @@ interface Props {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  // Prompt optimization (owner-only): undefined hides the button.
+  onOptimize?: (p: Prompt) => void
+  optimizingIds?: number[]
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
@@ -51,6 +55,8 @@ export function ListView({
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
+  onOptimize,
+  optimizingIds,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -116,6 +122,8 @@ export function ListView({
                           onToggleBookmark={onToggleBookmark}
                           onToggleTested={onToggleTested}
                           onToggleBlocked={onToggleBlocked}
+                          onOptimize={onOptimize}
+                          optimizeBusy={optimizingIds?.includes(p.id) ?? false}
                           selectMode={selectMode}
                           selectedForMerge={selectedIds?.includes(p.id)}
                           onToggleSelect={onToggleSelect}
@@ -146,6 +154,8 @@ interface RowProps {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  onOptimize?: (p: Prompt) => void
+  optimizeBusy?: boolean
   selectMode?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
@@ -164,6 +174,8 @@ function ListRow({
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
+  onOptimize,
+  optimizeBusy = false,
   selectMode,
   selectedForMerge,
   onToggleSelect,
@@ -241,6 +253,9 @@ function ListRow({
       </div>
       {project && tones && (
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
+      )}
+      {onOptimize && (
+        <OptimizeButton prompt={p} busy={optimizeBusy} onOptimize={onOptimize} />
       )}
       {onToggleTested && canTest && (
         <TestedButton

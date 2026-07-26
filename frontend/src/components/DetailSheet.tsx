@@ -3,11 +3,13 @@ import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
-import type { Project, Prompt, Status } from '../lib/types'
+import type { Optimization, Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
+import { OptimizeButton } from './optimize/OptimizeButton'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -27,6 +29,12 @@ interface Props {
   onCopyToProject: (p: Prompt, projectId: number | null) => void
   onRun?: (p: Prompt) => void
   onSend?: (p: Prompt) => void
+  // Prompt optimization (owner-only; absent for everyone else).
+  canOptimize?: boolean
+  optimizeBusy?: boolean
+  activeOptimization?: Optimization | null
+  onOptimize?: (p: Prompt) => void
+  onCancelOptimize?: (id: number) => void
 }
 
 function fmt(iso: string | null): string {
@@ -55,8 +63,18 @@ export function DetailSheet({
   onCopyToProject,
   onRun,
   onSend,
+  canOptimize = false,
+  optimizeBusy = false,
+  activeOptimization = null,
+  onOptimize,
+  onCancelOptimize,
 }: Props) {
   const [showRaw, setShowRaw] = useState(false)
+  // Which text the sheet renders: the untouched original, the optimized
+  // version, or the diff between them. Reset whenever another prompt opens.
+  const [variant, setVariant] = useState<PromptVariant>('original')
+  const [pickedVersion, setPickedVersion] = useState<number | null>(null)
+  const [versionText, setVersionText] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [projMenu, setProjMenu] = useState(false)
   const [projMode, setProjMode] = useState<'move' | 'copy'>('move')
@@ -65,6 +83,19 @@ export function DetailSheet({
   const canBlock = prompt.status === 'queued'
   const tones = project ? projectTones(project.color, dark) : null
   const contentRef = useRef<HTMLDivElement>(null)
+
+  // A different prompt (or a fresh optimization) resets the variant switch.
+  useEffect(() => {
+    setVariant('original')
+    setPickedVersion(null)
+    setVersionText(null)
+  }, [prompt.id])
+
+  // The text the user currently sees — copy/select-all operate on exactly this.
+  const shownBody =
+    variant === 'optimized'
+      ? versionText ?? prompt.optimized_body ?? prompt.body
+      : prompt.body
 
   // Project menu: close on outside click; Escape closes just the menu (captured
   // before the global handler would close the whole sheet).
@@ -151,6 +182,14 @@ export function DetailSheet({
                 variant="icon-btn"
                 blocked={prompt.blocked}
                 onToggle={() => onToggleBlocked(prompt)}
+              />
+            )}
+            {canOptimize && onOptimize && (
+              <OptimizeButton
+                variant="icon-btn"
+                prompt={prompt}
+                busy={optimizeBusy}
+                onOptimize={onOptimize}
               />
             )}
             <BookmarkButton
@@ -266,8 +305,34 @@ export function DetailSheet({
           In Zwischenablage kopieren
         </Button>
 
+        {canOptimize && onOptimize && (
+          <OptimizationPanel
+            prompt={prompt}
+            view={variant}
+            onView={(next) => {
+              setVariant(next)
+              // Leaving the optimized view drops a pinned old version.
+              if (next === 'original') setVersionText(null)
+            }}
+            busy={optimizeBusy}
+            activeJob={activeOptimization}
+            onOptimize={() => onOptimize(prompt)}
+            onCancel={() => activeOptimization && onCancelOptimize?.(activeOptimization.id)}
+            selectedVersion={pickedVersion}
+            onOpenVersion={(row) => {
+              setPickedVersion(row.version)
+              setVersionText(row.optimized_text ?? null)
+              setVariant('optimized')
+            }}
+          />
+        )}
+
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="muted">Inhalt</span>
+          <span className="muted">
+            {variant === 'optimized'
+              ? `Optimierte Fassung${pickedVersion ? ` (v${pickedVersion})` : ''}`
+              : 'Inhalt'}
+          </span>
           <button className="chip" onClick={() => setShowRaw((v) => !v)}>
             <Icon name={showRaw ? 'visibility' : 'code'} /> {showRaw ? 'Vorschau' : 'Rohtext'}
           </button>
@@ -280,7 +345,8 @@ export function DetailSheet({
             title="Doppelklick zum Bearbeiten"
             onDoubleClick={() => onEdit(prompt)}
           >
-            {showRaw ? (
+            {/* The diff view above replaces the body while it is active. */}
+            {variant === 'diff' ? null : showRaw ? (
             <pre
               style={{
                 background: 'var(--md-surface-container-lowest)',
@@ -293,7 +359,7 @@ export function DetailSheet({
                 margin: 0,
               }}
             >
-              {prompt.body}
+              {shownBody}
             </pre>
           ) : (
             <div
@@ -303,7 +369,7 @@ export function DetailSheet({
                 padding: 'var(--gap-4)',
                 borderRadius: 'var(--shape-s)',
               }}
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(prompt.body) }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(shownBody) }}
             />
           )}
         </div>

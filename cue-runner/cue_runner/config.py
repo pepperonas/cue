@@ -29,6 +29,12 @@ class Config:
     # CLI delivery: type prompts from the web app back into a live session.
     deliver_enabled: bool = True
     deliver_interval: float = 1.5
+    # Prompt optimization worker (strictly sequential; the server sets the
+    # per-job timeout/limits, these are the local fallbacks).
+    optimize_enabled: bool = True
+    optimize_interval: float = 3.0
+    optimize_timeout: float = 180.0
+    optimize_max_chars: int = 32000
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -52,6 +58,10 @@ class Config:
             max_concurrency=int(os.environ.get("MAX_CONCURRENCY", "1")),
             heartbeat_interval=float(os.environ.get("HEARTBEAT_INTERVAL", "15")),
             run_timeout=float(os.environ.get("RUN_TIMEOUT", "1800")),
+            optimize_enabled=os.environ.get("CUE_OPTIMIZE", "1") not in ("0", "false", "no"),
+            optimize_interval=float(os.environ.get("OPTIMIZE_INTERVAL", "3")),
+            optimize_timeout=float(os.environ.get("OPTIMIZE_TIMEOUT", "180")),
+            optimize_max_chars=int(os.environ.get("OPTIMIZE_MAX_CHARS", "32000")),
             capture_token=os.environ.get("CAPTURE_TOKEN", ""),
             spool_path=os.path.expanduser(
                 os.environ.get("CUE_CAPTURE_SPOOL", "~/.cue-runner/capture-spool.jsonl")

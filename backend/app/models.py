@@ -91,6 +91,90 @@ class Prompt(SQLModel, table=True):
     # Set when the prompt first enters running/done.
     ran_at: datetime | None = Field(default=None)
 
+    # ---- AI prompt optimization (see app/optimization/) ----
+    # `body` above ALWAYS stays the user's original text — the optimized
+    # variant lives beside it and is only ever displayed on request.
+    optimized: bool = Field(default=False, index=True)
+    optimized_body: str | None = Field(default=None)
+    optimized_at: datetime | None = Field(default=None)
+    optimization_model: str = Field(default="")
+    # Highest completed version; 0 = never optimized.
+    optimization_version: int = Field(default=0)
+
+
+class OptimizationStatus(str, enum.Enum):
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+    canceled = "canceled"
+
+
+# Statuses an optimization job can no longer leave.
+OPTIMIZATION_TERMINAL = {
+    OptimizationStatus.succeeded,
+    OptimizationStatus.failed,
+    OptimizationStatus.canceled,
+}
+
+
+class OptimizationBatch(SQLModel, table=True):
+    """A "optimize everything" run: many jobs worked off strictly one by one."""
+
+    __tablename__ = "optimization_batch"
+
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    provider: str = Field(default="claude_cli")
+    total: int = Field(default=0)
+    # Set by the user; the claim endpoint refuses to hand out further jobs.
+    canceled: bool = Field(default=False, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    finished_at: datetime | None = Field(default=None)
+
+
+class PromptOptimization(SQLModel, table=True):
+    """One optimization attempt — job while it runs, history entry afterwards.
+
+    Rows are never updated after reaching a terminal status, so the full
+    version history of a prompt is simply every row ordered by `version`.
+    """
+
+    __tablename__ = "prompt_optimization"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    prompt_id: int = Field(foreign_key="prompt.id", index=True)
+    batch_id: str | None = Field(default=None, foreign_key="optimization_batch.id", index=True)
+    # 1-based, per prompt. Re-optimizing increments it.
+    version: int = Field(default=1)
+    status: OptimizationStatus = Field(default=OptimizationStatus.queued, index=True)
+
+    # Which optimizer produced this (see app.optimization.providers).
+    provider: str = Field(default="claude_cli")
+    # Model the provider reported back (CLI picks its own default).
+    model: str = Field(default="")
+    meta_prompt_version: int = Field(default=1)
+
+    # Snapshots: the untouched source text and the version this attempt built
+    # on (set from v2 onwards), so history entries stay reproducible.
+    original_text: str = Field(default="")
+    previous_text: str | None = Field(default=None)
+    optimized_text: str | None = Field(default=None)
+
+    # Telemetry / audit trail.
+    exit_code: int | None = Field(default=None)
+    duration_ms: int | None = Field(default=None)
+    cost_usd: float | None = Field(default=None)
+    input_tokens: int | None = Field(default=None)
+    output_tokens: int | None = Field(default=None)
+    error: str | None = Field(default=None)
+    runner_id: str | None = Field(default=None)
+
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    started_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(default=None)
+
 
 class PromptEventType(str, enum.Enum):
     created = "created"

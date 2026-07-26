@@ -53,6 +53,13 @@ def _migrate(engine: Engine) -> None:
         "tested": "ALTER TABLE prompt ADD COLUMN tested BOOLEAN NOT NULL DEFAULT 0",
         "blocked": "ALTER TABLE prompt ADD COLUMN blocked BOOLEAN NOT NULL DEFAULT 0",
         "user_id": "ALTER TABLE prompt ADD COLUMN user_id INTEGER REFERENCES user(id)",
+        # AI prompt optimization: the optimized variant lives beside the
+        # original body, which is never overwritten.
+        "optimized": "ALTER TABLE prompt ADD COLUMN optimized BOOLEAN NOT NULL DEFAULT 0",
+        "optimized_body": "ALTER TABLE prompt ADD COLUMN optimized_body VARCHAR",
+        "optimized_at": "ALTER TABLE prompt ADD COLUMN optimized_at TIMESTAMP",
+        "optimization_model": "ALTER TABLE prompt ADD COLUMN optimization_model VARCHAR NOT NULL DEFAULT ''",
+        "optimization_version": "ALTER TABLE prompt ADD COLUMN optimization_version INTEGER NOT NULL DEFAULT 0",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
