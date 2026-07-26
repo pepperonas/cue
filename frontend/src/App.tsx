@@ -52,6 +52,7 @@ import { Login } from './components/Login'
 import { ProjectChips } from './components/ProjectChips'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
+import { TagsView } from './components/TagsView'
 import { ShortcutsOverlay } from './components/ShortcutsOverlay'
 import { TopBar, type View } from './components/TopBar'
 import { Footer, Icon } from './components/ui'
@@ -165,6 +166,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       saved === 'sessions' ||
       saved === 'snippets' ||
       saved === 'projects' ||
+      saved === 'tags' ||
       saved === 'stats' ||
       saved === 'settings'
       ? saved
@@ -680,6 +682,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         {view === 'sessions' && <SessionsView dark={settings.resolvedDark} />}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
+        {view === 'tags' && <TagsView />}
         {view === 'stats' && (
           <Suspense fallback={<div className="stats-view" aria-busy="true" />}>
             <StatsView query={statsQuery} onQuery={setStatsQuery} />

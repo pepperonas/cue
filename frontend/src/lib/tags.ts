@@ -20,6 +20,88 @@ export function normalizeTags(raw: string | null | undefined): string {
   return dedupeTags(raw).join(', ')
 }
 
+// ---- Suggestion ranking (central vocabulary + curated catalogue) ----------
+
+/** One entry of the autocomplete pool. */
+export interface TagSuggestion {
+  name: string
+  /** How many prompts carry it (0 for catalogue entries not yet used). */
+  usage: number
+  /** Where it comes from — shown as a hint in the menu. */
+  source: 'user' | 'system' | 'catalog'
+  /** Epoch ms of the last use; breaks ties in favour of recent work. */
+  lastUsed?: number
+}
+
+/**
+ * Merge the saved vocabulary with the curated catalogue.
+ *
+ * Saved tags win: a catalogue word that the user already uses keeps its usage
+ * count and provenance instead of being listed twice.
+ */
+export function mergeSuggestionPool(
+  saved: TagSuggestion[],
+  catalog: readonly string[] = DEV_TAGS,
+): TagSuggestion[] {
+  const out: TagSuggestion[] = []
+  const seen = new Set<string>()
+  for (const entry of saved) {
+    const key = entry.name.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(entry)
+  }
+  for (const name of catalog) {
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ name, usage: 0, source: 'catalog' })
+  }
+  return out
+}
+
+/** Match quality of a candidate against the typed query (lower = better). */
+function matchRank(name: string, query: string): number {
+  if (!query) return 3
+  const lower = name.toLowerCase()
+  if (lower === query) return 0
+  if (lower.startsWith(query)) return 1
+  // Start of a word inside the tag ("dark-mode" for "mode").
+  if (new RegExp(`[-_ /]${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(lower)) return 2
+  return lower.includes(query) ? 3 : -1
+}
+
+/**
+ * Rank suggestions for the typed fragment.
+ *
+ * Order: match quality, then how often the tag is used, then how recently, then
+ * alphabetically — so the vocabulary a user actually works with floats up while
+ * the catalogue stays reachable for partial matches.
+ */
+export function rankSuggestions(
+  pool: TagSuggestion[],
+  rawQuery: string,
+  { exclude = new Set<string>(), limit = 8 }: { exclude?: Set<string>; limit?: number } = {},
+): TagSuggestion[] {
+  const query = rawQuery.trim().toLowerCase()
+  const scored: { entry: TagSuggestion; rank: number }[] = []
+  for (const entry of pool) {
+    const key = entry.name.toLowerCase()
+    if (exclude.has(key)) continue
+    const rank = matchRank(entry.name, query)
+    if (rank < 0) continue
+    scored.push({ entry, rank })
+  }
+  scored.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.entry.usage !== b.entry.usage) return b.entry.usage - a.entry.usage
+    const recency = (b.entry.lastUsed ?? 0) - (a.entry.lastUsed ?? 0)
+    if (recency !== 0) return recency
+    return a.entry.name.localeCompare(b.entry.name)
+  })
+  return scored.slice(0, limit).map((s) => s.entry)
+}
+
 // Curated English software-development tags suggested in the tag autocomplete.
 // Kept lowercase, single-token (use hyphens, no spaces) so they round-trip
 // cleanly through the comma-separated tag field.

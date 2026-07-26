@@ -6,9 +6,9 @@ import { IS_MAC } from '../lib/platform'
 import { api } from '../lib/api'
 import type { Attachment, Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
-import { useCreatePrompt, usePrompts, useUpdatePrompt } from '../state/queries'
+import { useCreatePrompt, useTags, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
-import { DEV_TAGS, normalizeTags } from '../lib/tags'
+import { mergeSuggestionPool, normalizeTags, type TagSuggestion } from '../lib/tags'
 import { useDictation } from '../lib/speech'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
@@ -32,27 +32,21 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const create = useCreatePrompt()
   const update = useUpdatePrompt()
   const toast = useToast()
-  const { data: allPrompts } = usePrompts()
-
-  // Suggestion pool: tags already used across prompts first (most relevant),
-  // then the curated English dev-tag list — deduped, case-insensitive.
-  const tagSuggestions = useMemo(() => {
-    const seen = new Set<string>()
-    const out: string[] = []
-    const push = (raw: string) => {
-      const t = raw.trim()
-      const key = t.toLowerCase()
-      if (t && !seen.has(key)) {
-        seen.add(key)
-        out.push(t)
-      }
-    }
-    for (const p of allPrompts ?? []) {
-      for (const t of (p.tags ?? '').split(',')) push(t)
-    }
-    for (const t of DEV_TAGS) push(t)
-    return out
-  }, [allPrompts])
+  // Suggestion pool: the saved vocabulary (with usage counts, so the ranking
+  // can favour what is actually used) plus the curated catalogue behind it.
+  const { data: tagData } = useTags()
+  const tagSuggestions = useMemo<TagSuggestion[]>(
+    () =>
+      mergeSuggestionPool(
+        (tagData?.items ?? []).map((t) => ({
+          name: t.name,
+          usage: t.usage_count,
+          source: t.source,
+          lastUsed: t.last_used_at ? Date.parse(t.last_used_at) : undefined,
+        })),
+      ),
+    [tagData],
+  )
 
   const [body, setBody] = useState(
     () => editing?.body ?? localStorage.getItem(DRAFT_KEY) ?? '',

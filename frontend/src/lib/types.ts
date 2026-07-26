@@ -458,3 +458,39 @@ export interface OptimizationConfig {
   max_chars: number
   meta_prompt_version: number
 }
+
+// ---- Central tag vocabulary ----
+export type TagSource = 'user' | 'system'
+
+export interface Tag {
+  id: number
+  name: string
+  source: TagSource
+  usage_count: number
+  created_at: string
+  last_used_at: string | null
+}
+
+export interface TagList {
+  items: Tag[]
+  total: number
+}
+
+export interface TagRenameResult {
+  tag: Tag
+  /** True when the new name already existed and both were merged. */
+  merged: boolean
+}
+
+export interface TagDeleteResult {
+  deleted: number
+  prompts_updated: number
+  replaced_with: number | null
+}
+
+export interface TagUsage {
+  tag: Tag
+  prompts: { id: number; title: string; status: Status; project_id: number | null }[]
+}
+
+export type TagSort = 'usage' | 'name' | 'created' | 'recent'

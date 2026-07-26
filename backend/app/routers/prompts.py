@@ -15,10 +15,12 @@ from ..models import (
     Project,
     Prompt,
     PromptEventType,
+    PromptOptimization,
     PromptStatus,
     RunStep,
     utcnow,
 )
+from ..tags import TagService
 from ..schemas import (
     BookmarkReorderRequest,
     DuplicateRequest,
@@ -54,6 +56,24 @@ def _attach(session: Session, attachment_ids: list[int] | None, prompt_id: int, 
         if att and att.user_id == uid and att.prompt_id in (None, prompt_id):
             att.prompt_id = prompt_id
             session.add(att)
+
+
+def _detach_references(session: Session, prompt_id: int) -> None:
+    """Clear everything that points at a prompt before it is deleted.
+
+    `foreign_keys=ON` means a dangling reference raises instead of silently
+    orphaning: RunStep keeps a text snapshot so it is only detached, while tag
+    links and the optimization history belong to the prompt and die with it.
+    """
+    session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
+    TagService(session).clear_for_prompt(prompt_id)
+    for row in session.exec(
+        select(PromptOptimization).where(PromptOptimization.prompt_id == prompt_id)
+    ).all():
+        session.delete(row)
+    # Flush the child deletes first: without an ORM relationship SQLAlchemy has
+    # no dependency to order them by, and SQLite would reject the parent DELETE.
+    session.flush()
 
 
 def _purge_attachments(session: Session, prompt_id: int) -> None:
@@ -165,7 +185,6 @@ def create_prompt(
         body=payload.body,
         project_id=payload.project_id,
         status=payload.status,
-        tags=payload.tags.strip(),
         sort_order=_next_sort_order(session, payload.status, uid),
     )
     if payload.status in _RAN_STATUSES:
@@ -173,9 +192,14 @@ def create_prompt(
     session.add(prompt)
     session.commit()
     session.refresh(prompt)
+    # Tags always go through the service: it resolves/creates the vocabulary
+    # entries, writes the links and refreshes the denormalized cache string.
+    TagService(session).set_for_prompt(prompt, payload.tags, uid=uid)
+    session.add(prompt)
     _attach(session, payload.attachment_ids, prompt.id, uid)
     events.record(session, prompt, PromptEventType.created)
     session.commit()
+    session.refresh(prompt)
     return _read(session, prompt)
 
 
@@ -216,7 +240,7 @@ def update_prompt(
         prompt.project_id = payload.project_id
 
     if payload.tags is not None:
-        prompt.tags = payload.tags.strip()
+        TagService(session).set_for_prompt(prompt, payload.tags, uid=uid)
 
     if payload.bookmarked is not None and payload.bookmarked != prompt.bookmarked:
         prompt.bookmarked = payload.bookmarked
@@ -282,9 +306,7 @@ def delete_prompt(
 ) -> None:
     prompt = _owned(session, prompt_id, uid)
     _purge_attachments(session, prompt_id)
-    # RunStep keeps a text snapshot, so detach the FK rather than blocking the
-    # delete (foreign_keys=ON would otherwise raise on a previously-run prompt).
-    session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
+    _detach_references(session, prompt_id)
     # Record BEFORE the delete — the event snapshots the row it outlives.
     events.record(session, prompt, PromptEventType.deleted)
     session.delete(prompt)
@@ -318,7 +340,6 @@ def duplicate_prompt(
             body=src.body,
             project_id=src.project_id,
             status=src.status,
-            tags=src.tags,
             sort_order=src.sort_order,
             blocked=src.blocked,
         )
@@ -335,11 +356,11 @@ def duplicate_prompt(
             body=src.body,
             project_id=payload.project_id,
             status=PromptStatus.queued,
-            tags=src.tags,
             sort_order=_next_sort_order(session, PromptStatus.queued, uid),
         )
     session.add(copy)
     session.flush()  # assign copy.id for the cloned attachments
+    TagService(session).copy_to_prompt(src, copy, uid=uid)
 
     for att in session.exec(select(Attachment).where(Attachment.prompt_id == src.id)).all():
         new_name = clone_attachment_file(att)
@@ -394,13 +415,13 @@ def merge_prompts(
         body=payload.body,
         project_id=payload.project_id,
         status=payload.status,
-        tags=payload.tags.strip(),
         sort_order=_next_sort_order(session, payload.status, uid),
     )
     if payload.status in _RAN_STATUSES:
         merged.ran_at = utcnow()
     session.add(merged)
     session.flush()  # assign merged.id for attachment reassignment
+    TagService(session).set_for_prompt(merged, payload.tags, uid=uid)
 
     if payload.originals == "delete":
         for prompt in sources:
@@ -410,10 +431,7 @@ def merge_prompts(
             ).all():
                 att.prompt_id = merged.id
                 session.add(att)
-            # Detach RunStep FK so a previously-run source can be deleted.
-            session.exec(
-                update(RunStep).where(RunStep.prompt_id == prompt.id).values(prompt_id=None)
-            )
+            _detach_references(session, prompt.id)
             events.record(session, prompt, PromptEventType.deleted)
             session.delete(prompt)
     elif payload.originals == "archive":

@@ -108,6 +108,7 @@ def _migrate(engine: Engine) -> None:
         # that rule (idempotent data fix).
         conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")
         _seed_prompt_events(conn)
+    _migrate_tags()
 
 
 def _seed_prompt_events(conn) -> None:  # noqa: ANN001
@@ -147,6 +148,33 @@ def _seed_prompt_events(conn) -> None:  # noqa: ANN001
           AND (ran_at IS NULL OR updated_at != ran_at)
         """
     )
+
+
+def _migrate_tags() -> None:
+    """One-time import of the legacy comma strings into the tag vocabulary.
+
+    Runs per tenant through `TagService.backfill_from_strings`, which is
+    idempotent (prompts that already have links are skipped) — so this is safe
+    on every start, not just the first one.
+    """
+    from sqlmodel import Session, select
+
+    from .models import PromptTag, User
+    from .tags import TagService
+
+    with Session(engine) as session:
+        # Fast exit for the normal case: nothing to do once links exist and no
+        # prompt carries an unmigrated string.
+        has_links = session.exec(select(PromptTag.id).limit(1)).first() is not None
+        pending = session.exec(
+            text("SELECT COUNT(*) FROM prompt WHERE tags != '' AND id NOT IN "
+                 "(SELECT prompt_id FROM prompt_tag)")
+        ).one()[0]
+        if has_links and not pending:
+            return
+        service = TagService(session)
+        for user_id in session.exec(select(User.id)).all():
+            service.backfill_from_strings(user_id)
 
 
 def get_session() -> Iterator[Session]:

@@ -38,10 +38,12 @@ from .models import (
     PromptEvent,
     PromptEventType,
     PromptStatus,
+    PromptTag,
     Run,
     RunStatus,
     RunStep,
     Snippet,
+    Tag,
 )
 
 # ---------------------------------------------------------------- time ranges
@@ -291,6 +293,8 @@ class _Data:
     runs: list[Run] = field(default_factory=list)
     steps: list[RunStep] = field(default_factory=list)
     snippets: int = 0
+    tags: list[Tag] = field(default_factory=list)
+    tag_links: list[tuple[int, int]] = field(default_factory=list)  # (prompt_id, tag_id)
 
 
 def _load(session: Session, uid: int) -> _Data:
@@ -316,6 +320,14 @@ def _load(session: Session, uid: int) -> _Data:
     if run_ids:
         data.steps = session.exec(select(RunStep).where(RunStep.run_id.in_(run_ids))).all()
     data.snippets = len(session.exec(select(Snippet.id).where(Snippet.user_id == uid)).all())
+    data.tags = list(session.exec(select(Tag).where(Tag.user_id == uid)).all())
+    tag_ids = [t.id for t in data.tags]
+    if tag_ids:
+        data.tag_links = list(
+            session.exec(
+                select(PromptTag.prompt_id, PromptTag.tag_id).where(PromptTag.tag_id.in_(tag_ids))
+            ).all()
+        )
     return data
 
 
@@ -540,70 +552,73 @@ def _project_section(data: _Data, rng: TimeRange) -> dict[str, Any]:
 
 
 def _tag_section(data: _Data, rng: TimeRange) -> dict[str, Any]:
+    """Tag metrics straight from the vocabulary tables.
+
+    Reading `tag`/`prompt_tag` instead of re-parsing the comma cache means the
+    normalization rules live in exactly one place (`app.tags.service`) and
+    "first used" is the tag row's own creation date rather than a guess.
+    """
     tz = rng.tz
-    first_seen: dict[str, datetime] = {}
-    spelling: dict[str, str] = {}
-    counts_range: Counter = Counter()
+    by_id = {t.id: t for t in data.tags}
+    prompts_by_id = {p.id: p for p in data.prompts}
+
     counts_all: Counter = Counter()
+    counts_range: Counter = Counter()
     pairs: Counter = Counter()
+    per_prompt: dict[int, list[int]] = {}
+    for prompt_id, tag_id in data.tag_links:
+        if tag_id not in by_id:
+            continue
+        counts_all[tag_id] += 1
+        per_prompt.setdefault(prompt_id, []).append(tag_id)
+        prompt = prompts_by_id.get(prompt_id)
+        if prompt and _in(_local(prompt.created_at, tz), rng.start, rng.end):
+            counts_range[tag_id] += 1
+    for tag_ids in per_prompt.values():
+        ordered = sorted(tag_ids)
+        for i, a in enumerate(ordered):
+            for b in ordered[i + 1 :]:
+                pairs[(a, b)] += 1
 
-    for p in data.prompts:
-        tags = _split_tags(p.tags)
-        created = _local(p.created_at, tz)
-        keys = []
-        for tag in tags:
-            key = tag.lower()
-            keys.append(key)
-            spelling.setdefault(key, tag)
-            counts_all[key] += 1
-            if created and (key not in first_seen or created < first_seen[key]):
-                first_seen[key] = created
-            if _in(created, rng.start, rng.end):
-                counts_range[key] += 1
-        for i, a in enumerate(keys):
-            for b in keys[i + 1 :]:
-                pairs[tuple(sorted((a, b)))] += 1
+    created: dict[int, datetime] = {}
+    for tag in data.tags:
+        moment = _local(tag.created_at, tz)
+        if moment:
+            created[tag.id] = moment
 
-    new_tags = [
-        key for key, moment in first_seen.items() if _in(moment, rng.start, rng.end)
-    ]
-    prev_new = [
-        key for key, moment in first_seen.items() if _in(moment, rng.prev_start, rng.prev_end)
-    ]
+    new_tags = [tid for tid, moment in created.items() if _in(moment, rng.start, rng.end)]
+    prev_new = [tid for tid, moment in created.items() if _in(moment, rng.prev_start, rng.prev_end)]
 
-    # Cumulative distinct tags per bucket — shows vocabulary growth over time.
+    # Cumulative distinct tags per bucket — vocabulary growth over time.
     buckets = bucket_starts(rng)
+    ordered_creation = sorted(created.values())
     growth: list[dict[str, Any]] = []
-    ordered = sorted(first_seen.items(), key=lambda item: item[1])
     for b in buckets:
-        end = b
         key = bucket_key(b, rng.granularity)
         growth.append(
             {
                 "t": key,
                 "label": bucket_label(key, rng.granularity),
-                "total": sum(1 for _, moment in ordered if moment <= end),
+                "total": sum(1 for moment in ordered_creation if moment <= b),
             }
         )
 
-    top = counts_all.most_common(24)
+    def name(tag_id: int) -> str:
+        tag = by_id.get(tag_id)
+        return tag.name if tag else "?"
+
     return {
-        "total": len(counts_all),
+        "total": len(data.tags),
         "new": _kpi(len(new_tags), len(prev_new)),
-        "new_list": [spelling[key] for key in sorted(new_tags, key=lambda k: first_seen[k])][:12],
-        "top": [
-            {"tag": spelling[key], "count": count} for key, count in counts_all.most_common(10)
-        ],
-        "top_in_range": [
-            {"tag": spelling[key], "count": count} for key, count in counts_range.most_common(10)
-        ],
-        "cloud": [{"tag": spelling[key], "count": count} for key, count in top],
+        "new_list": [name(tid) for tid in sorted(new_tags, key=lambda t: created[t])][:12],
+        "top": [{"tag": name(tid), "count": c} for tid, c in counts_all.most_common(10)],
+        "top_in_range": [{"tag": name(tid), "count": c} for tid, c in counts_range.most_common(10)],
+        "cloud": [{"tag": name(tid), "count": c} for tid, c in counts_all.most_common(24)],
         "growth": growth,
         "pairs": [
-            {"a": spelling[a], "b": spelling[b], "count": count}
-            for (a, b), count in pairs.most_common(5)
+            {"a": name(a), "b": name(b), "count": count} for (a, b), count in pairs.most_common(5)
         ],
-        "untagged": sum(1 for p in data.prompts if not _split_tags(p.tags)),
+        "untagged": sum(1 for p in data.prompts if p.id not in per_prompt),
     }
 
 

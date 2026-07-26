@@ -32,6 +32,7 @@ from .routers import (
     snippets,
     stats,
     sync,
+    tags,
 )
 
 _settings = get_settings()
@@ -83,7 +84,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.24.0",
+    version="0.25.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -140,6 +141,7 @@ api.include_router(sync.router)
 api.include_router(importexport.router)
 api.include_router(stats.router)
 api.include_router(optimize.router)
+api.include_router(tags.router)
 
 
 @api.get("/health")

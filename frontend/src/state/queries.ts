@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Optimization, Project, Prompt, StatsQuery, Status } from '../lib/types'
+import type { Optimization, Project, Prompt, StatsQuery, Status, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
 const PROMPTS_KEY = ['prompts'] as const
@@ -590,5 +590,58 @@ export function useCancelOptimizeBatch() {
     mutationFn: (id: string) => api.cancelOptimizationBatch(id),
     onSuccess: (batch) => qc.setQueryData(['optimize-batch'], batch),
     onSettled: () => qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY }),
+  })
+}
+
+// ---- Central tag vocabulary ----------------------------------------------
+// One cached list feeds both the manager and the autocomplete; every mutation
+// also invalidates prompts (their cached tag strings change) and the stats.
+const TAGS_KEY = ['tags'] as const
+
+export function useTags(params: { q?: string; sort?: TagSort } = {}) {
+  return useQuery({
+    queryKey: [...TAGS_KEY, params.q ?? '', params.sort ?? 'usage'],
+    queryFn: () => api.listTags(params),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev, // keep the list while typing a filter
+  })
+}
+
+export function useTagUsage(id: number | null) {
+  return useQuery({
+    queryKey: ['tag-usage', id],
+    queryFn: () => api.tagUsage(id as number),
+    enabled: id !== null,
+  })
+}
+
+function invalidateTagConsumers(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: TAGS_KEY })
+  qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+  qc.invalidateQueries({ queryKey: ['stats'] })
+}
+
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => api.createTag(name),
+    onSuccess: () => invalidateTagConsumers(qc),
+  })
+}
+
+export function useRenameTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => api.renameTag(id, name),
+    onSuccess: () => invalidateTagConsumers(qc),
+  })
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, replaceWith }: { id: number; replaceWith?: number | null }) =>
+      api.deleteTag(id, replaceWith),
+    onSuccess: () => invalidateTagConsumers(qc),
   })
 }

@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
+import { rankSuggestions, type TagSuggestion } from '../lib/tags'
 
 interface Props {
   id?: string
   value: string
   placeholder?: string
-  suggestions: string[]
+  /** Merged pool: saved vocabulary (with usage counts) + curated catalogue. */
+  suggestions: TagSuggestion[]
   onChange: (value: string) => void
 }
 
@@ -57,15 +59,12 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
     [value],
   )
 
-  const matches = useMemo(() => {
-    const pool = suggestions.filter((t) => !chosen.has(t.toLowerCase()))
-    if (!query) return pool.slice(0, MAX_SUGGESTIONS)
-    const starts = pool.filter((t) => t.toLowerCase().startsWith(query))
-    const contains = pool.filter(
-      (t) => !t.toLowerCase().startsWith(query) && t.toLowerCase().includes(query),
-    )
-    return [...starts, ...contains].slice(0, MAX_SUGGESTIONS)
-  }, [suggestions, chosen, query])
+  // Relevance ranking lives in lib/tags.ts (exact > prefix > word-start >
+  // substring, then usage, then recency) so it can be unit tested.
+  const matches = useMemo(
+    () => rankSuggestions(suggestions, query, { exclude: chosen, limit: MAX_SUGGESTIONS }),
+    [suggestions, chosen, query],
+  )
 
   function commit(tag: string) {
     const kept = completed.map((t) => t.trim()).filter(Boolean)
@@ -97,7 +96,7 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
       // Only intercept Enter/Tab when actively typing a token to complete.
       if (e.key === 'Enter' && !query) return
       e.preventDefault()
-      commit(matches[active] ?? matches[0])
+      commit((matches[active] ?? matches[0]).name)
     } else if (e.key === 'Escape') {
       setOpen(false)
     }
@@ -127,7 +126,7 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
       {open && matches.length > 0 && (
         <ul className={`tag-suggest ${dropUp ? 'up' : ''}`} role="listbox">
           {matches.map((tag, i) => (
-            <li key={tag} role="option" aria-selected={i === active}>
+            <li key={tag.name} role="option" aria-selected={i === active}>
               <button
                 type="button"
                 className={`tag-suggest-item ${i === active ? 'active' : ''}`}
@@ -135,10 +134,19 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
                 // mousedown fires before the input's blur, so the click lands.
                 onMouseDown={(e) => {
                   e.preventDefault()
-                  commit(tag)
+                  commit(tag.name)
                 }}
               >
-                #{tag}
+                <span className="tag-suggest-name">#{tag.name}</span>
+                {tag.usage > 0 ? (
+                  <span className="tag-suggest-meta" title={`${tag.usage}× verwendet`}>
+                    {tag.usage}×
+                  </span>
+                ) : (
+                  <span className="tag-suggest-meta tag-suggest-meta--new">
+                    {tag.source === 'catalog' ? 'Katalog' : 'neu'}
+                  </span>
+                )}
               </button>
             </li>
           ))}

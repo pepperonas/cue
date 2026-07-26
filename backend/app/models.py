@@ -5,6 +5,7 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -100,6 +101,56 @@ class Prompt(SQLModel, table=True):
     optimization_model: str = Field(default="")
     # Highest completed version; 0 = never optimized.
     optimization_version: int = Field(default=0)
+
+
+class TagSource(str, enum.Enum):
+    """Where a tag came from — shown in the tag manager."""
+
+    user = "user"  # typed or created by the user
+    system = "system"  # picked from the curated developer catalogue
+
+
+class Tag(SQLModel, table=True):
+    """A tag in the user's central vocabulary.
+
+    Tags exist independently of the things they label, so a vocabulary can be
+    built up front and renamed/deleted in one place. `name_ci` is the
+    lower-cased form and the real uniqueness key per tenant — it is what makes
+    "Feature" and "feature" the same tag.
+    """
+
+    __tablename__ = "tag"
+    __table_args__ = (UniqueConstraint("user_id", "name_ci", name="uq_tag_user_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # Display spelling (first one wins; a rename replaces it).
+    name: str = Field(index=True)
+    # Lower-cased lookup key — every comparison goes through this.
+    name_ci: str = Field(index=True)
+    source: TagSource = Field(default=TagSource.user)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+    # Drives the "recently used" part of the autocomplete ranking.
+    last_used_at: datetime | None = Field(default=None, index=True)
+
+
+class PromptTag(SQLModel, table=True):
+    """Link between a prompt and a tag — the source of truth for assignments.
+
+    `Prompt.tags` still carries the comma string, but only as a denormalized
+    cache written exclusively by `app.tags.service.TagService` (same pattern as
+    `Snippet.group_name` mirroring `SnippetGroup.name`).
+    """
+
+    __tablename__ = "prompt_tag"
+    __table_args__ = (UniqueConstraint("prompt_id", "tag_id", name="uq_prompt_tag"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    prompt_id: int = Field(foreign_key="prompt.id", index=True)
+    tag_id: int = Field(foreign_key="tag.id", index=True)
+    # Order the user typed them in, so the cache string stays stable.
+    position: int = Field(default=0)
 
 
 class OptimizationStatus(str, enum.Enum):

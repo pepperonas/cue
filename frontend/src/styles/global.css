@@ -3134,3 +3134,160 @@ img.logo-xl { border-radius: 18px; }
     background: var(--md-surface-container-high);
   }
 }
+
+/* ============================================================
+   Tag manager (central vocabulary)
+   ============================================================ */
+.tags-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+.tags-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  flex-wrap: wrap;
+}
+.tags-head .search {
+  flex: 1 1 220px;
+}
+.tags-sorts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tags-summary {
+  margin: 0;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tag-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 8px var(--gap-3);
+  min-height: 56px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m, 16px);
+  transition: border-color 0.15s ease;
+}
+.tag-row:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 40%, var(--md-outline-variant));
+}
+.tag-row-name {
+  font: var(--title-s);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-row-source {
+  font: var(--label-m);
+  padding: 2px 10px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+}
+.tag-row-source--user {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+.tag-row-usage {
+  font: var(--label-l);
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface);
+  min-width: 44px;
+  text-align: right;
+}
+.tag-row-date {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  white-space: nowrap;
+}
+.tag-row-actions {
+  display: flex;
+  gap: 2px;
+}
+.tag-usage-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font: var(--label-l);
+  color: var(--md-on-surface-variant);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.tag-replace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: var(--label-m);
+}
+
+/* Suggestion rows carry the usage count / provenance on the right. */
+.tag-suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+.tag-suggest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-suggest-meta {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.tag-suggest-meta--new {
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .tag-row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      'name usage actions'
+      'source date actions';
+    row-gap: 2px;
+  }
+  .tag-row-name {
+    grid-area: name;
+  }
+  .tag-row-source {
+    grid-area: source;
+    justify-self: start;
+  }
+  .tag-row-usage {
+    grid-area: usage;
+  }
+  .tag-row-date {
+    grid-area: date;
+    justify-self: end;
+  }
+  .tag-row-actions {
+    grid-area: actions;
+  }
+  .tags-head .btn {
+    flex: 1 1 100%;
+  }
+}

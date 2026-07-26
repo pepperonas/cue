@@ -25,6 +25,12 @@ import type {
   RunKind,
   RunStatus,
   Status,
+  Tag,
+  TagDeleteResult,
+  TagList,
+  TagRenameResult,
+  TagSort,
+  TagUsage,
 } from './types'
 
 function csrfToken(): string {
@@ -212,6 +218,24 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, 'Import failed')
     return res.json()
   },
+  // ---- Central tag vocabulary ----
+  listTags: (params: { q?: string; sort?: TagSort; limit?: number } = {}) => {
+    const search = new URLSearchParams()
+    if (params.q) search.set('q', params.q)
+    if (params.sort) search.set('sort', params.sort)
+    if (params.limit) search.set('limit', String(params.limit))
+    const qs = search.toString()
+    return request<TagList>('GET', `/tags${qs ? `?${qs}` : ''}`)
+  },
+  createTag: (name: string) => request<Tag>('POST', '/tags', { name }),
+  renameTag: (id: number, name: string) => request<TagRenameResult>('PATCH', `/tags/${id}`, { name }),
+  deleteTag: (id: number, replaceWith?: number | null) =>
+    request<TagDeleteResult>(
+      'DELETE',
+      `/tags/${id}${replaceWith ? `?replace_with=${replaceWith}` : ''}`,
+    ),
+  tagUsage: (id: number) => request<TagUsage>('GET', `/tags/${id}/usage`),
+
   // ---- Prompt optimization (owner-only; executed by the Mac runner) ----
   optimizeConfig: () => request<OptimizationConfig>('GET', '/optimizations/config'),
   optimizePrompt: (prompt_id: number, provider?: string) =>

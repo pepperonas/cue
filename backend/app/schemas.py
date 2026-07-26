@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from .models import OptimizationStatus, PromptStatus, RunKind, RunStatus
+from .models import OptimizationStatus, PromptStatus, RunKind, RunStatus, TagSource
 
 
 # ---- Auth ----
@@ -587,3 +587,53 @@ class OptimizationResultRequest(BaseModel):
     input_tokens: int | None = None
     output_tokens: int | None = None
     error: str | None = None
+
+
+# ---- Tags (central vocabulary) ----
+class TagRead(BaseModel):
+    id: int
+    name: str
+    source: TagSource
+    usage_count: int
+    created_at: datetime
+    last_used_at: datetime | None = None
+
+
+class TagListResponse(BaseModel):
+    items: list[TagRead]
+    total: int
+
+
+class TagCreate(BaseModel):
+    name: str
+    source: TagSource = TagSource.user
+
+
+class TagUpdate(BaseModel):
+    name: str
+
+
+class TagRenameResult(BaseModel):
+    tag: TagRead
+    # True when the new name already existed and both tags were merged.
+    merged: bool
+
+
+class TagDeleteResult(BaseModel):
+    deleted: int  # tag ids removed (1)
+    prompts_updated: int
+    replaced_with: int | None = None
+
+
+class PromptRef(BaseModel):
+    id: int
+    title: str
+    status: PromptStatus
+    project_id: int | None
+
+
+class TagUsageRead(BaseModel):
+    """Impact preview for the delete dialog."""
+
+    tag: TagRead
+    prompts: list[PromptRef]
