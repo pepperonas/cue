@@ -5,6 +5,8 @@ import type {
   Snippet,
   SnippetGroup,
   SnippetImportResult,
+  Stats,
+  StatsQuery,
   SyncSettings,
   Attachment,
   CaptureSession,
@@ -206,6 +208,16 @@ export const api = {
     })
     if (!res.ok) throw new ApiError(res.status, 'Import failed')
     return res.json()
+  },
+  // Statistics dashboard. The browser's IANA timezone travels with every call
+  // so day/hour buckets line up with the viewer's calendar, not with UTC.
+  stats: (query: StatsQuery) => {
+    const params = new URLSearchParams({ range: query.range })
+    if (query.from) params.set('from', query.from)
+    if (query.to) params.set('to', query.to)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz) params.set('tz', tz)
+    return request<Stats>('GET', `/stats?${params.toString()}`)
   },
 }
 

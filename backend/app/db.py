@@ -100,6 +100,46 @@ def _migrate(engine: Engine) -> None:
         # Blocked only exists on queued prompts — clear stale flags from before
         # that rule (idempotent data fix).
         conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")
+        _seed_prompt_events(conn)
+
+
+def _seed_prompt_events(conn) -> None:  # noqa: ANN001
+    """One-time backfill of the activity log from the prompts that predate it.
+
+    Runs only while `prompt_event` is still empty. The reconstruction is
+    approximate by nature — the rows only carry created_at/updated_at/ran_at,
+    so exactly one event per known timestamp is seeded (creations, the first
+    run, and a single edit where updated_at moved). Deletions before this
+    migration are unrecoverable and simply absent.
+    """
+    if conn.exec_driver_sql("SELECT COUNT(*) FROM prompt_event").scalar():
+        return
+    if not conn.exec_driver_sql("SELECT COUNT(*) FROM prompt").scalar():
+        return
+    conn.exec_driver_sql(
+        """
+        INSERT INTO prompt_event (user_id, prompt_id, project_id, event, status, body_len, at)
+        SELECT user_id, id, project_id, 'created', 'queued', LENGTH(body), created_at
+        FROM prompt
+        """
+    )
+    conn.exec_driver_sql(
+        """
+        INSERT INTO prompt_event (user_id, prompt_id, project_id, event, status, body_len, at)
+        SELECT user_id, id, project_id, 'status_changed', status, LENGTH(body), ran_at
+        FROM prompt WHERE ran_at IS NOT NULL
+        """
+    )
+    # A moved updated_at means at least one edit happened after creation.
+    conn.exec_driver_sql(
+        """
+        INSERT INTO prompt_event (user_id, prompt_id, project_id, event, status, body_len, at)
+        SELECT user_id, id, project_id, 'updated', status, LENGTH(body), updated_at
+        FROM prompt
+        WHERE updated_at > DATETIME(created_at, '+2 seconds')
+          AND (ran_at IS NULL OR updated_at != ran_at)
+        """
+    )
 
 
 def get_session() -> Iterator[Session]:

@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
+from . import events
 from .config import get_settings
 from .db import engine, init_db
 from .routers import (
@@ -27,6 +28,7 @@ from .routers import (
     prompts,
     runs,
     snippets,
+    stats,
     sync,
 )
 
@@ -39,6 +41,8 @@ async def _attachment_gc_loop() -> None:
         try:
             with Session(engine) as session:
                 attachments.purge_expired(session)
+                # Same cadence for the activity log's retention window.
+                events.prune(session)
         except Exception:
             pass
         await asyncio.sleep(24 * 3600)
@@ -75,7 +79,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.21.2",
+    version="0.22.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -130,6 +134,7 @@ api.include_router(capture.router)
 api.include_router(snippets.router)
 api.include_router(sync.router)
 api.include_router(importexport.router)
+api.include_router(stats.router)
 
 
 @api.get("/health")

@@ -1925,3 +1925,681 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   border-radius: 8px;
 }
 img.logo-xl { border-radius: 18px; }
+
+/* ============================================================
+   Statistics dashboard
+   Layout: a KPI strip on top, then sections of chart cards in a
+   responsive 2-column grid (cards marked .chart-card--wide span both).
+   Charts get their colours from the runtime --md-* tokens via useChartTheme.
+   ============================================================ */
+.stats-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  min-width: 0;
+}
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-6);
+  transition: opacity 0.2s ease;
+}
+.stats-content.is-fetching {
+  opacity: 0.72;
+}
+
+/* ---- Range picker ---- */
+.range-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  flex-wrap: wrap;
+}
+.range-chips {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-full);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.range-chips::-webkit-scrollbar {
+  display: none;
+}
+.range-chip {
+  position: relative;
+  border: none;
+  background: none;
+  color: var(--md-on-surface-variant);
+  font: var(--label-l);
+  padding: 8px 14px;
+  border-radius: var(--shape-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.18s ease;
+}
+.range-chip[data-active='true'] {
+  color: var(--md-on-primary);
+}
+.range-chip:hover {
+  color: var(--md-on-surface);
+}
+.range-chip-text {
+  position: relative;
+  z-index: 1;
+}
+.range-indicator {
+  position: absolute;
+  inset: 0;
+  background: var(--md-primary);
+  border-radius: var(--shape-full);
+}
+.range-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  margin-left: auto;
+}
+.range-stamp {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.range-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-l);
+  box-shadow: var(--elev-3, 0 12px 32px rgba(0, 0, 0, 0.4));
+  padding: var(--gap-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  min-width: 260px;
+}
+.range-pop h4 {
+  margin: 0;
+  font: var(--title-m);
+}
+.range-pop label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.range-pop input {
+  background: var(--md-surface-container-highest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-s);
+  color: var(--md-on-surface);
+  padding: 10px 12px;
+  font: inherit;
+  color-scheme: dark light;
+}
+.range-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap-2);
+}
+
+/* ---- KPI tiles ---- */
+.stats-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--gap-3);
+}
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-l);
+  padding: var(--gap-4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  transition: transform 0.2s var(--ease-spring, ease), border-color 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--md-primary) 40%, var(--md-outline-variant));
+}
+.stat-card header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--md-on-surface-variant);
+  min-width: 0;
+}
+.stat-card header .material-symbols-rounded {
+  font-size: 18px;
+  color: var(--stat-accent, var(--md-primary));
+}
+.stat-label {
+  font: var(--label-m);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-value {
+  font: var(--headline-m);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.stat-card footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.stat-delta .material-symbols-rounded {
+  font-size: 16px;
+}
+.stat-delta.trend-up {
+  color: #7fd1a0;
+}
+.stat-delta.trend-down {
+  color: #ff9d92;
+}
+.stat-hint {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  opacity: 0.8;
+}
+/* The sparkline is a background flourish: the card reserves room for it so
+   it never runs underneath the hint line. */
+.stat-card:has(.stat-spark) {
+  padding-bottom: 34px;
+}
+.stat-spark {
+  position: absolute;
+  inset: auto 0 0 0;
+  width: 100%;
+  height: 34px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.stat-spark-area {
+  fill: color-mix(in srgb, var(--stat-accent, var(--md-primary)) 22%, transparent);
+}
+.stat-spark-line {
+  fill: none;
+  stroke: var(--stat-accent, var(--md-primary));
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---- Sections & chart cards ---- */
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+}
+.stats-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-3);
+  flex-wrap: wrap;
+}
+.stats-section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: var(--title-l);
+}
+.stats-section-head h2 .material-symbols-rounded {
+  color: var(--md-primary);
+}
+/* Direct child only — a plain `span` selector would also hit the icon
+   <span> inside the <h2> and override the Material-Symbols font. */
+.stats-section-head > span {
+  font: var(--label-l);
+  color: var(--md-on-surface-variant);
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap-3);
+}
+.chart-card {
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-l);
+  padding: var(--gap-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  min-width: 0;
+}
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+.chart-head h3 {
+  margin: 0;
+  font: var(--title-m);
+}
+.chart-head p {
+  margin: 2px 0 0;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.chart-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  min-width: 0;
+}
+.chart-empty {
+  color: var(--md-on-surface-variant);
+  font: var(--body-m);
+  text-align: center;
+  padding: var(--gap-5) var(--gap-3);
+  margin: 0;
+}
+/* Recharts injects focus outlines on the SVG root — keep them token-coloured. */
+.chart-body .recharts-wrapper:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+  border-radius: var(--shape-s);
+}
+
+/* ---- Shared small lists ---- */
+.legend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font: var(--label-l);
+  color: var(--md-on-surface-variant);
+}
+.legend-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-list i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.legend-list b {
+  color: var(--md-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+.fact-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--gap-2);
+  margin: 0;
+}
+.fact-list div {
+  background: var(--md-surface-container-high);
+  border-radius: var(--shape-s);
+  padding: 8px 10px;
+}
+.fact-list dt {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.fact-list dd {
+  margin: 2px 0 0;
+  font: var(--title-m);
+  font-variant-numeric: tabular-nums;
+}
+.meter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.meter-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 2fr auto;
+  align-items: center;
+  gap: var(--gap-2);
+  font: var(--label-l);
+}
+.meter-label {
+  color: var(--md-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meter-track {
+  height: 8px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-highest);
+  overflow: hidden;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--shape-full);
+  background: var(--md-primary);
+}
+.meter-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface);
+}
+.extremes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.extremes span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extremes .material-symbols-rounded {
+  font-size: 16px;
+}
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.recent-list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: var(--gap-2);
+  font: var(--label-l);
+}
+.recent-list i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.recent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-meta,
+.recent-list time {
+  color: var(--md-on-surface-variant);
+  font: var(--label-m);
+  white-space: nowrap;
+}
+.pair-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.pair-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap-2);
+}
+.pair-list .material-symbols-rounded {
+  font-size: 12px;
+  vertical-align: middle;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag-chip {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  border-radius: var(--shape-full);
+  padding: 3px 10px;
+  font: var(--label-m);
+}
+.streak-row {
+  display: flex;
+  gap: var(--gap-3);
+}
+.streak-box {
+  flex: 1;
+  background: var(--md-surface-container-high);
+  border-radius: var(--shape-m, 16px);
+  padding: var(--gap-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.streak-value {
+  font: var(--headline-s, var(--title-l));
+  font-variant-numeric: tabular-nums;
+}
+.streak-label {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+
+/* ---- Rhythm heatmap (weekday x hour) ---- */
+.rhythm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+.rhythm-grid {
+  display: grid;
+  grid-template-columns: 26px repeat(24, minmax(10px, 1fr));
+  grid-auto-rows: 18px;
+  gap: 3px;
+  min-width: 420px;
+}
+.rhythm-hour,
+.rhythm-day {
+  font: var(--label-m);
+  font-size: 10px;
+  color: var(--md-on-surface-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rhythm-day {
+  justify-content: flex-start;
+}
+.rhythm-cell {
+  height: 18px;
+  border-radius: 3px;
+  background: var(--heat, var(--md-primary));
+}
+.rhythm-cell[data-empty] {
+  background: var(--md-surface-container-highest);
+  opacity: 1;
+}
+.rhythm-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  justify-content: flex-end;
+}
+.rhythm-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--heat, var(--md-primary));
+}
+
+/* ---- Calendar heatmap ---- */
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-x: auto;
+}
+.calendar {
+  --cal-cell: 14px;
+}
+.calendar-months {
+  display: grid;
+  gap: 3px;
+  font: var(--label-m);
+  font-size: 10px;
+  color: var(--md-on-surface-variant);
+  margin-left: 26px;
+}
+.calendar-body {
+  display: flex;
+  gap: 4px;
+}
+.calendar-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cal-cell));
+  gap: 3px;
+  width: 22px;
+  align-items: center;
+  font: var(--label-m);
+  font-size: 10px;
+  color: var(--md-on-surface-variant);
+}
+.calendar-grid {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cal-cell));
+  gap: 3px;
+}
+.calendar-cell {
+  width: var(--cal-cell);
+  height: var(--cal-cell);
+  border-radius: 3px;
+  background: var(--md-surface-container-highest);
+  transition: transform 0.12s ease;
+}
+.calendar-cell:hover {
+  transform: scale(1.25);
+}
+.calendar-cell[data-level='1'] {
+  background: color-mix(in srgb, var(--heat, var(--md-primary)) 30%, transparent);
+}
+.calendar-cell[data-level='2'] {
+  background: color-mix(in srgb, var(--heat, var(--md-primary)) 52%, transparent);
+}
+.calendar-cell[data-level='3'] {
+  background: color-mix(in srgb, var(--heat, var(--md-primary)) 76%, transparent);
+}
+.calendar-cell[data-level='4'] {
+  background: var(--heat, var(--md-primary));
+}
+.calendar-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gap-3);
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  flex-wrap: wrap;
+}
+.calendar-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.calendar-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+/* ---- Tag cloud ---- */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: var(--gap-2) 0;
+}
+.tag-cloud-item {
+  color: var(--heat, var(--md-primary));
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: default;
+  transition: transform 0.15s ease;
+}
+.tag-cloud-item:hover {
+  transform: scale(1.08);
+}
+
+/* ---- Loading skeleton ---- */
+.stats-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+}
+.skeleton-kpi {
+  height: 118px;
+}
+.skeleton-chart {
+  height: 300px;
+}
+.stats-foot {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  text-align: center;
+  padding-top: var(--gap-2);
+}
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chart-card--wide {
+    grid-column: auto;
+  }
+}
+@media (max-width: 640px) {
+  .stats-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .range-actions {
+    margin-left: 0;
+  }
+  .range-pop {
+    left: 0;
+    right: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-card:hover,
+  .calendar-cell:hover,
+  .tag-cloud-item:hover {
+    transform: none;
+  }
+}

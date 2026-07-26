@@ -11,6 +11,7 @@ export type View =
   | 'sessions'
   | 'snippets'
   | 'projects'
+  | 'stats'
   | 'settings'
 
 const TABS: { key: View; icon: string; label: string }[] = [
@@ -21,6 +22,7 @@ const TABS: { key: View; icon: string; label: string }[] = [
   { key: 'sessions', icon: 'history', label: 'Verlauf' },
   { key: 'snippets', icon: 'data_object', label: 'Snippets' },
   { key: 'projects', icon: 'folder', label: 'Projekte' },
+  { key: 'stats', icon: 'insights', label: 'Statistiken' },
 ]
 
 export function TopBar({

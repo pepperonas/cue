@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
@@ -10,6 +10,7 @@ import {
   type Me,
   type Prompt,
   type RunKind,
+  type StatsQuery,
   type Status,
 } from './lib/types'
 import {
@@ -47,6 +48,10 @@ import { SettingsView } from './components/SettingsView'
 import { ShortcutsOverlay } from './components/ShortcutsOverlay'
 import { TopBar, type View } from './components/TopBar'
 import { Footer, Icon } from './components/ui'
+
+// The statistics dashboard pulls in Recharts — lazy-loaded so the chart
+// library only reaches the browser when the tab is actually opened.
+const StatsView = lazy(() => import('./components/stats/StatsView'))
 
 export default function App() {
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
@@ -141,6 +146,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       saved === 'sessions' ||
       saved === 'snippets' ||
       saved === 'projects' ||
+      saved === 'stats' ||
       saved === 'settings'
       ? saved
       : 'board'
@@ -148,6 +154,19 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     localStorage.setItem('cue-view', view)
   }, [view])
+  // Selected statistics range (persisted, like the view and project filter).
+  const [statsQuery, setStatsQuery] = useState<StatsQuery>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('cue-stats-range') || 'null')
+      if (saved && typeof saved.range === 'string') return saved as StatsQuery
+    } catch {
+      /* ignore malformed storage */
+    }
+    return { range: '30d' }
+  })
+  useEffect(() => {
+    localStorage.setItem('cue-stats-range', JSON.stringify(statsQuery))
+  }, [statsQuery])
   const [q, setQ] = useState('')
   const [projectFilter, setProjectFilter] = useState<number | 'all' | 'none'>(() => {
     const saved = localStorage.getItem('cue-project-filter')
@@ -589,6 +608,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         {view === 'sessions' && <SessionsView dark={settings.resolvedDark} />}
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
+        {view === 'stats' && (
+          <Suspense fallback={<div className="stats-view" aria-busy="true" />}>
+            <StatsView query={statsQuery} onQuery={setStatsQuery} />
+          </Suspense>
+        )}
         {view === 'settings' && (
           <SettingsView
             projects={projects ?? []}

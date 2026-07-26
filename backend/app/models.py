@@ -92,6 +92,36 @@ class Prompt(SQLModel, table=True):
     ran_at: datetime | None = Field(default=None)
 
 
+class PromptEventType(str, enum.Enum):
+    created = "created"
+    updated = "updated"  # content edit (title/body/tags/project)
+    status_changed = "status_changed"
+    deleted = "deleted"
+
+
+class PromptEvent(SQLModel, table=True):
+    """Append-only activity log behind the statistics dashboard.
+
+    Deliberately NOT a foreign key on `prompt`: the log outlives the row it
+    describes (that is the whole point of the `deleted` event, and
+    foreign_keys=ON would otherwise block the delete). Written exclusively
+    through `app.events.record()`; never updated, only pruned by age."""
+
+    __tablename__ = "prompt_event"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    prompt_id: int | None = Field(default=None, index=True)
+    # Snapshot of the prompt's project at event time (survives project deletes).
+    project_id: int | None = Field(default=None, index=True)
+    event: PromptEventType = Field(default=PromptEventType.created, index=True)
+    # Resulting status for created/status_changed, last known one otherwise.
+    status: PromptStatus | None = Field(default=None)
+    # Body length at event time — powers length trends without loading bodies.
+    body_len: int = Field(default=0)
+    at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class Attachment(SQLModel, table=True):
     __tablename__ = "attachment"
 

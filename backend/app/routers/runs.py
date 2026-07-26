@@ -12,11 +12,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, text
 from sqlmodel import Session, select
 
+from .. import events
 from ..config import get_settings
 from ..db import get_session
 from ..deps import require_csrf, require_owner, require_runner
 from ..models import (
     Prompt,
+    PromptEventType,
     PromptStatus,
     Run,
     RunKind,
@@ -101,6 +103,7 @@ def _prompts_to_running(session: Session, run: Run) -> None:
         if prompt.ran_at is None:
             prompt.ran_at = now
         session.add(prompt)
+        events.record(session, prompt, PromptEventType.status_changed, at=now)
 
 
 def _release_unfinished_prompts(session: Session, run: Run) -> None:
@@ -122,6 +125,7 @@ def _release_unfinished_prompts(session: Session, run: Run) -> None:
         prompt.tested = False
         prompt.sort_order = _next_sort_order(session, PromptStatus.queued, prompt.user_id)
         session.add(prompt)
+        events.record(session, prompt, PromptEventType.status_changed)
 
 
 def reap_stale(session: Session, timeout_seconds: int) -> int:
@@ -376,6 +380,7 @@ def step_result(
                 prompt.ran_at = now
             prompt.updated_at = now
             session.add(prompt)
+            events.record(session, prompt, PromptEventType.status_changed, at=now)
 
     session.commit()
     return {"ok": True}

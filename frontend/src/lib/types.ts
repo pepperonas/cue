@@ -244,3 +244,154 @@ export interface SnippetImportResult {
   skipped: number
   errors: string[]
 }
+
+// ---- Statistics dashboard ----
+// Mirrors the payload of `GET /api/stats` (built in backend `app/stats.py`).
+export type StatsRangeKey =
+  | 'today'
+  | 'yesterday'
+  | '7d'
+  | '30d'
+  | '90d'
+  | 'year'
+  | 'last_year'
+  | 'all'
+  | 'custom'
+
+export type Granularity = 'hour' | 'day' | 'week' | 'month'
+
+/** A metric with its previous-period baseline; `delta_pct` is null when there
+ *  is no baseline to compare against (both periods empty). */
+export interface Kpi {
+  value: number
+  previous?: number
+  delta_pct?: number | null
+}
+
+export interface SeriesPoint {
+  t: string
+  label: string
+  [metric: string]: string | number
+}
+
+export interface StatsRange {
+  key: StatsRangeKey
+  label: string
+  from: string
+  to: string
+  previous_from: string
+  previous_to: string
+  granularity: Granularity
+  timezone: string
+  days: number
+}
+
+export interface PromptStats {
+  created: Kpi
+  updated: Kpi
+  deleted: Kpi
+  completed: Kpi
+  per_day_avg: number
+  per_active_day_avg: number
+  total: number
+  backlog: number
+  blocked: number
+  bookmarked: number
+  tested: number
+  tested_rate: number
+  completion_rate: number
+  status_distribution: { status: Status; count: number }[]
+  series: SeriesPoint[]
+  length: {
+    avg: number
+    median: number
+    p90: number
+    histogram: { label: string; count: number }[]
+    longest: { id: number; title: string; chars: number } | null
+    shortest: { id: number; title: string; chars: number } | null
+  }
+  lead_time_hours: { avg: number | null; median: number | null; count: number }
+}
+
+export interface ProjectSlice {
+  id: number | null
+  name: string
+  color: string
+  count: number
+}
+
+export interface ProjectStats {
+  total: number
+  new: Kpi
+  active: number
+  top_by_prompts: ProjectSlice[]
+  top_by_activity: ProjectSlice[]
+  treemap: { name: string; value: number; color: string }[]
+  recent: { id: number | null; name: string; color: string; at: string; prompts: number }[]
+}
+
+export interface TagStats {
+  total: number
+  new: Kpi
+  new_list: string[]
+  top: { tag: string; count: number }[]
+  top_in_range: { tag: string; count: number }[]
+  cloud: { tag: string; count: number }[]
+  growth: { t: string; label: string; total: number }[]
+  pairs: { a: string; b: string; count: number }[]
+  untagged: number
+}
+
+export interface ActivityStats {
+  events: number
+  active_days: number
+  range_days: number
+  streak_current: number
+  streak_longest: number
+  total_active_days: number
+  captured: Kpi
+  sessions: number
+  prompts_per_session: number
+  session_minutes_median: number
+  series: SeriesPoint[]
+  heatmap: { weekday: number; hour: number; count: number }[]
+  by_weekday: { weekday: string; count: number }[]
+  by_hour: { hour: number; label: string; count: number }[]
+  calendar: { date: string; count: number }[]
+  peak_hour: number | null
+  peak_weekday: string | null
+  busiest_day: { date: string; count: number } | null
+}
+
+export interface AiStats {
+  runs: Kpi
+  steps: number
+  success_rate: number | null
+  avg_duration_s: number | null
+  cost_total: number
+  cost_previous: number
+  cost_delta_pct: number | null
+  cost_per_run: number
+  cost_series: { t: string; label: string; cost: number; runs: number }[]
+  by_model: { model: string; count: number }[]
+  by_status: { status: RunStatus; count: number }[]
+  lifetime_cost: number
+  lifetime_runs: number
+}
+
+export interface Stats {
+  range: StatsRange
+  prompts: PromptStats
+  projects: ProjectStats
+  tags: TagStats
+  activity: ActivityStats
+  ai: AiStats | null
+  library: { snippets: number; sessions_total: number; captured_total: number }
+  generated_at: string
+}
+
+export interface StatsQuery {
+  range: StatsRangeKey
+  from?: string
+  to?: string
+}

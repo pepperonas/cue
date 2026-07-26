@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Project, Prompt, Status } from '../lib/types'
+import type { Project, Prompt, StatsQuery, Status } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
 const PROMPTS_KEY = ['prompts'] as const
@@ -16,6 +16,18 @@ export function useMe() {
 
 export function usePrompts() {
   return useQuery({ queryKey: PROMPTS_KEY, queryFn: () => api.listPrompts() })
+}
+
+/** Statistics dashboard. Cached per range; the backend invalidates its own
+ *  cache on every mutation, so a short staleTime is enough here. */
+export function useStats(query: StatsQuery, enabled = true) {
+  return useQuery({
+    queryKey: ['stats', query.range, query.from ?? '', query.to ?? ''],
+    queryFn: () => api.stats(query),
+    enabled,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev, // keep the old numbers while a range switches
+  })
 }
 
 export function useProjects() {

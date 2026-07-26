@@ -7,9 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, update
 from sqlmodel import Session, select
 
+from .. import events
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
-from ..models import Attachment, Project, Prompt, PromptStatus, RunStep, utcnow
+from ..models import (
+    Attachment,
+    Project,
+    Prompt,
+    PromptEventType,
+    PromptStatus,
+    RunStep,
+    utcnow,
+)
 from ..schemas import (
     BookmarkReorderRequest,
     DuplicateRequest,
@@ -165,6 +174,7 @@ def create_prompt(
     session.commit()
     session.refresh(prompt)
     _attach(session, payload.attachment_ids, prompt.id, uid)
+    events.record(session, prompt, PromptEventType.created)
     session.commit()
     return _read(session, prompt)
 
@@ -187,6 +197,9 @@ def update_prompt(
     _csrf: None = Depends(require_csrf),
 ) -> Prompt:
     prompt = _owned(session, prompt_id, uid)
+    # Snapshot for the activity log: only real content edits count as "updated"
+    # (a bookmark/tested toggle or a pure status move is not an edit).
+    before = (prompt.title, prompt.body, prompt.tags, prompt.project_id)
 
     if payload.body is not None:
         prompt.body = payload.body
@@ -228,7 +241,8 @@ def update_prompt(
             raise HTTPException(status_code=400, detail="Only queued prompts can be blocked")
         prompt.blocked = payload.blocked
 
-    if payload.status is not None and payload.status != prompt.status:
+    status_changed = payload.status is not None and payload.status != prompt.status
+    if status_changed:
         if prompt.blocked and payload.status in _RAN_STATUSES:
             raise HTTPException(status_code=400, detail="Prompt is blocked")
         if payload.status != PromptStatus.queued:
@@ -250,6 +264,10 @@ def update_prompt(
     prompt.updated_at = utcnow()
     session.add(prompt)
     _attach(session, payload.attachment_ids, prompt.id, uid)
+    if (prompt.title, prompt.body, prompt.tags, prompt.project_id) != before:
+        events.record(session, prompt, PromptEventType.updated)
+    if status_changed:
+        events.record(session, prompt, PromptEventType.status_changed)
     session.commit()
     session.refresh(prompt)
     return _read(session, prompt)
@@ -267,6 +285,8 @@ def delete_prompt(
     # RunStep keeps a text snapshot, so detach the FK rather than blocking the
     # delete (foreign_keys=ON would otherwise raise on a previously-run prompt).
     session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
+    # Record BEFORE the delete — the event snapshots the row it outlives.
+    events.record(session, prompt, PromptEventType.deleted)
     session.delete(prompt)
     session.commit()
 
@@ -337,6 +357,7 @@ def duplicate_prompt(
             )
         )
 
+    events.record(session, copy, PromptEventType.created)
     session.commit()
     session.refresh(copy)
     return _read(session, copy)
@@ -393,6 +414,7 @@ def merge_prompts(
             session.exec(
                 update(RunStep).where(RunStep.prompt_id == prompt.id).values(prompt_id=None)
             )
+            events.record(session, prompt, PromptEventType.deleted)
             session.delete(prompt)
     elif payload.originals == "archive":
         next_arch = _next_sort_order(session, PromptStatus.archived, uid)
@@ -403,8 +425,10 @@ def merge_prompts(
                 next_arch += 1
                 prompt.updated_at = utcnow()
                 session.add(prompt)
+                events.record(session, prompt, PromptEventType.status_changed)
     # "keep" -> sources are left untouched.
 
+    events.record(session, merged, PromptEventType.created)
     session.commit()
     session.refresh(merged)
     return _read(session, merged)
@@ -438,6 +462,7 @@ def reorder_prompts(
                 prompt.tested = False
             if item.status in _RAN_STATUSES and prompt.ran_at is None:
                 prompt.ran_at = utcnow()
+            events.record(session, prompt, PromptEventType.status_changed)
         prompt.sort_order = item.sort_order
         prompt.updated_at = utcnow()
         session.add(prompt)

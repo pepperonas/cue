@@ -11,9 +11,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlmodel import Session, select
 
+from .. import events
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
-from ..models import Project, Prompt, PromptStatus
+from ..models import Project, Prompt, PromptEventType, PromptStatus
 from ..schemas import PromptRead
 
 router = APIRouter(tags=["import-export"])
@@ -97,6 +98,8 @@ async def import_txt(
             session.add(prompt)
             created.append(prompt)
 
+    session.flush()  # assign ids before the activity log references them
+    events.record_many(session, created, PromptEventType.created)
     session.commit()
     for prompt in created:
         session.refresh(prompt)
