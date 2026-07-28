@@ -174,6 +174,11 @@ export function OptimizationPanel({
                   <Icon name="tag" /> {versions[0].input_tokens ?? 0}/{versions[0].output_tokens}
                 </span>
               )}
+              {shown?.universal && (
+                <span title="Als Bookmark projektunabhängig umgeschrieben — Platzhalter statt konkreter Pfade und Namen">
+                  <Icon name="public" /> universell
+                </span>
+              )}
             </div>
           )}
 
@@ -186,7 +191,7 @@ export function OptimizationPanel({
                   className="opt-version"
                   data-active={(selectedVersion ?? versions[0].version) === row.version}
                   onClick={() => onOpenVersion(row)}
-                  title={`Version ${row.version} vom ${new Date(row.finished_at ?? row.created_at).toLocaleString('de-DE')}`}
+                  title={`Version ${row.version}${row.universal ? ' (universell)' : ''} vom ${new Date(row.finished_at ?? row.created_at).toLocaleString('de-DE')}`}
                 >
                   v{row.version}
                 </button>

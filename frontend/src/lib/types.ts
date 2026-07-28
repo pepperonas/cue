@@ -417,6 +417,8 @@ export interface Optimization {
   provider: string
   model: string
   meta_prompt_version: number
+  /** Rewritten to be project-agnostic (bookmarks) rather than merely sharpened. */
+  universal: boolean
   original_text: string
   previous_text: string | null
   optimized_text: string | null

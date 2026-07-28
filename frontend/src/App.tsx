@@ -748,6 +748,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onDuplicate={handleDuplicate}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
+            onOptimize={canOptimize ? handleOptimize : undefined}
+            optimizingIds={optimizingIds}
             onMove={(move) => moveBookmark.mutate(move)}
           />
         )}

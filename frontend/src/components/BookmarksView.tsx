@@ -28,6 +28,11 @@ interface Props {
   onDuplicate?: (p: Prompt) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
+  // Prompt optimization (owner-only): undefined hides the button entirely.
+  // Bookmarks are optimized UNIVERSALLY — the server derives that from the
+  // same bookmark flag (see app/optimization/service.py).
+  onOptimize?: (p: Prompt) => void
+  optimizingIds?: number[]
   /** Anchored move of one bookmark — never a list of positions. */
   onMove: (move: BookmarkMovePayload & { id: number }) => void
 }
@@ -42,6 +47,8 @@ export function BookmarksView({
   onDuplicate,
   onToggleBookmark,
   onToggleTested,
+  onOptimize,
+  optimizingIds,
   onMove,
 }: Props) {
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
@@ -134,6 +141,8 @@ export function BookmarksView({
                   onDuplicate={onDuplicate}
                   onToggleBookmark={onToggleBookmark}
                   onToggleTested={onToggleTested}
+                  onOptimize={onOptimize}
+                  optimizeBusy={optimizingIds?.includes(p.id) ?? false}
                 />
               )
             })}

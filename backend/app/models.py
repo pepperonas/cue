@@ -206,6 +206,11 @@ class PromptOptimization(SQLModel, table=True):
     # Model the provider reported back (CLI picks its own default).
     model: str = Field(default="")
     meta_prompt_version: int = Field(default=1)
+    # Bookmarked prompts are the reusable shelf, so they are rewritten to be
+    # project-agnostic instead of merely sharpened. Stored per attempt because
+    # the flag can change between two optimizations of the same prompt — the
+    # history has to say which goal each version was produced for.
+    universal: bool = Field(default=False)
 
     # Snapshots: the untouched source text and the version this attempt built
     # on (set from v2 onwards), so history entries stay reproducible.

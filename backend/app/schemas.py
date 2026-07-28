@@ -551,6 +551,7 @@ class OptimizationRead(BaseModel):
     provider: str
     model: str
     meta_prompt_version: int
+    universal: bool
     original_text: str
     previous_text: str | None
     optimized_text: str | None

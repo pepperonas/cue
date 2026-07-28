@@ -129,17 +129,21 @@ class PromptOptimizationService:
             provider=spec.id,
             model=self.settings.optimize_model or spec.default_model,
             meta_prompt_version=META_PROMPT_VERSION,
+            # Bookmarks are the reusable shelf: rewrite them to fit any project
+            # instead of only sharpening them for the one they came from.
+            universal=bool(prompt.bookmarked),
             original_text=body,
             previous_text=previous.optimized_text if previous else None,
         )
         job = self.repo.add(job)
         log.info(
-            "optimization queued id=%s prompt=%s version=%s provider=%s batch=%s",
+            "optimization queued id=%s prompt=%s version=%s provider=%s batch=%s mode=%s",
             job.id,
             job.prompt_id,
             job.version,
             job.provider,
             batch_id or "-",
+            "universal" if job.universal else "standard",
         )
         return job
 
@@ -198,7 +202,9 @@ class PromptOptimizationService:
             id=job.id,
             provider=job.provider,
             model=job.model,
-            prompt=build_meta_prompt(job.original_text, job.previous_text),
+            prompt=build_meta_prompt(
+                job.original_text, job.previous_text, universal=job.universal
+            ),
             timeout_s=self.settings.optimize_timeout,
             max_chars=self.settings.optimize_max_chars,
             max_retries=self.settings.optimize_max_retries,

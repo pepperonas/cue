@@ -82,6 +82,9 @@ def _migrate(engine: Engine) -> None:
     snippet_group_additions = {
         "synced": "ALTER TABLE snippet_group ADD COLUMN synced BOOLEAN NOT NULL DEFAULT 0",
     }
+    optimization_additions = {
+        "universal": "ALTER TABLE prompt_optimization ADD COLUMN universal BOOLEAN NOT NULL DEFAULT 0",
+    }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
         "iterm_session_id": "ALTER TABLE capture_session ADD COLUMN iterm_session_id VARCHAR NOT NULL DEFAULT ''",
@@ -95,6 +98,7 @@ def _migrate(engine: Engine) -> None:
             ("user", user_additions),
             ("snippet", snippet_additions),
             ("snippet_group", snippet_group_additions),
+            ("prompt_optimization", optimization_additions),
             ("capture_session", capture_session_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}

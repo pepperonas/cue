@@ -19,11 +19,17 @@ export function OptimizeButton({
   variant?: 'mini-btn' | 'icon-btn'
 }) {
   const reduce = prefersReducedMotion()
+  // Bookmarked prompts get the project-agnostic rewrite (the server derives the
+  // mode from the same flag) — say so, otherwise the different result looks
+  // like a glitch.
+  const goal = prompt.bookmarked ? 'universell optimieren' : 'mit KI optimieren'
   const label = busy
     ? 'Optimierung läuft …'
     : prompt.optimized
-      ? `Optimiert (v${prompt.optimization_version}) — erneut optimieren`
-      : 'Prompt mit KI optimieren'
+      ? `Optimiert (v${prompt.optimization_version}) — erneut ${goal}`
+      : prompt.bookmarked
+        ? 'Bookmark universell optimieren (für jedes Projekt einsetzbar)'
+        : 'Prompt mit KI optimieren'
   return (
     <button
       className={`${variant} optimize-btn ${prompt.optimized ? 'is-optimized' : ''} ${busy ? 'is-busy' : ''}`}

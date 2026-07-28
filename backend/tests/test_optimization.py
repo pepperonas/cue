@@ -48,6 +48,29 @@ def test_meta_prompt_refinement_carries_both_texts():
     assert "erneute Optimierung" in built
 
 
+def test_universal_meta_prompt_asks_for_a_project_agnostic_rewrite():
+    built = build_meta_prompt("Räume src/api auf", universal=True)
+    assert "Räume src/api auf" in built
+    assert "UNIVERSELL" in built
+    assert "Platzhalter" in built
+    # The two goals are alternatives: the standard rule about keeping paths and
+    # proper nouns verbatim would contradict the whole point here.
+    assert "Behalte Codeblöcke, Pfade, Befehle und Eigennamen unverändert bei" not in built
+
+
+def test_universal_refinement_keeps_both_texts_and_the_universal_goal():
+    built = build_meta_prompt("Original", previous="Fassung 1", universal=True)
+    assert "Original" in built and "Fassung 1" in built
+    assert "erneute Optimierung" in built
+    assert "UNIVERSELL" in built
+
+
+def test_standard_mode_is_unchanged_and_never_asks_for_placeholders():
+    built = build_meta_prompt("Räume src/api auf")
+    assert "UNIVERSELL" not in built
+    assert "Behalte Codeblöcke, Pfade, Befehle und Eigennamen unverändert bei" in built
+
+
 def test_clean_result_strips_a_wrapping_fence_only():
     assert clean_result("```\nHallo\n```") == "Hallo"
     assert clean_result("```markdown\nHallo\n```") == "Hallo"
@@ -386,3 +409,59 @@ def test_disabled_feature_refuses_to_queue(client, monkeypatch):
     monkeypatch.setattr(router_module._settings, "optimize_enabled", False)
     res = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
     assert res.status_code == 503
+
+
+# ------------------------------------------------- universal mode (bookmarks)
+
+
+def test_bookmarked_prompts_are_optimized_universally(client):
+    """A bookmark is the reusable shelf, so its optimization must fit any project."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Räume /Users/martin/claude/cue/src auf")
+    client.patch(f"/api/prompts/{prompt['id']}", json={"bookmarked": True}, headers=headers)
+
+    job = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    assert job.status_code == 201, job.text
+    assert job.json()["universal"] is True
+
+    claimed = client.post("/api/optimizations/claim", json={"runner_id": "r1"}, headers=RUNNER_HDR)
+    assert claimed.status_code == 200, claimed.text
+    assert "UNIVERSELL" in claimed.json()["prompt"]
+
+
+def test_unbookmarked_prompts_keep_the_sharpening_optimization(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Räume /Users/martin/claude/cue/src auf")
+
+    job = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    assert job.json()["universal"] is False
+
+    claimed = client.post("/api/optimizations/claim", json={"runner_id": "r1"}, headers=RUNNER_HDR)
+    assert "UNIVERSELL" not in claimed.json()["prompt"]
+
+
+def test_the_mode_is_recorded_per_attempt_not_per_prompt(client):
+    """Bookmarking can change between two runs; the history must stay honest."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Ein Prompt")
+
+    first = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers).json()
+    client.post("/api/optimizations/claim", json={"runner_id": "r1"}, headers=RUNNER_HDR)
+    client.post(
+        f"/api/optimizations/{first['id']}/result",
+        json={"status": "succeeded", "optimized_text": "v1", "exit_code": 0},
+        headers=RUNNER_HDR,
+    )
+
+    client.patch(f"/api/prompts/{prompt['id']}", json={"bookmarked": True}, headers=headers)
+    second = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+
+    assert first["universal"] is False
+    assert second["universal"] is True
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    assert [h["universal"] for h in sorted(history, key=lambda h: h["version"])] == [False, True]
