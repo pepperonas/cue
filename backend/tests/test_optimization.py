@@ -58,6 +58,22 @@ def test_universal_meta_prompt_asks_for_a_project_agnostic_rewrite():
     assert "Behalte Codeblöcke, Pfade, Befehle und Eigennamen unverändert bei" not in built
 
 
+def test_universal_mode_draws_the_line_at_project_boundness_not_at_concreteness():
+    """The first wording generalized the author's own data away.
+
+    It said "replace company and product names", so a bookmark carrying the
+    user's own Google-Maps review link came back with `<Bewertungs-Link>` — a
+    placeholder they would have to fill with the same value forever. What
+    varies is the PROJECT, not the author.
+    """
+    built = build_meta_prompt("Verlinke https://g.page/r/xyz/review", universal=True)
+    assert "ändert sich der Wert von" in built  # the actual criterion
+    assert "Im Zweifel behalte den Wert" in built  # bias towards keeping
+    # Owner-bound data is named as something to KEEP, not to replace.
+    assert "UNVERÄNDERT übernehmen" in built
+    assert "Ersetze konkrete Pfade sowie Projekt-, Repository-, Firmen-" not in built
+
+
 def test_universal_refinement_keeps_both_texts_and_the_universal_goal():
     built = build_meta_prompt("Original", previous="Fassung 1", universal=True)
     assert "Original" in built and "Fassung 1" in built

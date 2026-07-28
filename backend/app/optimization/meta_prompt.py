@@ -7,7 +7,7 @@ traceable in the history instead of silently reinterpreting old results.
 from __future__ import annotations
 
 # Bump whenever the wording below changes materially.
-META_PROMPT_VERSION = 2
+META_PROMPT_VERSION = 3
 
 _INSTRUCTIONS = """Du bist ein erfahrener Prompt Engineer. Verbessere den unten stehenden Prompt.
 
@@ -49,10 +49,17 @@ Regeln:
 - Verändere die eigentliche Aufgabe niemals — nur ihren Geltungsbereich.
 - Behalte die Sprache des Originals bei.
 - Erfinde keine Anforderungen dazu, die nicht im Original stehen.
-- Ersetze konkrete Pfade sowie Projekt-, Repository-, Firmen- und Produktnamen durch
-  Platzhalter. Ausnahme: Namen, ohne die die Aufgabe sinnlos wäre — behandelt der
-  Prompt genau dieses eine Werkzeug, bleibt sein Name stehen.
-- Codeblöcke und Befehle bleiben erhalten, verlieren aber projektspezifische
+- Entscheidend ist NICHT „konkret oder allgemein", sondern: ändert sich der Wert von
+  Projekt zu Projekt?
+  · Projektgebunden → Platzhalter: Pfade, Datei-, Modul-, Repository- und
+    Projektnamen, Framework, Programmiersprache, Zielumgebung, Ports.
+  · Gehört dem Autor und ist überall gleich → UNVERÄNDERT übernehmen: seine eigenen
+    URLs, Profile und Konten, Kontaktdaten, sein Marken-, Firmen- und Produktname,
+    Lizenz- und Copyright-Zeilen, feste Gestaltungs- und Stilvorgaben.
+- Im Zweifel behalte den Wert. Ein überflüssiger Platzhalter erzwingt bei jeder
+  Nutzung eine Eingabe, die sich nie ändert — das ist schlimmer als ein
+  stehengebliebenes Detail.
+- Codeblöcke und Befehle bleiben erhalten, verlieren aber projektgebundene
   Bezeichner, wo das ohne Sinnverlust möglich ist.
 - Verallgemeinere nicht ins Nichtssagende: der Prompt muss konkret genug bleiben,
   um ohne Rückfragen ausführbar zu sein.
