@@ -101,19 +101,24 @@ export interface CapResult {
 /**
  * How many cards of a column or project group are rendered.
  *
- * Collapsed sections render nothing. While a drag is active EVERY card renders,
- * because a card that isn't in the DOM can't be a drop target. Otherwise the
- * cap applies until the user expands this specific group — the expansion is
- * per group, not per status column, so opening one project doesn't silently
- * uncap its neighbours.
+ * Collapsed sections render nothing; otherwise the cap applies until the user
+ * expands this specific group — the expansion is per group, not per status
+ * column, so opening one project doesn't silently uncap its neighbours.
+ *
+ * The cap holds DURING a drag too. Mounting all 165 cards of a long column
+ * used to be justified with "a card that isn't in the DOM can't be a drop
+ * target", but a move is anchored on a neighbour and the column itself is a
+ * full-height target, so precision doesn't need every card. Mounting them made
+ * the column ~30 000 px tall and put 165 more droppables under continuous
+ * measurement — which is how the hit testing drifted in the first place.
  */
 export function visibleCards(
   ids: number[],
-  opts: { open?: boolean; expanded?: boolean; dragging?: boolean; cap?: number } = {},
+  opts: { open?: boolean; expanded?: boolean; cap?: number } = {},
 ): CapResult {
-  const { open = true, expanded = false, dragging = false, cap = COLUMN_CAP } = opts
+  const { open = true, expanded = false, cap = COLUMN_CAP } = opts
   if (!open) return { shown: [], hidden: ids.length }
-  if (expanded || dragging || ids.length <= cap) return { shown: ids, hidden: 0 }
+  if (expanded || ids.length <= cap) return { shown: ids, hidden: 0 }
   return { shown: ids.slice(0, cap), hidden: ids.length - cap }
 }
 

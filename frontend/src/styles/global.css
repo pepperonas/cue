@@ -249,7 +249,10 @@ a {
      tokens) instead of forcing the grid wider than the viewport. */
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--gap-4);
-  align-items: start;
+  /* Stretch, NOT start: a column only as tall as its own cards stops being a
+     drop target below them, so dragging into the empty area of a short column
+     hit nothing and the drop was silently discarded. */
+  align-items: stretch;
 }
 @media (max-width: 900px) {
   .board {

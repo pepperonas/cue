@@ -20,7 +20,7 @@ from ..models import (
     RunStep,
     utcnow,
 )
-from ..ordering import insert_block
+from ..ordering import display_key, insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
 from ..tags import TagService
 from ..schemas import (
@@ -526,15 +526,18 @@ def _move_block(
         session.add(prompt)
 
     moved_ids = {p.id for p in movable}
-    column = [
-        p
-        for p in session.exec(
-            select(Prompt)
-            .where(Prompt.user_id == uid, Prompt.status == target_status)
-            .order_by(Prompt.sort_order, Prompt.id)
-        ).all()
-        if p.id not in moved_ids
-    ]
+    # Sorted the way the BOARD shows the column, not the way it is stored — the
+    # anchor names a card the user can see (see app/ordering.py:display_key).
+    column = sorted(
+        (
+            p
+            for p in session.exec(
+                select(Prompt).where(Prompt.user_id == uid, Prompt.status == target_status)
+            ).all()
+            if p.id not in moved_ids
+        ),
+        key=display_key,
+    )
     order = insert_block(
         [p.id for p in column],
         [p.id for p in movable],

@@ -16,6 +16,24 @@ testable on their own.
 from __future__ import annotations
 
 
+def display_key(prompt) -> tuple:  # noqa: ANN001 - duck-typed on purpose
+    """Sort key of the order the BOARD shows — mirror of lib/order.ts.
+
+    The anchor in a move request names a card the user can see, so the server
+    has to insert into the same sequence. While these two drifted apart, a drag
+    could be saved and still have no visible effect: a queued column stores
+    blocked prompts inline but displays them at the bottom, so "put it before
+    #184" landed in the middle of the stored order and changed nothing on
+    screen — it looked exactly like reordering wasn't saved.
+
+    Only stored fields may take part, and every rule has to be one a drag can
+    work within: a rule the user cannot override (like ordering by execution
+    time) makes their drag a no-op.
+    """
+    tested_last = 1 if (prompt.status == "done" and prompt.tested) else 0
+    return (1 if prompt.blocked else 0, tested_last, prompt.sort_order, prompt.id)
+
+
 def insert_block(
     ids: list[int],
     moved: list[int],

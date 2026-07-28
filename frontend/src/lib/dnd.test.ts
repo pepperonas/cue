@@ -4,6 +4,8 @@ import {
   TOUCH_DELAY_MS,
   TOUCH_TOLERANCE_PX,
   dragSelection,
+  columnIdOf,
+  preferCard,
 } from './dnd'
 
 describe('drag activation constraints', () => {
@@ -43,5 +45,37 @@ describe('dragSelection', () => {
 
   it('falls back to the single card for a selection of one', () => {
     expect(dragSelection(11, [11], board)).toEqual([11])
+  })
+})
+
+describe('preferCard', () => {
+  it('picks the card over the column that contains it', () => {
+    // Both are under the pointer; the card is the anchor a move needs.
+    expect(preferCard([{ id: 'col:done' }, { id: 42 }])).toEqual([{ id: 42 }])
+  })
+
+  it('falls back to the column for the empty space below the last card', () => {
+    expect(preferCard([{ id: 'col:queued' }])).toEqual([{ id: 'col:queued' }])
+  })
+
+  it('passes an empty result through', () => {
+    expect(preferCard([])).toEqual([])
+  })
+
+  it('takes the first card when several are reported', () => {
+    expect(preferCard([{ id: 'col:done' }, { id: 7 }, { id: 8 }])).toEqual([{ id: 7 }])
+  })
+})
+
+describe('columnIdOf', () => {
+  it('recognises a column droppable and returns its status', () => {
+    expect(columnIdOf('col:done')).toBe('done')
+    expect(columnIdOf('col:queued')).toBe('queued')
+  })
+
+  it('returns null for a card id, so a card is never mistaken for a column', () => {
+    expect(columnIdOf(42)).toBeNull()
+    // Mobile project groups use `<status>:<project>` — not a column droppable.
+    expect(columnIdOf('done:12')).toBeNull()
   })
 })

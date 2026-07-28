@@ -336,3 +336,50 @@ def test_bookmark_move_requires_a_bookmarked_prompt(client):
         f"/api/prompts/{prompt['id']}/bookmarks/move", json={"top": True}, headers=headers
     )
     assert res.status_code == 400
+
+
+def test_anchor_means_what_the_user_sees_not_what_is_stored(client):
+    """Regression: a drag was saved and still had no visible effect.
+
+    A queued column stores blocked prompts inline but shows them at the bottom.
+    While the server inserted into the STORED order, "put it before the last
+    visible card" landed in the middle of the stored order and changed nothing
+    on screen — which reads as "reordering isn't saved".
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    a, b, c = (_mk(client, headers, f"Prompt {n}") for n in "ABC")
+    blocked = _mk(client, headers, "Blockiert")
+    client.patch(f"/api/prompts/{blocked['id']}", json={"blocked": True}, headers=headers)
+
+    def displayed():
+        rows = client.get("/api/prompts", headers=headers, params={"status": "queued"}).json()
+        rows.sort(key=lambda p: (p["blocked"], p["sort_order"], p["id"]))
+        return [p["body"] for p in rows]
+
+    assert displayed() == ["Prompt A", "Prompt B", "Prompt C", "Blockiert"]
+
+    # Drag A to the end of the VISIBLE list: the card after it is "Prompt C".
+    _move(client, headers, a["id"], after_id=c["id"])
+    assert displayed() == ["Prompt B", "Prompt C", "Prompt A", "Blockiert"]
+
+    # And back to the top.
+    _move(client, headers, a["id"], before_id=b["id"])
+    assert displayed() == ["Prompt A", "Prompt B", "Prompt C", "Blockiert"]
+
+
+def test_blocked_prompts_are_renumbered_to_the_bottom_of_the_column(client):
+    """Stored order converges on the displayed one, so anchors stay unambiguous."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    blocked = _mk(client, headers, "Blockiert")
+    client.patch(f"/api/prompts/{blocked['id']}", json={"blocked": True}, headers=headers)
+    a = _mk(client, headers, "Prompt A")
+    b = _mk(client, headers, "Prompt B")
+
+    _move(client, headers, b["id"], before_id=a["id"])
+
+    rows = client.get("/api/prompts", headers=headers, params={"status": "queued"}).json()
+    by_body = {p["body"]: p for p in rows}
+    assert by_body["Blockiert"]["sort_order"] > by_body["Prompt A"]["sort_order"]
+    assert by_body["Prompt B"]["sort_order"] < by_body["Prompt A"]["sort_order"]

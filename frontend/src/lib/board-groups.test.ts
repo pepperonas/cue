@@ -117,8 +117,11 @@ describe('visibleCards', () => {
     expect(visibleCards(many, { open: true, expanded: true })).toEqual({ shown: many, hidden: 0 })
   })
 
-  it('renders every card during a drag, so each one stays a drop target', () => {
-    expect(visibleCards(many, { open: true, dragging: true }).shown).toHaveLength(25)
+  it('keeps the cap during a drag: the column itself is the drop target', () => {
+    // Mounting every card of a long column made it ~30 000 px tall and put
+    // hundreds of droppables under continuous measurement, which is what made
+    // the hit testing drift onto the wrong column.
+    expect(visibleCards(many, { open: true }).shown).toHaveLength(COLUMN_CAP)
   })
 
   it('leaves short sections alone', () => {

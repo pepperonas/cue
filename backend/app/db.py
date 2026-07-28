@@ -128,18 +128,34 @@ def _repair_sort_order(conn) -> None:  # noqa: ANN001
     """
     users = [row[0] for row in conn.exec_driver_sql("SELECT id FROM user")]
     statuses = [row[0] for row in conn.exec_driver_sql("SELECT DISTINCT status FROM prompt")]
+    # Same sequence the board renders (mirror of app/ordering.py:display_key):
+    # storing a different order than the one on screen is what made anchored
+    # moves land somewhere the user never pointed at.
+    board_order = (
+        "blocked, CASE WHEN status = 'done' AND tested = 1 THEN 1 ELSE 0 END, sort_order, id"
+    )
     for uid in users:
         for status_value in statuses:
             _densify(
-                conn, "sort_order", "user_id = :uid AND status = :st", {"uid": uid, "st": status_value}
+                conn,
+                "sort_order",
+                "user_id = :uid AND status = :st",
+                {"uid": uid, "st": status_value},
+                order_by=board_order,
             )
-        _densify(conn, "bookmark_order", "user_id = :uid AND bookmarked = 1", {"uid": uid})
+        _densify(
+            conn,
+            "bookmark_order",
+            "user_id = :uid AND bookmarked = 1",
+            {"uid": uid},
+            order_by="bookmark_order, id",
+        )
 
 
-def _densify(conn, field: str, where: str, params: dict) -> None:  # noqa: ANN001
-    """Rewrite `field` as a gap-free 1..n along its current display order."""
+def _densify(conn, field: str, where: str, params: dict, *, order_by: str) -> None:  # noqa: ANN001
+    """Rewrite `field` as a gap-free 1..n along the given display order."""
     rows = conn.execute(
-        text(f"SELECT id, {field} FROM prompt WHERE {where} ORDER BY {field}, id"), params
+        text(f"SELECT id, {field} FROM prompt WHERE {where} ORDER BY {order_by}"), params
     ).fetchall()
     if [row[1] for row in rows] == list(range(1, len(rows) + 1)):
         return  # already dense — nothing to write

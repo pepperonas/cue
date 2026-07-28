@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DndContext, DragOverlay, closestCorners } from '@dnd-kit/core'
+import { DndContext, DragOverlay, MeasuringStrategy } from '@dnd-kit/core'
 import type { Announcements, DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
@@ -16,7 +16,7 @@ import {
   isOpen,
   visibleCards,
 } from '../lib/board-groups'
-import { dragSelection, useDragSensors } from '../lib/dnd'
+import { boardCollision, dragSelection, useDragSensors } from '../lib/dnd'
 import { useIsMobile } from '../lib/media'
 import { columnComparator } from '../lib/order'
 import { PromptCard } from './PromptCard'
@@ -159,6 +159,9 @@ export function Board({
   // Touch/mouse/keyboard sensor split lives in lib/dnd.ts (shared with the
   // other sortable views).
   const sensors = useDragSensors()
+  // Pointer-based, column-confined hit testing — see lib/dnd.ts for the two
+  // ways the default strategies dropped cards in the wrong place.
+  const collisionDetection = useMemo(() => boardCollision(containers), [containers])
 
   function findContainer(id: number | string): Status | undefined {
     if (typeof id === 'string' && id.startsWith('col:')) return id.slice(4) as Status
@@ -231,13 +234,18 @@ export function Board({
       return
     }
     const id = active.id as number
-    const from = findContainer(active.id)
     const to = findContainer(over.id)
+    // The ORIGIN is the column the card was picked up from — not the one it
+    // sits in now. `onDragOver` already moved it into the target, so asking
+    // where it currently is would report "same column" for every cross-column
+    // drag; the index then looked unchanged and nothing was sent at all. The
+    // card stayed in the new column on screen and jumped back on reload.
+    const from = origin ?? findContainer(active.id)
     if (!from || !to) return
 
     let next = containers
-    let moved = from !== to // cross-column: onDragOver already applied the move
-    if (from === to) {
+    let moved = from !== to
+    if (!moved) {
       const items = [...containers[to]]
       const oldIndex = items.indexOf(id)
       const newIndex = items.indexOf(over.id as number)
@@ -368,7 +376,14 @@ export function Board({
     <DndContext
       sensors={sensors}
       accessibility={{ announcements }}
-      collisionDetection={closestCorners}
+      // Re-measure while dragging. With the default (measure once on drag
+      // start) the droppable rects drift as soon as the board auto-scrolls or
+      // cards shift: they were off by ~109 px here, so hit testing reported
+      // droppables that were nowhere near the cursor — a drag inside "Queued"
+      // ended up in "Done", and further down the column nothing was hit at all
+      // and the drop became a silent no-op.
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      collisionDetection={collisionDetection}
       // Start scrolling earlier and slower than the default so a one-handed
       // drag near the screen edge stays controllable on a phone.
       autoScroll={{ threshold: { x: 0, y: 0.18 }, acceleration: 12 }}
@@ -384,7 +399,6 @@ export function Board({
             const colKey = columnKey(status)
             const { shown: visible, hidden } = visibleCards(all, {
               expanded: expanded[colKey],
-              dragging: activeId != null,
             })
             return (
               <Column key={status} status={status} count={all.length}>
@@ -411,7 +425,6 @@ export function Board({
             const { shown, hidden } = visibleCards(g.ids, {
               open: groupOpen,
               expanded: expanded[g.id],
-              dragging: activeId != null,
             })
             visibleIds.push(...shown)
             return (
