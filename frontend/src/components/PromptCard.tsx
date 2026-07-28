@@ -29,6 +29,8 @@ interface Props {
   optimizeBusy?: boolean
   onToggleBlocked?: (p: Prompt) => void
   selectMode?: boolean
+  /** Part of a multi-card drag, but not the grabbed card: drawn as on the move. */
+  carried?: boolean
   selectedForMerge?: boolean
   onToggleSelect?: (p: Prompt) => void
   onModSelect?: (p: Prompt) => void
@@ -49,6 +51,7 @@ export function PromptCard({
   optimizeBusy = false,
   onToggleBlocked,
   selectMode,
+  carried,
   selectedForMerge,
   onToggleSelect,
   onModSelect,
@@ -123,7 +126,9 @@ export function PromptCard({
         style={style}
         className={`card ${isDragging ? 'dragging' : ''} ${selected ? 'selected' : ''} ${
           selectMode ? 'selecting' : ''
-        } ${selectedForMerge ? 'merge-selected' : ''} ${prompt.blocked ? 'blocked' : ''}`}
+        } ${selectedForMerge ? 'merge-selected' : ''} ${prompt.blocked ? 'blocked' : ''} ${
+          carried ? 'carried' : ''
+        }`}
         data-prompt-id={prompt.id}
         title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
         {...(draggable ? attributes : {})}

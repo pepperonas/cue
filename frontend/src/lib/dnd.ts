@@ -30,3 +30,23 @@ export function useDragSensors() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 }
+
+/**
+ * Ids that travel with a drag, in board order.
+ *
+ * Grabbing a card that is part of a selection takes the whole selection along;
+ * any other card travels alone. The order comes from `boardOrder` (the visible
+ * ids top-to-bottom across the columns), NOT from the order the user ticked
+ * the boxes — the block has to land the way it looked. Ids that aren't on the
+ * board right now (selected, then filtered away) are dropped.
+ */
+export function dragSelection(
+  activeId: number,
+  selectedIds: number[] | undefined,
+  boardOrder: number[],
+): number[] {
+  if (!selectedIds?.includes(activeId)) return [activeId]
+  const picked = new Set(selectedIds)
+  const travelling = boardOrder.filter((id) => picked.has(id))
+  return travelling.length > 1 ? travelling : [activeId]
+}

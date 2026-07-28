@@ -16,7 +16,7 @@ import {
   isOpen,
   visibleCards,
 } from '../lib/board-groups'
-import { useDragSensors } from '../lib/dnd'
+import { dragSelection, useDragSensors } from '../lib/dnd'
 import { useIsMobile } from '../lib/media'
 import { columnComparator } from '../lib/order'
 import { PromptCard } from './PromptCard'
@@ -122,6 +122,15 @@ export function Board({
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
   const [containers, setContainers] = useState<Containers>(() => group(prompts, columns))
   const [activeId, setActiveId] = useState<number | null>(null)
+  // Ids travelling with this drag — just the grabbed card, or the whole
+  // selection when it is part of one. State, not a ref: every one of them is
+  // drawn as "on the move" (ghosted in place, carried in the overlay).
+  //
+  // They deliberately stay in their columns. Lifting them out of `containers`
+  // was the first attempt and it silently ate cards: a drop that registered no
+  // move returned early and never put them back, so the board just showed
+  // fewer prompts than it had.
+  const [dragIds, setDragIds] = useState<number[]>([])
   // "Show all" toggles, keyed per section: `col:<status>` for a desktop column,
   // the group id for a mobile project group. Keyed rather than per status so
   // expanding one project group leaves the others capped.
@@ -160,9 +169,6 @@ export function Board({
   }
 
   const dragOrigin = useRef<Status | undefined>(undefined)
-  // Ids travelling with this drag. Normally just the dragged card; if it is
-  // part of a selection, the whole selection comes along (in board order).
-  const dragSet = useRef<number[]>([])
 
   function onDragStart(e: DragStartEvent) {
     const id = e.active.id as number
@@ -170,25 +176,13 @@ export function Board({
     setActiveId(id)
     dragOrigin.current = findContainer(id)
 
-    const picked = selectMode && selectedIds?.includes(id) ? selectedIds : []
-    if (picked.length > 1) {
-      // Board order, not click order — the block must land the way it looked.
-      const inOrder = columns.flatMap((status) =>
-        (containers[status] ?? []).filter((x) => picked.includes(x)),
-      )
-      dragSet.current = inOrder
-      // Lift the companions out of their columns so the stack reads as one
-      // object; they come back from the server response after the drop.
-      setContainers((prev) => {
-        const next: Containers = {}
-        for (const status of columns) {
-          next[status] = (prev[status] ?? []).filter((x) => x === id || !picked.includes(x))
-        }
-        return next
-      })
-    } else {
-      dragSet.current = [id]
-    }
+    setDragIds(
+      dragSelection(
+        id,
+        selectMode ? selectedIds : undefined,
+        columns.flatMap((status) => containers[status] ?? []),
+      ),
+    )
     vibrate(12) // haptic "lift" confirmation on touch devices
   }
 
@@ -219,6 +213,7 @@ export function Board({
     // Escape / lost pointer: drop every optimistic move and go back to server order.
     dragging.current = false
     setActiveId(null)
+    setDragIds([])
     dragOrigin.current = undefined
     setContainers(group(prompts, columns))
   }
@@ -226,8 +221,10 @@ export function Board({
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
     const origin = dragOrigin.current
+    const carried = dragIds
     dragging.current = false
     setActiveId(null)
+    setDragIds([])
     dragOrigin.current = undefined
     if (!over) {
       setContainers(group(prompts, columns))
@@ -267,8 +264,7 @@ export function Board({
     const index = column.indexOf(id)
     const before = column[index + 1]
     const after = column[index - 1]
-    const ids = dragSet.current.length > 1 ? dragSet.current : undefined
-    dragSet.current = []
+    const ids = carried.length > 1 ? carried : undefined
     const anchor: MovePayload =
       toTop || (before == null && after == null)
         ? { top: toTop || to === 'done' }
@@ -280,7 +276,15 @@ export function Board({
   }
 
   const activePrompt = activeId != null ? byId.get(activeId) : undefined
-  const dragCount = activeId != null ? Math.max(dragSet.current.length, 1) : 0
+  // Cards drawn in the overlay: the grabbed one first, then its companions.
+  // Capped so a 40-card selection doesn't render 40 copies under the cursor.
+  const DRAG_PREVIEW_MAX = 3
+  const carriedPrompts =
+    activePrompt == null
+      ? []
+      : [activePrompt, ...dragIds.filter((x) => x !== activeId).map((x) => byId.get(x))]
+          .filter(Boolean)
+          .slice(0, DRAG_PREVIEW_MAX) as Prompt[]
 
   /** Render one card (shared by the desktop and mobile trees). */
   const renderCard = useCallback(
@@ -302,6 +306,7 @@ export function Board({
           onToggleTested={onToggleTested}
           onOptimize={onOptimize}
           optimizeBusy={optimizingIds?.includes(p.id) ?? false}
+          carried={dragIds.length > 1 && id !== activeId && dragIds.includes(id)}
           onToggleBlocked={onToggleBlocked}
           selectMode={selectMode}
           selectedForMerge={selectedIds?.includes(id)}
@@ -311,8 +316,10 @@ export function Board({
       )
     },
     [
+      activeId,
       byId,
       dark,
+      dragIds,
       onCopy,
       onDuplicate,
       onModSelect,
@@ -445,14 +452,23 @@ export function Board({
       </div>
       <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
         {activePrompt ? (
-          <div className={`drag-stack${dragCount > 1 ? ' drag-stack--many' : ''}`}>
-            <div className="card card--drag-preview" style={{ cursor: 'grabbing' }}>
-              <div className="card-title">{activePrompt.title}</div>
-              <div className="card-body-preview">{activePrompt.body}</div>
-            </div>
-            {dragCount > 1 && (
+          <div className="drag-stack" style={{ cursor: 'grabbing' }}>
+            {/* Rendered back-to-front so the grabbed card ends up on top. */}
+            {carriedPrompts
+              .map((p, i) => (
+                <div
+                  key={p.id}
+                  className={`card card--drag-preview${i > 0 ? ' drag-stack-behind' : ''}`}
+                  style={{ '--depth': i } as React.CSSProperties}
+                >
+                  <div className="card-title">{p.title}</div>
+                  <div className="card-body-preview">{p.body}</div>
+                </div>
+              ))
+              .reverse()}
+            {dragIds.length > 1 && (
               <span className="drag-count" aria-hidden="true">
-                {dragCount}
+                {dragIds.length}
               </span>
             )}
           </div>

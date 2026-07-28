@@ -557,29 +557,18 @@ a {
   font-size: 18px;
 }
 
-/* Multi-card drag: the overlay carries a count badge so it is obvious that
-   more than the grabbed card is travelling. The fanned edges behind it hint
-   at the stack without rendering every card. */
+/* Multi-card drag: every travelling card is drawn, fanned behind the grabbed
+   one, so the selection visibly comes along with the cursor instead of
+   collapsing into a single card (which read as "the prompts got merged"). */
 .drag-stack {
   position: relative;
 }
-.drag-stack--many::before,
-.drag-stack--many::after {
-  content: '';
+.drag-stack-behind {
   position: absolute;
   inset: 0;
-  border-radius: var(--shape-l);
-  background: var(--md-surface-container-high);
-  border: 1px solid var(--md-outline-variant);
-  z-index: -1;
-}
-.drag-stack--many::before {
-  transform: translate(6px, 6px) rotate(1.2deg);
-  opacity: 0.75;
-}
-.drag-stack--many::after {
-  transform: translate(12px, 12px) rotate(2.4deg);
-  opacity: 0.5;
+  transform: translate(calc(var(--depth) * 9px), calc(var(--depth) * 9px))
+    rotate(calc(var(--depth) * 1.4deg));
+  opacity: calc(1 - var(--depth) * 0.25);
 }
 .drag-count {
   position: absolute;
@@ -595,8 +584,15 @@ a {
   color: var(--md-on-primary);
   font: var(--label-l);
   box-shadow: var(--elev-2);
+  z-index: 2;
 }
 
+/* A card whose copy is currently riding along in the overlay: it stays in the
+   column (removing it ate cards on a no-op drop) but reads as "on the move". */
+.card.carried {
+  opacity: 0.4;
+  border-style: dashed;
+}
 /* Merge dialog — reorderable source list */
 .merge-parts {
   display: flex;
