@@ -5,6 +5,7 @@ import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
 import { countOpenByProject } from './lib/board-groups'
+import { bookmarkedPrompts, filterPrompts } from './lib/filter'
 import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
@@ -263,17 +264,22 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   const pmap = useMemo(() => projectMap(projects), [projects])
 
+  // Board + list follow the toolbar above them.
   const filtered = useMemo(() => {
-    const list = prompts ?? []
-    const query = q.trim().toLowerCase()
-    return list.filter((p) => {
-      if (pendingDelete.includes(p.id)) return false
-      if (projectFilter === 'none' && p.project_id != null) return false
-      if (typeof projectFilter === 'number' && p.project_id !== projectFilter) return false
-      if (query && !`${p.title} ${p.body} ${p.tags}`.toLowerCase().includes(query)) return false
-      return true
+    return filterPrompts(prompts ?? [], {
+      pendingDelete,
+      project: projectFilter,
+      query: q,
     })
   }, [prompts, q, projectFilter, pendingDelete])
+
+  // Bookmarks are global on purpose: the project chips and the search field
+  // only exist above the board and the list, so honouring them here would hide
+  // bookmarks because of a control the user cannot see on this tab.
+  const bookmarks = useMemo(
+    () => bookmarkedPrompts(prompts ?? [], pendingDelete),
+    [prompts, pendingDelete],
+  )
 
   const columns = useMemo<Status[]>(
     () => (showExtra ? [...BOARD_COLUMNS, ...EXTRA_COLUMNS] : BOARD_COLUMNS),
@@ -733,7 +739,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
         {view === 'bookmarks' && (
           <BookmarksView
-            prompts={filtered}
+            prompts={bookmarks}
             projects={pmap}
             dark={settings.resolvedDark}
             selectedId={selectedId}
