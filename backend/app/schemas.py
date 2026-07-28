@@ -130,6 +130,30 @@ class BookmarkReorderRequest(BaseModel):
     items: list[BookmarkReorderItem]
 
 
+class MoveRequest(BaseModel):
+    """Anchored move — the client names a neighbour, never a position.
+
+    Positions computed in the browser are wrong as soon as a filter hides part
+    of the column (see app/ordering.py); a neighbour id is unambiguous either
+    way. `status` may move the prompt to another column; omitting it keeps the
+    current one. Without an anchor the prompt goes to the top (`top=True`) or
+    to the end of the column.
+    """
+
+    status: PromptStatus | None = None
+    before_id: int | None = None
+    after_id: int | None = None
+    top: bool = False
+
+
+class BookmarkMoveRequest(BaseModel):
+    """Anchored move inside the bookmarks section."""
+
+    before_id: int | None = None
+    after_id: int | None = None
+    top: bool = False
+
+
 class DuplicateRequest(BaseModel):
     # Target project for the copy (None = no project).
     project_id: int | None = None

@@ -108,7 +108,47 @@ def _migrate(engine: Engine) -> None:
         # that rule (idempotent data fix).
         conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")
         _seed_prompt_events(conn)
+        _repair_sort_order(conn)
     _migrate_tags()
+
+
+def _repair_sort_order(conn) -> None:  # noqa: ANN001
+    """Give every column a collision-free 1..n order (idempotent).
+
+    Until the anchored /move endpoint, a drag on a FILTERED board numbered only
+    the visible cards 1..n, which collided with the prompts that were filtered
+    out — production ended up with 14 prompts sharing sort_order 1 in "done",
+    one per project. Ordering then fell through to the id tie-break, so cards
+    sat in places nobody dragged them to.
+
+    Renumbering follows the order the board was already displaying
+    (sort_order, then id), so nothing visibly jumps; it only spreads out the
+    ties. Same for the bookmarks section. Runs on every start and does nothing
+    once the values are already dense.
+    """
+    users = [row[0] for row in conn.exec_driver_sql("SELECT id FROM user")]
+    statuses = [row[0] for row in conn.exec_driver_sql("SELECT DISTINCT status FROM prompt")]
+    for uid in users:
+        for status_value in statuses:
+            _densify(
+                conn, "sort_order", "user_id = :uid AND status = :st", {"uid": uid, "st": status_value}
+            )
+        _densify(conn, "bookmark_order", "user_id = :uid AND bookmarked = 1", {"uid": uid})
+
+
+def _densify(conn, field: str, where: str, params: dict) -> None:  # noqa: ANN001
+    """Rewrite `field` as a gap-free 1..n along its current display order."""
+    rows = conn.execute(
+        text(f"SELECT id, {field} FROM prompt WHERE {where} ORDER BY {field}, id"), params
+    ).fetchall()
+    if [row[1] for row in rows] == list(range(1, len(rows) + 1)):
+        return  # already dense — nothing to write
+    for position, row in enumerate(rows, start=1):
+        if row[1] != position:
+            conn.execute(
+                text(f"UPDATE prompt SET {field} = :pos WHERE id = :id"),
+                {"pos": position, "id": row[0]},
+            )
 
 
 def _seed_prompt_events(conn) -> None:  # noqa: ANN001

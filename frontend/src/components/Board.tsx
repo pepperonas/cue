@@ -4,10 +4,18 @@ import type { Announcements, DragEndEvent, DragOverEvent, DragStartEvent } from 
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { AnimatePresence } from 'motion/react'
+import type { MovePayload } from '../lib/api'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
-import { defaultGroupsOpen, groupByProject, isOpen } from '../lib/board-groups'
+import {
+  capToggleLabel,
+  columnKey,
+  defaultGroupsOpen,
+  groupByProject,
+  isOpen,
+  visibleCards,
+} from '../lib/board-groups'
 import { useDragSensors } from '../lib/dnd'
 import { useIsMobile } from '../lib/media'
 import { columnComparator } from '../lib/order'
@@ -32,14 +40,14 @@ interface Props {
   // Prompt optimization (owner-only): undefined hides the button on the cards.
   onOptimize?: (p: Prompt) => void
   optimizingIds?: number[]
-  onReorder: (items: { id: number; status: Status; sort_order: number }[]) => void
+  /** Anchored move of a single card — never a list of positions (see onDragEnd). */
+  onMove: (move: MovePayload & { id: number }) => void
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
   onModSelect?: (p: Prompt) => void
 }
 
-const COLUMN_CAP = 10
 // Collapse state of the mobile sections, per browser session (the requirement
 // is "keeps its state during the current session" — a new tab starts fresh).
 const SECTION_KEY = 'cue-board-sections'
@@ -101,7 +109,7 @@ export function Board({
   onOptimize,
   optimizingIds,
   onToggleBlocked,
-  onReorder,
+  onMove,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -111,8 +119,10 @@ export function Board({
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
   const [containers, setContainers] = useState<Containers>(() => group(prompts, columns))
   const [activeId, setActiveId] = useState<number | null>(null)
-  // Per-column "show all" toggle; the first COLUMN_CAP cards are always shown.
-  const [expanded, setExpanded] = useState<Partial<Record<Status, boolean>>>({})
+  // "Show all" toggles, keyed per section: `col:<status>` for a desktop column,
+  // the group id for a mobile project group. Keyed rather than per status so
+  // expanding one project group leaves the others capped.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   // Explicit open/closed choices for the mobile sections (status + project).
   const [sections, setSections] = useState<Record<string, boolean>>(loadSections)
   const dragging = useRef(false)
@@ -188,49 +198,55 @@ export function Board({
 
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
+    const origin = dragOrigin.current
     dragging.current = false
     setActiveId(null)
+    dragOrigin.current = undefined
     if (!over) {
       setContainers(group(prompts, columns))
       return
     }
+    const id = active.id as number
     const from = findContainer(active.id)
     const to = findContainer(over.id)
     if (!from || !to) return
 
     let next = containers
+    let moved = from !== to // cross-column: onDragOver already applied the move
     if (from === to) {
       const items = [...containers[to]]
-      const oldIndex = items.indexOf(active.id as number)
+      const oldIndex = items.indexOf(id)
       const newIndex = items.indexOf(over.id as number)
       if (oldIndex !== newIndex && newIndex >= 0) {
         items.splice(newIndex, 0, items.splice(oldIndex, 1)[0])
         next = { ...containers, [to]: items }
         setContainers(next)
+        moved = true
       }
     }
     // A card dragged INTO done from another column always lands at the TOP.
-    if (to === 'done' && dragOrigin.current && dragOrigin.current !== 'done') {
-      const items = next['done'].filter((x) => x !== active.id)
-      next = { ...next, done: [active.id as number, ...items] }
+    const toTop = to === 'done' && !!origin && origin !== 'done'
+    if (toTop) {
+      next = { ...next, done: [id, ...next['done'].filter((x) => x !== id)] }
       setContainers(next)
     }
-    dragOrigin.current = undefined
+    if (!moved) return
     vibrate(8)
 
-    // Build the reorder payload for every card in the affected columns.
-    const affected = new Set([from, to])
-    const payload: { id: number; status: Status; sort_order: number }[] = []
-    for (const status of affected) {
-      next[status]?.forEach((id, idx) => {
-        const p = byId.get(id)
-        if (!p) return
-        if (p.status !== status || p.sort_order !== idx + 1) {
-          payload.push({ id, status, sort_order: idx + 1 })
-        }
-      })
+    // Anchor the move on a NEIGHBOUR instead of an index: this board may be
+    // filtered, and an index derived from a subset would renumber the column
+    // on top of the cards it cannot see (see backend app/ordering.py).
+    const column = next[to] ?? []
+    const index = column.indexOf(id)
+    const before = column[index + 1]
+    const after = column[index - 1]
+    if (toTop || (before == null && after == null)) {
+      onMove({ id, status: to, top: toTop || to === 'done' })
+    } else if (before != null) {
+      onMove({ id, status: to, before_id: before })
+    } else {
+      onMove({ id, status: to, after_id: after })
     }
-    if (payload.length) onReorder(payload)
   }
 
   const activePrompt = activeId != null ? byId.get(activeId) : undefined
@@ -283,15 +299,19 @@ export function Board({
     ],
   )
 
-  function moreButton(status: Status, total: number) {
-    if (total <= COLUMN_CAP || activeId != null) return null
+  /** Cap toggle for one section (desktop column or mobile project group). */
+  function capToggle(key: string, total: number, hidden: number) {
+    if (activeId != null) return null
+    const isExpanded = expanded[key] ?? false
+    const label = capToggleLabel(total, hidden, isExpanded)
+    if (!label) return null
     return (
       <button
         className="col-more"
-        onClick={() => setExpanded((prev) => ({ ...prev, [status]: !prev[status] }))}
+        onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
       >
-        <Icon name={expanded[status] ? 'unfold_less' : 'unfold_more'} />
-        {expanded[status] ? 'Weniger anzeigen' : `${total - COLUMN_CAP} weitere anzeigen`}
+        <Icon name={isExpanded ? 'unfold_less' : 'unfold_more'} />
+        {label}
       </button>
     )
   }
@@ -323,12 +343,16 @@ export function Board({
         {columns.map((status) => {
           const all = containers[status] ?? []
           if (!isMobile) {
-            const visible = expanded[status] || activeId != null ? all : all.slice(0, COLUMN_CAP)
+            const colKey = columnKey(status)
+            const { shown: visible, hidden } = visibleCards(all, {
+              expanded: expanded[colKey],
+              dragging: activeId != null,
+            })
             return (
               <Column key={status} status={status} count={all.length}>
                 <SortableContext items={visible} strategy={verticalListSortingStrategy}>
                   <AnimatePresence>{visible.map(renderCard)}</AnimatePresence>
-                  {moreButton(status, all.length)}
+                  {capToggle(colKey, all.length, hidden)}
                   {all.length === 0 && (
                     <div className="empty" style={{ padding: 'var(--gap-4)' }}>
                       <span className="muted">Leer</span>
@@ -346,12 +370,11 @@ export function Board({
           const visibleIds: number[] = []
           const bodies = groups.map((g) => {
             const groupOpen = isOpen(sections, g.id, groupsOpenByDefault)
-            const shown =
-              groupOpen && (expanded[status] || activeId != null || g.ids.length <= COLUMN_CAP)
-                ? g.ids
-                : groupOpen
-                  ? g.ids.slice(0, COLUMN_CAP)
-                  : []
+            const { shown, hidden } = visibleCards(g.ids, {
+              open: groupOpen,
+              expanded: expanded[g.id],
+              dragging: activeId != null,
+            })
             visibleIds.push(...shown)
             return (
               <ProjectGroupSection
@@ -364,15 +387,7 @@ export function Board({
                 onToggle={() => toggleSection(g.id, !groupOpen)}
               >
                 {shown.map(renderCard)}
-                {g.ids.length > shown.length && shown.length > 0 && (
-                  <button
-                    className="col-more"
-                    onClick={() => setExpanded((prev) => ({ ...prev, [status]: !prev[status] }))}
-                  >
-                    <Icon name="unfold_more" />
-                    {g.ids.length - shown.length} weitere anzeigen
-                  </button>
-                )}
+                {groupOpen && capToggle(g.id, g.ids.length, hidden)}
               </ProjectGroupSection>
             )
           })

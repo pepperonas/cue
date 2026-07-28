@@ -20,11 +20,15 @@ from ..models import (
     RunStep,
     utcnow,
 )
+from ..ordering import insert_at
+from ..search import LIKE_ESCAPE, contains_pattern
 from ..tags import TagService
 from ..schemas import (
+    BookmarkMoveRequest,
     BookmarkReorderRequest,
     DuplicateRequest,
     MergeRequest,
+    MoveRequest,
     PromptCreate,
     PromptRead,
     PromptUpdate,
@@ -162,8 +166,14 @@ def list_prompts(
     if status_filter is not None:
         statement = statement.where(Prompt.status == status_filter)
     if q:
-        like = f"%{q.strip()}%"
-        statement = statement.where(or_(Prompt.title.ilike(like), Prompt.body.ilike(like)))
+        # Escaped: a term containing % or _ must match literally, not as a wildcard.
+        like = contains_pattern(q.strip())
+        statement = statement.where(
+            or_(
+                Prompt.title.ilike(like, escape=LIKE_ESCAPE),
+                Prompt.body.ilike(like, escape=LIKE_ESCAPE),
+            )
+        )
     statement = statement.order_by(Prompt.status, Prompt.sort_order, Prompt.id)
     return _reads(session, session.exec(statement).all())
 
@@ -452,6 +462,147 @@ def merge_prompts(
     return _read(session, merged)
 
 
+def _apply_drag_status(session: Session, prompt: Prompt, new_status: PromptStatus) -> None:
+    """Status side effects of a drag — shared by /reorder and /move.
+
+    Kept in one place so the invariants can't drift apart: blocked only exists
+    on queued prompts, tested only on done ones, and ran_at is stamped the
+    first time a prompt enters running/done.
+    """
+    if prompt.status == new_status:
+        return
+    prompt.status = new_status
+    if new_status != PromptStatus.queued:
+        prompt.blocked = False
+    if new_status != PromptStatus.done:
+        prompt.tested = False
+    if new_status in _RAN_STATUSES and prompt.ran_at is None:
+        prompt.ran_at = utcnow()
+    events.record(session, prompt, PromptEventType.status_changed)
+
+
+def _renumber(rows: dict[int, Prompt], order: list[int], field: str, session: Session) -> None:
+    """Write 1..n onto `field` along `order`, touching only what changed.
+
+    Deliberately does NOT bump `updated_at` on the neighbours: they were not
+    edited, and the activity log (and with it the statistics) would otherwise
+    report a burst of updates for every single drag.
+    """
+    for position, row_id in enumerate(order, start=1):
+        row = rows.get(row_id)
+        if row is None or getattr(row, field) == position:
+            continue
+        setattr(row, field, position)
+        session.add(row)
+
+
+@router.post("/{prompt_id}/move", response_model=list[PromptRead])
+def move_prompt(
+    prompt_id: int,
+    payload: MoveRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> list[Prompt]:
+    """Move one prompt to an anchored position and renumber its whole column.
+
+    The client sends a neighbour instead of a position, because a position
+    computed from a filtered board is meaningless for the prompts it cannot see
+    (see app/ordering.py). Returns the full target column in its new order.
+    """
+    prompt = session.get(Prompt, prompt_id)
+    if not prompt or prompt.user_id != uid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prompt not found")
+
+    target_status = payload.status or prompt.status
+    if prompt.blocked and target_status in _RAN_STATUSES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Blocked prompts cannot run")
+    _apply_drag_status(session, prompt, target_status)
+    prompt.updated_at = utcnow()
+    session.add(prompt)
+
+    column = [
+        p
+        for p in session.exec(
+            select(Prompt)
+            .where(Prompt.user_id == uid, Prompt.status == target_status)
+            .order_by(Prompt.sort_order, Prompt.id)
+        ).all()
+        if p.id != prompt.id
+    ]
+    order = insert_at(
+        [p.id for p in column],
+        prompt.id,
+        before_id=payload.before_id,
+        after_id=payload.after_id,
+        top=payload.top,
+    )
+    rows = {p.id: p for p in column}
+    rows[prompt.id] = prompt
+    _renumber(rows, order, "sort_order", session)
+    session.commit()
+
+    # Re-read in one query instead of refreshing every row individually.
+    return _reads(
+        session,
+        list(
+            session.exec(
+                select(Prompt)
+                .where(Prompt.user_id == uid, Prompt.status == target_status)
+                .order_by(Prompt.sort_order, Prompt.id)
+            ).all()
+        ),
+    )
+
+
+@router.post("/{prompt_id}/bookmarks/move", response_model=list[PromptRead])
+def move_bookmark(
+    prompt_id: int,
+    payload: BookmarkMoveRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> list[Prompt]:
+    """Same anchored move for the bookmarks section."""
+    prompt = session.get(Prompt, prompt_id)
+    if not prompt or prompt.user_id != uid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prompt not found")
+    if not prompt.bookmarked:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Prompt is not bookmarked")
+
+    section = [
+        p
+        for p in session.exec(
+            select(Prompt)
+            .where(Prompt.user_id == uid, Prompt.bookmarked == True)  # noqa: E712
+            .order_by(Prompt.bookmark_order, Prompt.id)
+        ).all()
+        if p.id != prompt.id
+    ]
+    order = insert_at(
+        [p.id for p in section],
+        prompt.id,
+        before_id=payload.before_id,
+        after_id=payload.after_id,
+        top=payload.top,
+    )
+    rows = {p.id: p for p in section}
+    rows[prompt.id] = prompt
+    _renumber(rows, order, "bookmark_order", session)
+    session.commit()
+
+    return _reads(
+        session,
+        list(
+            session.exec(
+                select(Prompt)
+                .where(Prompt.user_id == uid, Prompt.bookmarked == True)  # noqa: E712
+                .order_by(Prompt.bookmark_order, Prompt.id)
+            ).all()
+        ),
+    )
+
+
 @router.post("/reorder", response_model=list[PromptRead])
 def reorder_prompts(
     payload: ReorderRequest,
@@ -470,17 +621,7 @@ def reorder_prompts(
         prompt = session.get(Prompt, item.id)
         if not prompt or prompt.user_id != uid:
             continue
-        if prompt.status != item.status:
-            prompt.status = item.status
-            # Blocked only exists on queued prompts — leaving queued clears it.
-            if item.status != PromptStatus.queued:
-                prompt.blocked = False
-            # Tested only exists on done prompts — leaving done clears it.
-            if item.status != PromptStatus.done:
-                prompt.tested = False
-            if item.status in _RAN_STATUSES and prompt.ran_at is None:
-                prompt.ran_at = utcnow()
-            events.record(session, prompt, PromptEventType.status_changed)
+        _apply_drag_status(session, prompt, item.status)
         prompt.sort_order = item.sort_order
         prompt.updated_at = utcnow()
         session.add(prompt)

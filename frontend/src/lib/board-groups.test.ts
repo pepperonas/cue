@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_COLLAPSE_FROM, NO_PROJECT, countOpenByProject, defaultGroupsOpen, groupByProject, isOpen } from './board-groups'
+import {
+  AUTO_COLLAPSE_FROM,
+  COLUMN_CAP,
+  NO_PROJECT,
+  capToggleLabel,
+  columnKey,
+  countOpenByProject,
+  defaultGroupsOpen,
+  groupByProject,
+  isOpen,
+  visibleCards,
+} from './board-groups'
 import type { Project, Prompt } from './types'
 
 function prompt(id: number, projectId: number | null): Prompt {
@@ -86,6 +97,61 @@ describe('open-state defaults', () => {
     expect(isOpen({ 'queued:1': false }, 'queued:1', true)).toBe(false)
     expect(isOpen({ 'queued:1': true }, 'queued:1', false)).toBe(true)
     expect(isOpen({ other: false }, 'queued:1', false)).toBe(false)
+  })
+})
+
+describe('visibleCards', () => {
+  const many = Array.from({ length: 25 }, (_, i) => i + 1)
+
+  it('renders nothing for a collapsed section but still reports the size', () => {
+    expect(visibleCards(many, { open: false })).toEqual({ shown: [], hidden: 25 })
+  })
+
+  it('caps a long open section and reports the remainder', () => {
+    const { shown, hidden } = visibleCards(many, { open: true })
+    expect(shown).toHaveLength(COLUMN_CAP)
+    expect(hidden).toBe(25 - COLUMN_CAP)
+  })
+
+  it('renders everything once this section is expanded', () => {
+    expect(visibleCards(many, { open: true, expanded: true })).toEqual({ shown: many, hidden: 0 })
+  })
+
+  it('renders every card during a drag, so each one stays a drop target', () => {
+    expect(visibleCards(many, { open: true, dragging: true }).shown).toHaveLength(25)
+  })
+
+  it('leaves short sections alone', () => {
+    expect(visibleCards([1, 2, 3])).toEqual({ shown: [1, 2, 3], hidden: 0 })
+    expect(visibleCards([])).toEqual({ shown: [], hidden: 0 })
+  })
+
+  it('keeps expansion per section: one key must not uncap another', () => {
+    const expanded: Record<string, boolean> = { 'done:1': true }
+    expect(visibleCards(many, { expanded: expanded['done:1'] }).hidden).toBe(0)
+    expect(visibleCards(many, { expanded: expanded['done:2'] }).hidden).toBe(15)
+  })
+})
+
+describe('capToggleLabel', () => {
+  it('offers to expand while cards are hidden', () => {
+    expect(capToggleLabel(25, 15, false)).toBe('15 weitere anzeigen')
+  })
+
+  it('stays reversible: expanding turns the button into a collapse action', () => {
+    expect(capToggleLabel(25, 0, true)).toBe('Weniger anzeigen')
+  })
+
+  it('renders no toggle when the section never hit the cap', () => {
+    expect(capToggleLabel(5, 0, false)).toBeNull()
+    expect(capToggleLabel(5, 0, true)).toBeNull()
+  })
+})
+
+describe('columnKey', () => {
+  it('namespaces a column apart from the project groups inside it', () => {
+    expect(columnKey('done')).toBe('col:done')
+    expect(columnKey('done')).not.toBe('done:1')
   })
 })
 

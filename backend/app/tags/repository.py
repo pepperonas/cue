@@ -12,6 +12,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..models import Prompt, PromptTag, Tag
+from ..search import LIKE_ESCAPE, contains_pattern
 
 
 @dataclass
@@ -111,7 +112,8 @@ class TagRepository:
         stmt = select(Tag).where(Tag.user_id == uid)
         needle = (query or "").strip().lower()
         if needle:
-            stmt = stmt.where(Tag.name_ci.contains(needle))
+            # Escaped: searching for "%" or "a_b" must match literally.
+            stmt = stmt.where(Tag.name_ci.like(contains_pattern(needle), escape=LIKE_ESCAPE))
         tags = list(self.session.exec(stmt).all())
         counts = self.usage_counts(uid)
         rows = [TagWithUsage(tag=t, usage_count=counts.get(t.id, 0)) for t in tags]

@@ -25,8 +25,8 @@ import {
   useMergePrompts,
   usePrompts,
   useProjects,
-  useReorder,
-  useReorderBookmarks,
+  useMoveBookmark,
+  useMovePrompt,
   useOptimizeConfig,
   useOptimizePrompt,
   useRunConfig,
@@ -136,8 +136,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const closeTopOverlay = useCloseTopOverlay()
   const { data: prompts, isLoading } = usePrompts()
   const { data: projects } = useProjects()
-  const reorder = useReorder()
-  const reorderBookmarks = useReorderBookmarks()
+  const movePrompt = useMovePrompt()
+  const moveBookmark = useMoveBookmark()
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
   const duplicate = useDuplicatePrompt()
@@ -218,6 +218,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [detail, setDetail] = useState<Prompt | null>(null)
   // Prompts pending deletion (hidden immediately; really deleted after the undo window).
   const [pendingDelete, setPendingDelete] = useState<number[]>([])
+  // Same ids as a ref, so the pagehide handler below can read them without
+  // re-subscribing on every state change.
+  const unloadDeletes = useRef<Set<number>>(new Set())
   const [shortcuts, setShortcuts] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   // Multi-select / merge mode.
@@ -410,9 +413,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       vibrate(8)
       let undone = false
       const commit = () => setPendingDelete((prev) => prev.filter((x) => !ids.includes(x)))
+      // Leaving the page must not swallow the deletion: without this the ids
+      // would just reappear on the next load, having been reported as deleted.
+      ids.forEach((id) => unloadDeletes.current.add(id))
+      const settle = () => ids.forEach((id) => unloadDeletes.current.delete(id))
       const timer = window.setTimeout(() => {
         if (undone) return
         ids.forEach((id) => del.mutate(id))
+        settle()
         commit()
       }, 6000)
       toast.show(ids.length === 1 ? 'Prompt gelöscht' : `${ids.length} Prompts gelöscht`, 'success', {
@@ -421,6 +429,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           onClick: () => {
             undone = true
             window.clearTimeout(timer)
+            settle()
             commit()
           },
         },
@@ -428,6 +437,18 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     },
     [del, toast],
   )
+
+  // Commit deletions that are still inside their undo window when the page goes
+  // away. `pagehide` (not `beforeunload`) is the event that also fires on iOS
+  // and on bfcache navigations; the request needs `keepalive` to outlive us.
+  useEffect(() => {
+    const flush = () => {
+      unloadDeletes.current.forEach((id) => api.deletePromptBeacon(id))
+      unloadDeletes.current.clear()
+    }
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
 
   const anyModalOpen =
     composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog || !!sendTarget
@@ -639,7 +660,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onOptimize={canOptimize ? handleOptimize : undefined}
                 optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
-                onReorder={(items) => reorder.mutate(items)}
+                onMove={(move) => movePrompt.mutate(move)}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
@@ -680,7 +701,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onDuplicate={handleDuplicate}
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
-            onReorder={(items) => reorderBookmarks.mutate(items)}
+            onMove={(move) => moveBookmark.mutate(move)}
           />
         )}
 

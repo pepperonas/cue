@@ -48,20 +48,9 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0..1"
       rel="stylesheet"
     />
-    <script>
-      // Pre-paint theme to avoid FOUC.
-      (function () {
-        try {
-          var t = localStorage.getItem('cue-theme') || 'system';
-          var dark =
-            t === 'dark' ||
-            (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-          var seed = localStorage.getItem('cue-seed');
-          if (seed) document.documentElement.style.setProperty('--seed', seed);
-        } catch (e) {}
-      })();
-    </script>
+    <!-- Pre-paint theme to avoid FOUC. External on purpose: the CSP
+         (script-src 'self') blocks inline scripts. -->
+    <script src="/boot.js"></script>
   </head>
   <body>
     <div id="root"></div>

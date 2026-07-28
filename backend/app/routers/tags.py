@@ -49,7 +49,9 @@ def _fail(exc: TagError) -> HTTPException:
 def list_tags(
     q: str | None = Query(default=None, description="Substring filter (case-insensitive)"),
     sort: str = Query(default="usage", pattern="^(usage|name|created|recent)$"),
-    limit: int = Query(default=500, le=2000),
+    # ge=1: the repository pages with rows[offset:offset+limit], where a
+    # negative limit would slice from the end and return an arbitrary subset.
+    limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
     uid: int = Depends(current_user_id),

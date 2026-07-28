@@ -85,6 +85,55 @@ export function isOpen(
   return overrides[id] ?? fallback
 }
 
+/** Cards rendered before the "show more" cut-off. */
+export const COLUMN_CAP = 10
+
+/** Key under which a whole status column tracks its expansion. */
+export const columnKey = (status: string) => `col:${status}`
+
+export interface CapResult {
+  /** Ids to render. */
+  shown: number[]
+  /** How many are held back by the cap (0 when everything is rendered). */
+  hidden: number
+}
+
+/**
+ * How many cards of a column or project group are rendered.
+ *
+ * Collapsed sections render nothing. While a drag is active EVERY card renders,
+ * because a card that isn't in the DOM can't be a drop target. Otherwise the
+ * cap applies until the user expands this specific group — the expansion is
+ * per group, not per status column, so opening one project doesn't silently
+ * uncap its neighbours.
+ */
+export function visibleCards(
+  ids: number[],
+  opts: { open?: boolean; expanded?: boolean; dragging?: boolean; cap?: number } = {},
+): CapResult {
+  const { open = true, expanded = false, dragging = false, cap = COLUMN_CAP } = opts
+  if (!open) return { shown: [], hidden: ids.length }
+  if (expanded || dragging || ids.length <= cap) return { shown: ids, hidden: 0 }
+  return { shown: ids.slice(0, cap), hidden: ids.length - cap }
+}
+
+/**
+ * Label of the cap toggle, or null when no toggle belongs there.
+ *
+ * Expanding must stay reversible: once a group is expanded the button turns
+ * into "Weniger anzeigen" instead of disappearing.
+ */
+export function capToggleLabel(
+  total: number,
+  hidden: number,
+  expanded: boolean,
+  cap: number = COLUMN_CAP,
+): string | null {
+  if (hidden > 0) return `${hidden} weitere anzeigen`
+  if (expanded && total > cap) return 'Weniger anzeigen'
+  return null
+}
+
 
 /**
  * Open prompts (queued + running) per project, keyed by project id with

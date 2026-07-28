@@ -11,6 +11,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { AnimatePresence } from 'motion/react'
+import type { BookmarkMovePayload } from '../lib/api'
 import type { Project, Prompt } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
 import { PromptCard } from './PromptCard'
@@ -27,7 +28,8 @@ interface Props {
   onDuplicate?: (p: Prompt) => void
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
-  onReorder: (items: { id: number; bookmark_order: number }[]) => void
+  /** Anchored move of one bookmark — never a list of positions. */
+  onMove: (move: BookmarkMovePayload & { id: number }) => void
 }
 
 export function BookmarksView({
@@ -40,7 +42,7 @@ export function BookmarksView({
   onDuplicate,
   onToggleBookmark,
   onToggleTested,
-  onReorder,
+  onMove,
 }: Props) {
   const byId = useMemo(() => new Map(prompts.map((p) => [p.id, p])), [prompts])
 
@@ -80,7 +82,15 @@ export function BookmarksView({
     const next = arrayMove(order, from, to)
     setOrder(next)
     vibrate(8)
-    onReorder(next.map((id, idx) => ({ id, bookmark_order: idx + 1 })))
+    // Anchored on a neighbour, not on an index: this list can be filtered, and
+    // an index from a subset would renumber over the hidden bookmarks.
+    const id = active.id as number
+    const index = next.indexOf(id)
+    const before = next[index + 1]
+    const after = next[index - 1]
+    if (before != null) onMove({ id, before_id: before })
+    else if (after != null) onMove({ id, after_id: after })
+    else onMove({ id, top: true })
   }
 
   if (serverOrder.length === 0) {

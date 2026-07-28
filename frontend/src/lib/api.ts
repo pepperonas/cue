@@ -38,6 +38,17 @@ function csrfToken(): string {
   return match ? decodeURIComponent(match[1]) : ''
 }
 
+/** Anchored move: place the prompt next to a neighbour, or at a column edge. */
+export interface BookmarkMovePayload {
+  before_id?: number
+  after_id?: number
+  top?: boolean
+}
+
+export interface MovePayload extends BookmarkMovePayload {
+  status?: Status
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -123,15 +134,43 @@ export const api = {
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
   deletePrompt: (id: number) => request<void>('DELETE', `/prompts/${id}`),
+  /**
+   * Fire-and-forget delete that survives the page going away.
+   *
+   * The undo window holds deletions back for a few seconds; if the tab is
+   * closed or reloaded in the meantime the normal request would be cancelled
+   * and the prompt would silently come back. `keepalive` lets the browser
+   * finish it after teardown. No response is available — by then there is no
+   * page left to show an error in.
+   */
+  deletePromptBeacon: (id: number) => {
+    try {
+      void fetch(`/api/prompts/${id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: { 'X-CSRF-Token': csrfToken() },
+      })
+    } catch {
+      /* nothing left to recover to at this point */
+    }
+  },
   // Copy a prompt (incl. screenshots) into another project; lands as queued.
   duplicatePrompt: (id: number, project_id: number | null) =>
     request<Prompt>('POST', `/prompts/${id}/duplicate`, { project_id }),
   duplicatePromptInPlace: (id: number) =>
     request<Prompt>('POST', `/prompts/${id}/duplicate`, { in_place: true }),
-  reorder: (items: { id: number; status: Status; sort_order: number }[]) =>
-    request<Prompt[]>('POST', '/prompts/reorder', { items }),
-  reorderBookmarks: (items: { id: number; bookmark_order: number }[]) =>
-    request<Prompt[]>('POST', '/prompts/bookmarks/reorder', { items }),
+  /**
+   * Move a prompt to an anchored position; the server renumbers the column.
+   *
+   * We send a NEIGHBOUR, never an index: with a project filter or a search
+   * active the board only sees part of the column, and an index computed from
+   * that subset overwrites the order of everything it filtered out.
+   */
+  movePrompt: (id: number, move: MovePayload) =>
+    request<Prompt[]>('POST', `/prompts/${id}/move`, move),
+  moveBookmark: (id: number, move: BookmarkMovePayload) =>
+    request<Prompt[]>('POST', `/prompts/${id}/bookmarks/move`, move),
   uploadAttachment: async (file: File): Promise<Attachment> => {
     const fd = new FormData()
     fd.append('file', file)

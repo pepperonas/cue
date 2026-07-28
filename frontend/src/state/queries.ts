@@ -4,7 +4,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { Optimization, Project, Prompt, StatsQuery, Status, TagSort } from '../lib/types'
+import type { BookmarkMovePayload, MovePayload } from '../lib/api'
+import type { Optimization, Project, Prompt, StatsQuery, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
 const PROMPTS_KEY = ['prompts'] as const
@@ -111,23 +112,21 @@ export function useDeletePrompt() {
   })
 }
 
-// Reorder applies a full optimistic snapshot immediately (drag result), then
-// syncs the touched rows to the server in one transaction.
-export function useReorder() {
+// Anchored move (drag result). The optimistic part only mirrors the status
+// change — the ordering itself is the server's answer, and the board keeps its
+// own drag result on screen until the refetch lands, so nothing flickers.
+export function useMovePrompt() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (items: { id: number; status: Status; sort_order: number }[]) =>
-      api.reorder(items),
-    onMutate: async (items) => {
+    mutationFn: ({ id, ...move }: MovePayload & { id: number }) => api.movePrompt(id, move),
+    onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: PROMPTS_KEY })
       const prev = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
-      const byId = new Map(items.map((i) => [i.id, i]))
-      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
-        (old ?? []).map((p) => {
-          const next = byId.get(p.id)
-          return next ? { ...p, status: next.status, sort_order: next.sort_order } : p
-        }),
-      )
+      if (status) {
+        qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
+          (old ?? []).map((p) => (p.id === id ? { ...p, status } : p)),
+        )
+      }
       return { prev }
     },
     onError: (_e, _v, ctx) => {
@@ -137,27 +136,11 @@ export function useReorder() {
   })
 }
 
-// Bookmark drag-sort: optimistic snapshot of bookmark_order, then sync.
-export function useReorderBookmarks() {
+export function useMoveBookmark() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (items: { id: number; bookmark_order: number }[]) =>
-      api.reorderBookmarks(items),
-    onMutate: async (items) => {
-      await qc.cancelQueries({ queryKey: PROMPTS_KEY })
-      const prev = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
-      const byId = new Map(items.map((i) => [i.id, i]))
-      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
-        (old ?? []).map((p) => {
-          const next = byId.get(p.id)
-          return next ? { ...p, bookmark_order: next.bookmark_order } : p
-        }),
-      )
-      return { prev }
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(PROMPTS_KEY, ctx.prev)
-    },
+    mutationFn: ({ id, ...move }: BookmarkMovePayload & { id: number }) =>
+      api.moveBookmark(id, move),
     onSettled: () => qc.invalidateQueries({ queryKey: PROMPTS_KEY }),
   })
 }
