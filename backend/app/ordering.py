@@ -16,25 +16,29 @@ testable on their own.
 from __future__ import annotations
 
 
-def insert_at(
+def insert_block(
     ids: list[int],
-    moved: int,
+    moved: list[int],
     *,
     before_id: int | None = None,
     after_id: int | None = None,
     top: bool = False,
 ) -> list[int]:
-    """Return `ids` with `moved` inserted at the anchored position.
+    """Return `ids` with `moved` inserted as one block at the anchored position.
 
-    `ids` is the column WITHOUT the moved prompt, in display order. Precedence
-    is before_id, then after_id, then `top`, then append.
+    `ids` is the target column in display order; the moved prompts are pulled
+    out of it first, so this works whether they come from this column or from
+    another one. `moved` keeps its own order — dragging a multi-selection must
+    not shuffle the selection.
 
-    An anchor that is not in the column (a concurrent change, or an id of
-    another tenant that never made it into this list) is ignored and falls back
-    to top/append rather than failing the drag — landing at a column edge is a
-    far better outcome for a rare race than a drag that bounces back.
+    Precedence is before_id, then after_id, then `top`, then append. An anchor
+    that is not in the column — a concurrent change, an id belonging to another
+    tenant, or one of the moved prompts itself — is ignored and falls back to
+    top/append rather than failing the drag: landing at a column edge is a far
+    better outcome for a rare race than a drag that bounces back.
     """
-    rest = [i for i in ids if i != moved]
+    block = list(dict.fromkeys(moved))  # de-dupe, keep order
+    rest = [i for i in ids if i not in set(block)]
     if before_id is not None and before_id in rest:
         index = rest.index(before_id)
     elif after_id is not None and after_id in rest:
@@ -43,4 +47,4 @@ def insert_at(
         index = 0
     else:
         index = len(rest)
-    return rest[:index] + [moved] + rest[index:]
+    return rest[:index] + block + rest[index:]

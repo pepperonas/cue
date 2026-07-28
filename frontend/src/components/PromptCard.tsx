@@ -59,6 +59,10 @@ export function PromptCard({
     id: prompt.id,
     data: { status: prompt.status },
   })
+  // Blocked cards never drag. In select mode only the SELECTED ones do — that
+  // is how a multi-selection is moved between the columns, while a tap on an
+  // unselected card still just adds it to the selection.
+  const draggable = !prompt.blocked && (!selectMode || !!selectedForMerge)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -122,8 +126,8 @@ export function PromptCard({
         } ${selectedForMerge ? 'merge-selected' : ''} ${prompt.blocked ? 'blocked' : ''}`}
         data-prompt-id={prompt.id}
         title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
-        {...(selectMode || prompt.blocked ? {} : attributes)}
-        {...(selectMode || prompt.blocked ? {} : listeners)}
+        {...(draggable ? attributes : {})}
+        {...(draggable ? listeners : {})}
         onClick={handleClick}
         onDoubleClick={selectMode ? undefined : handleDoubleClick}
       >

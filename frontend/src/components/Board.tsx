@@ -42,6 +42,8 @@ interface Props {
   optimizingIds?: number[]
   /** Anchored move of a single card — never a list of positions (see onDragEnd). */
   onMove: (move: MovePayload & { id: number }) => void
+  /** Same, for a dragged multi-selection: the block lands at one anchor. */
+  onMoveMany: (move: MovePayload & { ids: number[] }) => void
   selectMode?: boolean
   selectedIds?: number[]
   onToggleSelect?: (p: Prompt) => void
@@ -110,6 +112,7 @@ export function Board({
   optimizingIds,
   onToggleBlocked,
   onMove,
+  onMoveMany,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -157,11 +160,35 @@ export function Board({
   }
 
   const dragOrigin = useRef<Status | undefined>(undefined)
+  // Ids travelling with this drag. Normally just the dragged card; if it is
+  // part of a selection, the whole selection comes along (in board order).
+  const dragSet = useRef<number[]>([])
 
   function onDragStart(e: DragStartEvent) {
+    const id = e.active.id as number
     dragging.current = true
-    setActiveId(e.active.id as number)
-    dragOrigin.current = findContainer(e.active.id)
+    setActiveId(id)
+    dragOrigin.current = findContainer(id)
+
+    const picked = selectMode && selectedIds?.includes(id) ? selectedIds : []
+    if (picked.length > 1) {
+      // Board order, not click order — the block must land the way it looked.
+      const inOrder = columns.flatMap((status) =>
+        (containers[status] ?? []).filter((x) => picked.includes(x)),
+      )
+      dragSet.current = inOrder
+      // Lift the companions out of their columns so the stack reads as one
+      // object; they come back from the server response after the drop.
+      setContainers((prev) => {
+        const next: Containers = {}
+        for (const status of columns) {
+          next[status] = (prev[status] ?? []).filter((x) => x === id || !picked.includes(x))
+        }
+        return next
+      })
+    } else {
+      dragSet.current = [id]
+    }
     vibrate(12) // haptic "lift" confirmation on touch devices
   }
 
@@ -240,16 +267,20 @@ export function Board({
     const index = column.indexOf(id)
     const before = column[index + 1]
     const after = column[index - 1]
-    if (toTop || (before == null && after == null)) {
-      onMove({ id, status: to, top: toTop || to === 'done' })
-    } else if (before != null) {
-      onMove({ id, status: to, before_id: before })
-    } else {
-      onMove({ id, status: to, after_id: after })
-    }
+    const ids = dragSet.current.length > 1 ? dragSet.current : undefined
+    dragSet.current = []
+    const anchor: MovePayload =
+      toTop || (before == null && after == null)
+        ? { top: toTop || to === 'done' }
+        : before != null
+          ? { before_id: before }
+          : { after_id: after }
+    if (ids) onMoveMany({ ids, status: to, ...anchor })
+    else onMove({ id, status: to, ...anchor })
   }
 
   const activePrompt = activeId != null ? byId.get(activeId) : undefined
+  const dragCount = activeId != null ? Math.max(dragSet.current.length, 1) : 0
 
   /** Render one card (shared by the desktop and mobile trees). */
   const renderCard = useCallback(
@@ -414,9 +445,16 @@ export function Board({
       </div>
       <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
         {activePrompt ? (
-          <div className="card card--drag-preview" style={{ cursor: 'grabbing' }}>
-            <div className="card-title">{activePrompt.title}</div>
-            <div className="card-body-preview">{activePrompt.body}</div>
+          <div className={`drag-stack${dragCount > 1 ? ' drag-stack--many' : ''}`}>
+            <div className="card card--drag-preview" style={{ cursor: 'grabbing' }}>
+              <div className="card-title">{activePrompt.title}</div>
+              <div className="card-body-preview">{activePrompt.body}</div>
+            </div>
+            {dragCount > 1 && (
+              <span className="drag-count" aria-hidden="true">
+                {dragCount}
+              </span>
+            )}
           </div>
         ) : null}
       </DragOverlay>

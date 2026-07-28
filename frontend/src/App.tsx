@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from './lib/api'
+import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
 import { countOpenByProject } from './lib/board-groups'
@@ -8,6 +9,9 @@ import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
   EXTRA_COLUMNS,
+  STATUS_CLASS,
+  STATUS_ICON,
+  STATUS_LABEL,
   type Me,
   type Prompt,
   type RunKind,
@@ -27,6 +31,7 @@ import {
   useProjects,
   useMoveBookmark,
   useMovePrompt,
+  useMovePrompts,
   useOptimizeConfig,
   useOptimizePrompt,
   useRunConfig,
@@ -138,6 +143,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const { data: projects } = useProjects()
   const movePrompt = useMovePrompt()
   const moveBookmark = useMoveBookmark()
+  const movePrompts = useMovePrompts()
   const update = useUpdatePrompt()
   const del = useDeletePrompt()
   const duplicate = useDuplicatePrompt()
@@ -351,6 +357,40 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   // Only done prompts carry a tested flag (the toggle is disabled elsewhere —
   // this is the guard for any other path into it).
+  // Move a whole selection between the columns — from a multi-card drag or
+  // from the select bar's target buttons. Blocked prompts can't enter
+  // running/done and are skipped server-side, so say so instead of leaving the
+  // user wondering why one card stayed behind.
+  const moveSelection = useCallback(
+    (move: MovePayload & { ids: number[] }) => {
+      const picked = (prompts ?? []).filter((p) => move.ids.includes(p.id))
+      const skipped =
+        move.status && move.status !== 'queued' ? picked.filter((p) => p.blocked).length : 0
+      if (skipped === picked.length && picked.length > 0) {
+        toast.show(
+          picked.length === 1 ? 'Prompt ist blockiert' : 'Alle ausgewählten Prompts sind blockiert',
+          'error',
+        )
+        return
+      }
+      movePrompts.mutate(move, {
+        onSuccess: () => {
+          if (skipped) {
+            toast.show(
+              skipped === 1
+                ? '1 blockierter Prompt blieb liegen'
+                : `${skipped} blockierte Prompts blieben liegen`,
+              'info',
+            )
+          }
+        },
+        onError: (err) =>
+          toast.show(err instanceof Error ? err.message : 'Verschieben fehlgeschlagen', 'error'),
+      })
+    },
+    [movePrompts, prompts, toast],
+  )
+
   // Queue an optimization for one prompt. The runner picks it up; the button
   // spins until the job leaves the active list.
   const handleOptimize = useCallback(
@@ -661,6 +701,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
                 onMove={(move) => movePrompt.mutate(move)}
+                onMoveMany={moveSelection}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
@@ -768,6 +809,31 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             <button className="btn btn--text" onClick={exitSelect}>
               Abbrechen
             </button>
+            {/* Move targets. Dragging the selection does the same thing, but a
+                multi-card drag is awkward on a phone — and across a collapsed
+                mobile section it is barely possible at all. */}
+            {view === 'board' && (
+              <span className="select-move" role="group" aria-label="Verschieben nach">
+                <Icon name="drive_file_move" className="select-move-icon" />
+                {BOARD_COLUMNS.map((status) => (
+                  <button
+                    key={status}
+                    className="btn btn--outlined btn--compact"
+                    disabled={selectedIds.length < 1}
+                    title={`Auswahl nach ${STATUS_LABEL[status]} verschieben`}
+                    onClick={() => {
+                      const ids = selectedIds
+                      exitSelect()
+                      // Done keeps its "newest on top" rule for a bulk move too.
+                      moveSelection({ ids, status, top: status === 'done' })
+                    }}
+                  >
+                    <Icon name={STATUS_ICON[status]} className={STATUS_CLASS[status]} />
+                    {STATUS_LABEL[status]}
+                  </button>
+                ))}
+              </span>
+            )}
             <button
               className="btn btn--danger"
               disabled={selectedIds.length < 1}

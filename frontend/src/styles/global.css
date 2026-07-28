@@ -535,6 +535,67 @@ a {
   font: var(--label-l);
   color: var(--md-on-surface);
 }
+/* Move targets in the select bar: one compact group, so the three status
+   buttons read as a set rather than as three more unrelated actions. */
+.select-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 6px;
+  border-inline: 1px solid var(--md-outline-variant);
+}
+.select-move-icon {
+  color: var(--md-on-surface-variant);
+  font-size: 20px;
+}
+.btn--compact {
+  height: 36px;
+  padding-inline: 12px;
+  font: var(--label-m);
+}
+.btn--compact .material-symbols-rounded {
+  font-size: 18px;
+}
+
+/* Multi-card drag: the overlay carries a count badge so it is obvious that
+   more than the grabbed card is travelling. The fanned edges behind it hint
+   at the stack without rendering every card. */
+.drag-stack {
+  position: relative;
+}
+.drag-stack--many::before,
+.drag-stack--many::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--shape-l);
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  z-index: -1;
+}
+.drag-stack--many::before {
+  transform: translate(6px, 6px) rotate(1.2deg);
+  opacity: 0.75;
+}
+.drag-stack--many::after {
+  transform: translate(12px, 12px) rotate(2.4deg);
+  opacity: 0.5;
+}
+.drag-count {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  min-width: 26px;
+  height: 26px;
+  padding-inline: 7px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--shape-full);
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  font: var(--label-l);
+  box-shadow: var(--elev-2);
+}
 
 /* Merge dialog — reorderable source list */
 .merge-parts {
@@ -1545,6 +1606,14 @@ kbd {
   .select-count {
     width: 100%;
     text-align: center;
+  }
+  /* The move group gets its own row instead of squeezing in between the
+     actions, and loses the side rules that only make sense inline. */
+  .select-move {
+    width: 100%;
+    justify-content: center;
+    border-inline: 0;
+    padding-inline: 0;
   }
   .sheet {
     padding: var(--gap-4);

@@ -136,6 +136,32 @@ export function useMovePrompt() {
   })
 }
 
+/** Move a board multi-selection between the columns in one request. */
+export function useMovePrompts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, ...move }: MovePayload & { ids: number[] }) => api.movePrompts(ids, move),
+    onMutate: async ({ ids, status }) => {
+      await qc.cancelQueries({ queryKey: PROMPTS_KEY })
+      const prev = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
+      if (status) {
+        const picked = new Set(ids)
+        qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
+          (old ?? []).map((p) =>
+            // Blocked prompts are skipped server-side, so don't fake their move.
+            picked.has(p.id) && !(p.blocked && status !== 'queued') ? { ...p, status } : p,
+          ),
+        )
+      }
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(PROMPTS_KEY, ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: PROMPTS_KEY }),
+  })
+}
+
 export function useMoveBookmark() {
   const qc = useQueryClient()
   return useMutation({

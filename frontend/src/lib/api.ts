@@ -169,6 +169,9 @@ export const api = {
    */
   movePrompt: (id: number, move: MovePayload) =>
     request<Prompt[]>('POST', `/prompts/${id}/move`, move),
+  /** Move a whole selection at once; `ids` travel in the order they should land in. */
+  movePrompts: (ids: number[], move: MovePayload) =>
+    request<Prompt[]>('POST', '/prompts/move', { ids, ...move }),
   moveBookmark: (id: number, move: BookmarkMovePayload) =>
     request<Prompt[]>('POST', `/prompts/${id}/bookmarks/move`, move),
   uploadAttachment: async (file: File): Promise<Attachment> => {

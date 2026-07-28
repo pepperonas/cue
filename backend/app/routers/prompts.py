@@ -20,12 +20,13 @@ from ..models import (
     RunStep,
     utcnow,
 )
-from ..ordering import insert_at
+from ..ordering import insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
 from ..tags import TagService
 from ..schemas import (
     BookmarkMoveRequest,
     BookmarkReorderRequest,
+    BulkMoveRequest,
     DuplicateRequest,
     MergeRequest,
     MoveRequest,
@@ -496,6 +497,93 @@ def _renumber(rows: dict[int, Prompt], order: list[int], field: str, session: Se
         session.add(row)
 
 
+def _move_block(
+    session: Session,
+    uid: int,
+    prompts: list[Prompt],
+    payload: MoveRequest,
+) -> list[Prompt]:
+    """Move one or many prompts as a block and renumber the target column.
+
+    Shared by the single and the bulk endpoint so there is exactly one
+    implementation of the ordering rules. `prompts` arrives in the order the
+    caller wants at the target.
+
+    Blocked prompts are SKIPPED when the target is running/done instead of
+    failing the whole gesture — same rule the run engine uses when it moves a
+    selection into Running. They keep their status and their place.
+    """
+    target_status = payload.status or prompts[0].status
+    movable = [
+        p for p in prompts if not (p.blocked and target_status in _RAN_STATUSES)
+    ]
+    if not movable:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Blocked prompts cannot run")
+
+    for prompt in movable:
+        _apply_drag_status(session, prompt, target_status)
+        prompt.updated_at = utcnow()
+        session.add(prompt)
+
+    moved_ids = {p.id for p in movable}
+    column = [
+        p
+        for p in session.exec(
+            select(Prompt)
+            .where(Prompt.user_id == uid, Prompt.status == target_status)
+            .order_by(Prompt.sort_order, Prompt.id)
+        ).all()
+        if p.id not in moved_ids
+    ]
+    order = insert_block(
+        [p.id for p in column],
+        [p.id for p in movable],
+        before_id=payload.before_id,
+        after_id=payload.after_id,
+        top=payload.top,
+    )
+    rows = {p.id: p for p in column}
+    for prompt in movable:
+        rows[prompt.id] = prompt
+    _renumber(rows, order, "sort_order", session)
+    session.commit()
+
+    # Re-read in one query instead of refreshing every row individually.
+    return list(
+        session.exec(
+            select(Prompt)
+            .where(Prompt.user_id == uid, Prompt.status == target_status)
+            .order_by(Prompt.sort_order, Prompt.id)
+        ).all()
+    )
+
+
+@router.post("/move", response_model=list[PromptRead])
+def move_prompts(
+    payload: BulkMoveRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> list[Prompt]:
+    """Move a whole board selection between the columns in one transaction.
+
+    The selection keeps its relative order at the target. Ids that aren't the
+    caller's are ignored rather than leaking their existence.
+    """
+    if not payload.ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No prompts selected")
+    by_id = {
+        p.id: p
+        for p in session.exec(
+            select(Prompt).where(Prompt.user_id == uid, Prompt.id.in_(payload.ids))
+        ).all()
+    }
+    ordered = [by_id[i] for i in dict.fromkeys(payload.ids) if i in by_id]
+    if not ordered:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Prompt not found")
+    return _reads(session, _move_block(session, uid, ordered, payload))
+
+
 @router.post("/{prompt_id}/move", response_model=list[PromptRead])
 def move_prompt(
     prompt_id: int,
@@ -513,46 +601,7 @@ def move_prompt(
     prompt = session.get(Prompt, prompt_id)
     if not prompt or prompt.user_id != uid:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Prompt not found")
-
-    target_status = payload.status or prompt.status
-    if prompt.blocked and target_status in _RAN_STATUSES:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Blocked prompts cannot run")
-    _apply_drag_status(session, prompt, target_status)
-    prompt.updated_at = utcnow()
-    session.add(prompt)
-
-    column = [
-        p
-        for p in session.exec(
-            select(Prompt)
-            .where(Prompt.user_id == uid, Prompt.status == target_status)
-            .order_by(Prompt.sort_order, Prompt.id)
-        ).all()
-        if p.id != prompt.id
-    ]
-    order = insert_at(
-        [p.id for p in column],
-        prompt.id,
-        before_id=payload.before_id,
-        after_id=payload.after_id,
-        top=payload.top,
-    )
-    rows = {p.id: p for p in column}
-    rows[prompt.id] = prompt
-    _renumber(rows, order, "sort_order", session)
-    session.commit()
-
-    # Re-read in one query instead of refreshing every row individually.
-    return _reads(
-        session,
-        list(
-            session.exec(
-                select(Prompt)
-                .where(Prompt.user_id == uid, Prompt.status == target_status)
-                .order_by(Prompt.sort_order, Prompt.id)
-            ).all()
-        ),
-    )
+    return _reads(session, _move_block(session, uid, [prompt], payload))
 
 
 @router.post("/{prompt_id}/bookmarks/move", response_model=list[PromptRead])
@@ -579,9 +628,9 @@ def move_bookmark(
         ).all()
         if p.id != prompt.id
     ]
-    order = insert_at(
+    order = insert_block(
         [p.id for p in section],
-        prompt.id,
+        [prompt.id],
         before_id=payload.before_id,
         after_id=payload.after_id,
         top=payload.top,

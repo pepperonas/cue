@@ -146,6 +146,16 @@ class MoveRequest(BaseModel):
     top: bool = False
 
 
+class BulkMoveRequest(MoveRequest):
+    """Anchored move of several prompts at once (a board multi-selection).
+
+    `ids` travel in the order they should end up in — the client sends them in
+    display order, and the block keeps that order at the target.
+    """
+
+    ids: list[int]
+
+
 class BookmarkMoveRequest(BaseModel):
     """Anchored move inside the bookmarks section."""
 
