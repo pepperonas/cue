@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { springs } from '../../lib/motion'
+import { pendingProposal } from '../../lib/optimization'
 import { useOptimizationHistory } from '../../state/queries'
 import type { Optimization, Prompt } from '../../lib/types'
 import { Icon } from '../ui'
@@ -80,13 +81,8 @@ export function OptimizationPanel({
     () => versions.find((row) => row.version === selectedVersion) ?? versions[0] ?? null,
     [versions, selectedVersion],
   )
-  // The proposal awaiting a decision: only ever the version the prompt is
-  // currently holding open (`prompt.optimized`), never an older one from the
-  // history — those have been decided already.
-  const pending = useMemo(
-    () => (prompt.optimized ? (versions.find((row) => row.decision === 'pending') ?? null) : null),
-    [prompt.optimized, versions],
-  )
+  // The proposal awaiting a decision (rule + reasoning in lib/optimization.ts).
+  const pending = useMemo(() => pendingProposal(prompt, versions), [prompt, versions])
 
   // Nothing yet: a single call to action (the button also lives on the card).
   if (!prompt.optimized && !busy) {

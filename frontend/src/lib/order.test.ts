@@ -77,3 +77,46 @@ describe('columnComparator', () => {
     expect(list.map((x) => x.id)).toEqual([1, 2]) // pure drag order
   })
 })
+
+// These five cases mirror `backend/tests/test_move.py` ("displayed order").
+// The comparator and the backend's `display_key` must agree: the client
+// anchors a move on what the user SEES, the server inserts into what it
+// STORES. While the two disagreed, drags were saved and had no visible effect.
+describe('mirror of the backend display_key', () => {
+  it('sinks blocked prompts to the bottom', () => {
+    const list = [p(1, { blocked: true, sort_order: 1 }), p(2, { sort_order: 9 })]
+    expect(list.sort(columnComparator).map((x) => x.id)).toEqual([2, 1])
+  })
+
+  it('sinks tested below untested in DONE only', () => {
+    const done = [
+      p(1, { status: 'done', tested: true, sort_order: 1 }),
+      p(2, { status: 'done', tested: false, sort_order: 9 }),
+    ]
+    expect(done.sort(columnComparator).map((x) => x.id)).toEqual([2, 1])
+
+    const queued = [
+      p(1, { status: 'queued', tested: true, sort_order: 9 }),
+      p(2, { status: 'queued', tested: false, sort_order: 1 }),
+    ]
+    expect(queued.sort(columnComparator).map((x) => x.id)).toEqual([2, 1])
+  })
+
+  it('otherwise follows the drag order', () => {
+    const list = [p(1, { sort_order: 3 }), p(2, { sort_order: 1 }), p(3, { sort_order: 2 })]
+    expect(list.sort(columnComparator).map((x) => x.sort_order)).toEqual([1, 2, 3])
+  })
+
+  it('breaks ties by id so the order is total', () => {
+    const list = [p(7, { sort_order: 1 }), p(3, { sort_order: 1 })]
+    expect(list.sort(columnComparator).map((x) => x.id)).toEqual([3, 7])
+  })
+
+  it('ignores ran_at entirely', () => {
+    const list = [
+      p(2, { status: 'done', tested: true, sort_order: 2, ran_at: '2026-07-20T10:00:00Z' }),
+      p(1, { status: 'done', tested: true, sort_order: 1, ran_at: '2026-07-01T10:00:00Z' }),
+    ]
+    expect(list.sort(columnComparator).map((x) => x.id)).toEqual([1, 2])
+  })
+})

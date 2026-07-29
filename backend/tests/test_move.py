@@ -383,3 +383,66 @@ def test_blocked_prompts_are_renumbered_to_the_bottom_of_the_column(client):
     by_body = {p["body"]: p for p in rows}
     assert by_body["Blockiert"]["sort_order"] > by_body["Prompt A"]["sort_order"]
     assert by_body["Prompt B"]["sort_order"] < by_body["Prompt A"]["sort_order"]
+
+
+# ------------------------------------------------- displayed order (mirror)
+#
+# `display_key` must agree with the frontend's `columnComparator`
+# (frontend/src/lib/order.ts). The two drifting apart is what made anchored
+# moves land where nobody pointed: the client anchors on what the user SEES,
+# the server inserts into what it STORES. The cases below are mirrored 1:1 in
+# `order.test.ts` — change one, change the other.
+
+
+def _row(**kw):
+    """Minimal stand-in with the fields display_key reads."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        **{"blocked": False, "tested": False, "status": "queued", "sort_order": 1, "id": 1, **kw}
+    )
+
+
+def test_display_key_sinks_blocked_prompts_to_the_bottom():
+    from app.ordering import display_key
+
+    blocked = _row(blocked=True, sort_order=1, id=1)
+    normal = _row(blocked=False, sort_order=9, id=2)
+    assert sorted([blocked, normal], key=display_key) == [normal, blocked]
+
+
+def test_display_key_sinks_tested_below_untested_in_done_only():
+    from app.ordering import display_key
+
+    tested = _row(status="done", tested=True, sort_order=1, id=1)
+    untested = _row(status="done", tested=False, sort_order=9, id=2)
+    assert sorted([tested, untested], key=display_key) == [untested, tested]
+
+    # Outside DONE the flag is meaningless and must not reorder anything.
+    q_tested = _row(status="queued", tested=True, sort_order=9, id=1)
+    q_plain = _row(status="queued", tested=False, sort_order=1, id=2)
+    assert sorted([q_tested, q_plain], key=display_key) == [q_plain, q_tested]
+
+
+def test_display_key_otherwise_follows_the_drag_order():
+    from app.ordering import display_key
+
+    rows = [_row(sort_order=3, id=1), _row(sort_order=1, id=2), _row(sort_order=2, id=3)]
+    assert [r.sort_order for r in sorted(rows, key=display_key)] == [1, 2, 3]
+
+
+def test_display_key_breaks_ties_by_id_so_the_order_is_total():
+    from app.ordering import display_key
+
+    rows = [_row(sort_order=1, id=7), _row(sort_order=1, id=3)]
+    assert [r.id for r in sorted(rows, key=display_key)] == [3, 7]
+
+
+def test_display_key_ignores_ran_at_entirely():
+    """Ordering the tested block by execution time made dragging it a no-op."""
+    from app.ordering import display_key
+
+    old_run = _row(status="done", tested=True, sort_order=1, id=1)
+    new_run = _row(status="done", tested=True, sort_order=2, id=2)
+    # Only sort_order decides — there is no ran_at in the key at all.
+    assert sorted([new_run, old_run], key=display_key) == [old_run, new_run]

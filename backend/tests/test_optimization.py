@@ -592,3 +592,48 @@ def test_re_optimizing_after_applying_starts_from_the_new_text(client):
         "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
     ).json()
     assert second["original_text"] == "Fassung 1"
+
+
+def test_another_tenant_cannot_decide_my_optimization(client):
+    """The decision endpoints write into a prompt — they must be scoped too."""
+    csrf = _auth(client, "owner@example.com")
+    owner_session = client.cookies.get("cue_session")
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Mein Prompt")
+    job = _finish(client, headers, prompt["id"], text="Meine Fassung")
+
+    other_csrf = _auth(client, "intruder@example.com", sub="intruder-sub")
+    for action in ("apply", "discard"):
+        res = client.post(
+            f"/api/optimizations/{job['id']}/{action}", headers={"X-CSRF-Token": other_csrf}
+        )
+        # Owner-only feature: a foreign caller is refused, never served a 200.
+        assert res.status_code in (403, 404), f"{action}: {res.status_code}"
+
+    client.cookies.set("cue_session", owner_session)
+    mine = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert mine["body"] == "Mein Prompt"  # untouched
+    assert mine["optimized"] is True  # still awaiting MY decision
+
+
+def test_deciding_an_unknown_optimization_is_a_404(client):
+    csrf = _auth(client)
+    res = client.post("/api/optimizations/999999/apply", headers={"X-CSRF-Token": csrf})
+    assert res.status_code == 404
+
+
+def test_an_empty_prompt_cannot_be_optimized(client):
+    """Guard for the batch path: a blank body would waste a CLI call."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Noch Inhalt")
+    client.patch(f"/api/prompts/{prompt['id']}", json={"body": "   "}, headers=headers)
+
+    res = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    assert res.status_code == 400
+
+
+def test_clean_result_leaves_an_unclosed_fence_alone():
+    """Models sometimes open a fence and never close it — that is content."""
+    assert clean_result("```markdown\nHallo") == "```markdown\nHallo"
+    assert clean_result("```") == "```"
