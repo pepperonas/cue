@@ -84,6 +84,8 @@ def _migrate(engine: Engine) -> None:
     }
     optimization_additions = {
         "universal": "ALTER TABLE prompt_optimization ADD COLUMN universal BOOLEAN NOT NULL DEFAULT 0",
+        "decision": "ALTER TABLE prompt_optimization ADD COLUMN decision VARCHAR NOT NULL DEFAULT 'pending'",
+        "decided_at": "ALTER TABLE prompt_optimization ADD COLUMN decided_at TIMESTAMP",
     }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",

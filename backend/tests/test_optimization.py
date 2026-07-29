@@ -481,3 +481,114 @@ def test_the_mode_is_recorded_per_attempt_not_per_prompt(client):
     assert second["universal"] is True
     history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
     assert [h["universal"] for h in sorted(history, key=lambda h: h["version"])] == [False, True]
+
+
+# --------------------------------------------------- reviewing a proposal
+
+
+def _finish(client, headers, prompt_id, text="Optimierte Fassung"):
+    """Queue, claim and complete one optimization; returns the attempt."""
+    job = client.post(
+        "/api/optimizations", json={"prompt_id": prompt_id}, headers=headers
+    ).json()
+    client.post("/api/optimizations/claim", json={"runner_id": "r"}, headers=RUNNER_HDR)
+    res = client.post(
+        f"/api/optimizations/{job['id']}/result",
+        json={"status": "succeeded", "optimized_text": text, "exit_code": 0},
+        headers=RUNNER_HDR,
+    )
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def test_a_finished_optimization_is_only_a_proposal(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"])
+
+    assert job["decision"] == "pending"
+    after = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert after["body"] == "Originaltext"  # untouched until reviewed
+    assert after["optimized"] is True
+    assert after["optimized_body"] == "Optimierte Fassung"
+
+
+def test_applying_moves_the_text_into_the_prompt(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"])
+
+    res = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
+    assert res.status_code == 200, res.text
+    payload = res.json()
+    assert payload["optimization"]["decision"] == "applied"
+    assert payload["optimization"]["decided_at"] is not None
+    # The prompt comes back in the same response, already updated.
+    assert payload["prompt"]["body"] == "Optimierte Fassung"
+    assert payload["prompt"]["optimized"] is False
+    assert payload["prompt"]["optimized_body"] is None
+
+    stored = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert stored["body"] == "Optimierte Fassung"
+
+
+def test_discarding_leaves_the_prompt_alone(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"])
+
+    payload = client.post(f"/api/optimizations/{job['id']}/discard", headers=headers).json()
+    assert payload["optimization"]["decision"] == "discarded"
+    assert payload["prompt"]["body"] == "Originaltext"
+    assert payload["prompt"]["optimized"] is False
+
+
+def test_the_history_keeps_the_discarded_text_for_a_second_look(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"], text="Verworfene Fassung")
+    client.post(f"/api/optimizations/{job['id']}/discard", headers=headers)
+
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    assert history[0]["optimized_text"] == "Verworfene Fassung"
+    assert history[0]["decision"] == "discarded"
+
+
+def test_a_decision_can_only_be_taken_once(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"])
+
+    assert client.post(f"/api/optimizations/{job['id']}/apply", headers=headers).status_code == 200
+    again = client.post(f"/api/optimizations/{job['id']}/discard", headers=headers)
+    assert again.status_code == 409
+
+
+def test_an_unfinished_optimization_cannot_be_applied(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+
+    res = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
+    assert res.status_code == 400
+
+
+def test_re_optimizing_after_applying_starts_from_the_new_text(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    first = _finish(client, headers, prompt["id"], text="Fassung 1")
+    client.post(f"/api/optimizations/{first['id']}/apply", headers=headers)
+
+    second = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    assert second["original_text"] == "Fassung 1"

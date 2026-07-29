@@ -419,6 +419,9 @@ export interface Optimization {
   meta_prompt_version: number
   /** Rewritten to be project-agnostic (bookmarks) rather than merely sharpened. */
   universal: boolean
+  /** A finished optimization is a proposal until it is applied or discarded. */
+  decision: 'pending' | 'applied' | 'discarded'
+  decided_at: string | null
   original_text: string
   previous_text: string | null
   optimized_text: string | null
@@ -431,6 +434,12 @@ export interface Optimization {
   created_at: string
   started_at: string | null
   finished_at: string | null
+}
+
+/** Result of reviewing a proposal: the attempt plus the updated prompt. */
+export interface OptimizationDecisionResult {
+  optimization: Optimization
+  prompt: Prompt
 }
 
 export interface OptimizationBatch {

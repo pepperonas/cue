@@ -14,6 +14,7 @@ import {
   STATUS_ICON,
   STATUS_LABEL,
   type Me,
+  type Optimization,
   type Prompt,
   type RunKind,
   type StatsQuery,
@@ -27,6 +28,8 @@ import {
   useDeletePrompt,
   useDuplicateInPlace,
   useDuplicatePrompt,
+  useApplyOptimization,
+  useDiscardOptimization,
   useMergePrompts,
   usePrompts,
   useProjects,
@@ -158,6 +161,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const canOptimize = optimizeConfigQ.isSuccess && optimizeConfigQ.data.enabled
   const optimizePrompt = useOptimizePrompt()
   const cancelOptimization = useCancelOptimization()
+  const applyOptimization = useApplyOptimization()
+  const discardOptimization = useDiscardOptimization()
   const startBatch = useStartOptimizeBatch()
   const { data: activeOptimizations } = useActiveOptimizations(canOptimize)
   const optimizingIds = useMemo(
@@ -419,6 +424,25 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       vibrate(8)
     },
     [optimizePrompt, toast],
+  )
+
+  // Review a finished proposal. Applying replaces the prompt text (the original
+  // stays in the optimization history), discarding leaves it untouched.
+  const handleDecideOptimization = useCallback(
+    (optimization: Optimization, apply: boolean) => {
+      const mutation = apply ? applyOptimization : discardOptimization
+      mutation.mutate(optimization.id, {
+        onSuccess: () =>
+          toast.show(
+            apply ? 'Optimierung übernommen' : 'Optimierung verworfen',
+            apply ? 'success' : 'info',
+          ),
+        onError: (err) =>
+          toast.show(err instanceof Error ? err.message : 'Aktion fehlgeschlagen', 'error'),
+      })
+      vibrate(8)
+    },
+    [applyOptimization, discardOptimization, toast],
   )
 
   const handleOptimizeAll = useCallback(() => {
@@ -916,6 +940,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             }
             onOptimize={handleOptimize}
             onCancelOptimize={(id) => cancelOptimization.mutate(id)}
+            onDecideOptimization={handleDecideOptimization}
+            decidingOptimization={applyOptimization.isPending || discardOptimization.isPending}
             onMoveProject={(p, pid) => {
               update.mutate({
                 id: p.id,

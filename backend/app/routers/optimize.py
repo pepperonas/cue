@@ -25,12 +25,14 @@ from ..optimization import (
     providers,
 )
 from ..optimization.meta_prompt import META_PROMPT_VERSION
+from .prompts import _read as prompt_read
 from ..schemas import (
     OptimizationBatchCreate,
     OptimizationBatchRead,
     OptimizationClaimRequest,
     OptimizationClaimResponse,
     OptimizationConfigRead,
+    OptimizationDecisionResult,
     OptimizationCreate,
     OptimizationProviderRead,
     OptimizationRead,
@@ -142,6 +144,40 @@ def cancel_optimization(
         return _read(_service(session).cancel(optimization_id, uid))
     except OptimizationError as exc:
         raise _fail(exc) from exc
+
+
+@router.post("/{optimization_id}/apply", response_model=OptimizationDecisionResult)
+def apply_optimization(
+    optimization_id: int,
+    session: Session = Depends(get_session),
+    uid: int = Depends(require_owner),
+    _csrf: None = Depends(require_csrf),
+) -> OptimizationDecisionResult:
+    """Take the proposal over into the prompt text."""
+    return _decide(session, optimization_id, uid, apply=True)
+
+
+@router.post("/{optimization_id}/discard", response_model=OptimizationDecisionResult)
+def discard_optimization(
+    optimization_id: int,
+    session: Session = Depends(get_session),
+    uid: int = Depends(require_owner),
+    _csrf: None = Depends(require_csrf),
+) -> OptimizationDecisionResult:
+    """Drop the proposal; the prompt text stays as it is."""
+    return _decide(session, optimization_id, uid, apply=False)
+
+
+def _decide(
+    session: Session, optimization_id: int, uid: int, *, apply: bool
+) -> OptimizationDecisionResult:
+    try:
+        job, prompt = _service(session).decide(optimization_id, uid, apply=apply)
+    except OptimizationError as exc:
+        raise _fail(exc) from exc
+    # The prompt travels back so the client can drop the pending state without
+    # a second round trip.
+    return OptimizationDecisionResult(optimization=_read(job), prompt=prompt_read(session, prompt))
 
 
 @router.post("/batch", response_model=OptimizationBatchRead, status_code=status.HTTP_201_CREATED)

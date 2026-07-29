@@ -16,6 +16,7 @@ import type {
   Me,
   Optimization,
   OptimizationBatch,
+  OptimizationDecisionResult,
   OptimizationConfig,
   Project,
   Prompt,
@@ -287,6 +288,12 @@ export const api = {
   activeOptimizations: () => request<Optimization[]>('GET', '/optimizations'),
   cancelOptimization: (id: number) =>
     request<Optimization>('POST', `/optimizations/${id}/cancel`),
+  /** Take the proposal over into the prompt text. */
+  applyOptimization: (id: number) =>
+    request<OptimizationDecisionResult>('POST', `/optimizations/${id}/apply`),
+  /** Drop the proposal; the prompt keeps its text. */
+  discardOptimization: (id: number) =>
+    request<OptimizationDecisionResult>('POST', `/optimizations/${id}/discard`),
   startOptimizationBatch: (input: { project_id?: number | null; only_pending?: boolean }) =>
     request<OptimizationBatch>('POST', '/optimizations/batch', input),
   activeOptimizationBatch: () =>

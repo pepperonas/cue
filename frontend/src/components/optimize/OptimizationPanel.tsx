@@ -14,6 +14,12 @@ import { DiffView } from './DiffView'
 
 export type PromptVariant = 'original' | 'optimized' | 'diff'
 
+const DECISION_LABEL: Record<string, string> = {
+  pending: 'noch nicht entschieden',
+  applied: 'übernommen',
+  discarded: 'verworfen',
+}
+
 const STATUS_LABEL: Record<string, string> = {
   queued: 'wartet',
   running: 'läuft',
@@ -42,6 +48,9 @@ export function OptimizationPanel({
   activeJob,
   onOpenVersion,
   selectedVersion,
+  onApply,
+  onDiscard,
+  deciding,
 }: {
   prompt: Prompt
   view: PromptVariant
@@ -53,6 +62,10 @@ export function OptimizationPanel({
   activeJob: Optimization | null
   onOpenVersion: (optimization: Optimization) => void
   selectedVersion: number | null
+  /** Take the proposal over into the prompt text / drop it. */
+  onApply: (optimization: Optimization) => void
+  onDiscard: (optimization: Optimization) => void
+  deciding: boolean
 }) {
   const { data: history } = useOptimizationHistory(prompt.id)
   const versions = useMemo(
@@ -66,6 +79,13 @@ export function OptimizationPanel({
   const shown = useMemo(
     () => versions.find((row) => row.version === selectedVersion) ?? versions[0] ?? null,
     [versions, selectedVersion],
+  )
+  // The proposal awaiting a decision: only ever the version the prompt is
+  // currently holding open (`prompt.optimized`), never an older one from the
+  // history — those have been decided already.
+  const pending = useMemo(
+    () => (prompt.optimized ? (versions.find((row) => row.decision === 'pending') ?? null) : null),
+    [prompt.optimized, versions],
   )
 
   // Nothing yet: a single call to action (the button also lives on the card).
@@ -138,7 +158,7 @@ export function OptimizationPanel({
                     transition={springs.spatialFast}
                   />
                 )}
-                <span>{label}</span>
+                <span className="opt-switch-label">{label}</span>
               </button>
             ))}
           </div>
@@ -157,6 +177,31 @@ export function OptimizationPanel({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {pending && (
+            <div className="opt-decide">
+              <p className="opt-decide-text">
+                <Icon name="rule" />
+                Vorschlag prüfen: Der Prompt-Text ist unverändert, bis du übernimmst.
+              </p>
+              <div className="opt-decide-actions">
+                <button
+                  className="btn btn--text"
+                  disabled={deciding}
+                  onClick={() => onDiscard(pending)}
+                >
+                  <Icon name="close" /> Verwerfen
+                </button>
+                <button
+                  className="btn btn--filled"
+                  disabled={deciding}
+                  onClick={() => onApply(pending)}
+                >
+                  <Icon name="check" /> Übernehmen
+                </button>
+              </div>
+            </div>
+          )}
 
           {versions.length > 0 && (
             <div className="opt-meta">
@@ -191,9 +236,17 @@ export function OptimizationPanel({
                   className="opt-version"
                   data-active={(selectedVersion ?? versions[0].version) === row.version}
                   onClick={() => onOpenVersion(row)}
-                  title={`Version ${row.version}${row.universal ? ' (universell)' : ''} vom ${new Date(row.finished_at ?? row.created_at).toLocaleString('de-DE')}`}
+                  title={`Version ${row.version}${row.universal ? ' (universell)' : ''} — ${
+                    DECISION_LABEL[row.decision]
+                  }, ${new Date(row.finished_at ?? row.created_at).toLocaleString('de-DE')}`}
                 >
                   v{row.version}
+                  {row.decision !== 'pending' && (
+                    <Icon
+                      name={row.decision === 'applied' ? 'check' : 'close'}
+                      className={`opt-version-mark is-${row.decision}`}
+                    />
+                  )}
                 </button>
               ))}
             </div>

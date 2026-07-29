@@ -18,11 +18,14 @@ from datetime import timedelta
 from sqlmodel import Session
 
 from ..config import Settings, get_settings
+from .. import events
 from ..models import (
     OPTIMIZATION_TERMINAL,
     OptimizationBatch,
+    OptimizationDecision,
     OptimizationStatus,
     Prompt,
+    PromptEventType,
     PromptOptimization,
     utcnow,
 )
@@ -280,6 +283,53 @@ class PromptOptimizationService:
         prompt.optimization_model = job.model or providers.get(job.provider).label
         prompt.optimization_version = job.version
         self.session.add(prompt)
+
+    # ---- review ------------------------------------------------------------
+    def decide(
+        self, optimization_id: int, uid: int, *, apply: bool
+    ) -> tuple[PromptOptimization, Prompt]:
+        """Take the result over into the prompt, or drop it.
+
+        A finished optimization is a PROPOSAL: nothing replaces the prompt text
+        until this is called. Applying copies the text into `Prompt.body`;
+        either way the pending state is cleared and the decision is recorded on
+        the attempt, so the history says which version was taken.
+        """
+        job = self.repo.get(optimization_id, uid)
+        if job is None:
+            raise OptimizationError("Optimierung nicht gefunden", 404)
+        if job.status is not OptimizationStatus.succeeded:
+            raise OptimizationError("Nur erfolgreiche Optimierungen können übernommen werden", 400)
+        if job.decision is not OptimizationDecision.pending:
+            raise OptimizationError("Über diese Optimierung wurde bereits entschieden", 409)
+
+        prompt = self.session.get(Prompt, job.prompt_id)
+        if prompt is None or prompt.user_id != uid:
+            raise OptimizationError("Prompt not found", 404)
+
+        now = utcnow()
+        job.decision = OptimizationDecision.applied if apply else OptimizationDecision.discarded
+        job.decided_at = now
+        self.session.add(job)
+
+        if apply:
+            prompt.body = job.optimized_text or prompt.body
+            prompt.updated_at = now
+            events.record(self.session, prompt, PromptEventType.updated)
+        # Pending state is cleared either way: the proposal has been reviewed.
+        prompt.optimized = False
+        prompt.optimized_body = None
+        self.session.add(prompt)
+        self.session.commit()
+        self.session.refresh(job)
+        self.session.refresh(prompt)
+        log.info(
+            "optimization %s %s for prompt %s",
+            job.id,
+            "applied" if apply else "discarded",
+            job.prompt_id,
+        )
+        return job, prompt
 
     def _finish_batch_if_done(self, job: PromptOptimization) -> None:
         if not job.batch_id:

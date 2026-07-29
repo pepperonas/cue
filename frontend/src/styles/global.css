@@ -2789,7 +2789,12 @@ img.logo-xl { border-radius: 18px; }
 .opt-switch-btn[data-active='true'] {
   color: var(--md-on-primary);
 }
-.opt-switch-btn > span {
+/* The LABEL only. This used to be `.opt-switch-btn > span`, which also matched
+   the indicator span nested in the same button and — being more specific than
+   `.opt-switch-indicator` — overrode its `position: absolute`. The pill
+   collapsed to zero width, so the active tab rendered as dim grey text on the
+   container instead of on-primary on a filled pill. */
+.opt-switch-label {
   position: relative;
   z-index: 1;
 }
@@ -2798,6 +2803,49 @@ img.logo-xl { border-radius: 18px; }
   inset: 0;
   background: var(--md-primary);
   border-radius: var(--shape-full);
+}
+
+/* Decision bar: a finished optimization is a PROPOSAL, and this is where it is
+   accepted or dropped. Sits directly under the diff, because that is what the
+   decision is made from. */
+.opt-decide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  padding: 10px 12px;
+  border-radius: var(--shape-m);
+  background: color-mix(in srgb, var(--md-primary) 10%, var(--md-surface-container-high));
+  border: 1px solid color-mix(in srgb, var(--md-primary) 35%, transparent);
+}
+.opt-decide-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: var(--label-m);
+  color: var(--md-on-surface);
+}
+.opt-decide-text .material-symbols-rounded {
+  font-size: 18px;
+  color: var(--md-primary);
+}
+.opt-decide-actions {
+  display: inline-flex;
+  gap: var(--gap-2);
+  margin-left: auto;
+}
+/* Applied / discarded marker on the history chips. */
+.opt-version-mark {
+  font-size: 14px !important;
+  margin-left: 2px;
+}
+.opt-version-mark.is-applied {
+  color: var(--md-tertiary, #7fd6a0);
+}
+.opt-version-mark.is-discarded {
+  color: var(--md-on-surface-variant);
 }
 
 .opt-meta {

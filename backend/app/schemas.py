@@ -6,7 +6,14 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from .models import OptimizationStatus, PromptStatus, RunKind, RunStatus, TagSource
+from .models import (
+    OptimizationDecision,
+    OptimizationStatus,
+    PromptStatus,
+    RunKind,
+    RunStatus,
+    TagSource,
+)
 
 
 # ---- Auth ----
@@ -532,6 +539,17 @@ class OptimizationCreate(BaseModel):
     provider: str | None = None
 
 
+class OptimizationDecisionResult(BaseModel):
+    """Outcome of reviewing a proposal — the attempt plus the updated prompt.
+
+    The prompt travels along so the client can clear the pending state (and
+    show the new body after an apply) without a second request.
+    """
+
+    optimization: OptimizationRead
+    prompt: PromptRead
+
+
 class OptimizationBatchCreate(BaseModel):
     project_id: int | None = None
     # False re-optimizes prompts that already have a version.
@@ -552,6 +570,8 @@ class OptimizationRead(BaseModel):
     model: str
     meta_prompt_version: int
     universal: bool
+    decision: OptimizationDecision
+    decided_at: datetime | None
     original_text: str
     previous_text: str | None
     optimized_text: str | None

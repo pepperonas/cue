@@ -161,6 +161,18 @@ class OptimizationStatus(str, enum.Enum):
     canceled = "canceled"
 
 
+class OptimizationDecision(str, enum.Enum):
+    """What the user did with a finished optimization.
+
+    The result never overwrites the prompt on its own — `pending` means it is
+    waiting to be reviewed, and applying is an explicit act.
+    """
+
+    pending = "pending"
+    applied = "applied"
+    discarded = "discarded"
+
+
 # Statuses an optimization job can no longer leave.
 OPTIMIZATION_TERMINAL = {
     OptimizationStatus.succeeded,
@@ -211,6 +223,9 @@ class PromptOptimization(SQLModel, table=True):
     # the flag can change between two optimizations of the same prompt — the
     # history has to say which goal each version was produced for.
     universal: bool = Field(default=False)
+    # Reviewed outcome. Only meaningful once the job succeeded.
+    decision: OptimizationDecision = Field(default=OptimizationDecision.pending, index=True)
+    decided_at: datetime | None = Field(default=None)
 
     # Snapshots: the untouched source text and the version this attempt built
     # on (set from v2 onwards), so history entries stay reproducible.

@@ -36,6 +36,9 @@ interface Props {
   activeOptimization?: Optimization | null
   onOptimize?: (p: Prompt) => void
   onCancelOptimize?: (id: number) => void
+  /** Review a finished proposal: apply it into the prompt text, or drop it. */
+  onDecideOptimization?: (optimization: Optimization, apply: boolean) => void
+  decidingOptimization?: boolean
 }
 
 function fmt(iso: string | null): string {
@@ -69,6 +72,8 @@ export function DetailSheet({
   activeOptimization = null,
   onOptimize,
   onCancelOptimize,
+  onDecideOptimization,
+  decidingOptimization,
 }: Props) {
   // Back closes the sheet; the nested lightbox and the project popover
   // register on top of it, so back peels them off one by one.
@@ -91,11 +96,13 @@ export function DetailSheet({
   useBackDismiss(() => setProjMenu(false), projMenu)
 
   // A different prompt (or a fresh optimization) resets the variant switch.
+  // An undecided proposal opens on the DIFF: that is the view the decision is
+  // made from, so it should not have to be found first.
   useEffect(() => {
-    setVariant('original')
+    setVariant(prompt.optimized ? 'diff' : 'original')
     setPickedVersion(null)
     setVersionText(null)
-  }, [prompt.id])
+  }, [prompt.id, prompt.optimized])
 
   // The text the user currently sees — copy/select-all operate on exactly this.
   const shownBody =
@@ -330,6 +337,9 @@ export function DetailSheet({
               setVersionText(row.optimized_text ?? null)
               setVariant('optimized')
             }}
+            onApply={(row) => onDecideOptimization?.(row, true)}
+            onDiscard={(row) => onDecideOptimization?.(row, false)}
+            deciding={!!decidingOptimization}
           />
         )}
 

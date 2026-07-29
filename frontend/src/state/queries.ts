@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { BookmarkMovePayload, MovePayload } from '../lib/api'
+import type { OptimizationDecisionResult } from '../lib/types'
 import type { Optimization, Project, Prompt, StatsQuery, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
@@ -580,6 +581,34 @@ export function useCancelOptimization() {
     mutationFn: (id: number) => api.cancelOptimization(id),
     onSettled: () => qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY }),
   })
+}
+
+/**
+ * Review a proposal: apply it into the prompt text, or drop it.
+ *
+ * The response carries the updated prompt, so the card loses its pending state
+ * (and shows the new body) in the same tick — no refetch race.
+ */
+function useOptimizationDecision(decide: (id: number) => Promise<OptimizationDecisionResult>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: decide,
+    onSuccess: ({ prompt }) => {
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (old) =>
+        (old ?? []).map((p) => (p.id === prompt.id ? prompt : p)),
+      )
+      qc.invalidateQueries({ queryKey: ['optimizations', prompt.id] })
+      qc.invalidateQueries({ queryKey: OPTIMIZATIONS_KEY })
+    },
+  })
+}
+
+export function useApplyOptimization() {
+  return useOptimizationDecision(api.applyOptimization)
+}
+
+export function useDiscardOptimization() {
+  return useOptimizationDecision(api.discardOptimization)
 }
 
 export function useStartOptimizeBatch() {
