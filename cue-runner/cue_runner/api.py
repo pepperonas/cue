@@ -12,14 +12,23 @@ class RunnerApi:
         self.client = httpx.AsyncClient(
             base_url=cfg.api_url,
             headers={"Authorization": f"Bearer {cfg.runner_token}"},
-            timeout=30.0,
+            # Must outlast a long-polled claim, or the client would abort the
+            # very request it asked the server to hold open.
+            timeout=max(30.0, cfg.long_poll_wait + 15.0),
         )
+
+    @property
+    def _wait(self) -> dict[str, float]:
+        """Long-poll budget as a query param (omitted when disabled)."""
+        return {"wait": self.cfg.long_poll_wait} if self.cfg.long_poll_wait > 0 else {}
 
     async def aclose(self) -> None:
         await self.client.aclose()
 
     async def claim(self) -> dict | None:
-        r = await self.client.post("/api/runs/claim", json={"runner_id": self.cfg.runner_id})
+        r = await self.client.post(
+            "/api/runs/claim", json={"runner_id": self.cfg.runner_id}, params=self._wait
+        )
         if r.status_code == 204:
             return None
         r.raise_for_status()
@@ -62,7 +71,7 @@ class RunnerApi:
         )
 
     async def claim_delivery(self) -> dict | None:
-        r = await self.client.get("/api/cli/claim")
+        r = await self.client.get("/api/cli/claim", params=self._wait)
         if r.status_code == 204:
             return None
         r.raise_for_status()
@@ -76,7 +85,9 @@ class RunnerApi:
 
     async def claim_optimization(self) -> dict | None:
         r = await self.client.post(
-            "/api/optimizations/claim", json={"runner_id": self.cfg.runner_id}
+            "/api/optimizations/claim",
+            json={"runner_id": self.cfg.runner_id},
+            params=self._wait,
         )
         if r.status_code == 204:
             return None

@@ -10,9 +10,13 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from sqlalchemy import func, text
 from sqlmodel import Session, select
 
+from starlette.concurrency import run_in_threadpool
+
+from .. import db
 from ..config import get_settings
 from ..db import get_session
 from ..deps import current_user_id, require_csrf, require_owner, require_runner
+from ..longpoll import claim_with_wait
 from ..models import (
     CapturedPrompt,
     CaptureSession,
@@ -344,15 +348,9 @@ def send_to_session(
 # ---- Runner-facing (RUNNER_TOKEN) ----
 # NB: declare the literal /cli/claim before /cli/{delivery_id}, or "claim" would
 # be matched as the int path param and 422 before reaching this route.
-@router.get("/cli/claim", response_model=CliDeliveryRead)
-def claim_delivery(
-    session: Session = Depends(get_session),
-    _runner: None = Depends(require_runner),
-):
-    """Atomically claim the oldest queued delivery (single UPDATE guards against
-    a double-claim if two poll ticks overlap)."""
-    # Reap deliveries stuck in 'sending' (runner died after claiming, before
-    # reporting a result) so they reach a terminal state instead of lingering.
+def _reap_stale_deliveries(session: Session) -> None:
+    """Fail deliveries stuck in 'sending' (runner died after claiming, before
+    reporting a result) so they reach a terminal state instead of lingering."""
     session.execute(
         text(
             "UPDATE cli_delivery SET status='failed', error='runner stopped responding', "
@@ -360,6 +358,13 @@ def claim_delivery(
         ),
         {"now": utcnow(), "cutoff": utcnow() - timedelta(seconds=_DELIVERY_STALE_S)},
     )
+
+
+def _claim_delivery_once(session: Session) -> CliDeliveryRead | None:
+    """One claim attempt: hand out the oldest queued delivery, or None.
+
+    The single UPDATE guards against a double-claim if two poll ticks overlap.
+    """
     row = session.execute(
         text(
             "UPDATE cli_delivery SET status='sending' "
@@ -369,7 +374,7 @@ def claim_delivery(
     ).first()
     session.commit()
     if not row:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        return None
     d = session.get(CliDelivery, row[0])
     cs = session.get(CaptureSession, d.session_id)
     transport = _transport_of(cs) if cs else None
@@ -389,6 +394,33 @@ def claim_delivery(
         text=d.text,
         submit=d.submit,
     )
+
+
+@router.get("/cli/claim", response_model=CliDeliveryRead)
+async def claim_delivery(
+    wait: float = Query(
+        0, ge=0, description="Seconds to hold the request open while the queue is empty."
+    ),
+    _runner: None = Depends(require_runner),
+):
+    """Claim the oldest queued delivery (204 when there is none).
+
+    `?wait=N` long-polls — see `app.longpoll`. The stale-reap runs once per
+    request, not once per re-check: it cleans up after a dead runner and has no
+    business writing to the table every second an idle poll is open.
+    """
+    await run_in_threadpool(_reap_once)
+    delivery = await claim_with_wait(_claim_delivery_once, wait=wait)
+    if delivery is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return delivery
+
+
+def _reap_once() -> None:
+    # `db.engine` looked up late — see the note in app/longpoll.py.
+    with Session(db.engine) as session:
+        _reap_stale_deliveries(session)
+        session.commit()
 
 
 @router.post("/cli/{delivery_id}/result", status_code=status.HTTP_204_NO_CONTENT)

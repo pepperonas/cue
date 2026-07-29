@@ -53,13 +53,30 @@ A clean start logs `cue-runner started → <CUE_API_URL>` followed by
 | `ALLOWED_BASES` | yes | — | comma-separated allowed project base paths |
 | `CLAUDE_PATH` | no | `claude` | path to the CLI |
 | `RUNNER_ID` | no | `mac-runner` | id reported on claim |
-| `POLL_INTERVAL` | no | `5` | seconds between idle claim attempts |
+| `POLL_INTERVAL` | no | `5` | floor on the idle claim cycle (see long polling) |
+| `LONG_POLL_WAIT` | no | `25` | seconds the server may hold an empty claim open; `0` = plain polling |
 | `MAX_CONCURRENCY` | no | `1` | concurrent runs (semaphore) |
 | `HEARTBEAT_INTERVAL` | no | `15` | seconds between heartbeats (also picks up cancels) |
 | `RUN_TIMEOUT` | no | `1800` | hard per-step timeout (seconds) |
 | `CAPTURE_TOKEN` | no | — | enables the capture forwarder (spool → `/api/capture`) |
 | `CUE_DELIVER` | no | `1` | `0` disables the "send prompt into a live session" loop |
 | `DELIVER_INTERVAL` | no | `1.5` | seconds between delivery-claim polls |
+
+## Long polling
+
+The runner has three claim loops (runs, CLI deliveries, optimizations) that are
+idle almost all the time. Asking every 1.5–5 s produced ~4.300 requests an hour
+— on a live install that was **97 % of all traffic to cue**, every one of them
+answered "nothing to do".
+
+Each claim now sends `?wait=N`: the request stays open and the *server*
+re-checks once a second until work turns up or the budget runs out. One request
+covers the whole window, and pickup gets **faster** than the old 1.5–5 s poll.
+`POLL_INTERVAL`/`DELIVER_INTERVAL`/`OPTIMIZE_INTERVAL` become a floor on the
+cycle time rather than a fixed sleep, so if the server answers immediately —
+long polling off, or an older backend that ignores `wait` — the loops fall back
+to exactly the old behaviour. That is what makes the runner safe to start
+against either version.
 
 ## Sending prompts into a live session (iTerm2 / tmux)
 

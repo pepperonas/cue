@@ -16,6 +16,7 @@ from .. import events
 from ..config import get_settings
 from ..db import get_session
 from ..deps import require_csrf, require_owner, require_runner
+from ..longpoll import claim_with_wait
 from ..models import (
     Prompt,
     PromptEventType,
@@ -261,15 +262,12 @@ def cancel_run(
 
 
 # ---- Runner-facing ----
-@router.post("/claim", response_model=RunDetailRead)
-def claim_run(
-    payload: ClaimRequest,
-    session: Session = Depends(get_session),
-    _runner: None = Depends(require_runner),
-):
-    """Atomically claim the oldest queued run (single UPDATE guards against
-    double-claiming when several runners poll concurrently)."""
-    runner_id = (payload.runner_id or "runner")[:120]
+def _claim_run_once(session: Session, runner_id: str) -> RunDetailRead | None:
+    """One claim attempt: hand out the oldest queued run, or None.
+
+    The single UPDATE guards against double-claiming when several runners poll
+    concurrently.
+    """
     now = utcnow()
     row = session.execute(
         text(
@@ -282,9 +280,30 @@ def claim_run(
     ).first()
     session.commit()
     if not row:
+        return None
+    return _run_detail(session, session.get(Run, row[0]))
+
+
+@router.post("/claim", response_model=RunDetailRead)
+async def claim_run(
+    payload: ClaimRequest,
+    wait: float = Query(
+        0, ge=0, description="Seconds to hold the request open while the queue is empty."
+    ),
+    _runner: None = Depends(require_runner),
+):
+    """Claim the oldest queued run (204 when the queue is empty).
+
+    `?wait=N` long-polls: the request stays open until a run appears or the
+    budget runs out, so an idle runner costs one request per window instead of
+    one every few seconds. Without it this is a single attempt, as before.
+    """
+    detail = await claim_with_wait(
+        lambda s: _claim_run_once(s, (payload.runner_id or "runner")[:120]), wait=wait
+    )
+    if detail is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    run = session.get(Run, row[0])
-    return _run_detail(session, run)
+    return detail
 
 
 @router.post("/{run_id}/heartbeat", response_model=HeartbeatResponse)

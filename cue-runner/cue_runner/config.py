@@ -21,6 +21,12 @@ class Config:
     max_concurrency: int = 1
     heartbeat_interval: float = 15.0
     run_timeout: float = 1800.0
+    # Long polling: seconds the SERVER may hold a claim request open while its
+    # queue is empty. The three claim loops are idle almost all the time, so
+    # this — not the poll intervals — decides how much traffic they cause.
+    # 0 disables it and every loop falls back to its plain interval.
+    # Keep below the reverse proxy's read timeout (nginx: 60 s).
+    long_poll_wait: float = 25.0
     # Prompt capture forwarder (disabled when capture_token is empty).
     capture_token: str = ""
     spool_path: str = ""
@@ -58,6 +64,7 @@ class Config:
             max_concurrency=int(os.environ.get("MAX_CONCURRENCY", "1")),
             heartbeat_interval=float(os.environ.get("HEARTBEAT_INTERVAL", "15")),
             run_timeout=float(os.environ.get("RUN_TIMEOUT", "1800")),
+            long_poll_wait=float(os.environ.get("LONG_POLL_WAIT", "25")),
             optimize_enabled=os.environ.get("CUE_OPTIMIZE", "1") not in ("0", "false", "no"),
             optimize_interval=float(os.environ.get("OPTIMIZE_INTERVAL", "3")),
             optimize_timeout=float(os.environ.get("OPTIMIZE_TIMEOUT", "180")),

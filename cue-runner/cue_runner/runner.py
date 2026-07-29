@@ -16,11 +16,58 @@ from .optimize import run_next as optimize_next
 log = logging.getLogger("cue-runner")
 
 
+def cycle_delay(interval: float, elapsed: float) -> float:
+    """How long to idle before the next poll of a claim loop.
+
+    The interval is a FLOOR on the cycle time, not a fixed sleep. When the
+    server long-polls, the request itself already spent the waiting time, so we
+    go straight back in and one request covers the whole window. When it answers
+    immediately — long polling off, or a backend that ignores `wait` — this is
+    exactly the old fixed-interval behaviour, which is what makes the runner
+    safe to start against either version.
+    """
+    return max(0.0, interval - elapsed)
+
+
+async def until_stopped(coro, stop: asyncio.Event):
+    """Await `coro`, giving up the moment `stop` is set.
+
+    A long-polled claim parks for up to `LONG_POLL_WAIT` seconds. Without this
+    the main loop would not see SIGTERM until the request came back, and the
+    process manager (PM2 kills 1.6 s after SIGTERM) would hard-kill the runner
+    mid-shutdown — skipping the graceful pass that cancels in-flight runs and
+    lets them report. Returns None when `stop` won the race.
+
+    Only the run loop needs it: the delivery/optimize/capture loops are
+    cancelled outright once this one has exited.
+    """
+    task = asyncio.ensure_future(coro)
+    stopper = asyncio.ensure_future(stop.wait())
+    try:
+        done, _ = await asyncio.wait({task, stopper}, return_when=asyncio.FIRST_COMPLETED)
+        return task.result() if task in done else None
+    finally:
+        for pending in (task, stopper):
+            if not pending.done():
+                pending.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await pending
+
+
+async def _idle(stop: asyncio.Event, interval: float, elapsed: float) -> None:
+    delay = cycle_delay(interval, elapsed)
+    if delay <= 0:
+        return
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(stop.wait(), timeout=delay)
+
+
 async def _delivery_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
     """Poll for prompts to type back into a live terminal session and perform them."""
     last_err_log = 0.0
     loop = asyncio.get_event_loop()
     while not stop.is_set():
+        started = loop.time()
         worked = False
         try:
             d = await api.claim_delivery()
@@ -42,8 +89,7 @@ async def _delivery_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> No
                 last_err_log = now
         if worked and not stop.is_set():
             continue  # drain the queue without waiting
-        with contextlib.suppress(asyncio.TimeoutError):
-            await asyncio.wait_for(stop.wait(), timeout=cfg.deliver_interval)
+        await _idle(stop, cfg.deliver_interval, loop.time() - started)
 
 
 async def _optimize_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
@@ -51,6 +97,7 @@ async def _optimize_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> No
     last_err_log = 0.0
     loop = asyncio.get_event_loop()
     while not stop.is_set():
+        started = loop.time()
         worked = False
         try:
             worked = await optimize_next(cfg, api)
@@ -61,8 +108,7 @@ async def _optimize_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> No
                 last_err_log = now
         if worked and not stop.is_set():
             continue  # drain the queue back-to-back (batch mode)
-        with contextlib.suppress(asyncio.TimeoutError):
-            await asyncio.wait_for(stop.wait(), timeout=cfg.optimize_interval)
+        await _idle(stop, cfg.optimize_interval, loop.time() - started)
 
 
 async def _capture_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
@@ -149,22 +195,30 @@ async def run_forever(cfg: Config) -> None:
         optimize_task = asyncio.create_task(_optimize_loop(cfg, api, shutdown))
         log.info("prompt optimization on (poll %.1fs)", cfg.optimize_interval)
 
-    log.info("cue-runner started → %s (concurrency=%d)", cfg.api_url, cfg.max_concurrency)
+    log.info(
+        "cue-runner started → %s (concurrency=%d, long-poll %s)",
+        cfg.api_url,
+        cfg.max_concurrency,
+        f"{cfg.long_poll_wait:.0f}s" if cfg.long_poll_wait > 0 else "off",
+    )
     try:
         while not shutdown.is_set():
             await sem.acquire()
             if shutdown.is_set():
                 sem.release()
                 break
+            started = loop.time()
             try:
-                run = await api.claim()
+                run = await until_stopped(api.claim(), shutdown)
             except Exception as exc:  # noqa: BLE001
                 log.warning("claim failed: %s", exc)
                 run = None
+            if shutdown.is_set():
+                sem.release()
+                break
             if not run:
                 sem.release()
-                with contextlib.suppress(asyncio.TimeoutError):
-                    await asyncio.wait_for(shutdown.wait(), timeout=cfg.poll_interval)
+                await _idle(shutdown, cfg.poll_interval, loop.time() - started)
                 continue
             task = asyncio.create_task(_handle_run(cfg, api, run, sem, active_cancels))
             tasks.add(task)

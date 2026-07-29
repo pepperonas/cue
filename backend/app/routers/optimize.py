@@ -17,6 +17,7 @@ from sqlmodel import Session
 from ..config import get_settings
 from ..db import get_session
 from ..deps import current_user_id, require_csrf, require_owner, require_runner
+from ..longpoll import claim_with_wait
 from ..models import OptimizationBatch, PromptOptimization
 from ..optimization import (
     ExecutionResult,
@@ -245,20 +246,34 @@ def cancel_batch(
 # -------------------------------------------------------------- runner routes
 
 
+def _claim_optimization_once(
+    session: Session, runner_id: str
+) -> OptimizationClaimResponse | None:
+    job = _service(session).claim(runner_id)
+    return None if job is None else OptimizationClaimResponse(**job.__dict__)
+
+
 @router.post("/claim", response_model=OptimizationClaimResponse)
-def claim_optimization(
+async def claim_optimization(
     payload: OptimizationClaimRequest,
-    session: Session = Depends(get_session),
+    wait: float = Query(
+        0, ge=0, description="Seconds to hold the request open while the queue is empty."
+    ),
     _runner: None = Depends(require_runner),
 ):
     """Hand out the next queued job (204 when the queue is empty).
 
     Returning a bare `Response` for the empty case mirrors `runs.claim` — a
-    `None` body would trip the response-model validation."""
-    job = _service(session).claim((payload.runner_id or "runner")[:120])
+    `None` body would trip the response-model validation. `?wait=N` long-polls;
+    see `app.longpoll`.
+    """
+    job = await claim_with_wait(
+        lambda s: _claim_optimization_once(s, (payload.runner_id or "runner")[:120]),
+        wait=wait,
+    )
     if job is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    return OptimizationClaimResponse(**job.__dict__)
+    return job
 
 
 @router.post("/{optimization_id}/result", response_model=OptimizationRead)

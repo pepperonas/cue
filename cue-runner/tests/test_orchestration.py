@@ -231,3 +231,40 @@ async def test_heartbeat_loop_sets_cancel_event(monkeypatch):
     stop.set()
     await asyncio.wait_for(task, timeout=2)
     assert api.heartbeats  # at least one heartbeat happened
+
+
+@pytest.mark.asyncio
+async def test_sigterm_during_a_long_poll_shuts_down_immediately(monkeypatch):
+    """A parked long-polled claim must not delay shutdown.
+
+    With `LONG_POLL_WAIT=25` the run loop sits inside one HTTP request for up to
+    25 s. PM2 hard-kills 1.6 s after SIGTERM, so a loop that only noticed the
+    stop once its request returned would be killed mid-shutdown — losing the
+    graceful pass that cancels in-flight runs and lets them report.
+    """
+    api_holder = {}
+
+    class ParkedApi(FakeApi):
+        async def claim(self):
+            await asyncio.sleep(25)  # the server is holding the request open
+            return None
+
+    def make_api(cfg):
+        api = ParkedApi()
+        api_holder["api"] = api
+        return api
+
+    monkeypatch.setattr(runner_mod, "RunnerApi", make_api)
+
+    async def stop_soon():
+        await asyncio.sleep(0.1)  # let the loop get into its claim
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    stopper = asyncio.create_task(stop_soon())
+    started = asyncio.get_running_loop().time()
+    await asyncio.wait_for(runner_mod.run_forever(_cfg(long_poll_wait=25.0)), timeout=5)
+    elapsed = asyncio.get_running_loop().time() - started
+    await stopper
+
+    assert elapsed < 1.5, f"shutdown waited out the long poll ({elapsed:.1f}s)"
+    assert api_holder["api"].closed is True
