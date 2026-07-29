@@ -141,8 +141,12 @@ export function capToggleLabel(
 
 
 /**
- * Open prompts (queued + running) per project, keyed by project id with
- * `NO_PROJECT` for the unassigned bucket.
+ * Open prompts per project, keyed by project id with `NO_PROJECT` for the
+ * unassigned bucket.
+ *
+ * "Open" means queued or running AND not blocked: the badge answers "how much
+ * is waiting for me here", and a blocked prompt is explicitly parked — counting
+ * it would inflate the number with work that cannot be picked up.
  *
  * Always call this with the UNFILTERED prompt list: the counts describe the
  * whole board, so filtering to one project must not zero the other badges.
@@ -150,6 +154,7 @@ export function capToggleLabel(
 export function countOpenByProject(prompts: Prompt[]): Map<number | typeof NO_PROJECT, number> {
   const counts = new Map<number | typeof NO_PROJECT, number>()
   for (const prompt of prompts) {
+    if (prompt.blocked) continue
     if (prompt.status !== 'queued' && prompt.status !== 'running') continue
     const key: GroupKey = prompt.project_id ?? NO_PROJECT
     counts.set(key, (counts.get(key) ?? 0) + 1)

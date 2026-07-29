@@ -159,10 +159,12 @@ describe('columnKey', () => {
 })
 
 describe('countOpenByProject', () => {
-  const p = (id: number, projectId: number | null, status: Prompt['status']) => ({
-    ...prompt(id, projectId),
-    status,
-  })
+  const p = (
+    id: number,
+    projectId: number | null,
+    status: Prompt['status'],
+    blocked = false,
+  ) => ({ ...prompt(id, projectId), status, blocked })
 
   it('counts only queued and running prompts', () => {
     const counts = countOpenByProject([
@@ -185,6 +187,20 @@ describe('countOpenByProject', () => {
     const counts = countOpenByProject([p(1, 1, 'done')])
     expect(counts.has(1)).toBe(false)
     expect(counts.size).toBe(0)
+  })
+
+  it('leaves blocked prompts out — they are parked, not waiting', () => {
+    const counts = countOpenByProject([
+      p(1, 1, 'queued'),
+      p(2, 1, 'queued', true),
+      p(3, 1, 'running'),
+    ])
+    expect(counts.get(1)).toBe(2)
+  })
+
+  it('omits a project whose only open prompts are blocked', () => {
+    const counts = countOpenByProject([p(1, 4, 'queued', true), p(2, 4, 'queued', true)])
+    expect(counts.has(4)).toBe(false)
   })
 
   it('handles an empty board', () => {
