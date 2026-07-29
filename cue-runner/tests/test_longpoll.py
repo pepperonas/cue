@@ -113,6 +113,54 @@ async def test_a_parked_claim_gives_up_as_soon_as_shutdown_is_requested():
     assert elapsed < 1.0, f"took {elapsed:.1f}s to notice the shutdown"
 
 
+async def test_a_claim_error_is_surfaced_not_swallowed():
+    """The run loop logs claim failures and backs off — it can only do that if
+    the stop race re-raises instead of reporting "nothing to do"."""
+    import asyncio
+
+    import pytest as _pytest
+
+    from cue_runner.runner import until_stopped
+
+    async def boom():
+        raise RuntimeError("claim failed")
+
+    with _pytest.raises(RuntimeError, match="claim failed"):
+        await until_stopped(boom(), asyncio.Event())
+
+
+async def test_the_parked_request_is_cancelled_rather_than_left_running():
+    """Losing the race must tear the request down.
+
+    A pending HTTP call left behind on shutdown would keep the event loop and
+    the connection alive and produce "Task was destroyed but it is pending".
+    """
+    import asyncio
+
+    cancelled = asyncio.Event()
+
+    async def parked_claim():
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    from cue_runner.runner import until_stopped
+
+    stop = asyncio.Event()
+
+    async def request_stop():
+        await asyncio.sleep(0.05)
+        stop.set()
+
+    before = len(asyncio.all_tasks())
+    await asyncio.gather(until_stopped(parked_claim(), stop), request_stop())
+
+    assert cancelled.is_set(), "the parked request was left running"
+    assert len(asyncio.all_tasks()) <= before, "a task was leaked"
+
+
 async def test_a_claim_that_finishes_first_still_wins():
     """The stop race must not swallow a run that was genuinely handed out."""
     import asyncio

@@ -4,9 +4,9 @@
 
 <!-- badges:dynamic -->
 [![version](https://img.shields.io/badge/version-0.35.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-570%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-313-brightgreen.svg)](backend/tests/)
-[![runner tests](https://img.shields.io/badge/runner%20tests-89-brightgreen.svg)](cue-runner/tests/)
+[![tests](https://img.shields.io/badge/tests-576%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-317-brightgreen.svg)](backend/tests/)
+[![runner tests](https://img.shields.io/badge/runner%20tests-91-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-168-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)

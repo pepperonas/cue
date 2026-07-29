@@ -131,6 +131,89 @@ def test_without_wait_the_endpoints_answer_immediately(client):
     assert time.monotonic() - started < 1.0
 
 
+def test_a_failing_attempt_surfaces_at_once_instead_of_being_retried(client):
+    """A hard failure must reach the runner immediately.
+
+    `/api/cli/claim` answers 409 when the target terminal session is gone. If a
+    future refactor wrapped the attempt in a try/except to "keep polling", that
+    409 would turn into a 25 s hang and the runner would learn nothing.
+    """
+    import asyncio
+
+    from app import longpoll
+
+    def unreachable(_session):
+        raise RuntimeError("session no longer reachable")
+
+    async def scenario():
+        started = asyncio.get_running_loop().time()
+        with pytest.raises(RuntimeError, match="no longer reachable"):
+            await longpoll.claim_with_wait(unreachable, wait=10)
+        return asyncio.get_running_loop().time() - started
+
+    assert asyncio.run(scenario()) < 1.0, "the error was retried instead of surfaced"
+
+
+def test_work_is_returned_the_moment_it_appears(client):
+    """Not at the end of the budget — otherwise long polling would ADD latency.
+
+    The attempt only finds work on its third call, so this also pins that the
+    server really keeps re-checking rather than sleeping the budget out once.
+    """
+    import asyncio
+
+    from app import longpoll
+
+    attempts = {"n": 0}
+
+    def ready_on_the_third_look(_session):
+        attempts["n"] += 1
+        return "work" if attempts["n"] >= 3 else None
+
+    async def scenario():
+        started = asyncio.get_running_loop().time()
+        found = await longpoll.claim_with_wait(ready_on_the_third_look, wait=20)
+        return found, asyncio.get_running_loop().time() - started
+
+    found, elapsed = asyncio.run(scenario())
+    assert found == "work"
+    assert attempts["n"] == 3
+    # Two ticks after the first look, nowhere near the 20 s budget.
+    assert 1.5 < elapsed < 5, f"returned after {elapsed:.1f}s"
+
+
+def test_the_stale_reaper_runs_once_per_request_not_per_recheck(client, monkeypatch):
+    """Cleaning up after a dead runner is per-request work.
+
+    Leaving it inside the attempt would put a write on the table every second
+    that an idle poll is open — reinstating exactly the busywork long polling
+    exists to remove.
+    """
+    _auth(client)
+    from app.routers import capture as capture_router
+
+    calls: list[int] = []
+    original = capture_router._reap_stale_deliveries
+
+    def counting(session):
+        calls.append(1)
+        return original(session)
+
+    monkeypatch.setattr(capture_router, "_reap_stale_deliveries", counting)
+    r = client.get("/api/cli/claim", params={"wait": 3}, headers=_RUNNER_HDR)
+
+    assert r.status_code == 204
+    assert calls == [1], f"reaped {len(calls)}x during a single long poll"
+
+
+def test_an_unusable_wait_is_rejected(client):
+    """`wait` is validated, not coerced — a bad value must not park a request."""
+    _auth(client)
+    for bad in (-1, "abc"):
+        r = client.post("/api/runs/claim", json={}, params={"wait": bad}, headers=_RUNNER_HDR)
+        assert r.status_code == 422, f"wait={bad!r} was accepted"
+
+
 def test_waiting_holds_no_pooled_connection(client):
     """A parked long poll must own no DB connection.
 
