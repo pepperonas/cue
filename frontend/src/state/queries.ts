@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   useMutation,
   useQuery,
@@ -543,6 +544,28 @@ export function useActiveOptimizations(enabled: boolean) {
     enabled,
     refetchInterval: (q) => ((q.state.data ?? []).length ? 2000 : false),
   })
+}
+
+/**
+ * Refresh the prompts when an optimization leaves the active list.
+ *
+ * The active-jobs query stops polling once nothing is running, and nothing else
+ * touches the prompts — so a finished proposal stayed invisible: the card kept
+ * its ✨, the detail showed no diff, and only a manual reload revealed that
+ * there was anything to decide.
+ */
+export function useRefreshOnOptimizationFinish(activeIds: number[]): void {
+  const qc = useQueryClient()
+  const key = activeIds.join(',')
+  const previous = useRef(key)
+  useEffect(() => {
+    const before = previous.current ? previous.current.split(',') : []
+    const now = key ? key.split(',') : []
+    previous.current = key
+    if (before.some((id) => !now.includes(id))) {
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+    }
+  }, [key, qc])
 }
 
 export function useOptimizationHistory(promptId: number | null) {

@@ -37,6 +37,7 @@ import {
   useMovePrompt,
   useMovePrompts,
   useOptimizeConfig,
+  useRefreshOnOptimizationFinish,
   useOptimizePrompt,
   useRunConfig,
   useStartOptimizeBatch,
@@ -169,6 +170,8 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     () => (activeOptimizations ?? []).map((o) => o.prompt_id),
     [activeOptimizations],
   )
+  // A finished job means a prompt now carries a proposal — pull it in.
+  useRefreshOnOptimizationFinish(optimizingIds)
 
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('cue-view')
@@ -404,8 +407,14 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   // Queue an optimization for one prompt. The runner picks it up; the button
   // spins until the job leaves the active list.
+  // Prompt whose optimization the user started by hand — when it finishes, its
+  // diff is opened for review. Batches never set this: a run over 143 prompts
+  // must not throw dialogs at anyone.
+  const awaitingReview = useRef<number | null>(null)
+
   const handleOptimize = useCallback(
     (p: Prompt) => {
+      awaitingReview.current = p.id
       optimizePrompt.mutate(
         { promptId: p.id },
         {
@@ -414,11 +423,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               p.optimized ? 'Erneute Optimierung gestartet' : 'Optimierung gestartet',
               'success',
             ),
-          onError: (err) =>
+          onError: (err) => {
+            awaitingReview.current = null
             toast.show(
               err instanceof Error ? err.message : 'Optimierung fehlgeschlagen',
               'error',
-            ),
+            )
+          },
         },
       )
       vibrate(8)
@@ -426,17 +437,23 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [optimizePrompt, toast],
   )
 
+
   // Review a finished proposal. Applying replaces the prompt text (the original
   // stays in the optimization history), discarding leaves it untouched.
   const handleDecideOptimization = useCallback(
     (optimization: Optimization, apply: boolean) => {
       const mutation = apply ? applyOptimization : discardOptimization
       mutation.mutate(optimization.id, {
-        onSuccess: () =>
+        onSuccess: () => {
+          // Decision taken — there is nothing left to review, so get out of the
+          // way. The card behind already carries the new text (the mutation
+          // wrote the updated prompt into the cache).
+          setDetail(null)
           toast.show(
             apply ? 'Optimierung übernommen' : 'Optimierung verworfen',
             apply ? 'success' : 'info',
-          ),
+          )
+        },
         onError: (err) =>
           toast.show(err instanceof Error ? err.message : 'Aktion fehlgeschlagen', 'error'),
       })
@@ -522,6 +539,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 
   const anyModalOpen =
     composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog || !!sendTarget
+
+  // Open a finished proposal for review — but never over something the user is
+  // currently doing.
+  useEffect(() => {
+    const id = awaitingReview.current
+    if (id == null || anyModalOpen) return
+    const ready = (prompts ?? []).find((p) => p.id === id && p.optimized)
+    if (!ready) return
+    awaitingReview.current = null
+    setDetail(ready)
+  }, [prompts, anyModalOpen])
 
   // Keyboard shortcuts.
   useEffect(() => {
@@ -917,6 +945,65 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             }}
           />
         )}
+        {mergeOpen && (
+          <MergeDialog
+            key="merge"
+            parts={
+              selectedIds
+                .map((id) => (prompts ?? []).find((p) => p.id === id))
+                .filter(Boolean) as Prompt[]
+            }
+            projects={projects ?? []}
+            onClose={() => setMergeOpen(false)}
+            onConfirm={(payload) => {
+              merge.mutate(payload, {
+                onSuccess: () => {
+                  exitSelect()
+                  toast.show('Prompts zusammengeführt', 'success')
+                },
+                onError: () => toast.show('Zusammenführen fehlgeschlagen', 'error'),
+              })
+            }}
+          />
+        )}
+        {runDialog && runConfigQ.data && (
+          <RunDialog
+            key="run-dialog"
+            kind={runDialog.kind}
+            prompts={runDialog.prompts}
+            config={runConfigQ.data}
+            busy={createRun.isPending}
+            onClose={() => setRunDialog(null)}
+            onSubmit={(payload: RunPayload) => {
+              createRun.mutate(payload, {
+                onSuccess: () => {
+                  setRunDialog(null)
+                  exitSelect()
+                  setView('runs')
+                  toast.show('Run gestartet', 'success')
+                },
+                onError: () => toast.show('Start fehlgeschlagen', 'error'),
+              })
+            }}
+          />
+        )}
+        {sendTarget && (
+          <SendToSessionDialog
+            key="send-dialog"
+            text={sendTarget.text}
+            projectId={sendTarget.projectId}
+            onClose={() => setSendTarget(null)}
+          />
+        )}
+        {shortcuts && <ShortcutsOverlay key="shortcuts" onClose={() => setShortcuts(false)} />}
+      </AnimatePresence>
+
+      {/* Deliberately OUTSIDE AnimatePresence. Its exit repeatedly failed to
+          resolve: the sheet contains shared-layout elements (the version
+          switcher's indicator) that are still animating while it is removed,
+          and motion then never finishes the exit — closing set the state to
+          null and the dialog stayed on screen, unclosable. Same call as the
+          `.select-bar`. The entrance animation stays; removal is instant. */}
         {detailLive && !composerOpen && (
           <DetailSheet
             key="detail"
@@ -986,58 +1073,6 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             }
           />
         )}
-        {mergeOpen && (
-          <MergeDialog
-            key="merge"
-            parts={
-              selectedIds
-                .map((id) => (prompts ?? []).find((p) => p.id === id))
-                .filter(Boolean) as Prompt[]
-            }
-            projects={projects ?? []}
-            onClose={() => setMergeOpen(false)}
-            onConfirm={(payload) => {
-              merge.mutate(payload, {
-                onSuccess: () => {
-                  exitSelect()
-                  toast.show('Prompts zusammengeführt', 'success')
-                },
-                onError: () => toast.show('Zusammenführen fehlgeschlagen', 'error'),
-              })
-            }}
-          />
-        )}
-        {runDialog && runConfigQ.data && (
-          <RunDialog
-            key="run-dialog"
-            kind={runDialog.kind}
-            prompts={runDialog.prompts}
-            config={runConfigQ.data}
-            busy={createRun.isPending}
-            onClose={() => setRunDialog(null)}
-            onSubmit={(payload: RunPayload) => {
-              createRun.mutate(payload, {
-                onSuccess: () => {
-                  setRunDialog(null)
-                  exitSelect()
-                  setView('runs')
-                  toast.show('Run gestartet', 'success')
-                },
-                onError: () => toast.show('Start fehlgeschlagen', 'error'),
-              })
-            }}
-          />
-        )}
-        {sendTarget && (
-          <SendToSessionDialog
-            key="send-dialog"
-            text={sendTarget.text}
-            projectId={sendTarget.projectId}
-            onClose={() => setSendTarget(null)}
-          />
-        )}
-        {shortcuts && <ShortcutsOverlay key="shortcuts" onClose={() => setShortcuts(false)} />}
-      </AnimatePresence>
     </div>
   )
 }

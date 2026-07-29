@@ -172,11 +172,25 @@ export function DetailSheet({
   }, [onCopy, prompt])
 
   return (
-    <div className="scrim" onClick={onClose}>
+    <motion.div
+      className="scrim"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+    >
+      {/* An explicit enter/exit, NOT a shared `layoutId`. The sheet used to
+          carry `layoutId={`card-${id}`}` for a container transform out of the
+          board card — but no card ever declared that id, so the shared layout
+          had no partner. It could morph from nothing while still making motion
+          defer the unmount, and that deferral never resolved: closing set the
+          state to null and the dialog stayed on screen, unclosable. */}
       <motion.div
-        layoutId={`card-${prompt.id}`}
         className="sheet sheet--detail"
         onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.12 } }}
         transition={springs.spatial}
       >
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -446,6 +460,6 @@ export function DetailSheet({
           <img src={lightbox} alt="" />
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
