@@ -200,6 +200,9 @@ def create_prompt(
     )
     if payload.status in _RAN_STATUSES:
         prompt.ran_at = utcnow()
+    if payload.bookmarked:
+        prompt.bookmarked = True
+        prompt.bookmark_order = _next_bookmark_order(session, uid)
     session.add(prompt)
     session.commit()
     session.refresh(prompt)

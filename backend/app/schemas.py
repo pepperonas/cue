@@ -77,6 +77,9 @@ class PromptCreate(BaseModel):
     status: PromptStatus = PromptStatus.queued
     tags: str = ""
     attachment_ids: list[int] = []
+    # Set when the prompt is created from the bookmarks tab: it has to land on
+    # that shelf, otherwise the user creates something and sees nothing.
+    bookmarked: bool = False
 
 
 class PromptUpdate(BaseModel):

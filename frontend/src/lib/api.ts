@@ -118,6 +118,7 @@ export const api = {
     status?: Status
     tags?: string
     attachment_ids?: number[]
+    bookmarked?: boolean
   }) => request<Prompt>('POST', '/prompts', input),
   updatePrompt: (
     id: number,

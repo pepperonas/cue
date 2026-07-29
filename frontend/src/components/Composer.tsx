@@ -22,10 +22,16 @@ interface Props {
   projects: Project[]
   editing: Prompt | null
   defaultProjectId: number | null
+  /**
+   * Created from the bookmarks tab: the prompt is pinned right away and starts
+   * WITHOUT a project. Without the flag the user would create something and
+   * see nothing, because the tab only lists bookmarks.
+   */
+  asBookmark?: boolean
   onClose: () => void
 }
 
-export function Composer({ projects, editing, defaultProjectId, onClose }: Props) {
+export function Composer({ projects, editing, defaultProjectId, asBookmark, onClose }: Props) {
   // Back gesture / browser back closes this overlay instead of the app.
   useBackDismiss(onClose)
   const isEdit = !!editing
@@ -54,6 +60,9 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
   const [title, setTitle] = useState(editing?.title ?? '')
   const [projectId, setProjectId] = useState<number | null>(() => {
     if (editing) return editing.project_id
+    // A bookmark is meant to be project-independent, so it does not inherit the
+    // last-used project the way a board prompt does.
+    if (asBookmark) return null
     if (defaultProjectId != null) return defaultProjectId
     // Preselect the project used for the last created prompt.
     const raw = localStorage.getItem(LAST_PROJECT_KEY)
@@ -225,11 +234,16 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
           status,
           tags: cleanTags,
           attachment_ids,
+          bookmarked: asBookmark || undefined,
         })
         localStorage.removeItem(DRAFT_KEY)
-        // Remember the project so the next new prompt preselects it.
-        localStorage.setItem(LAST_PROJECT_KEY, projectId == null ? '' : String(projectId))
-        toast.show('Prompt angelegt', 'success')
+        // Remember the project so the next new prompt preselects it — but not
+        // from the bookmarks tab: a deliberately project-less bookmark must not
+        // wipe the board's preselection.
+        if (!asBookmark) {
+          localStorage.setItem(LAST_PROJECT_KEY, projectId == null ? '' : String(projectId))
+        }
+        toast.show(asBookmark ? 'Bookmark angelegt' : 'Prompt angelegt', 'success')
       }
       savedRef.current = true // keep the now-associated uploads
       // Now that the save succeeded, actually delete the removed existing ones.
@@ -310,7 +324,7 @@ export function Composer({ projects, editing, defaultProjectId, onClose }: Props
       >
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 style={{ font: 'var(--headline-m)', margin: 0 }}>
-            {isEdit ? 'Prompt bearbeiten' : 'Neuer Prompt'}
+            {isEdit ? 'Prompt bearbeiten' : asBookmark ? 'Neues Bookmark' : 'Neuer Prompt'}
           </h2>
           <div className="row">
             <IconButton

@@ -1982,3 +1982,36 @@ def test_capture_session_tenant_isolation(client):
     assert client.get(f"/api/sessions/{sid}").status_code == 404
     assert client.delete(f"/api/sessions/{sid}",
                          headers={"X-CSRF-Token": csrf_b}).status_code == 404
+
+
+def test_a_prompt_can_be_created_as_a_bookmark(client):
+    """Creating from the bookmarks tab must land ON that shelf right away."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    res = client.post(
+        "/api/prompts", json={"body": "Direkt als Bookmark", "bookmarked": True}, headers=headers
+    )
+    assert res.status_code == 201, res.text
+    created = res.json()
+    assert created["bookmarked"] is True
+    assert created["bookmark_order"] > 0  # sorted into the section, not left at 0
+
+
+def test_creating_bookmarks_appends_them_to_the_end_of_the_section(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    orders = [
+        client.post(
+            "/api/prompts", json={"body": f"BM {i}", "bookmarked": True}, headers=headers
+        ).json()["bookmark_order"]
+        for i in range(3)
+    ]
+    assert orders == sorted(orders) and len(set(orders)) == 3
+
+
+def test_creating_without_the_flag_stays_unbookmarked(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    created = client.post("/api/prompts", json={"body": "Normal"}, headers=headers).json()
+    assert created["bookmarked"] is False
+    assert created["bookmark_order"] == 0

@@ -3,16 +3,16 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.30.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-544%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-298-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.31.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-547%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-301-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-82-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-164-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
-[![LOC](https://img.shields.io/badge/LOC-24801-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-8197-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-13203-3178C6.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-24825-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-8203-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-13221-3178C6.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
 
@@ -72,7 +72,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **Kanban-Board** mit Drag-zwischen-Spalten (Statuswechsel) + Reorder, optimistisch, Spring-Motion. Nach **Done** verschobene Prompts landen immer **ganz oben**; pro Spalte sind **max. 10 Karten** sichtbar (Rest aufklappbar über „+N weitere anzeigen"). Das aktive Projekt steht animiert **im Header** neben dem cue-Logo. **Mehrere ausgewählte Prompts wandern gemeinsam**: eine selektierte Karte ziehen nimmt die ganze Auswahl mit (alle mitgezogenen Karten hängen sichtbar am Cursor), oder man nutzt die Ziel-Buttons Queued/Running/Done in der Auswahlleiste — auf dem Handy der bequemere Weg.
 - **Blocked-Status**: Toggle links vom Bookmark — blockierte Prompts sind ausgegraut, wandern ans Spaltenende, lassen sich nicht draggen und nicht auf Running/Done setzen, bis die Blockierung (Klick) aufgehoben ist.
 - **Listenansicht** nach Status **gruppiert + ein-/aufklappbar**; Status dezent farbcodiert (grüner Haken = Done usw.).
-- **Bookmarks**: Prompts mit einem Klick anpinnen; eigener Tab zeigt **immer alle** Bookmarks — unabhängig davon, welches Projekt gerade gefiltert ist —, **per Drag & Drop frei sortierbar**. Bookmarks werden außerdem **universell optimiert** (siehe KI-Prompt-Optimierung).
+- **Bookmarks**: Prompts mit einem Klick anpinnen; **direkt im Tab anlegbar** (ohne Projektbezug — Filter und zuletzt genutztes Projekt werden bewusst ignoriert); eigener Tab zeigt **immer alle** Bookmarks — unabhängig davon, welches Projekt gerade gefiltert ist —, **per Drag & Drop frei sortierbar**. Bookmarks werden außerdem **universell optimiert** (siehe KI-Prompt-Optimierung).
 - **„Getestet"-Status**: für Running-/Done-Prompts markieren, ob das Feature schon getestet wurde (grün gefülltes, animiertes Icon). In **Done** rutschen getestete Karten automatisch unter die ungetesteten; innerhalb beider Blöcke gilt die selbst gezogene Reihenfolge.
 - **Zusammenführen**: Auswahl-Modus (Button oder **Cmd/Ctrl+Klick** direkt auf Karten/Zeilen — erneuter Cmd/Ctrl+Klick wählt ab) → mehrere Prompts wählen → Merge-Dialog mit Reihenfolge (↑/↓), Format, Live-Vorschau und Wahl, was mit den Originalen passiert (löschen/archivieren/behalten).
 - **Löschen mit Undo**: einzeln (aus dem Detail) oder mehrere (Auswahl-Modus) — Toast „Rückgängig" macht das Löschen innerhalb von 6 s ungeschehen.

@@ -810,21 +810,23 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       <RunTicker enabled={canRun && view !== 'runs'} onOpen={() => setView('runs')} />
       <BatchTicker enabled={canOptimize} />
 
-      {(view === 'board' || view === 'list') && !composerOpen && !selectMode && (
-        <motion.button
-          layoutId="composer-surface"
-          className="fab"
-          onClick={() => {
-            setEditing(null)
-            setComposerOpen(true)
-          }}
-          transition={springs.spatial}
-          whileTap={{ scale: 0.94 }}
-        >
-          <Icon name="add" />
-          Neuer Prompt
-        </motion.button>
-      )}
+      {(view === 'board' || view === 'list' || view === 'bookmarks') &&
+        !composerOpen &&
+        !selectMode && (
+          <motion.button
+            layoutId="composer-surface"
+            className="fab"
+            onClick={() => {
+              setEditing(null)
+              setComposerOpen(true)
+            }}
+            transition={springs.spatial}
+            whileTap={{ scale: 0.94 }}
+          >
+            <Icon name="add" />
+            {view === 'bookmarks' ? 'Neues Bookmark' : 'Neuer Prompt'}
+          </motion.button>
+        )}
 
       {/* Deliberately NOT inside AnimatePresence: its exit never visibly played
           (the bar froze ~2 s at full opacity, then popped away — regardless of
@@ -908,6 +910,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             projects={projects ?? []}
             editing={editing}
             defaultProjectId={typeof projectFilter === 'number' ? projectFilter : null}
+            asBookmark={view === 'bookmarks' && !editing}
             onClose={() => {
               setComposerOpen(false)
               setEditing(null)
