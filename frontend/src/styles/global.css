@@ -2844,7 +2844,8 @@ img.logo-xl { border-radius: 18px; }
 .opt-version-mark.is-applied {
   color: var(--md-tertiary, #7fd6a0);
 }
-.opt-version-mark.is-discarded {
+.opt-version-mark.is-discarded,
+.opt-version-mark.is-superseded {
   color: var(--md-on-surface-variant);
 }
 

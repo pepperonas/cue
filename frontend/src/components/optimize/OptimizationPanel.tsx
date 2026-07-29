@@ -19,6 +19,9 @@ const DECISION_LABEL: Record<string, string> = {
   pending: 'noch nicht entschieden',
   applied: 'übernommen',
   discarded: 'verworfen',
+  // Replaced by a newer run before anyone looked at it — never reviewed, so it
+  // must not read as "verworfen".
+  superseded: 'durch eine neuere Fassung ersetzt',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -239,7 +242,13 @@ export function OptimizationPanel({
                   v{row.version}
                   {row.decision !== 'pending' && (
                     <Icon
-                      name={row.decision === 'applied' ? 'check' : 'close'}
+                      name={
+                        row.decision === 'applied'
+                          ? 'check'
+                          : row.decision === 'superseded'
+                            ? 'history'
+                            : 'close'
+                      }
                       className={`opt-version-mark is-${row.decision}`}
                     />
                   )}

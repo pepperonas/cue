@@ -637,3 +637,67 @@ def test_clean_result_leaves_an_unclosed_fence_alone():
     """Models sometimes open a fence and never close it — that is content."""
     assert clean_result("```markdown\nHallo") == "```markdown\nHallo"
     assert clean_result("```") == "```"
+
+
+def test_only_one_proposal_can_be_open_per_prompt(client):
+    """Optimizing twice without deciding must not leave two applicable rows.
+
+    Both stayed `pending`: the prompt showed v2 while v1 remained applicable,
+    so taking the older one over wrote text that was never in the diff.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Original")
+    first = _finish(client, headers, prompt["id"], text="Fassung 1")
+    _finish(client, headers, prompt["id"], text="Fassung 2")
+
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    by_version = {row["version"]: row for row in history}
+    assert by_version[2]["decision"] == "pending"
+    assert by_version[1]["decision"] == "superseded"
+    assert by_version[1]["decided_at"] is not None
+
+    # The replaced one can no longer overwrite the prompt.
+    res = client.post(f"/api/optimizations/{first['id']}/apply", headers=headers)
+    assert res.status_code == 409
+    assert client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()["body"] == "Original"
+
+
+def test_superseding_keeps_the_replaced_text_readable(client):
+    """It was never reviewed, so the history has to preserve what it said."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Original")
+    _finish(client, headers, prompt["id"], text="Verdrängte Fassung")
+    _finish(client, headers, prompt["id"], text="Neue Fassung")
+
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    replaced = next(row for row in history if row["version"] == 1)
+    assert replaced["optimized_text"] == "Verdrängte Fassung"
+
+
+def test_a_decided_proposal_is_not_superseded_again(client):
+    """An applied version keeps its outcome when the next run finishes."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Original")
+    first = _finish(client, headers, prompt["id"], text="Fassung 1")
+    client.post(f"/api/optimizations/{first['id']}/apply", headers=headers)
+    _finish(client, headers, prompt["id"], text="Fassung 2")
+
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    assert next(r for r in history if r["version"] == 1)["decision"] == "applied"
+    assert next(r for r in history if r["version"] == 2)["decision"] == "pending"
+
+
+def test_superseding_only_touches_the_same_prompt(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk(client, headers, "Prompt A")
+    b = _mk(client, headers, "Prompt B")
+    _finish(client, headers, a["id"], text="A1")
+    _finish(client, headers, b["id"], text="B1")
+    _finish(client, headers, b["id"], text="B2")
+
+    a_hist = client.get(f"/api/optimizations?prompt_id={a['id']}", headers=headers).json()
+    assert a_hist[0]["decision"] == "pending"  # untouched by B's second run

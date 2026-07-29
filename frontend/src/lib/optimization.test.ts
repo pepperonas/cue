@@ -55,3 +55,21 @@ describe('pendingProposal', () => {
     expect(pendingProposal({ optimized: true }, [])).toBeNull()
   })
 })
+
+describe('pendingProposal with a superseded version', () => {
+  it('picks the version that is still open, not the replaced one', () => {
+    // Optimizing twice without deciding replaces the older proposal; only the
+    // newer one may be offered for review.
+    const found = pendingProposal({ optimized: true }, [
+      version(2, 'pending'),
+      version(1, 'superseded'),
+    ])
+    expect(found?.version).toBe(2)
+  })
+
+  it('offers nothing when every version was replaced or decided', () => {
+    expect(
+      pendingProposal({ optimized: true }, [version(2, 'applied'), version(1, 'superseded')]),
+    ).toBeNull()
+  })
+})

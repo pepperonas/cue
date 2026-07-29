@@ -171,6 +171,9 @@ class OptimizationDecision(str, enum.Enum):
     pending = "pending"
     applied = "applied"
     discarded = "discarded"
+    # Replaced by a newer run before anyone looked at it. Keeps the invariant
+    # "at most one pending proposal per prompt", which the review UI relies on.
+    superseded = "superseded"
 
 
 # Statuses an optimization job can no longer leave.

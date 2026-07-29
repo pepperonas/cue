@@ -277,6 +277,15 @@ class PromptOptimizationService:
         prompt = self.session.get(Prompt, job.prompt_id)
         if prompt is None:
             return
+        # Only ONE proposal may be open per prompt. Optimizing twice without
+        # deciding used to leave both rows pending: the prompt showed v2 while
+        # v1 stayed applicable, so taking the older one over wrote text the user
+        # had never seen in the diff.
+        for older in self.repo.history(job.prompt_id, job.user_id):
+            if older.id != job.id and older.decision is OptimizationDecision.pending:
+                older.decision = OptimizationDecision.superseded
+                older.decided_at = now
+                self.session.add(older)
         prompt.optimized = True
         prompt.optimized_body = job.optimized_text
         prompt.optimized_at = now

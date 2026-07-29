@@ -420,7 +420,7 @@ export interface Optimization {
   /** Rewritten to be project-agnostic (bookmarks) rather than merely sharpened. */
   universal: boolean
   /** A finished optimization is a proposal until it is applied or discarded. */
-  decision: 'pending' | 'applied' | 'discarded'
+  decision: 'pending' | 'applied' | 'discarded' | 'superseded'
   decided_at: string | null
   original_text: string
   previous_text: string | null
