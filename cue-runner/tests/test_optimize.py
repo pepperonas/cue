@@ -12,6 +12,7 @@ import pytest
 
 from cue_runner.config import Config
 from cue_runner.optimize import ClaudeCliService, optimize_one, run_next
+from cue_runner.optimize.loop import _non_retryable
 from cue_runner.optimize.providers import OptimizationOutcome, build_registry, get
 
 
@@ -143,6 +144,57 @@ async def test_nonzero_exit_reports_stderr():
 
 
 @pytest.mark.asyncio
+async def test_nonzero_exit_prefers_stdout_json_error_over_generic_message():
+    # Real Claude CLI behaviour on a weekly-quota hit: exit 1, empty stderr,
+    # error text only inside the JSON envelope on stdout.
+    body = result_json(
+        is_error=True,
+        result="You've hit your weekly limit · resets Aug 2 at 1am (Europe/Berlin)",
+        api_error_status=429,
+    )
+    proc = FakeProc(stdout=body, stderr=b"", returncode=1)
+    svc = ClaudeCliService(spawn=lambda argv: _spawned(proc))
+    out = await svc.run("prompt", timeout_s=5)
+    assert out.status == "failed" and out.exit_code == 1
+    assert "weekly limit" in (out.error or "")
+    assert "Exit-Code" not in (out.error or "")
+
+
+@pytest.mark.asyncio
+async def test_exit_zero_with_is_error_envelope_is_still_a_failure():
+    body = result_json(is_error=True, result="Failed to authenticate")
+    proc = FakeProc(stdout=body, stderr=b"", returncode=0)
+    out = await ClaudeCliService(spawn=lambda argv: _spawned(proc)).run("p", timeout_s=5)
+    assert out.status == "failed"
+    assert "authenticate" in (out.error or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_empty_stdout_with_stderr_prefers_stderr_over_synthetic_message():
+    proc = FakeProc(stdout=b"", stderr=b"permission denied", returncode=2)
+    out = await ClaudeCliService(spawn=lambda argv: _spawned(proc)).run("p", timeout_s=5)
+    assert out.error == "permission denied"
+
+
+@pytest.mark.asyncio
+async def test_nonzero_exit_with_empty_streams_reports_missing_output():
+    # Empty stdout → parse_output's synthetic message beats the bare exit code.
+    proc = FakeProc(stdout=b"", stderr=b"", returncode=1)
+    out = await ClaudeCliService(spawn=lambda argv: _spawned(proc)).run("p", timeout_s=5)
+    assert out.status == "failed" and out.exit_code == 1
+    assert out.error == "CLI lieferte keine Ausgabe"
+
+
+@pytest.mark.asyncio
+async def test_json_error_beats_stderr_when_both_are_present():
+    body = result_json(is_error=True, result="You've hit your weekly limit")
+    proc = FakeProc(stdout=body, stderr=b"also on stderr", returncode=1)
+    out = await ClaudeCliService(spawn=lambda argv: _spawned(proc)).run("p", timeout_s=5)
+    assert "weekly limit" in (out.error or "")
+    assert "stderr" not in (out.error or "")
+
+
+@pytest.mark.asyncio
 async def test_timeout_kills_the_process_and_reports_it():
     # returncode=None -> the process is still alive, so it must be signalled.
     proc = FakeProc(hang=True, returncode=None)
@@ -211,6 +263,91 @@ async def test_optimize_one_retries_a_failing_attempt(monkeypatch):
     monkeypatch.setattr("cue_runner.optimize.loop.get_provider", lambda *_: Flaky())
     out = await optimize_one(cfg(), None, {"provider": "claude_cli", "prompt": "p", "max_retries": 1})
     assert out.status == "succeeded" and calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_optimize_one_skips_retry_on_weekly_quota(monkeypatch):
+    calls = {"n": 0}
+
+    class Quota:
+        id = "claude_cli"
+
+        async def run(self, prompt, *, model="", timeout_s=0):
+            calls["n"] += 1
+            return OptimizationOutcome(
+                status="failed",
+                error="You've hit your weekly limit · resets Aug 2 at 1am",
+            )
+
+    monkeypatch.setattr("cue_runner.optimize.loop.get_provider", lambda *_: Quota())
+    out = await optimize_one(cfg(), None, {"provider": "claude_cli", "prompt": "p", "max_retries": 1})
+    assert out.status == "failed" and calls["n"] == 1
+    assert "weekly limit" in (out.error or "")
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "You've hit your weekly limit",
+        "Rate limited — try again later",
+        "HTTP 429: too many requests",
+        "Claude CLI nicht gefunden (/usr/bin/claude)",
+        "Not logged in",
+        "Failed to authenticate. API Error: 403",
+        "invalid api key",
+        "Credit balance is too low",
+        "usage limit exceeded",
+    ],
+)
+def test_non_retryable_recognises_quota_and_auth_failures(error):
+    assert _non_retryable(error) is True
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        None,
+        "",
+        "transient network blip",
+        "stream ended unexpectedly",
+        "CLI lieferte keine Ausgabe",
+        "Zeitüberschreitung nach 180 s",
+    ],
+)
+def test_non_retryable_lets_transient_errors_through(error):
+    assert _non_retryable(error) is False
+
+
+@pytest.mark.asyncio
+async def test_optimize_one_skips_retry_on_auth_failure(monkeypatch):
+    calls = {"n": 0}
+
+    class AuthFail:
+        id = "claude_cli"
+
+        async def run(self, prompt, *, model="", timeout_s=0):
+            calls["n"] += 1
+            return OptimizationOutcome(status="failed", error="Failed to authenticate")
+
+    monkeypatch.setattr("cue_runner.optimize.loop.get_provider", lambda *_: AuthFail())
+    out = await optimize_one(cfg(), None, {"provider": "claude_cli", "prompt": "p", "max_retries": 3})
+    assert out.status == "failed" and calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_optimize_one_still_retries_transient_errors(monkeypatch):
+    calls = {"n": 0}
+
+    class Flaky:
+        id = "claude_cli"
+
+        async def run(self, prompt, *, model="", timeout_s=0):
+            calls["n"] += 1
+            return OptimizationOutcome(status="failed", error="stream ended unexpectedly")
+
+    monkeypatch.setattr("cue_runner.optimize.loop.get_provider", lambda *_: Flaky())
+    out = await optimize_one(cfg(), None, {"provider": "claude_cli", "prompt": "p", "max_retries": 2})
+    assert out.status == "failed" and calls["n"] == 3  # 1 + 2 retries
 
 
 # ------------------------------------------------------------------ the loop

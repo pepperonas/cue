@@ -43,7 +43,30 @@ async def optimize_one(cfg, api, job: dict) -> OptimizationOutcome:
             attempts,
             outcome.error,
         )
+        # Quota / auth failures won't clear within a retry window — burning
+        # another Claude call just to hear the same limit message is wasteful.
+        if _non_retryable(outcome.error):
+            break
     return outcome
+
+
+def _non_retryable(error: str | None) -> bool:
+    """True when a second attempt cannot possibly succeed right now."""
+    text = (error or "").lower()
+    needles = (
+        "weekly limit",
+        "rate limit",
+        "rate limited",
+        "too many requests",
+        "nicht gefunden",  # missing CLI binary
+        "not logged in",
+        "authentication",
+        "failed to authenticate",
+        "invalid api key",
+        "credit balance",
+        "usage limit",
+    )
+    return any(n in text for n in needles)
 
 
 async def run_next(cfg, api) -> bool:

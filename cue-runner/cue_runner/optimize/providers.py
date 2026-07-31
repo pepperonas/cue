@@ -122,21 +122,26 @@ class ClaudeCliService:
         duration_ms = _elapsed_ms(started)
         exit_code = proc.returncode
         err_text = _decode(stderr)[:800]
-        if exit_code != 0:
-            return OptimizationOutcome(
-                status="failed",
-                exit_code=exit_code,
-                duration_ms=duration_ms,
-                error=err_text or f"CLI beendet mit Exit-Code {exit_code}",
-            )
-
+        # The CLI puts API errors (rate limits, weekly quota, auth) in the
+        # stdout JSON envelope and often leaves stderr empty — even on exit 1.
+        # Always parse stdout first so the UI sees the real message instead of
+        # a useless "CLI beendet mit Exit-Code 1".
         parsed = self.parse_output(_decode(stdout))
-        if parsed.get("error"):
+        json_error = parsed.get("error")
+        # Empty stdout yields a synthetic "keine Ausgabe" — real stderr wins.
+        if json_error == "CLI lieferte keine Ausgabe" and err_text:
+            json_error = None
+        if exit_code != 0 or json_error:
+            error = (
+                json_error
+                or err_text
+                or (f"CLI beendet mit Exit-Code {exit_code}" if exit_code else "CLI meldete einen Fehler")
+            )
             return OptimizationOutcome(
                 status="failed",
                 exit_code=exit_code,
                 duration_ms=duration_ms,
-                error=parsed["error"],
+                error=error,
             )
         return OptimizationOutcome(
             status="succeeded",

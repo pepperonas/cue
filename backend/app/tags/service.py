@@ -63,6 +63,16 @@ def join_names(names: list[str]) -> str:
     return ", ".join(names)
 
 
+def is_bug_priority(raw: str | None) -> bool:
+    """True when the tag list carries a bug-priority tag.
+
+    Case-insensitive match against the DEV_TAGS cluster: `bug`, `bugfix`,
+    and anything whose name starts with `bug` (e.g. `bug-report`). Used on
+    create to park those prompts at the TOP of the queued column.
+    """
+    return any(name.lower().startswith("bug") for name in split_names(raw))
+
+
 class TagService:
     def __init__(self, session: Session) -> None:
         self.session = session

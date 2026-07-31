@@ -8,7 +8,15 @@
 (`TagService`); `prompt_tag` is the source of truth for assignments.
 """
 from .repository import TagRepository, TagWithUsage
-from .service import MAX_TAG_LENGTH, TagError, TagService, join_names, normalize, split_names
+from .service import (
+    MAX_TAG_LENGTH,
+    TagError,
+    TagService,
+    is_bug_priority,
+    join_names,
+    normalize,
+    split_names,
+)
 
 __all__ = [
     "MAX_TAG_LENGTH",
@@ -16,6 +24,7 @@ __all__ = [
     "TagRepository",
     "TagService",
     "TagWithUsage",
+    "is_bug_priority",
     "join_names",
     "normalize",
     "split_names",

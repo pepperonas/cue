@@ -22,7 +22,7 @@ from ..models import (
 )
 from ..ordering import display_key, insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
-from ..tags import TagService
+from ..tags import TagService, is_bug_priority
 from ..schemas import (
     BookmarkMoveRequest,
     BookmarkReorderRequest,
@@ -190,13 +190,20 @@ def create_prompt(
         raise HTTPException(status_code=400, detail="Body required")
     _check_project(session, payload.project_id, uid)
 
+    # Bug-tagged prompts jump to the top of the queue (same placement as a
+    # freshly finished done-prompt). Other statuses keep appending.
+    if payload.status == PromptStatus.queued and is_bug_priority(payload.tags):
+        sort_order = _top_sort_order(session, payload.status, uid)
+    else:
+        sort_order = _next_sort_order(session, payload.status, uid)
+
     prompt = Prompt(
         user_id=uid,
         title=_derive_title(payload.title, payload.body),
         body=payload.body,
         project_id=payload.project_id,
         status=payload.status,
-        sort_order=_next_sort_order(session, payload.status, uid),
+        sort_order=sort_order,
     )
     if payload.status in _RAN_STATUSES:
         prompt.ran_at = utcnow()

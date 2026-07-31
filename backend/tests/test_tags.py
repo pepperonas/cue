@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from conftest import auth as _auth
 
-from app.tags import join_names, normalize, split_names
+from app.tags import is_bug_priority, join_names, normalize, split_names
 
 
 def _mk(client, headers, body="Ein Prompt", **extra):
@@ -40,6 +40,82 @@ def test_split_names_dedupes_case_insensitively_and_keeps_order():
     assert split_names(None) == []
     assert split_names(" , , ") == []
     assert join_names(["a", "b"]) == "a, b"
+
+
+def test_is_bug_priority_matches_the_bug_tag_cluster():
+    assert is_bug_priority("bug")
+    assert is_bug_priority("Bugfix")
+    assert is_bug_priority("feature, bug-report")
+    assert is_bug_priority("  BUG  ")
+    assert is_bug_priority("bugs")  # starts with "bug"
+    assert is_bug_priority("bug-triage, chore")
+    assert not is_bug_priority("feature, hotfix")
+    assert not is_bug_priority("fix")
+    assert not is_bug_priority("regression")
+    assert not is_bug_priority("")
+    assert not is_bug_priority(None)
+    assert not is_bug_priority("debug")  # prefix match on the tag token, not a substring
+    assert not is_bug_priority("a-bug")  # must START with bug
+    assert not is_bug_priority(" debugged ")
+
+
+def test_bug_tagged_prompts_land_at_the_top_of_the_queue(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    first = _mk(client, headers, "normal A")
+    second = _mk(client, headers, "normal B")
+    bug = _mk(client, headers, "fix the crash", tags="bugfix")
+    # Fresh bugfix sits above both earlier queued prompts.
+    assert bug["sort_order"] < first["sort_order"]
+    assert bug["sort_order"] < second["sort_order"]
+    # A second bug lands above the first one (newest bug on top).
+    another = _mk(client, headers, "another crash", tags="Bug")
+    assert another["sort_order"] < bug["sort_order"]
+    # Non-bug tags still append.
+    plain = _mk(client, headers, "feature work", tags="feature")
+    assert plain["sort_order"] > second["sort_order"]
+
+
+def test_bug_priority_is_case_and_whitespace_tolerant_on_create(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    base = _mk(client, headers, "baseline")
+    for tags in ("BUG", "  bugfix  ", "ui, BUG-REPORT", "BugFix"):
+        created = _mk(client, headers, f"body for {tags}", tags=tags)
+        assert created["sort_order"] < base["sort_order"], tags
+
+
+def test_bug_tag_does_not_reorder_non_queued_creates(client):
+    """Bug priority only applies to the queue — done/running keep append order."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    done_a = _mk(client, headers, "done A", status="done")
+    done_bug = _mk(client, headers, "done bug", status="done", tags="bug")
+    # Done still uses append (done-on-top is a separate status-transition rule).
+    assert done_bug["sort_order"] > done_a["sort_order"]
+
+
+def test_adding_a_bug_tag_later_does_not_auto_promote(client):
+    """Priority is a create-time placement, not a permanent float-to-top rule."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    plain = _mk(client, headers, "plain")
+    _mk(client, headers, "later")
+    patched = client.patch(
+        f"/api/prompts/{plain['id']}",
+        json={"tags": "bug"},
+        headers=headers,
+    ).json()
+    assert patched["tags"] == "bug"
+    assert patched["sort_order"] == plain["sort_order"]
+
+
+def test_bug_among_other_tags_still_promotes_on_create(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    earlier = _mk(client, headers, "earlier", tags="feature, urgent")
+    mixed = _mk(client, headers, "mixed", tags="refactor, bugfix, ui")
+    assert mixed["sort_order"] < earlier["sort_order"]
 
 
 # ------------------------------------------------------------------- vocabulary

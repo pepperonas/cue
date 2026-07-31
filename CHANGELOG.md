@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 2026-07-31
+
+### Added
+- **Bug-tagged prompts land at the top of the queue on create.** Tags whose
+  name starts with `bug` (case-insensitive — `bug`, `bugfix`, `bug-report`, …)
+  use the same `_top_sort_order` placement as a freshly finished done-prompt.
+  Non-queued creates and later tag edits are unaffected; drag still works.
+
+### Fixed
+- **Optimize error messages.** The Claude CLI writes API failures (weekly
+  quota, auth, 429) into the stdout JSON envelope and often leaves stderr
+  empty — even on exit 1. The runner now surfaces that message in the UI
+  instead of the opaque „CLI beendet mit Exit-Code 1", and skips pointless
+  retries on quota/auth failures.
+
+
 ## [0.21.1] - 2026-07-19
 
 ### Changed
