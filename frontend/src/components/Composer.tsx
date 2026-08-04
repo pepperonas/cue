@@ -10,9 +10,16 @@ import { useCreatePrompt, useTags, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
 import { mergeSuggestionPool, normalizeTags, type TagSuggestion } from '../lib/tags'
 import { useDictation } from '../lib/speech'
+import { compressImage } from '../lib/image-compress'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
 import { useBackDismiss } from '../state/overlays'
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const kb = bytes / 1024
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1).replace('.', ',')} MB`
+}
 
 const DRAFT_KEY = 'cue-draft'
 const LAST_PROJECT_KEY = 'cue-last-project'
@@ -76,6 +83,7 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
   const taRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const attachFieldRef = useRef<HTMLDivElement>(null)
 
   // Screenshot attachments. Existing ones come from the edited prompt; newly
   // uploaded ones are tracked so they can be cleaned up if the dialog is cancelled.
@@ -133,17 +141,42 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
     const images = files.filter((f) => f.type.startsWith('image/'))
     if (!images.length) return
     setUploading((n) => n + images.length)
+    // The screenshots field is the LAST one in the dialog, so pasting into the
+    // prompt text used to change nothing anywhere near the cursor — the upload
+    // worked and looked like it had not. Bring the field into view and say so.
+    revealAttachments()
+    let added = 0
+    let bytes = 0
     for (const file of images) {
       try {
-        const att = await api.uploadAttachment(file)
+        const att = await api.uploadAttachment(await compressImage(file))
         newIds.current.add(att.id)
         setAttachments((prev) => [...prev, att])
+        added += 1
+        bytes += att.size
       } catch {
         toast.show('Bild-Upload fehlgeschlagen', 'error')
       } finally {
         setUploading((n) => n - 1)
       }
     }
+    if (added) {
+      toast.show(
+        added === 1
+          ? `Screenshot hinzugefügt · ${formatBytes(bytes)}`
+          : `${added} Screenshots hinzugefügt · ${formatBytes(bytes)}`,
+        'success',
+      )
+    }
+  }
+
+  /** Scroll the screenshots field just far enough to be visible. `nearest`
+   *  keeps the movement minimal, so pasting mid-sentence does not throw the
+   *  text out of view. */
+  function revealAttachments() {
+    requestAnimationFrame(() => {
+      attachFieldRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
   }
 
   function removeAttachment(att: Attachment) {
@@ -443,7 +476,7 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
           />
         </div>
 
-        <div className="field">
+        <div className="field" ref={attachFieldRef}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <label style={{ margin: 0 }}>Screenshots</label>
             <button className="chip" onClick={() => fileRef.current?.click()}>
