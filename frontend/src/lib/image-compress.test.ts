@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { keepEncoded, shouldCompress, targetSize, webpName } from './image-compress'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { compressImage, keepEncoded, shouldCompress, targetSize, webpName } from './image-compress'
 
 describe('shouldCompress', () => {
   it('takes the image types a screenshot arrives as', () => {
@@ -91,5 +91,117 @@ describe('webpName', () => {
   it('falls back to a name for an empty or extension-only input', () => {
     expect(webpName('')).toBe('screenshot.webp')
     expect(webpName('.png')).toBe('screenshot.webp')
+  })
+})
+
+// ----------------------------------------------------------------------
+// compressImage itself. The rules above are pure; these pin that the
+// orchestration around the canvas actually applies them — which is where a
+// screenshot would be lost if it went wrong.
+// ----------------------------------------------------------------------
+
+function file(name: string, type: string, bytes: number): File {
+  return new File([new Uint8Array(bytes)], name, { type })
+}
+
+interface CanvasStub {
+  drawn: { width: number; height: number }[]
+  asked: { type: string; quality: number }[]
+}
+
+function stubCanvas(source: { width: number; height: number }, result: Blob | null): CanvasStub {
+  const stub: CanvasStub = { drawn: [], asked: [] }
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ ...source, close: vi.fn() })),
+  )
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    drawImage: (_img: unknown, _x: number, _y: number, width: number, height: number) =>
+      stub.drawn.push({ width, height }),
+  } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+    (cb: BlobCallback, type?: string, quality?: number) => {
+      stub.asked.push({ type: type ?? '', quality: quality ?? -1 })
+      cb(result)
+    },
+  )
+  return stub
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+describe('compressImage', () => {
+  it('returns a smaller WebP, scaled to the cap, named .webp', async () => {
+    const stub = stubCanvas(
+      { width: 2400, height: 1422 },
+      new Blob([new Uint8Array(45_000)], { type: 'image/webp' }),
+    )
+    const out = await compressImage(file('shot.png', 'image/png', 193_533))
+
+    expect(out.type).toBe('image/webp')
+    expect(out.name).toBe('shot.webp')
+    expect(out.size).toBe(45_000)
+    expect(stub.drawn).toEqual([{ width: 2048, height: 1213 }])
+    expect(stub.asked).toEqual([{ type: 'image/webp', quality: 0.85 }])
+  })
+
+  it('keeps the original when the encoder silently fell back to PNG', async () => {
+    // `canvas.toBlob` does this WITHOUT an error when it cannot encode the
+    // requested type. The blob here is deliberately SMALLER than the source, so
+    // only the type check can reject it — with a larger one (what the 193 KB
+    // screenshot actually produced: 307 KB) the size rule would catch it and
+    // this test would pass without proving anything.
+    stubCanvas(
+      { width: 2400, height: 1422 },
+      new Blob([new Uint8Array(100_000)], { type: 'image/png' }),
+    )
+    const original = file('shot.png', 'image/png', 193_533)
+    expect(await compressImage(original)).toBe(original)
+  })
+
+  it('keeps the original when the re-encode is not smaller', async () => {
+    stubCanvas({ width: 64, height: 64 }, new Blob([new Uint8Array(9_000)], { type: 'image/webp' }))
+    const original = file('tiny.png', 'image/png', 70)
+    expect(await compressImage(original)).toBe(original)
+  })
+
+  it('keeps the original when the encoder hands back nothing', async () => {
+    stubCanvas({ width: 800, height: 600 }, null)
+    const original = file('shot.png', 'image/png', 5_000)
+    expect(await compressImage(original)).toBe(original)
+  })
+
+  it('keeps the original when the image cannot be decoded at all', async () => {
+    // The catch-all. A failed optimization must never cost the user the file.
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => {
+        throw new Error('decode failed')
+      }),
+    )
+    const original = file('broken.png', 'image/png', 5_000)
+    expect(await compressImage(original)).toBe(original)
+  })
+
+  it('never touches the canvas for a GIF', async () => {
+    // Not just "returns the original": the canvas must not run at all, because
+    // drawing an animation into one keeps a single frame.
+    const created = vi.spyOn(document, 'createElement')
+    const original = file('anim.gif', 'image/gif', 500_000)
+    expect(await compressImage(original)).toBe(original)
+    expect(created).not.toHaveBeenCalled()
+  })
+
+  it('honours a custom cap and quality', async () => {
+    const stub = stubCanvas(
+      { width: 4000, height: 1000 },
+      new Blob([new Uint8Array(100)], { type: 'image/webp' }),
+    )
+    await compressImage(file('wide.png', 'image/png', 900_000), { maxEdge: 1600, quality: 0.6 })
+    expect(stub.drawn).toEqual([{ width: 1600, height: 400 }])
+    expect(stub.asked[0].quality).toBe(0.6)
   })
 })

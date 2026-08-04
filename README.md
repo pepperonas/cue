@@ -4,10 +4,10 @@
 
 <!-- badges:dynamic -->
 [![version](https://img.shields.io/badge/version-0.38.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-636%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-326-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-646%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-329-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-114-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-196-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-203-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
 [![LOC](https://img.shields.io/badge/LOC-25486-blue.svg)](#)
@@ -76,7 +76,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **„Getestet"-Status**: für Running-/Done-Prompts markieren, ob das Feature schon getestet wurde (grün gefülltes, animiertes Icon). In **Done** rutschen getestete Karten automatisch unter die ungetesteten; innerhalb beider Blöcke gilt die selbst gezogene Reihenfolge.
 - **Zusammenführen**: Auswahl-Modus (Button oder **Cmd/Ctrl+Klick** direkt auf Karten/Zeilen — erneuter Cmd/Ctrl+Klick wählt ab) → mehrere Prompts wählen → Merge-Dialog mit Reihenfolge (↑/↓), Format, Live-Vorschau und Wahl, was mit den Originalen passiert (löschen/archivieren/behalten).
 - **Löschen mit Undo**: einzeln (aus dem Detail) oder mehrere (Auswahl-Modus) — Toast „Rückgängig" macht das Löschen innerhalb von 6 s ungeschehen.
-- **Screenshots**: Bilder per Drag & Drop, Einfügen (Cmd/Ctrl+V) oder Button an Prompts anhängen; Thumbnails + Lightbox im Detail.
+- **Screenshots**: Bilder per Drag & Drop, Einfügen (Cmd/Ctrl+V — auch direkt im Prompt-Textfeld) oder Button an Prompts anhängen; Thumbnails + Lightbox im Detail. Jedes Bild wird **vor dem Upload im Browser zu WebP verkleinert** (längste Kante 2048 px) — ein 2400×1422-Screenshot schrumpft von 189 KB auf 44 KB; animierte GIFs bleiben unangetastet, und wenn die Neukodierung nichts bringt, wird das Original behalten. **Nach 30 Tagen werden Screenshots automatisch gelöscht.**
 - **Run-Engine**: gespeicherte Prompts headless über die **Claude-Code-CLI** ausführen — einzeln oder als **Playbook** (Prompt-Folge in einer Session, Schritte standardmäßig in der **Board-Reihenfolge der Queued-Spalte** — von oben nach unten, unabhängig von der Klick-Reihenfolge). Ein Mac-Runner (`cue-runner/`) pollt cue, führt aus und schreibt Ergebnisse + Live-Log zurück. Owner-only, Pfad-Whitelist, eigener Runs-Tab mit Live-Tail, Cancel & Re-run. Der Run-Dialog **merkt sich die zuletzt genutzten Einstellungen** (Basis, Modell, Permissions, Tools, Schalter) — nur der Unterordner startet leer. Erfolgreiche Steps verschieben ihren Prompt automatisch auf **Done** (fehlgeschlagene auf Failed), ein **schwebendes Status-Overlay** zeigt aktive Runs in jeder Ansicht, und der Runner führt bis zu **3 Runs parallel** aus (`MAX_CONCURRENCY`).
 - **Prompt-Capture**: ein `UserPromptSubmit`-Hook protokolliert **jeden** in der Claude-Code-CLI eingegebenen Prompt in cue (Ansicht „Verlauf": eine Karte je Projekt, Sessions als aufklappbare Untergruppen → Prompt-Timeline (neueste zuerst), „in Queue übernehmen"). Projekt-Ableitung übers **Git-Root** des cwd (Gruppierungsordner wie `_customers/` werden übersprungen — jedes Repo wird ein eigenes Projekt), Fallback aufs erste Nicht-`_`-Pfadsegment; per-User Token + Basis-Pfad (multi-tenant).
 - **An CLI-Session senden** (Gegenrichtung, owner-only): einen Prompt aus cue direkt in eine **laufende** Claude-Code-Session tippen — nur einfügen oder gleich ausführen. Über den Mac-Runner via iTerm2 (AppleScript) bzw. tmux (bracketed paste); der Capture-Hook liefert den Terminal-Kontext.

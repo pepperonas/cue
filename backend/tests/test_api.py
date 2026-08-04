@@ -1576,6 +1576,55 @@ def test_attachment_upload_guards(client, monkeypatch):
     assert too_big.status_code == 413
 
 
+def test_webp_is_accepted_and_served_back_as_webp(client):
+    """The client re-encodes every screenshot to WebP before uploading, so WebP
+    is now the ONLY format cue receives in practice. Tightening `_ALLOWED`
+    without this would break every upload."""
+    csrf = _login(client)
+    up = client.post("/api/attachments",
+                     files={"file": ("shot.webp", io.BytesIO(_PNG), "image/webp")},
+                     headers={"X-CSRF-Token": csrf})
+    assert up.status_code == 201
+    assert up.json()["content_type"] == "image/webp"
+    served = client.get(f"/api/attachments/{up.json()['id']}")
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "image/webp"
+
+
+def test_served_type_comes_from_the_row_not_the_stored_extension(client):
+    """The stored filename keeps whatever extension the upload carried, and that
+    name is client-supplied. What gets SERVED must come from the checked
+    `content_type` column instead, or a misleading name would decide it."""
+    import app.db as db_module
+    from sqlmodel import Session
+
+    from app.models import Attachment
+
+    csrf = _login(client)
+    aid = client.post("/api/attachments",
+                      files={"file": ("note.php", io.BytesIO(_PNG), "image/webp")},
+                      headers={"X-CSRF-Token": csrf}).json()["id"]
+    with Session(db_module.engine) as s:
+        assert s.get(Attachment, aid).filename.endswith(".php")
+    assert client.get(f"/api/attachments/{aid}").headers["content-type"] == "image/webp"
+
+
+def test_a_nameless_upload_still_gets_an_extension(client):
+    """A pasted screenshot can arrive without a usable filename; the stored name
+    then has to come from the content type."""
+    import app.db as db_module
+    from sqlmodel import Session
+
+    from app.models import Attachment
+
+    csrf = _login(client)
+    aid = client.post("/api/attachments",
+                      files={"file": ("clipboard", io.BytesIO(_PNG), "image/webp")},
+                      headers={"X-CSRF-Token": csrf}).json()["id"]
+    with Session(db_module.engine) as s:
+        assert s.get(Attachment, aid).filename.endswith(".webp")
+
+
 def test_attachment_tenant_isolation(client):
     csrf_a = _auth(client, email="a@example.com", sub="att-a")
     up = client.post("/api/attachments",
