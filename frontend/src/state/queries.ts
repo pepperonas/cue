@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
   useMutation,
   useQuery,
@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { BookmarkMovePayload, MovePayload } from '../lib/api'
+import { pendingProposal, succeededVersions } from '../lib/optimization'
 import type { OptimizationDecisionResult } from '../lib/types'
 import type { Optimization, Project, Prompt, StatsQuery, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
@@ -574,6 +575,19 @@ export function useOptimizationHistory(promptId: number | null) {
     queryFn: () => api.optimizationHistory(promptId as number),
     enabled: promptId !== null,
   })
+}
+
+/** The proposal this prompt is holding open for review, or null.
+ *
+ *  Shares the history query with `OptimizationPanel` (React Query dedupes by
+ *  key), so the pinned decision bar in the detail sheet costs no extra request
+ *  and can never disagree with the diff shown above it. */
+export function usePendingProposal(prompt: Prompt | null): Optimization | null {
+  const { data } = useOptimizationHistory(prompt?.id ?? null)
+  return useMemo(
+    () => (prompt ? pendingProposal(prompt, succeededVersions(data)) : null),
+    [prompt, data],
+  )
 }
 
 export function useOptimizeBatch(enabled: boolean) {

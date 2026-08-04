@@ -8,9 +8,11 @@ import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { DecisionBar } from './optimize/DecisionBar'
 import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { useBackDismiss } from '../state/overlays'
+import { usePendingProposal } from '../state/queries'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -94,6 +96,31 @@ export function DetailSheet({
   const contentRef = useRef<HTMLDivElement>(null)
   useBackDismiss(() => setLightbox(null), lightbox !== null)
   useBackDismiss(() => setProjMenu(false), projMenu)
+  // The proposal this prompt is holding open for review, if the user may decide
+  // at all. Shares the history query with the panel below — no extra request.
+  const proposal = usePendingProposal(canOptimize ? prompt : null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const scrolledTo = useRef<number | null>(null)
+
+  // A prompt with a waiting proposal opens ON the diff — the badges, status
+  // chips and copy button above it are ~180 px of chrome nobody came for. Once
+  // per prompt only: a re-optimization finishing while the sheet is open must
+  // not yank the view away from whatever is being read.
+  //
+  // This depends on the diff rendering at full height in the same commit the
+  // proposal arrives. While it grew out of an AnimatePresence height animation
+  // the content was still short here, `scrollTop` clamped to 0, and the scroll
+  // silently did nothing — see the note in OptimizationPanel.
+  useEffect(() => {
+    if (!proposal || scrolledTo.current === prompt.id) return
+    const scroller = scrollRef.current
+    const panel = panelRef.current
+    if (!scroller || !panel) return
+    scrolledTo.current = prompt.id
+    scroller.scrollTop +=
+      panel.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+  }, [proposal, prompt.id])
 
   // A different prompt (or a fresh optimization) resets the variant switch.
   // An undecided proposal opens on the DIFF: that is the view the decision is
@@ -171,6 +198,21 @@ export function DetailSheet({
     return () => window.removeEventListener('keydown', onKey)
   }, [onCopy, prompt])
 
+  // Cmd/Ctrl+Enter takes a pending proposal over: reviewing means reading the
+  // diff, and the decision should not need the mouse. Both modifiers on every
+  // platform, for the reason in lib/platform.ts.
+  useEffect(() => {
+    if (!proposal || decidingOptimization) return
+    const open = proposal
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return
+      e.preventDefault()
+      onDecideOptimization?.(open, true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [proposal, decidingOptimization, onDecideOptimization])
+
   return (
     <motion.div
       className="scrim"
@@ -193,8 +235,18 @@ export function DetailSheet({
         exit={{ opacity: 0, y: 10, scale: 0.98, transition: { duration: 0.12 } }}
         transition={springs.spatial}
       >
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ margin: 0 }}>{prompt.title || 'Untitled'}</h2>
+        {/* Wraps: a long title plus four icon buttons overflowed a phone-width
+            sheet, and the close button was the part that got cut off. */}
+        <div
+          className="row"
+          style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}
+        >
+          {/* A basis, not `auto`: with `auto` the title's one-line width decides
+              whether the row wraps, so a long title pushed the buttons onto
+              their own line even on a wide sheet. */}
+          <h2 style={{ margin: 0, flex: '1 1 260px', minWidth: 0, overflowWrap: 'anywhere' }}>
+            {prompt.title || 'Untitled'}
+          </h2>
           <div className="row">
             {canTest && (
               <TestedButton
@@ -228,6 +280,13 @@ export function DetailSheet({
           </div>
         </div>
 
+        {/* Everything between the header and the pinned footer scrolls as ONE
+            region. It used to stop above the optimization panel, so the panel —
+            by far the tallest and most variable element, a 400 px diff plus its
+            controls — sat in the pinned region and was simply clipped by the
+            sheet's `overflow: hidden`. There was no way to scroll to what came
+            after it. */}
+        <div className="detail-scroll" ref={scrollRef}>
         <div className="card-meta">
           <span ref={projWrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
             <button
@@ -333,6 +392,7 @@ export function DetailSheet({
         </Button>
 
         {canOptimize && onOptimize && (
+          <div ref={panelRef}>
           <OptimizationPanel
             prompt={prompt}
             view={variant}
@@ -351,32 +411,34 @@ export function DetailSheet({
               setVersionText(row.optimized_text ?? null)
               setVariant('optimized')
             }}
-            onApply={(row) => onDecideOptimization?.(row, true)}
-            onDiscard={(row) => onDecideOptimization?.(row, false)}
-            deciding={!!decidingOptimization}
           />
+          </div>
         )}
 
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="muted">
-            {variant === 'optimized'
-              ? `Optimierte Fassung${pickedVersion ? ` (v${pickedVersion})` : ''}`
-              : 'Inhalt'}
-          </span>
-          <button className="chip" onClick={() => setShowRaw((v) => !v)}>
-            <Icon name={showRaw ? 'visibility' : 'code'} /> {showRaw ? 'Vorschau' : 'Rohtext'}
-          </button>
-        </div>
+        {/* The diff replaces the body while it is active, so its label and the
+            raw/preview toggle would head an empty box. */}
+        {variant !== 'diff' && (
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="muted">
+              {variant === 'optimized'
+                ? `Optimierte Fassung${pickedVersion ? ` (v${pickedVersion})` : ''}`
+                : 'Inhalt'}
+            </span>
+            <button className="chip" onClick={() => setShowRaw((v) => !v)}>
+              <Icon name={showRaw ? 'visibility' : 'code'} /> {showRaw ? 'Vorschau' : 'Rohtext'}
+            </button>
+          </div>
+        )}
 
-        <div className="detail-scroll">
-          <div
-            ref={contentRef}
-            style={{ userSelect: 'text', cursor: 'text' }}
-            title="Doppelklick zum Bearbeiten"
-            onDoubleClick={() => onEdit(prompt)}
-          >
-            {/* The diff view above replaces the body while it is active. */}
-            {variant === 'diff' ? null : showRaw ? (
+        {/* Stays mounted even in diff view: Cmd/Ctrl+A scopes the selection to
+            this node, and without it select-all would grab the page behind. */}
+        <div
+          ref={contentRef}
+          style={{ userSelect: 'text', cursor: 'text' }}
+          title="Doppelklick zum Bearbeiten"
+          onDoubleClick={() => onEdit(prompt)}
+        >
+          {variant === 'diff' ? null : showRaw ? (
             <pre
               style={{
                 background: 'var(--md-surface-container-lowest)',
@@ -404,30 +466,39 @@ export function DetailSheet({
           )}
         </div>
 
-          {prompt.attachments.length > 0 && (
-            <div>
-              <span className="muted">Screenshots</span>
-              <div className="attach-grid" style={{ marginTop: 'var(--gap-2)' }}>
-                {prompt.attachments.map((a) => (
-                  <button
-                    className="attach-thumb attach-view"
-                    key={a.id}
-                    onClick={() => setLightbox(a.url)}
-                    title={a.name}
-                  >
-                    <img src={a.url} alt={a.name} loading="lazy" />
-                  </button>
-                ))}
-              </div>
+        {prompt.attachments.length > 0 && (
+          <div>
+            <span className="muted">Screenshots</span>
+            <div className="attach-grid" style={{ marginTop: 'var(--gap-2)' }}>
+              {prompt.attachments.map((a) => (
+                <button
+                  className="attach-thumb attach-view"
+                  key={a.id}
+                  onClick={() => setLightbox(a.url)}
+                  title={a.name}
+                >
+                  <img src={a.url} alt={a.name} loading="lazy" />
+                </button>
+              ))}
             </div>
-          )}
-
-          <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
-            <div>Erstellt: {fmt(prompt.created_at)}</div>
-            <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
-            <div>Gestartet: {fmt(prompt.ran_at)}</div>
           </div>
+        )}
+
+        <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
+          <div>Erstellt: {fmt(prompt.created_at)}</div>
+          <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
+          <div>Gestartet: {fmt(prompt.ran_at)}</div>
         </div>
+        </div>
+
+        {proposal && (
+          <DecisionBar
+            proposal={proposal}
+            busy={!!decidingOptimization}
+            onApply={() => onDecideOptimization?.(proposal, true)}
+            onDiscard={() => onDecideOptimization?.(proposal, false)}
+          />
+        )}
 
         <div className="row-end">
           <Button variant="danger" icon="delete" onClick={() => onDelete(prompt)}>

@@ -4,10 +4,14 @@
 // It owns no data — texts come from the prompt itself, the version list from
 // `useOptimizationHistory`. Which text the detail sheet renders is controlled
 // by the parent (`view`), so copy/select keep working on the visible variant.
+//
+// Deciding on a proposal is NOT here: that bar is pinned to the bottom of the
+// sheet (`DecisionBar`), because it must stay reachable while a long diff
+// scrolls past.
 import { useMemo } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { springs } from '../../lib/motion'
-import { pendingProposal } from '../../lib/optimization'
+import { succeededVersions } from '../../lib/optimization'
 import { useOptimizationHistory } from '../../state/queries'
 import type { Optimization, Prompt } from '../../lib/types'
 import { Icon } from '../ui'
@@ -52,9 +56,6 @@ export function OptimizationPanel({
   activeJob,
   onOpenVersion,
   selectedVersion,
-  onApply,
-  onDiscard,
-  deciding,
 }: {
   prompt: Prompt
   view: PromptVariant
@@ -66,16 +67,9 @@ export function OptimizationPanel({
   activeJob: Optimization | null
   onOpenVersion: (optimization: Optimization) => void
   selectedVersion: number | null
-  /** Take the proposal over into the prompt text / drop it. */
-  onApply: (optimization: Optimization) => void
-  onDiscard: (optimization: Optimization) => void
-  deciding: boolean
 }) {
   const { data: history } = useOptimizationHistory(prompt.id)
-  const versions = useMemo(
-    () => (history ?? []).filter((row) => row.status === 'succeeded'),
-    [history],
-  )
+  const versions = useMemo(() => succeededVersions(history), [history])
   const lastFailure = useMemo(
     () => (history ?? []).find((row) => row.status === 'failed') ?? null,
     [history],
@@ -84,8 +78,6 @@ export function OptimizationPanel({
     () => versions.find((row) => row.version === selectedVersion) ?? versions[0] ?? null,
     [versions, selectedVersion],
   )
-  // The proposal awaiting a decision (rule + reasoning in lib/optimization.ts).
-  const pending = useMemo(() => pendingProposal(prompt, versions), [prompt, versions])
 
   // Nothing yet: a single call to action (the button also lives on the card).
   if (!prompt.optimized && !busy) {
@@ -162,44 +154,13 @@ export function OptimizationPanel({
             ))}
           </div>
 
-          <AnimatePresence initial={false}>
-            {view === 'diff' && shown && (
-              <motion.div
-                key="diff"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={springs.spatialFast}
-                style={{ overflow: 'hidden' }}
-              >
-                <DiffView original={shown.original_text} optimized={shown.optimized_text ?? ''} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {pending && (
-            <div className="opt-decide">
-              <p className="opt-decide-text">
-                <Icon name="rule" />
-                Vorschlag prüfen: Der Prompt-Text ist unverändert, bis du übernimmst.
-              </p>
-              <div className="opt-decide-actions">
-                <button
-                  className="btn btn--text"
-                  disabled={deciding}
-                  onClick={() => onDiscard(pending)}
-                >
-                  <Icon name="close" /> Verwerfen
-                </button>
-                <button
-                  className="btn btn--filled"
-                  disabled={deciding}
-                  onClick={() => onApply(pending)}
-                >
-                  <Icon name="check" /> Übernehmen
-                </button>
-              </div>
-            </div>
+          {/* Rendered plainly, NOT through AnimatePresence. Growing a
+              several-hundred-line block from height 0 is a long reflow nobody
+              asked for, and it made the diff measure as zero-height in the
+              commit the history arrives in — which is exactly the commit the
+              sheet uses to scroll the review into view. */}
+          {view === 'diff' && shown && (
+            <DiffView original={shown.original_text} optimized={shown.optimized_text ?? ''} />
           )}
 
           {versions.length > 0 && (

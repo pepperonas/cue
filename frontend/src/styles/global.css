@@ -748,8 +748,11 @@ a {
   gap: var(--gap-4);
 }
 
-/* Detail sheet: header / status / copy / footer stay put; only the prompt
-   content scrolls (the whole sheet no longer scrolls as one block). */
+/* Detail sheet: the header and the footer (decision bar + actions) stay put,
+   everything between them scrolls as one region. Keep the pinned parts SMALL
+   and bounded — a tall element up here is clipped with no way to reach it,
+   which is exactly what happened when the optimization panel lived outside
+   `.detail-scroll`. */
 .sheet--detail {
   overflow: hidden;
 }
@@ -867,8 +870,11 @@ a {
   gap: var(--gap-3);
   align-items: center;
 }
+/* Wraps rather than squeezing: on a phone the detail sheet's four actions were
+   compressed past their label width, so the icons sat on top of the text. */
 .row-end {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--gap-2);
   justify-content: flex-end;
 }
@@ -2806,8 +2812,9 @@ img.logo-xl { border-radius: 18px; }
 }
 
 /* Decision bar: a finished optimization is a PROPOSAL, and this is where it is
-   accepted or dropped. Sits directly under the diff, because that is what the
-   decision is made from. */
+   accepted or dropped. PINNED below the scroll region, not under the diff —
+   a diff is hundreds of lines, and the one action the sheet was opened for
+   must not scroll out of reach. */
 .opt-decide {
   display: flex;
   flex-wrap: wrap;
@@ -2816,7 +2823,7 @@ img.logo-xl { border-radius: 18px; }
   gap: var(--gap-2);
   padding: 10px 12px;
   border-radius: var(--shape-m);
-  background: color-mix(in srgb, var(--md-primary) 10%, var(--md-surface-container-high));
+  background: color-mix(in srgb, var(--md-primary) 12%, var(--md-surface-container-high));
   border: 1px solid color-mix(in srgb, var(--md-primary) 35%, transparent);
 }
 .opt-decide-text {
@@ -2824,8 +2831,12 @@ img.logo-xl { border-radius: 18px; }
   align-items: center;
   gap: 6px;
   margin: 0;
+  min-width: 0;
   font: var(--label-m);
   color: var(--md-on-surface);
+}
+.opt-decide-text b {
+  color: var(--md-primary);
 }
 .opt-decide-text .material-symbols-rounded {
   font-size: 18px;
@@ -2835,6 +2846,18 @@ img.logo-xl { border-radius: 18px; }
   display: inline-flex;
   gap: var(--gap-2);
   margin-left: auto;
+}
+/* Narrow sheets: the reassurance is nice-to-have, the two buttons are not. */
+@media (max-width: 560px) {
+  .opt-decide-note {
+    display: none;
+  }
+  .opt-decide-actions {
+    width: 100%;
+  }
+  .opt-decide-actions .btn {
+    flex: 1;
+  }
 }
 /* Applied / discarded marker on the history chips. */
 .opt-version-mark {
@@ -2936,11 +2959,14 @@ img.logo-xl { border-radius: 18px; }
 .diff-toggle .material-symbols-rounded {
   font-size: 16px;
 }
+/* No height cap and no scroller of its own: the diff scrolls with the sheet.
+   The cap existed to keep the decision buttons below it reachable — they are
+   pinned now, so a second scrollbar right next to the sheet's own would only
+   split one movement into two. Lines wrap (`.diff-text`), so nothing runs off
+   sideways either. */
 .diff-body {
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--shape-s);
-  overflow: auto;
-  max-height: 420px;
   background: var(--md-surface-container-lowest);
 }
 .diff-row {

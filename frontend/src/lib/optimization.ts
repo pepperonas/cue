@@ -2,6 +2,15 @@
 import type { Optimization, Prompt } from './types'
 
 /**
+ * The versions worth showing: a job that failed or was canceled produced no
+ * text, so it is history, not a version. Shared by the panel and the pinned
+ * decision bar so both look at exactly the same list.
+ */
+export function succeededVersions(history: Optimization[] | undefined): Optimization[] {
+  return (history ?? []).filter((row) => row.status === 'succeeded')
+}
+
+/**
  * The proposal awaiting a decision, or null.
  *
  * Two conditions, and the first one is the important one: `prompt.optimized`

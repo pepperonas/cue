@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { pendingProposal } from './optimization'
+import { pendingProposal, succeededVersions } from './optimization'
 import type { Optimization } from './types'
 
-function version(v: number, decision: Optimization['decision']): Optimization {
+function version(
+  v: number,
+  decision: Optimization['decision'],
+  status: Optimization['status'] = 'succeeded',
+): Optimization {
   return {
     id: v,
     prompt_id: 1,
     batch_id: null,
     version: v,
-    status: 'succeeded',
+    status,
     provider: 'claude_cli',
     model: 'claude',
     meta_prompt_version: 3,
@@ -71,5 +75,45 @@ describe('pendingProposal with a superseded version', () => {
     expect(
       pendingProposal({ optimized: true }, [version(2, 'applied'), version(1, 'superseded')]),
     ).toBeNull()
+  })
+})
+
+describe('succeededVersions', () => {
+  it('keeps only the attempts that actually produced a text', () => {
+    const kept = succeededVersions([
+      version(3, 'pending', 'running'),
+      version(2, 'pending'),
+      version(1, 'pending', 'failed'),
+      version(0, 'pending', 'canceled'),
+    ])
+    expect(kept.map((row) => row.version)).toEqual([2])
+  })
+
+  it('preserves the order it was given (newest first)', () => {
+    const kept = succeededVersions([version(3, 'applied'), version(2, 'discarded'), version(1, 'applied')])
+    expect(kept.map((row) => row.version)).toEqual([3, 2, 1])
+  })
+
+  it('treats a missing history as empty', () => {
+    expect(succeededVersions(undefined)).toEqual([])
+  })
+})
+
+describe('succeededVersions feeding pendingProposal', () => {
+  // The two are always used together — the panel renders the diff from this
+  // list and the pinned decision bar reads the same one, so they can never
+  // disagree about what is being applied.
+  it('never offers a failed attempt for review', () => {
+    // A failed job carries decision 'pending' (nobody decided it) and no text.
+    // Unfiltered it would raise a decision bar whose "Übernehmen" writes null
+    // over the prompt.
+    const history = [version(2, 'pending', 'failed'), version(1, 'applied')]
+    expect(pendingProposal({ optimized: true }, succeededVersions(history))).toBeNull()
+  })
+
+  it('still offers the genuine proposal when a later attempt failed', () => {
+    const history = [version(3, 'pending', 'failed'), version(2, 'pending'), version(1, 'applied')]
+    const found = pendingProposal({ optimized: true }, succeededVersions(history))
+    expect(found?.version).toBe(2)
   })
 })
