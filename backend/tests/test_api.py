@@ -1387,6 +1387,27 @@ def test_spa_serves_real_static_files(spa_client):
     assert r2.status_code == 200 and r2.text == "<svg/>"
 
 
+def test_hashed_assets_are_cached_forever(spa_client):
+    """Vite content-hashes /assets, so those files never change under a name."""
+    r = spa_client.get("/assets/app.js")
+    assert r.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+
+
+def test_the_shell_and_the_pwa_control_files_must_be_revalidated(spa_client):
+    """The bug this exists for: with no Cache-Control at all, browsers fall back
+    to HEURISTIC freshness and keep serving a shell whose hashed chunks the next
+    deploy already deleted — 404s on index-*.js / StatsView-*.js. An ETag does
+    not save it; a heuristically fresh response is never revalidated."""
+    for path in ("/", "/board", "/sw.js", "/manifest.webmanifest", "/boot.js", "/logo.svg"):
+        assert spa_client.get(path).headers.get("Cache-Control") == "no-cache", path
+
+
+def test_api_responses_keep_their_own_caching_rules(spa_client):
+    """The static policy must not leak onto the API (it would be the wrong one,
+    and those responses carry no freshness information anyway)."""
+    assert "Cache-Control" not in spa_client.get("/api/health").headers
+
+
 def test_spa_path_traversal_guard(spa_client):
     """Escaping the static dir must never serve files from outside it."""
     for path in ("/%2e%2e/secret.txt", "/..%2Fsecret.txt", "/assets/%2e%2e/%2e%2e/secret.txt"):

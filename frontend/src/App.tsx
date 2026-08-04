@@ -6,6 +6,7 @@ import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
 import { countOpenByProject } from './lib/board-groups'
 import { bookmarkedPrompts, filterPrompts } from './lib/filter'
+import { withChunkRecovery } from './lib/lazy-chunk'
 import { columnComparator } from './lib/order'
 import {
   BOARD_COLUMNS,
@@ -69,8 +70,10 @@ import { TopBar, type View } from './components/TopBar'
 import { Footer, Icon } from './components/ui'
 
 // The statistics dashboard pulls in Recharts — lazy-loaded so the chart
-// library only reaches the browser when the tab is actually opened.
-const StatsView = lazy(() => import('./components/stats/StatsView'))
+// library only reaches the browser when the tab is actually opened. Wrapped
+// because a deploy deletes the chunk this tab was told to ask for (see
+// lib/lazy-chunk.ts).
+const StatsView = lazy(withChunkRecovery('stats', () => import('./components/stats/StatsView')))
 
 export default function App() {
   const [me, setMe] = useState<Me | null | 'loading'>('loading')

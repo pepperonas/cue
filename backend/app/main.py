@@ -84,7 +84,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.37.0",
+    version="0.37.1",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -115,6 +115,34 @@ def _csp() -> str:
     )
 
 
+def cache_control_for(path: str) -> str | None:
+    """Caching policy for the static frontend, or None to leave a response alone.
+
+    Two classes, and the split is what keeps a deploy from breaking open
+    browsers. Vite content-hashes everything it emits into /assets, so those
+    files never change under their name and may be kept forever. EVERYTHING
+    else — the HTML shell above all, plus the service worker, the PWA manifest
+    and the pre-paint boot script — must be revalidated, because a deploy
+    replaces the shell and deletes the hashed chunks the previous one pointed
+    at.
+
+    Without this the responses carried no `Cache-Control` at all, so browsers
+    fell back to HEURISTIC freshness (a fraction of the age since
+    `Last-Modified`) and served a shell that referenced chunks the deploy had
+    already removed: 404s on `index-*.js` / `StatsView-*.js`, and a stylesheet
+    refused because the 404 body came back as JSON. An ETag alone does not help
+    — a fresh-by-heuristic response is not revalidated at all.
+
+    API responses are deliberately untouched (they carry no freshness
+    information, so they are revalidated anyway).
+    """
+    if path.startswith("/api"):
+        return None
+    if path.startswith("/assets/"):
+        return "public, max-age=31536000, immutable"
+    return "no-cache"
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):  # noqa: ANN001, ANN201
     response: Response = await call_next(request)
@@ -124,6 +152,9 @@ async def security_headers(request: Request, call_next):  # noqa: ANN001, ANN201
     response.headers["Content-Security-Policy"] = _csp()
     # microphone=(self): voice dictation in the Composer (Web Speech API).
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
+    policy = cache_control_for(request.url.path)
+    if policy and "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = policy
     return response
 
 
