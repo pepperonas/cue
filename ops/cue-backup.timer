@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily cue backup
+
+[Timer]
+# 03:50 — after the other nightly backups on this host (03:00–03:45), so they
+# do not compete for disk I/O.
+OnCalendar=*-*-* 03:50:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

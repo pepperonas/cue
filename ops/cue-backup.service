@@ -1,0 +1,10 @@
+[Unit]
+Description=cue SQLite + attachments backup
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/cue-backup.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cue-backup
