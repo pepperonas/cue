@@ -74,6 +74,19 @@ function pytestCoverage(cwd, cmd, args, covTarget) {
   return Number(m[1])
 }
 
+/** Coverage of the pure lib modules only. Components and hooks are
+ *  deliberately untested (see CLAUDE.md), so measuring all of src/ would
+ *  report a number nobody intends to raise. */
+function vitestCoverage() {
+  const out = run('frontend', 'pnpm', [
+    '-s', 'vitest', 'run', '--coverage',
+    '--coverage.include=src/lib/**', '--coverage.reporter=text',
+  ])
+  const m = out.match(/^All files\s*\|\s*([\d.]+)/m)
+  if (!m) throw new Error(`Could not parse vitest coverage summary:\n${out.slice(-400)}`)
+  return Math.round(Number(m[1]))
+}
+
 function vitestCount() {
   const out = run('frontend', 'pnpm', ['-s', 'vitest', 'list'])
   const count = out.split('\n').filter((line) => line.trim() !== '').length
@@ -116,14 +129,21 @@ const frontendTests = vitestCount()
 const totalTests = backendTests + runnerTests + frontendTests
 const backendCov = pytestCoverage('backend', 'uv', ['run', 'pytest'], 'app')
 const runnerCov = pytestCoverage('cue-runner', '.venv/bin/python', ['-m', 'pytest'], 'cue_runner')
+const frontendCov = vitestCoverage()
 const loc = SOURCE_ROOTS.reduce(
   (t, dir) => countLoc(join(ROOT, dir), t),
   { total: 0, python: 0, typescript: 0 },
 )
 const endpoints = endpointCount()
 
+// shields.io reads `<label>-<message>-<color>`, so a literal hyphen inside a
+// label or value splits the badge apart and the URL 404s. It has to be doubled
+// BEFORE encoding (`encodeURIComponent` leaves hyphens alone). Escaping here
+// means no future badge can trip over it.
+const shieldEscape = (text) => String(text).replace(/-/g, '--')
+
 const badge = (label, value, color, link = '#') =>
-  `[![${label}](https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(value)}-${color}.svg)](${link})`
+  `[![${label}](https://img.shields.io/badge/${encodeURIComponent(shieldEscape(label))}-${encodeURIComponent(shieldEscape(value))}-${color}.svg)](${link})`
 
 const dynamicBlock = [
   '<!-- badges:dynamic -->',
@@ -137,6 +157,7 @@ const dynamicBlock = [
   [
     badge('coverage backend', `${backendCov}%`, covColor(backendCov), 'backend/tests/'),
     badge('coverage runner', `${runnerCov}%`, covColor(runnerCov), 'cue-runner/tests/'),
+    badge('coverage frontend-lib', `${frontendCov}%`, covColor(frontendCov), 'frontend/src/lib/'),
     badge('LOC', String(loc.total), 'blue'),
     badge('Python LOC', String(loc.python), '3776AB'),
     badge('TypeScript LOC', String(loc.typescript), '3178C6'),
@@ -158,7 +179,7 @@ if (updated !== readme) {
   writeFileSync(readmePath, updated)
   console.log(
     `README badges updated: v${version}, ${totalTests} tests (be ${backendTests} / run ${runnerTests} / fe ${frontendTests}), ` +
-    `cov be ${backendCov}% / run ${runnerCov}%, ${loc.total} LOC (py ${loc.python} / ts ${loc.typescript}), ${endpoints} endpoints`,
+    `cov be ${backendCov}% / run ${runnerCov}% / fe-lib ${frontendCov}%, ${loc.total} LOC (py ${loc.python} / ts ${loc.typescript}), ${endpoints} endpoints`,
   )
 } else {
   console.log(`README badges already current: v${version}, ${totalTests} tests, ${loc.total} LOC`)

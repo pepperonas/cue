@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   clearChunkRecovery,
+  browserChunkEnv,
   recoverFromMissingChunk,
   withChunkRecovery,
   type ChunkEnv,
@@ -101,5 +102,23 @@ describe('withChunkRecovery', () => {
     void load()
     await Promise.resolve()
     expect(e.reloads).toBe(2)
+  })
+})
+
+describe('browserChunkEnv', () => {
+  it('reads and writes through sessionStorage', () => {
+    const env = browserChunkEnv()
+    env.setItem('cue-test-key', 'x')
+    expect(sessionStorage.getItem('cue-test-key')).toBe('x')
+    expect(env.getItem('cue-test-key')).toBe('x')
+    env.removeItem('cue-test-key')
+    expect(env.getItem('cue-test-key')).toBeNull()
+    expect(sessionStorage.getItem('cue-test-key')).toBeNull()
+  })
+
+  it('offers a reload without performing one on construction', () => {
+    // Building the env must be free of side effects — it is created on every
+    // wrapped import, long before anything has failed.
+    expect(typeof browserChunkEnv().reload).toBe('function')
   })
 })

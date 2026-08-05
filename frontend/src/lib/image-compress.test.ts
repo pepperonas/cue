@@ -205,3 +205,15 @@ describe('compressImage', () => {
     expect(stub.asked[0].quality).toBe(0.6)
   })
 })
+
+describe('compressImage without a drawing context', () => {
+  it('keeps the original when the canvas hands back no 2D context', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({ width: 800, height: 600, close: vi.fn() })),
+    )
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    const original = file('shot.png', 'image/png', 5_000)
+    expect(await compressImage(original)).toBe(original)
+  })
+})

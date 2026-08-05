@@ -11,15 +11,10 @@ import { useToast } from '../state/toast'
 import { mergeSuggestionPool, normalizeTags, type TagSuggestion } from '../lib/tags'
 import { useDictation } from '../lib/speech'
 import { compressImage } from '../lib/image-compress'
+import { formatBytes } from '../lib/format'
 import { Button, Icon, IconButton } from './ui'
 import { TagInput } from './TagInput'
 import { useBackDismiss } from '../state/overlays'
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const kb = bytes / 1024
-  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1).replace('.', ',')} MB`
-}
 
 const DRAFT_KEY = 'cue-draft'
 const LAST_PROJECT_KEY = 'cue-last-project'
