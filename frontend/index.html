@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content: the on-screen keyboard shrinks the
+         layout viewport instead of sliding over it, so `dvh` sizing keeps a
+         dialog's action buttons above the keys. iOS ignores the hint — there
+         `lib/viewport.ts` does the same job from the visualViewport API. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="theme-color" content="#6750A4" />
     <meta
       name="description"

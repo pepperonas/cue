@@ -715,6 +715,13 @@ a {
 .scrim {
   position: fixed;
   inset: 0;
+  /* Sized to what is actually VISIBLE, not to the layout viewport: with a
+     keyboard open those differ by ~300 px, and everything inside here is
+     measured against this box. `lib/viewport.ts` sets the two variables and
+     removes them again when there is nothing to correct, so the default below
+     is what desktop and every keyboard-less state use. */
+  top: var(--vv-top, 0);
+  height: var(--vvh, 100dvh);
   background: rgba(0, 0, 0, 0.5);
   z-index: 40;
   display: grid;
@@ -740,7 +747,7 @@ a {
   border-radius: var(--shape-2xl);
   padding: var(--gap-5);
   width: min(720px, 100%);
-  max-height: 88vh;
+  max-height: 88dvh;
   overflow: auto;
   box-shadow: var(--elev-3);
   display: flex;
@@ -767,6 +774,13 @@ a {
   flex-direction: column;
   gap: var(--gap-4);
 }
+/* Each block keeps its natural height and the wrapper scrolls, exactly as in
+   the composer. Without this a flex column squeezes its children to fit: the
+   status chips collapsed to 2 px tall the moment they stopped wrapping, which
+   is a shrinkable height instead of a fixed one. */
+.detail-scroll > * {
+  flex-shrink: 0;
+}
 
 /* Composer: header + action row stay fixed; only the form fields scroll. */
 .sheet--composer {
@@ -786,6 +800,14 @@ a {
 /* Keep each field at its natural height; the wrapper scrolls instead of squishing. */
 .composer-scroll > * {
   flex-shrink: 0;
+}
+
+/* Status picker in the detail sheet. */
+.detail-status {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
 }
 
 /* ---- Form fields ---- */
@@ -822,6 +844,20 @@ a {
   resize: vertical;
   min-height: 240px;
   line-height: 1.5;
+}
+
+/* iOS Safari zooms the page in whenever a focused field is under 16 px, and
+   does NOT zoom back out afterwards — the whole app stays magnified and
+   sideways-scrollable until you pinch it back. The prompt textarea measured
+   13.6 px, so tapping the main field of the main dialog did exactly that.
+   Only on touch: the smaller monospace type is deliberate on a desktop. */
+@media (pointer: coarse) {
+  .textarea {
+    font-size: 16px;
+    /* A 240 px floor plus a pinned header and action row leaves little room to
+       scroll on a short screen; the field still grows with its content. */
+    min-height: 180px;
+  }
 }
 
 /* ---- Tag autocomplete ---- */
@@ -1620,8 +1656,58 @@ kbd {
     border-inline: 0;
     padding-inline: 0;
   }
-  .sheet {
+  /* ---- Dialogs become bottom sheets ----
+     A centred card on a phone pays twice: it gives up a margin on all four
+     sides, and what is left has to hold a pinned header, a pinned action row
+     and the content. Anchoring to the bottom edge instead buys the height
+     back, puts the actions under the thumb, and is what every native surface
+     on this screen size does. One rule for all nine overlays, because they all
+     sit in `.scrim`. */
+  .scrim {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .sheet,
+  .dialog {
+    width: 100%;
+    max-width: none;
+    max-height: 94%;
     padding: var(--gap-4);
+    /* Rounded where it meets the page, square where it meets the screen edge. */
+    border-radius: var(--shape-2xl) var(--shape-2xl) 0 0;
+    /* Clear the home indicator; zero on anything without one. */
+    padding-bottom: calc(var(--gap-4) + env(safe-area-inset-bottom, 0px));
+    /* Entering from the bottom edge rather than growing out of the middle. */
+    animation: sheet-up var(--dur-short) var(--ease-emphasized);
+  }
+
+  /* Five status chips wrapped onto three lines took 136 px of a 511 px scroll
+     area — together with the badges and the copy button, the prompt you opened
+     the sheet to read started below the fold. One scrollable line instead,
+     same pattern as the project filter chips. */
+  .detail-status {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .detail-status::-webkit-scrollbar {
+    display: none;
+  }
+  .detail-status .chip {
+    flex: none;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(12%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 

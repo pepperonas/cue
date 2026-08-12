@@ -4,6 +4,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import App from './App'
+import { installViewportVars } from './lib/viewport'
 import { OverlayStackProvider } from './state/overlays'
 import { SettingsProvider } from './state/settings'
 import { ToastProvider } from './state/toast'
@@ -19,6 +20,9 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Dialogs size themselves from the area the on-screen keyboard leaves over.
+installViewportVars()
 
 // Persist the cache so the last data is readable offline (PWA).
 const persister = createSyncStoragePersister({ storage: window.localStorage, key: 'cue-cache' })

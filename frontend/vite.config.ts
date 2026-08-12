@@ -2,7 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// FastAPI dev server runs on :8000; proxy /api there during dev.
+// FastAPI dev server runs on :8000; proxy /api there during dev. Override with
+// CUE_API_TARGET when that port is already taken by something else.
+const apiTarget = process.env.CUE_API_TARGET || 'http://127.0.0.1:8000'
 export default defineConfig({
   plugins: [
     react(),
@@ -34,7 +36,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
+      '/api': { target: apiTarget, changeOrigin: false },
     },
   },
   build: {

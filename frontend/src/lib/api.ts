@@ -33,6 +33,7 @@ import type {
   TagSort,
   TagUsage,
 } from './types'
+import type { ChangeFeed } from './live-sync'
 
 function csrfToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)cue_csrf=([^;]+)/)
@@ -58,9 +59,14 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const headers: Record<string, string> = {}
-  const opts: RequestInit = { method, credentials: 'same-origin', headers }
+  const opts: RequestInit = { method, credentials: 'same-origin', headers, signal }
 
   if (method !== 'GET' && method !== 'HEAD') {
     headers['X-CSRF-Token'] = csrfToken()
@@ -86,6 +92,18 @@ export const api = {
   me: () => request<Me>('GET', '/auth/me'),
   googleLoginUrl: '/api/auth/google/login',
   logout: () => request<{ ok: boolean }>('POST', '/auth/logout'),
+
+  /** Long-polled change feed for cross-device live updates.
+   *
+   *  Not routed through `request()` on purpose: this one request is parked for
+   *  up to `wait` seconds and has to be abortable, so the caller can drop it
+   *  the moment the tab is hidden or the component goes away. Without `since`
+   *  it returns the current cursor at once and reports nothing as changed. */
+  changes: (since: string | null, wait: number, signal?: AbortSignal) => {
+    const qs = new URLSearchParams({ wait: String(wait) })
+    if (since) qs.set('since', since)
+    return request<ChangeFeed>('GET', `/changes?${qs.toString()}`, undefined, signal)
+  },
 
   // Admin: user approval (owner-only)
   adminListUsers: () => request<AdminUser[]>('GET', '/admin/users'),

@@ -363,7 +363,7 @@ export function DetailSheet({
           </span>
         </div>
 
-        <div className="row" style={{ gap: 'var(--gap-2)', flexWrap: 'wrap' }}>
+        <div className="detail-status">
           {STATUSES.map((s) => (
             <button
               key={s}

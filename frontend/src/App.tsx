@@ -44,6 +44,7 @@ import {
   useStartOptimizeBatch,
   useUpdatePrompt,
 } from './state/queries'
+import { useLiveSync } from './state/live-sync'
 import { useCloseTopOverlay } from './state/overlays'
 import { useSettings } from './state/settings'
 import { useToast } from './state/toast'
@@ -84,6 +85,11 @@ export default function App() {
       .then((m) => setMe(m))
       .catch(() => setMe(null))
   }, [])
+
+  // Keeps this device in step with every other one on the account. Mounted
+  // above the auth branches so it survives every view switch; it only starts
+  // polling once there is a session to poll for.
+  useLiveSync(me !== 'loading' && !!me?.authenticated && !!me?.approved)
 
   if (me === 'loading') {
     return (

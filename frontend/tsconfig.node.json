@@ -1,6 +1,14 @@
 {
   "compilerOptions": {
     "composite": true,
+    // Emit OUT of the source tree. A composite project has to emit (noEmit is
+    // rejected with composite), and without an outDir `tsc -b` dropped a
+    // compiled `vite.config.js` right next to `vite.config.ts` — which Vite
+    // then loads INSTEAD, because .js comes before .ts in its lookup order.
+    // Every later edit to vite.config.ts was silently ignored by dev server
+    // and build alike; it only stayed harmless because the two happened not to
+    // drift apart.
+    "outDir": "./node_modules/.tmp/tsconfig-node",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

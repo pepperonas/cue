@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0] - 2026-08-12
+
+### Added
+- **Live-Aktualisierung zwischen Geräten.** Was auf dem Telefon entsteht,
+  erscheint am Rechner ohne Neuladen — und umgekehrt. Jeder Browser hält dafür
+  genau eine Anfrage offen (`GET /api/changes`), die antwortet, sobald sich
+  etwas ändert, und bis dahin nichts kostet; gemessene Verzögerung 0,18 s. Der
+  Cursor ist ein Fingerabdruck der Daten, kein mitgeführter Zähler: es gibt
+  keinen Schreibpfad, den man vergessen kann. Im Hintergrund ruht die
+  Schleife und holt beim Zurückkehren in einer Anfrage auf.
+
+### Changed
+- **Dialoge auf dem Telefon sind Bottom-Sheets.** Volle Breite, an der
+  Unterkante verankert, oben abgerundet, Safe-Area berücksichtigt — eine Regel
+  für alle neun Overlays. Der Composer gewinnt 50 px Inhalt, die Detailansicht
+  94 px, weil die fünf Status-Chips statt über drei Zeilen in einer
+  scrollbaren Reihe stehen.
+
+### Fixed
+- **Die Tastatur verdeckt die Knöpfe nicht mehr.** Mit einer 290-px-Tastatur
+  lag „Anlegen" bisher 234 px hinter den Tasten. Android bekommt
+  `interactive-widget=resizes-content`, iOS die `visualViewport`-Messung —
+  beide Wege nachgestellt und verifiziert.
+- **Kein Hineinzoomen auf iOS mehr.** Das Prompt-Feld maß 13,6 px; Safari
+  zoomt unter 16 px die ganze Seite hinein und nicht wieder heraus.
+- **Status-Chips klappten auf 2 px zusammen**, sobald sie nicht mehr umbrachen:
+  dem Detail-Sheet fehlte die `flex-shrink: 0`-Regel, die der Composer hat.
+- **`tsc -b` legte ein kompiliertes `vite.config.js` neben die `.ts`-Datei**,
+  das Vite bevorzugt lädt — seit einem Monat wurde jede Änderung an der
+  Vite-Konfiguration still ignoriert.
+
+
 ## [0.36.0] - 2026-07-31
 
 ### Added
