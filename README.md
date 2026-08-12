@@ -4,16 +4,16 @@
 
 <!-- badges:dynamic -->
 [![version](https://img.shields.io/badge/version-0.39.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-704%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-345-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-737%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-352-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-114-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-245-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-271-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![LOC](https://img.shields.io/badge/LOC-26104-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-26152-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-8672-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-13922-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-13970-3178C6.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-91-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
 
@@ -83,6 +83,8 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **An CLI-Session senden** (Gegenrichtung, owner-only): einen Prompt aus cue direkt in eine **laufende** Claude-Code-Session tippen — nur einfügen oder gleich ausführen. Über den Mac-Runner via iTerm2 (AppleScript) bzw. tmux (bracketed paste); der Capture-Hook liefert den Terminal-Kontext.
 - **Zentrale Tag-Verwaltung**: Tags sind eine eigene Entität mit ID statt bloßer Textliste — eigener **Tags-Tab** mit Suche, Sortierung (Verwendung/Name/Neueste/Zuletzt genutzt), Verwendungszähler, Herkunft (System/Benutzer) und Anlagedatum. **Umbenennen wirkt global** (alle Prompts ziehen automatisch nach; ein bereits existierender Name führt beide Tags zusammen, ohne Duplikate), **Löschen** zeigt vorher, welche Prompts betroffen sind, und bietet an, den Tag durch einen anderen zu **ersetzen** statt ihn ersatzlos zu entfernen. Neu angelegte Tags stehen sofort projekt- und promptübergreifend im **Autocomplete**, das nach Relevanz sortiert (exakt → Präfix → Wortanfang → Teiltreffer, dann Häufigkeit und letzte Nutzung) und Verwendungszahl bzw. Herkunft direkt anzeigt. Groß-/Kleinschreibung und Leerzeichen werden serverseitig normalisiert, bestehende Tags wurden automatisch migriert. **Bug-Tags priorisieren**: ein neuer Prompt mit Tag `bug` / `bugfix` / `bug-…` landet **oben in der Queued-Spalte** (nur beim Anlegen).
 - **Mobile-Board**: auf dem Smartphone werden die Status-Bereiche zu **einklappbaren Sektionen**, deren Karten nach **Projekt gruppiert** sind — eingeklappt bleiben Projektname, Farbe und Kartenanzahl sichtbar, lange Spalten starten zusammengeklappt und der Zustand hält die Sitzung über. Dazu: Projektfilter als eine scrollbare Zeile statt sechs, 40-px-Touch-Ziele, kompaktere Karten.
+- **Live-Aktualisierung zwischen Geräten**: was auf dem Telefon entsteht, erscheint am Rechner ohne Neuladen — und umgekehrt. Jeder Browser hält dafür genau **eine** Anfrage offen, die antwortet, sobald sich etwas ändert (gemessen: 0,18 s), und bis dahin nichts kostet. Aktualisiert wird nur, was die Änderung wirklich betrifft. Im Hintergrund ruht die Schleife und holt beim Zurückkehren in einer einzigen Anfrage auf.
+- **Dialoge auf dem Telefon** sind **Bottom-Sheets**: volle Breite, an der Unterkante verankert, oben abgerundet, Safe-Area berücksichtigt. **Die Tastatur verdeckt die Knöpfe nicht mehr** — die Dialoge messen den tatsächlich sichtbaren Bereich (Android über den Viewport-Hinweis, iOS über `visualViewport`), und Eingabefelder lösen kein Hineinzoomen auf iOS mehr aus.
 - **Zurück-Geste schließt Dialoge** statt die App: jedes Overlay registriert sich in einem History-Stack, verschachtelte Dialoge werden nacheinander abgebaut, und erst der leere Stack verlässt die App. Escape nutzt exakt dieselbe Reihenfolge.
 - **Touch-Drag & Drop**: Karten lassen sich per Long-Press ziehen, ein normaler Wisch scrollt weiterhin (vorher startete jede Fingerbewegung über einer Karte einen Drag). Inklusive Auto-Scroll am Rand, Haptik beim Aufnehmen, sauberem Abbruch per Escape und Tastatur-Bedienung.
 - **KI-Prompt-Optimierung**: ✨-Button auf jeder Karte/Zeile schreibt den Prompt per **Claude Code CLI** um (Meta-Prompt für Struktur, Rollenklarheit, Ausgabeformate). Das **Original bleibt immer erhalten** — die optimierte Fassung liegt daneben, umschaltbar über **Original / Optimierte Version / Unterschiede** mit **GitHub-artigem Diff** (grün/rot, wortgenau). Eine fertige Optimierung ist ein **Vorschlag**: sie **öffnet sich von selbst in der Diff-Ansicht**, unter dem Diff stehen **Übernehmen** und **Verwerfen** — nach dem Übernehmen schließt sich der Dialog und die Karte zeigt sofort den neuen Text. Optimierst du erneut, ohne entschieden zu haben, wird die ältere Fassung als **ersetzt** markiert (nachlesbar, aber nicht mehr übernehmbar) — es ist immer nur ein Vorschlag offen — erst Übernehmen schreibt den Text in den Prompt, Verworfenes bleibt in der Historie nachlesbar. **Bookmarks werden universell optimiert**: projektgebundene Angaben (Pfade, Modul-/Repo-/Projektnamen, Framework) werden zu Platzhaltern, während alles, was dem Autor gehört und überall gleich ist (eigene Links, Konten, Marken- und Produktnamen), unverändert stehen bleibt — das Ergebnis passt so in jedes Projekt. **Erneut optimieren** schickt Original *und* letzte Fassung an Claude und legt eine neue Version an; ältere Versionen bleiben über die Historie (v1, v2, …) abrufbar, inklusive Modell, Dauer, Kosten und Tokens. **„Alle optimieren"** arbeitet alle noch nicht optimierten Prompts **nacheinander** ab (Fortschrittsanzeige „12 / 143", Abbrechen, fehlerhafte werden übersprungen und am Ende gezählt). Ausgeführt wird auf dem Mac-Runner — der Server ruft nie eine Shell auf; Provider-Architektur, sodass später OpenAI/Gemini/Ollama ohne Änderung am Rest ergänzt werden können.
@@ -261,9 +263,9 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 ## Projektstruktur
 
 ```
-backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests (117, conftest.py)
+backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests (conftest.py)
 frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA, Vitest (src/lib)
-cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README, 65 Tests)
+cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
 scripts/    update-badges.mjs — LOC-/Test-Badges im README automatisch aktualisieren
 deploy/     Caddyfile + nginx.conf
 docs/       Screenshots
@@ -274,7 +276,9 @@ Dockerfile  Multi-Stage (node build → python runtime)
 ## Versionierung
 
 Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
-Aktuelle Version: **0.19.1**. Änderungen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
+Die aktuelle Version steht im Badge oben (Quelle: `backend/app/main.py`) — hier bewusst
+nicht wiederholt, damit sie nicht auseinanderlaufen kann. Änderungen sind im
+[CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Lizenz
 

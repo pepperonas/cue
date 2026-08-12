@@ -190,6 +190,111 @@ def test_a_captured_prompt_shows_up_in_the_history_marker(client):
     assert _poll(client, cursor).json()["changed"] == ["projects", "sessions"]
 
 
+def test_renaming_a_tag_moves_the_tag_marker(client):
+    """The rename rewrites the cached tag strings on every prompt, so the
+    client has to reload the prompts too — that mapping lives on the frontend
+    (`INVALIDATIONS`), which is why this only has to report the tag."""
+    csrf = _auth(client)
+    hdr = {"X-CSRF-Token": csrf}
+    client.post("/api/prompts", json={"body": "x", "tags": "feature"}, headers=hdr)
+    tag_id = client.get("/api/tags").json()["items"][0]["id"]
+
+    cursor = _cursor(client)
+    r = client.patch(f"/api/tags/{tag_id}", json={"name": "Feature"}, headers=hdr)
+    assert r.status_code == 200, r.text
+    assert "tags" in _poll(client, cursor).json()["changed"]
+
+
+def test_bookmarking_and_blocking_are_visible(client):
+    """Both are plain prompt edits — the point is that the flags travel too,
+    since the bookmarks tab on the other device is driven by them."""
+    csrf = _auth(client)
+    hdr = {"X-CSRF-Token": csrf}
+    pid = client.post("/api/prompts", json={"body": "merken"}, headers=hdr).json()["id"]
+
+    cursor = _cursor(client)
+    client.patch(f"/api/prompts/{pid}", json={"bookmarked": True}, headers=hdr)
+    assert _poll(client, cursor).json()["changed"] == ["prompts"]
+
+    cursor = _cursor(client)
+    client.patch(f"/api/prompts/{pid}", json={"blocked": True}, headers=hdr)
+    assert _poll(client, cursor).json()["changed"] == ["prompts"]
+
+
+def test_moving_a_prompt_to_another_project_is_visible(client):
+    csrf = _auth(client)
+    hdr = {"X-CSRF-Token": csrf}
+    proj = client.post("/api/projects", json={"name": "ziel"}, headers=hdr).json()
+    pid = client.post("/api/prompts", json={"body": "umziehen"}, headers=hdr).json()["id"]
+
+    cursor = _cursor(client)
+    client.patch(f"/api/prompts/{pid}", json={"project_id": proj["id"]}, headers=hdr)
+    assert _poll(client, cursor).json()["changed"] == ["prompts"]
+
+
+def test_deleting_a_snippet_and_renaming_its_group_are_visible(client):
+    csrf = _auth(client)
+    hdr = {"X-CSRF-Token": csrf}
+    group = client.post("/api/snippets/groups", json={"name": "alt"}, headers=hdr).json()
+    sid = client.post(
+        "/api/snippets", json={"abbreviation": ";x", "body": "y", "group_name": "alt"}, headers=hdr
+    ).json()["id"]
+
+    cursor = _cursor(client)
+    r = client.patch(f"/api/snippets/groups/{group['id']}", json={"name": "neu"}, headers=hdr)
+    assert r.status_code == 200, r.text
+    assert _poll(client, cursor).json()["changed"] == ["snippets"], "a group rename went unnoticed"
+
+    cursor = _cursor(client)
+    client.delete(f"/api/snippets/{sid}", headers=hdr)
+    assert _poll(client, cursor).json()["changed"] == ["snippets"]
+
+
+def test_merging_prompts_is_visible(client):
+    """One request that creates a row and deletes two others."""
+    csrf = _auth(client)
+    hdr = {"X-CSRF-Token": csrf}
+    a = client.post("/api/prompts", json={"body": "eins"}, headers=hdr).json()
+    b = client.post("/api/prompts", json={"body": "zwei"}, headers=hdr).json()
+
+    cursor = _cursor(client)
+    r = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [a["id"], b["id"]], "title": "beides", "body": "eins\n\nzwei"},
+        headers=hdr,
+    )
+    assert r.status_code in (200, 201), r.text
+    assert _poll(client, cursor).json()["changed"] == ["prompts"]
+
+
+def test_an_idle_tenant_produces_a_stable_cursor(client):
+    """Any jitter here — a timestamp read differently, a set iterated in a new
+    order — would make every client refetch everything, every second."""
+    _auth(client)
+    first = _cursor(client)
+    for _ in range(3):
+        assert _cursor(client) == first
+
+    from sqlmodel import Session, select
+
+    import app.db as db_module
+    from app import changes
+    from app.models import User
+
+    with Session(db_module.engine) as s:
+        uid = s.exec(select(User)).first().id
+        assert changes.fingerprint(s, uid) == changes.fingerprint(s, uid)
+
+
+def test_the_entity_names_are_the_wire_format(client):
+    """These strings are what the frontend maps to query keys. Renaming one
+    here stops those updates silently — the mirror of this assertion lives in
+    `frontend/src/lib/live-sync.test.ts`."""
+    from app import changes
+
+    assert sorted(changes.ENTITIES) == ["projects", "prompts", "sessions", "snippets", "tags"]
+
+
 # ------------------------------------------------------------------- tenancy
 
 

@@ -104,3 +104,37 @@ describe('multipart endpoints', () => {
     expect(fd.get('project_id')).toBe('3')
   })
 })
+
+describe('the change feed request', () => {
+  it('omits the cursor on the very first call', async () => {
+    // `since=` empty would decode to "no cursor" server-side anyway, but
+    // sending the parameter at all invites a client to send `null` as a string.
+    const calls = mockFetch(200, { cursor: 'c1', changed: [] })
+    await api.changes(null, 0)
+    expect(calls[0].url).toBe('/api/changes?wait=0')
+  })
+
+  it('encodes the cursor, which contains separators and spaces', async () => {
+    // A real cursor looks like `prompts:3.9.2026-08-12 16:39:11|projects:ab…`
+    const calls = mockFetch(200, { cursor: 'c2', changed: [] })
+    await api.changes('prompts:3.9.2026-08-12 16:39:11|projects:abc', 25)
+    const url = new URL(calls[0].url, 'http://x')
+    expect(url.searchParams.get('since')).toBe('prompts:3.9.2026-08-12 16:39:11|projects:abc')
+    expect(url.searchParams.get('wait')).toBe('25')
+    expect(calls[0].url).not.toContain(' ')
+  })
+
+  it('passes the abort signal through', async () => {
+    // Without it a hidden tab cannot drop its parked request.
+    const calls = mockFetch(200, { cursor: 'c1', changed: [] })
+    const controller = new AbortController()
+    await api.changes('c0', 25, controller.signal)
+    expect(calls[0].init.signal).toBe(controller.signal)
+  })
+
+  it('does not send a CSRF header (it is a GET)', async () => {
+    const calls = mockFetch(200, { cursor: 'c1', changed: [] })
+    await api.changes('c0', 25)
+    expect((calls[0].init.headers as Record<string, string>)['X-CSRF-Token']).toBeUndefined()
+  })
+})

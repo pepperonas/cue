@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   applyViewportVars,
   subscribeToViewport,
@@ -99,5 +99,80 @@ describe('applyViewportVars', () => {
     applyViewportVars(el, null)
     expect(el.props.has('--vvh')).toBe(false)
     expect(el.props.has('--vv-top')).toBe(false)
+  })
+})
+
+describe('installViewportVars', () => {
+  const withViewport = (vv: unknown, innerHeight = 844) => {
+    const listeners: Record<string, (() => void)[]> = {}
+    const target = vv as { addEventListener?: unknown }
+    if (target && typeof target === 'object') {
+      Object.assign(target, {
+        addEventListener: (type: string, fn: () => void) => {
+          ;(listeners[type] ??= []).push(fn)
+        },
+        removeEventListener: (type: string, fn: () => void) => {
+          listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn)
+        },
+      })
+    }
+    vi.stubGlobal('visualViewport', vv)
+    vi.stubGlobal('innerHeight', innerHeight)
+    return {
+      fire: (type: string) => (listeners[type] ?? []).forEach((f) => f()),
+      count: (type: string) => (listeners[type] ?? []).length,
+    }
+  }
+  const root = () => document.documentElement.style.getPropertyValue('--vvh')
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.documentElement.style.removeProperty('--vvh')
+    document.documentElement.style.removeProperty('--vv-top')
+  })
+
+  it('writes the variables straight away, before any event fires', async () => {
+    // The keyboard can already be open when a dialog mounts (tap a field, then
+    // open the composer from a shortcut) — waiting for a resize would size the
+    // first render to the full screen.
+    const { installViewportVars } = await import('./viewport')
+    withViewport({ height: 554, offsetTop: 0 })
+    const stop = installViewportVars()
+    expect(root()).toBe('554px')
+    stop()
+  })
+
+  it('follows the viewport as the keyboard opens and closes', async () => {
+    const { installViewportVars } = await import('./viewport')
+    const vv = { height: 844, offsetTop: 0 }
+    const ctl = withViewport(vv)
+    const stop = installViewportVars()
+    expect(root()).toBe('')
+
+    vv.height = 554
+    ctl.fire('resize')
+    expect(root()).toBe('554px')
+
+    vv.height = 844
+    ctl.fire('resize')
+    expect(root(), 'a stale height would pin every dialog to keyboard size').toBe('')
+    stop()
+  })
+
+  it('unsubscribes everything it subscribed to', async () => {
+    const { installViewportVars } = await import('./viewport')
+    const ctl = withViewport({ height: 844, offsetTop: 0 })
+    const stop = installViewportVars()
+    expect(ctl.count('resize') + ctl.count('scroll')).toBe(2)
+    stop()
+    expect(ctl.count('resize') + ctl.count('scroll')).toBe(0)
+  })
+
+  it('is harmless where the API does not exist', async () => {
+    const { installViewportVars } = await import('./viewport')
+    withViewport(undefined)
+    const stop = installViewportVars()
+    expect(root()).toBe('')
+    expect(() => stop()).not.toThrow()
   })
 })
