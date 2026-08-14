@@ -701,3 +701,96 @@ def test_superseding_only_touches_the_same_prompt(client):
 
     a_hist = client.get(f"/api/optimizations?prompt_id={a['id']}", headers=headers).json()
     assert a_hist[0]["decision"] == "pending"  # untouched by B's second run
+
+
+# --------------------------------------------------- which model does the work
+#
+# `OPTIMIZE_MODEL` is the setting that decides what rewrites a prompt. It ran
+# EMPTY in production until 0.39.0, which does not fail — it silently hands the
+# job to whatever the runner Mac's Claude Code happens to be set to, so a
+# `/model` there changed the optimizer without a trace in cue. These pin the
+# path from the setting to the runner, and the distinction between the model
+# that was ASKED for and the one that actually answered.
+
+
+def test_the_configured_model_reaches_the_runner(client, monkeypatch):
+    """The whole point of pinning it: the setting has to arrive in the job.
+
+    Patched on the router's own Settings instance — it is captured at import,
+    so overriding the environment afterwards would change nothing (which is
+    itself worth knowing before someone tries it in production).
+    """
+    import app.routers.optimize as optimize_router
+
+    monkeypatch.setattr(optimize_router._settings, "optimize_model", "opus")
+
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "irgendwas")
+    client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+
+    assert _claim(client)["model"] == "opus"
+
+
+def test_an_unset_model_stays_empty_rather_than_guessing(client):
+    """Empty means "let the CLI decide" and must NOT become a hard-coded name.
+
+    Someone tidying this up into a default would pin the model in code, where
+    an operator cannot change it — the knob exists so the deployment decides.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "irgendwas")
+    client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+
+    # The test env sets no OPTIMIZE_MODEL, and the claude_cli provider declares
+    # no default_model — so nothing is asked for.
+    assert _claim(client)["model"] == ""
+
+    from app.optimization import providers
+
+    assert providers.get("claude_cli").default_model == ""
+
+
+def test_the_history_records_the_model_that_answered_not_the_one_asked_for(client):
+    """An alias is not a model name: `opus` resolves to something like
+    `claude-opus-5[1m]`, and only the runner learns which. Storing the request
+    would make the history claim a model that never ran."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "irgendwas")
+    job = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    _claim(client)
+
+    done = _report(client, job["id"], optimized_text="besser", model="claude-opus-5[1m]")
+
+    assert done["model"] == "claude-opus-5[1m]"
+    stored = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert stored["optimization_model"] == "claude-opus-5[1m]"
+
+
+def test_every_attempt_keeps_its_own_model(client):
+    """Two versions of one prompt can come from two different models — that is
+    exactly what an unpinned setting produced, and the history has to show it
+    per attempt rather than only the newest."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "irgendwas")
+
+    first = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    _claim(client)
+    _report(client, first["id"], optimized_text="v1", model="claude-fable-5")
+
+    second = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    _claim(client)
+    _report(client, second["id"], optimized_text="v2", model="claude-opus-5")
+
+    history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
+    by_version = {row["version"]: row["model"] for row in history}
+    assert by_version == {1: "claude-fable-5", 2: "claude-opus-5"}

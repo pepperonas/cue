@@ -90,6 +90,43 @@ def test_argv_appends_a_model_but_refuses_flag_lookalikes():
     assert "--model" not in svc.build_argv("x", "--dangerously-skip-permissions")
 
 
+def test_an_empty_model_omits_the_flag_entirely():
+    """That omission is a decision, not an oversight: it hands the choice to
+    whatever the CLI on this Mac is set to. cue ran that way until 0.39.0 and
+    optimized prompts with two different models on two different days without
+    anything in the UI saying so — hence `OPTIMIZE_MODEL` on the server side.
+    Passing an empty `--model` would be worse than either: an error, not a
+    default."""
+    svc = ClaudeCliService()
+    argv = svc.build_argv("x", "")
+    assert "--model" not in argv
+    assert "" not in argv[3:]
+
+
+def test_aliases_and_full_names_travel_unchanged():
+    """`opus` follows the newest of that line, `claude-opus-5` pins exactly —
+    the runner must not normalise either into the other."""
+    svc = ClaudeCliService()
+    for model in ("opus", "fable", "sonnet", "claude-opus-5", "claude-fable-5"):
+        assert svc.build_argv("x", model)[-2:] == ["--model", model]
+
+
+@pytest.mark.asyncio
+async def test_the_claimed_model_is_what_gets_executed():
+    """The job's model has to survive the trip from the claim into argv —
+    a server-side pin the runner drops is a pin in name only."""
+    seen: list[list[str]] = []
+
+    def spawn(argv):
+        seen.append(list(argv))
+        return _spawned(FakeProc(stdout=result_json()))
+
+    svc = ClaudeCliService(spawn=spawn)
+    await svc.run("prompt", model="opus", timeout_s=5)
+
+    assert seen and seen[0][-2:] == ["--model", "opus"]
+
+
 # ------------------------------------------------------------ output parsing
 
 

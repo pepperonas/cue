@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.1] - 2026-08-14
+
+### Fixed
+- **Das Optimierungsmodell ist jetzt festgelegt** (`OPTIMIZE_MODEL=opus`).
+  Vorher war die Variable leer, es wurde kein `--model` übergeben — gerechnet
+  hat also das, worauf die Claude-Code-CLI auf dem Runner-Mac gerade
+  eingestellt war. Ein `/model` dort änderte still mit, womit Prompts
+  umgeschrieben werden; die Historie zeigt entsprechend zwei Modelle
+  (fünf Läufe Opus 5, drei Läufe Fable 5) ohne Zutun des Nutzers.
+  Sämtliche `OPTIMIZE_*`-Schalter fehlten außerdem komplett in
+  `.env.example` — nachgetragen.
+
+### Added
+- Tests für den Weg der Einstellung bis in die CLI-Argumentliste: die
+  konfigurierte Angabe erreicht den Runner, eine leere bleibt leer (statt zu
+  einem im Code verdrahteten Standard zu werden), Alias und vollständiger
+  Name reisen unverändert, und die Historie hält fest, welches Modell
+  **geantwortet** hat — nicht, welches angefragt wurde.
+
+
 ## [0.39.0] - 2026-08-12
 
 ### Added
