@@ -794,3 +794,75 @@ def test_every_attempt_keeps_its_own_model(client):
     history = client.get(f"/api/optimizations?prompt_id={prompt['id']}", headers=headers).json()
     by_version = {row["version"]: row["model"] for row in history}
     assert by_version == {1: "claude-fable-5", 2: "claude-opus-5"}
+
+
+# ------------------------------------------------- deleting a prompt mid-flight
+#
+# Found in the production logs: `POST /api/optimizations/11/result -> 404`, with
+# the job ids from that evening absent from the database. Deleting a prompt
+# takes its optimization history with it (`prompt_id` is NOT NULL, so unlike a
+# RunStep these cannot be detached) — the executor was still working, and its
+# answer had nowhere to land. Two things have to hold around that.
+
+
+def test_deleting_a_prompt_settles_a_running_optimization(client):
+    """The row goes, but not while the rest of the system still counts on it."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "wird gleich geloescht")
+    job = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    _claim(client)  # the runner is now working on it
+
+    assert client.delete(f"/api/prompts/{prompt['id']}", headers=headers).status_code == 204
+
+    # The late report is refused — cleanly, and without a 500.
+    late = client.post(
+        f"/api/optimizations/{job['id']}/result",
+        json={"status": "succeeded", "optimized_text": "zu spaet"},
+        headers=RUNNER_HDR,
+    )
+    assert late.status_code == 404, late.text
+
+
+def test_deleting_the_last_outstanding_prompt_finishes_its_batch(client):
+    """The stuck progress pill.
+
+    `_finish_batch_if_done` used to run only when a job reported or was
+    cancelled. Delete the prompt of the last pending job and there was no job
+    left to trigger it: `finished_at` stayed null, so the ticker polled every
+    two seconds for a batch that could never complete.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    first = _mk(client, headers, "eins")
+    second = _mk(client, headers, "zwei")
+
+    batch = client.post("/api/optimizations/batch", json={}, headers=headers).json()
+    assert batch["total"] == 2
+
+    job = _claim(client)
+    _report(client, job["id"], optimized_text="fertig")
+
+    # The remaining prompt is deleted before its job ever runs.
+    remaining = second["id"] if job["prompt_id"] == first["id"] else first["id"]
+    assert client.delete(f"/api/prompts/{remaining}", headers=headers).status_code == 204
+
+    active = client.get("/api/optimizations/batch/active", headers=headers).json()
+    assert active is None, "the batch is still advertised as running"
+
+
+def test_deleting_a_prompt_with_only_finished_optimizations_still_works(client):
+    """The ordinary case must not regress: no FK error, no leftovers."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "fertig optimiert")
+    job = client.post(
+        "/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers
+    ).json()
+    _claim(client)
+    _report(client, job["id"], optimized_text="besser")
+
+    assert client.delete(f"/api/prompts/{prompt['id']}", headers=headers).status_code == 204
+    assert client.get(f"/api/prompts/{prompt['id']}", headers=headers).status_code == 404

@@ -2085,3 +2085,13 @@ def test_creating_without_the_flag_stays_unbookmarked(client):
     created = client.post("/api/prompts", json={"body": "Normal"}, headers=headers).json()
     assert created["bookmarked"] is False
     assert created["bookmark_order"] == 0
+
+
+def test_head_is_answered_like_get(client):
+    """FastAPI's APIRoute does not imply HEAD for a GET (Starlette's Route
+    does), so both of these answered 405 — and an uptime monitor probing with
+    HEAD reported the site as down while it was serving fine."""
+    for path in ("/api/health", "/"):
+        response = client.head(path)
+        assert response.status_code != 405, f"HEAD {path} is not allowed"
+        assert response.status_code < 400, f"HEAD {path} -> {response.status_code}"

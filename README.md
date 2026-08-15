@@ -3,18 +3,18 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.39.2-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-892%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-416-brightgreen.svg)](backend/tests/)
-[![runner tests](https://img.shields.io/badge/runner%20tests-117-brightgreen.svg)](cue-runner/tests/)
+[![version](https://img.shields.io/badge/version-0.40.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-910%20passing-brightgreen.svg)](backend/tests/)
+[![backend tests](https://img.shields.io/badge/backend%20tests-428-brightgreen.svg)](backend/tests/)
+[![runner tests](https://img.shields.io/badge/runner%20tests-123-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-359-brightgreen.svg)](frontend/src/lib/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![LOC](https://img.shields.io/badge/LOC-26152-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-8672-3776AB.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-26316-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-8836-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-13970-3178C6.svg)](#)
-[![API endpoints](https://img.shields.io/badge/API%20endpoints-91-8A2BE2.svg)](backend/app/routers/)
+[![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](backend/app/routers/)
 <!-- /badges:dynamic -->
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

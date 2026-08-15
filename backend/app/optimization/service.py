@@ -15,7 +15,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ..config import Settings, get_settings
 from .. import events
@@ -340,10 +340,74 @@ class PromptOptimizationService:
         )
         return job, prompt
 
+    def discard_for_prompt(self, prompt_id: int) -> list[int]:
+        """Drop a deleted prompt's optimization history; return the lost job ids.
+
+        Called from the prompt-delete path, which has to clear the rows anyway:
+        `prompt_optimization.prompt_id` is NOT NULL, so unlike a `RunStep` (which
+        keeps a text snapshot and is merely detached) these cannot outlive their
+        prompt. What the delete must NOT do is leave the rest of the machinery
+        believing they are still coming:
+
+        * A job still queued or running is settled as `canceled` first, so any
+          batch it belongs to is re-counted with it out of the picture. Without
+          that, deleting the last outstanding prompt of a batch left the batch
+          with no job to ever call `_finish_batch_if_done` — `finished_at` stayed
+          null and the progress pill polled every two seconds forever.
+        * The ids are handed back so the caller can say out loud what was
+          thrown away. The executor is still working on a running one, and its
+          result will be refused (the row is gone by then) — that refusal is
+          expected, and the runner logs it as discarded work rather than as a
+          transient poll failure.
+
+        Stopping the CLI mid-run would need a runner-facing liveness channel;
+        it finishes and its answer is dropped.
+        """
+        jobs = list(
+            self.session.exec(
+                select(PromptOptimization).where(PromptOptimization.prompt_id == prompt_id)
+            ).all()
+        )
+        if not jobs:
+            return []
+
+        in_flight = [job for job in jobs if job.status not in OPTIMIZATION_TERMINAL]
+        now = utcnow()
+        for job in in_flight:
+            job.status = OptimizationStatus.canceled
+            job.finished_at = now
+            self.session.add(job)
+        self.session.flush()
+
+        batch_ids = {job.batch_id for job in jobs if job.batch_id}
+        for job in jobs:
+            self.session.delete(job)
+        self.session.flush()
+
+        for batch_id in batch_ids:
+            self._settle_batch(batch_id)
+
+        if in_flight:
+            log.info(
+                "prompt %s deleted with %s optimization(s) in flight: %s",
+                prompt_id,
+                len(in_flight),
+                ", ".join(str(job.id) for job in in_flight),
+            )
+        return [job.id for job in in_flight if job.id is not None]
+
     def _finish_batch_if_done(self, job: PromptOptimization) -> None:
         if not job.batch_id:
             return
-        batch = self.session.get(OptimizationBatch, job.batch_id)
+        self._settle_batch(job.batch_id)
+
+    def _settle_batch(self, batch_id: str) -> None:
+        """Close a batch once nothing of it is outstanding any more.
+
+        Split out from `_finish_batch_if_done` because a batch also has to be
+        re-checked when a job DISAPPEARS, where there is no job left to pass in.
+        """
+        batch = self.session.get(OptimizationBatch, batch_id)
         if batch is None or batch.finished_at is not None:
             return
         counts = self.repo.batch_counts(batch.id)

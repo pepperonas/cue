@@ -1,9 +1,21 @@
 """Async HTTP client for the cue runner endpoints (Bearer RUNNER_TOKEN)."""
 from __future__ import annotations
 
+import asyncio
+import logging
+
 import httpx
 
 from .config import Config
+
+log = logging.getLogger("cue-runner.api")
+
+# A finished optimization is the most expensive thing this process carries: it
+# cost CLI time and real money, and it exists nowhere else. Losing the report
+# because the server happened to be restarting would throw all of that away, so
+# the delivery is retried before it is given up on.
+_RESULT_ATTEMPTS = 3
+_RESULT_BACKOFF_S = 2.0
 
 
 class RunnerApi:
@@ -108,20 +120,70 @@ class RunnerApi:
         output_tokens: int | None = None,
         error: str | None = None,
     ) -> None:
-        await self.client.post(
-            f"/api/optimizations/{optimization_id}/result",
-            json={
-                "status": status,
-                "optimized_text": optimized_text,
-                "model": model,
-                "exit_code": exit_code,
-                "duration_ms": duration_ms,
-                "cost_usd": cost_usd,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "error": error,
-            },
-        )
+        """Report an outcome, retrying a transient failure.
+
+        This used to be fire-and-forget: no `raise_for_status`, no logging. A
+        refused report therefore vanished without a trace on EITHER side — seen
+        in production as `POST /api/optimizations/11/result -> 404` after the
+        prompt had been deleted mid-run, with nothing anywhere saying that a
+        finished optimization had been discarded.
+        """
+        payload = {
+            "status": status,
+            "optimized_text": optimized_text,
+            "model": model,
+            "exit_code": exit_code,
+            "duration_ms": duration_ms,
+            "cost_usd": cost_usd,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "error": error,
+        }
+        for attempt in range(1, _RESULT_ATTEMPTS + 1):
+            try:
+                r = await self.client.post(
+                    f"/api/optimizations/{optimization_id}/result", json=payload
+                )
+            except httpx.HTTPError as exc:
+                if attempt == _RESULT_ATTEMPTS:
+                    log.error(
+                        "optimization %s: result LOST after %s attempts (%s)%s",
+                        optimization_id,
+                        attempt,
+                        exc,
+                        self._cost_note(cost_usd),
+                    )
+                    return
+                await asyncio.sleep(_RESULT_BACKOFF_S * attempt)
+                continue
+
+            if r.status_code < 300:
+                return
+            if r.status_code < 500:
+                # The job is gone or no longer accepts a result — usually its
+                # prompt was deleted while the CLI was still running. Final by
+                # definition: retrying cannot bring the row back.
+                log.warning(
+                    "optimization %s: result discarded by the server (HTTP %s)%s",
+                    optimization_id,
+                    r.status_code,
+                    self._cost_note(cost_usd),
+                )
+                return
+            if attempt == _RESULT_ATTEMPTS:
+                log.error(
+                    "optimization %s: result LOST after %s attempts (HTTP %s)%s",
+                    optimization_id,
+                    attempt,
+                    r.status_code,
+                    self._cost_note(cost_usd),
+                )
+                return
+            await asyncio.sleep(_RESULT_BACKOFF_S * attempt)
+
+    @staticmethod
+    def _cost_note(cost_usd: float | None) -> str:
+        return f" — {cost_usd:.2f} USD" if cost_usd else ""
 
     async def capture(self, items: list[dict]) -> dict:
         # Capture uses its own token (not the runner token).

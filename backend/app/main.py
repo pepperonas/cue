@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
+
+import logging
 
 from . import events
 from .config import get_settings
@@ -37,18 +40,46 @@ from .routers import (
 )
 
 _settings = get_settings()
+log = logging.getLogger("cue.housekeeping")
+
+
+def _log_housekeeping_failure(what: str, state: dict) -> None:
+    """Report a failing background loop — at most once a minute per loop.
+
+    These loops swallowed every exception with a bare `pass`, which keeps them
+    alive (right) and keeps them silent (wrong). A broken attachment GC means
+    screenshots are never deleted, which the composer explicitly PROMISES the
+    user; a broken reaper leaves prompts stuck in Running forever. Neither was
+    observable from anywhere — no log line, no metric, nothing to notice.
+
+    Rate-limited because a loop that fails once usually fails every tick, and a
+    reaper running every 60 s would otherwise fill the journal with the same
+    traceback.
+    """
+    now = time.monotonic()
+    if now - state["last"] < 60:
+        state["suppressed"] += 1
+        return
+    log.exception(
+        "%s failed%s — the loop keeps running",
+        what,
+        f" ({state['suppressed']} further failures suppressed)" if state["suppressed"] else "",
+    )
+    state["last"] = now
+    state["suppressed"] = 0
 
 
 async def _attachment_gc_loop() -> None:
     """Periodically delete attachments past their TTL (auto-cleanup of screenshots)."""
+    state = {"last": 0.0, "suppressed": 0}
     while True:
         try:
             with Session(engine) as session:
                 attachments.purge_expired(session)
                 # Same cadence for the activity log's retention window.
                 events.prune(session)
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001 — the loop must outlive one bad tick
+            _log_housekeeping_failure("attachment/event cleanup", state)
         await asyncio.sleep(24 * 3600)
 
 
@@ -56,13 +87,14 @@ async def _run_reaper_loop() -> None:
     """Fail runs whose runner stopped heart-beating (also cleans up runs left
     in-flight across a backend restart). Runs immediately, then every 60 s.
     The same tick reaps optimization jobs whose executor never reported back."""
+    state = {"last": 0.0, "suppressed": 0}
     while True:
         try:
             with Session(engine) as session:
                 runs.reap_stale(session, _settings.run_stale_timeout)
                 PromptOptimizationService(session, _settings).reap_stale()
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001 — the loop must outlive one bad tick
+            _log_housekeeping_failure("run/optimization reaper", state)
         await asyncio.sleep(60)
 
 
@@ -85,7 +117,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.39.2",
+    version="0.40.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -177,7 +209,10 @@ api.include_router(tags.router)
 api.include_router(changes.router)
 
 
-@api.get("/health")
+# HEAD as well as GET: FastAPI's APIRoute — unlike Starlette's plain Route —
+# does not imply HEAD for a GET, so `HEAD /api/health` answered 405 and an
+# uptime monitor using HEAD reported the site as down while it was fine.
+@api.api_route("/health", methods=["GET", "HEAD"])
 def health() -> dict:
     return {"status": "ok"}
 
@@ -195,7 +230,9 @@ if _static_dir.is_dir():
     # so client-side routing works on hard reload.
     app.mount("/assets", StaticFiles(directory=_static_dir / "assets"), name="assets")
 
-    @app.get("/{full_path:path}")
+    # HEAD included for the same reason as /api/health above: link checkers,
+    # curl -I and uptime probes ask for the shell with HEAD.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def spa(full_path: str) -> Response:
         # Guard against path traversal: the resolved candidate must stay inside
         # the static dir (e.g. "../../etc/passwd" resolves outside -> reject).
@@ -208,7 +245,7 @@ if _static_dir.is_dir():
         return JSONResponse({"detail": "Frontend not built"}, status_code=404)
 else:
 
-    @app.get("/")
+    @app.api_route("/", methods=["GET", "HEAD"])
     def no_frontend() -> JSONResponse:
         return JSONResponse(
             {"detail": "Frontend not built. Run the dev server or build into STATIC_DIR."},

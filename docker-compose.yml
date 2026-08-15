@@ -8,6 +8,10 @@ services:
     # terminates TLS for cue.celox.io.
     ports:
       - "127.0.0.1:8791:8000"
+    # Don't let a stopping container hold the port: uvicorn caps its own
+    # graceful shutdown at 2 s (see the Dockerfile), so anything beyond this is
+    # a hung process, not a slow request.
+    stop_grace_period: 5s
     env_file:
       - .env
     volumes:

@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlmodel import Session, select
 
+from . import changes
 from .models import (
     CaptureSession,
     CapturedPrompt,
@@ -842,6 +843,17 @@ def build(session: Session, uid: int, rng: TimeRange, *, use_cache: bool = True)
     key = (
         uid,
         _VERSIONS[uid],
+        # The tenant's own data fingerprint is part of the key, so ANY change
+        # to it retires the cached payload — no write path has to remember to
+        # call `invalidate()`. That is not hypothetical tidiness: only prompt
+        # events ever called it, so renaming a tag or a project left the
+        # dashboard showing the old name for up to two minutes, and a client
+        # refetch could not help because the staleness was on the server.
+        #
+        # `_VERSIONS` stays in the key as well. The fingerprint watches rows;
+        # `events.prune()` deletes activity history without touching any of
+        # them, and the counter covers that.
+        changes.cursor_for(session, uid),
         rng.key,
         rng.start.isoformat(),
         rng.end.isoformat(),

@@ -15,11 +15,12 @@ from ..models import (
     Project,
     Prompt,
     PromptEventType,
-    PromptOptimization,
     PromptStatus,
     RunStep,
     utcnow,
 )
+from ..config import get_settings
+from ..optimization import PromptOptimizationService
 from ..ordering import display_key, insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
 from ..tags import TagService, is_bug_priority
@@ -36,6 +37,8 @@ from ..schemas import (
     ReorderRequest,
 )
 from .attachments import attachment_read, clone_attachment_file, delete_attachment_file
+
+_settings = get_settings()
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
 
@@ -72,10 +75,11 @@ def _detach_references(session: Session, prompt_id: int) -> None:
     """
     session.exec(update(RunStep).where(RunStep.prompt_id == prompt_id).values(prompt_id=None))
     TagService(session).clear_for_prompt(prompt_id)
-    for row in session.exec(
-        select(PromptOptimization).where(PromptOptimization.prompt_id == prompt_id)
-    ).all():
-        session.delete(row)
+    # The optimization history cannot be detached (`prompt_id` is NOT NULL), so
+    # the service settles anything still in flight before the rows go — see
+    # `discard_for_prompt`, which also re-counts a batch that just lost its last
+    # outstanding job.
+    PromptOptimizationService(session, _settings).discard_for_prompt(prompt_id)
     # Flush the child deletes first: without an ORM relationship SQLAlchemy has
     # no dependency to order them by, and SQLite would reject the parent DELETE.
     session.flush()

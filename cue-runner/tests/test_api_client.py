@@ -151,3 +151,93 @@ async def test_capture_raises_on_failure_for_retry():
     with pytest.raises(httpx.HTTPStatusError):
         await api.capture([{"session_id": "s", "prompt": "hi", "seq": 1}])
     await api.aclose()
+
+
+# ------------------------------------------------- reporting an optimization
+#
+# The most expensive payload this process carries: it cost CLI minutes and real
+# money, and it exists nowhere else. Reporting it used to be fire-and-forget —
+# no status check, no log — so a refused report vanished on both sides.
+
+
+@pytest.mark.asyncio
+async def test_a_result_is_delivered_once_when_the_server_accepts_it():
+    api, requests = _api(lambda _r: httpx.Response(200, json={"id": 7}))
+    await api.optimization_result(7, status="succeeded", optimized_text="besser")
+
+    assert len(requests) == 1
+    assert requests[0].url.path == "/api/optimizations/7/result"
+    assert json.loads(requests[0].content)["optimized_text"] == "besser"
+
+
+@pytest.mark.asyncio
+async def test_a_transient_failure_is_retried(monkeypatch):
+    """A deploy restarts the container; a report landing in that window used to
+    be lost outright. It is worth several seconds to keep it."""
+    monkeypatch.setattr("cue_runner.api._RESULT_BACKOFF_S", 0)
+    answers = [httpx.Response(502), httpx.Response(502), httpx.Response(200, json={})]
+    api, requests = _api(lambda _r: answers.pop(0))
+
+    await api.optimization_result(7, status="succeeded", optimized_text="besser")
+    assert len(requests) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_network_error_is_retried_too(monkeypatch):
+    monkeypatch.setattr("cue_runner.api._RESULT_BACKOFF_S", 0)
+    calls = {"n": 0}
+
+    def handler(_request):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise httpx.ConnectError("connection refused")
+        return httpx.Response(200, json={})
+
+    api, requests = _api(handler)
+    await api.optimization_result(7, status="succeeded", optimized_text="besser")
+    assert calls["n"] == 3
+
+
+@pytest.mark.asyncio
+async def test_a_gone_job_is_final_and_is_logged_as_discarded(monkeypatch, caplog):
+    """404 means the prompt was deleted while the CLI was still running. No
+    amount of retrying brings the row back — but it must be said out loud,
+    including what it cost."""
+    monkeypatch.setattr("cue_runner.api._RESULT_BACKOFF_S", 0)
+    api, requests = _api(lambda _r: httpx.Response(404, json={"detail": "not found"}))
+
+    with caplog.at_level("WARNING"):
+        await api.optimization_result(
+            11, status="succeeded", optimized_text="besser", cost_usd=1.7
+        )
+
+    assert len(requests) == 1, "a 404 must not be retried"
+    assert "discarded" in caplog.text
+    assert "11" in caplog.text and "1.70 USD" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_giving_up_says_the_result_was_lost(monkeypatch, caplog):
+    """The one line an operator needs to see when it really is gone."""
+    monkeypatch.setattr("cue_runner.api._RESULT_BACKOFF_S", 0)
+    api, requests = _api(lambda _r: httpx.Response(503))
+
+    with caplog.at_level("ERROR"):
+        await api.optimization_result(7, status="succeeded", optimized_text="x", cost_usd=0.6)
+
+    assert len(requests) == 3
+    assert "LOST" in caplog.text and "0.60 USD" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_reporting_never_raises_into_the_loop(monkeypatch):
+    """Whatever happens to the report, the runner keeps working: the job is
+    already done, and a crash here would take the next one down with it."""
+    monkeypatch.setattr("cue_runner.api._RESULT_BACKOFF_S", 0)
+    for handler in (
+        lambda _r: httpx.Response(404),
+        lambda _r: httpx.Response(500),
+        lambda _r: (_ for _ in ()).throw(httpx.ConnectError("boom")),
+    ):
+        api, _ = _api(handler)
+        await api.optimization_result(7, status="failed", error="x")

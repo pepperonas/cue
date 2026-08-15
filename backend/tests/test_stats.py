@@ -389,3 +389,85 @@ def test_event_retention_prune(client):
         s.commit()
         assert events.prune(s) == 1
         assert s.exec(select(PromptEvent)).all() == []
+
+
+# --------------------------------------------------- the cache must not outlive
+#
+# `stats.invalidate()` was only ever called from `events.record()`, i.e. from
+# prompt events. Renaming a tag or a project therefore left the dashboard
+# showing the old name for up to the 120 s TTL — and refetching from the client
+# could not help, because the staleness sat in the server's cache. The key now
+# carries the tenant's data fingerprint, so there is no write path left that
+# has to remember anything.
+
+
+def _stats(client, headers) -> str:
+    import json
+
+    return json.dumps(client.get("/api/stats?range=30d&tz=Europe/Berlin", headers=headers).json())
+
+
+def test_renaming_a_project_shows_up_in_the_stats_at_once(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    project = client.post("/api/projects", json={"name": "altname"}, headers=headers).json()
+    client.post(
+        "/api/prompts", json={"body": "x", "project_id": project["id"]}, headers=headers
+    )
+    assert "altname" in _stats(client, headers)
+
+    client.patch(f"/api/projects/{project['id']}", json={"name": "neuname"}, headers=headers)
+
+    payload = _stats(client, headers)
+    assert "neuname" in payload
+    assert "altname" not in payload
+
+
+def test_renaming_a_tag_shows_up_in_the_stats_at_once(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    client.post("/api/prompts", json={"body": "x", "tags": "alphatag"}, headers=headers)
+    assert "alphatag" in _stats(client, headers)
+
+    tag_id = client.get("/api/tags", headers=headers).json()["items"][0]["id"]
+    client.patch(f"/api/tags/{tag_id}", json={"name": "betatag"}, headers=headers)
+
+    payload = _stats(client, headers)
+    assert "betatag" in payload
+    assert "alphatag" not in payload
+
+
+def test_deleting_a_tag_shows_up_in_the_stats_at_once(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    client.post("/api/prompts", json={"body": "x", "tags": "wegdamit"}, headers=headers)
+    assert "wegdamit" in _stats(client, headers)
+
+    tag_id = client.get("/api/tags", headers=headers).json()["items"][0]["id"]
+    client.delete(f"/api/tags/{tag_id}", headers=headers)
+
+    assert "wegdamit" not in _stats(client, headers)
+
+
+def test_an_unchanged_tenant_still_gets_a_cached_answer(client, monkeypatch):
+    """The fix must not turn the cache off: two identical requests with nothing
+    happening in between may only build the payload once."""
+    from app import stats
+
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    client.post("/api/prompts", json={"body": "x"}, headers=headers)
+    _stats(client, headers)  # warm
+
+    builds = {"n": 0}
+    original = stats._load
+
+    def counting(session, uid):
+        builds["n"] += 1
+        return original(session, uid)
+
+    monkeypatch.setattr(stats, "_load", counting)
+    _stats(client, headers)
+    _stats(client, headers)
+
+    assert builds["n"] == 0, f"rebuilt {builds['n']}x although nothing changed"

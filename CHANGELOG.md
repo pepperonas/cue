@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0] - 2026-08-16
+
+Fünf Fehler, gefunden über Produktionslogs, Produktionsdaten und Code — nicht
+geraten, jeder mit einem Beleg.
+
+### Fixed
+- **Eine laufende Optimierung ließ beim Löschen ihres Prompts einen Sammellauf
+  hängen.** Die Zeilen verschwinden mit dem Prompt (`prompt_id` ist NOT NULL,
+  sie können ihn nicht überleben) — war es der letzte offene Job eines
+  Sammellaufs, blieb kein Job übrig, der den Lauf hätte abschließen können:
+  `finished_at` blieb leer und die Fortschrittsanzeige pollte für immer.
+  Laufende Jobs werden jetzt zuerst abgebrochen, danach wird der Sammellauf neu
+  ausgezählt.
+- **Ein abgewiesenes Ergebnis verschwand spurlos.** Der Runner prüfte die
+  Antwort auf seinen Ergebnis-POST überhaupt nicht — kein Statuscheck, kein
+  Log. In den Logs: `POST /api/optimizations/11/result → 404`, nachdem der
+  Prompt gelöscht worden war; eine fertige, bezahlte Optimierung war weg, ohne
+  eine Zeile auf beiden Seiten. Jetzt: vorübergehende Fehler (etwa während
+  eines Deploys) werden dreimal wiederholt, ein endgültiges Nein wird als
+  verworfene Arbeit protokolliert — inklusive der Kosten.
+- **Zwei Hintergrundschleifen schluckten jeden Fehler** (`except Exception:
+  pass`). Scheitert die Anhang-Bereinigung, bleiben Screenshots über die
+  30 Tage hinaus liegen, die der Composer ausdrücklich zusagt; scheitert der
+  Reaper, hängen Prompts dauerhaft in „Running". Beides war von außen nicht zu
+  bemerken. Jetzt mit Traceback, höchstens einmal pro Minute.
+- **Die Statistik zeigte nach Umbenennungen bis zu zwei Minuten alte Namen.**
+  Der Cache wurde nur von Prompt-Ereignissen verworfen; ein umbenanntes Projekt
+  oder Tag erreichte ihn nie, und Neuladen im Browser half nicht, weil die
+  Veralterung auf dem Server saß. Der Schlüssel enthält jetzt den
+  Datenfingerabdruck des Kontos — es gibt keinen Schreibpfad mehr, der daran
+  denken muss.
+- **`HEAD` antwortete mit 405**, auch auf `/api/health`: FastAPIs `APIRoute`
+  ergänzt HEAD nicht automatisch. Ein Uptime-Monitor, der HEAD verwendet, hätte
+  die Seite als tot gemeldet.
+
+### Changed
+- **Deploys zeigen eine Seite statt eines Fehlers.** Der Container-Austausch
+  lässt den Port rund vier Sekunden geschlossen — gemessen; ohne einen zweiten
+  parallelen Container ist das nicht wegzubekommen. Statt nginx' nacktem 502
+  kommt jetzt „cue startet gerade neu", die sich selbst neu lädt (mit ehrlichem
+  Statuscode und `Retry-After`). API-Aufrufe bekommen weiterhin nur einen
+  Statuscode, kein HTML. Dazu `ops/deploy.sh`, das erst zurückkehrt, wenn der
+  neue Container gesund antwortet.
+
+
 ## [0.39.2] - 2026-08-15
 
 ### Added

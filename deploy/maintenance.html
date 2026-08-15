@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cue startet neu</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: dark light; }
+      body {
+        margin: 0; min-height: 100dvh; display: grid; place-items: center;
+        background: #141218; color: #e6e0e9; text-align: center; padding: 24px;
+        font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      .card { max-width: 26rem; }
+      h1 { font-size: 1.4rem; margin: 0 0 .5rem; }
+      p { margin: 0 0 1.5rem; color: #cac4d0; }
+      .bar { height: 4px; border-radius: 999px; background: #2b2930; overflow: hidden; }
+      .bar span {
+        display: block; height: 100%; width: 40%; border-radius: 999px;
+        background: #a78bfa; animation: slide 1.4s ease-in-out infinite;
+      }
+      @keyframes slide { 0% { transform: translateX(-100%) } 100% { transform: translateX(250%) } }
+      @media (prefers-reduced-motion: reduce) { .bar span { animation: none; width: 100% } }
+      @media (prefers-color-scheme: light) {
+        body { background: #fdf7ff; color: #1d1b20 }
+        p { color: #49454f } .bar { background: #e7e0ec }
+      }
+      footer { margin-top: 2rem; font-size: .8rem; color: #79747e; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>cue startet gerade neu</h1>
+      <p>Ein Update wird eingespielt. Das dauert ein paar Sekunden — diese Seite lädt sich von selbst neu.</p>
+      <div class="bar"><span></span></div>
+      <footer>© 2026 Martin Pfeffer | celox.io</footer>
+    </div>
+    <!-- Reload rather than a meta refresh: it keeps the address bar intact and
+         backs off a little so a longer outage doesn't turn into a request storm. -->
+    <script>
+      let wait = 2000
+      const tick = () =>
+        fetch('/api/health', { cache: 'no-store' })
+          .then((r) => (r.ok ? location.reload() : retry()))
+          .catch(retry)
+      function retry() {
+        wait = Math.min(wait * 1.5, 15000)
+        setTimeout(tick, wait)
+      }
+      setTimeout(tick, wait)
+    </script>
+  </body>
+</html>

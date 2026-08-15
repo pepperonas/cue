@@ -130,6 +130,16 @@ def fingerprint(session: Session, user_id: int) -> dict[str, str]:
     }
 
 
+def cursor_for(session: Session, user_id: int) -> str:
+    """This tenant's whole fingerprint as one opaque string.
+
+    Convenience for callers that only want "has anything changed" as a value
+    they can compare or cache under — `app/stats.py` keys its cache on it, so
+    the dashboard cannot outlive the data it was built from.
+    """
+    return encode(fingerprint(session, user_id))
+
+
 def encode(parts: dict[str, str]) -> str:
     """Serialize a fingerprint into the opaque cursor the client echoes back."""
     return _PART_SEP.join(f"{key}{_FIELD_SEP}{parts[key]}" for key in ENTITIES if key in parts)
