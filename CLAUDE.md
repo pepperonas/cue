@@ -68,6 +68,24 @@ than they read: `stop()` aborts the in-flight request, so "an answer arriving af
 reached the `stopped` guard it claimed to cover, and "stops for good" passed with the abort removed
 entirely (no new calls either way — the leak is on the server, invisible locally). Both were rewritten
 to reach the real thing.
+**Four suites test a PROPERTY of the whole surface rather than one call site**, because the bugs they
+guard against are the kind nobody introduces on purpose — they are the kind nobody applies a rule to:
+`backend/tests/test_tenancy.py` walks every route in the app and fails when one neither scopes to
+`current_user_id` nor authenticates a machine nor sits in `UNSCOPED_BY_DESIGN` with a written reason
+(a second test deletes stale entries from that list, so a removed endpoint cannot leave a waiver
+behind for whatever reuses its path); it also asserts every mutating tenant endpoint carries
+`require_csrf`, and sweeps a second account across every owned resource expecting **404, never 403** —
+"forbidden" confirms the row exists. `contracts/column-order.json` + `test_ordering_contract.py` +
+`order.contract.test.ts` turn the Python/TypeScript ordering mirror from a comment ("change one,
+change the other") into something that fails: both languages run the SAME ten cases, and a stand-in
+object raises if `display_key` ever reads a field a drag cannot control. `test_security_tokens.py`
+is almost entirely negative — tampered, truncated, cross-signed, expired, cross-purpose — because a
+valid signature IS the authorisation here and every happy path keeps working while a broken check
+quietly stops checking. `markdown.security.test.ts` parses the rendered output with a real DOM and
+asserts no element outside the allowed set and **no attribute at all**, which is what makes leaving
+quotes unescaped safe; it also asserts the payload stays READABLE, so nothing is silently swallowed.
+**Assert against the DOM, not the string**: escaped inert text legitimately contains `onerror=` and
+`javascript:`, so a substring check there fails on correct code.
 `scripts/update-badges.mjs` maintains 12 DYNAMIC badges between `<!-- badges:dynamic -->` markers in README.md (marker block must exist): version (single source = `backend/app/main.py` — the badge syncs automatically, only bump main.py), tests total + per suite (`pytest --collect-only` / `vitest list`, never grep `it()`), backend+runner+frontend-lib coverage (`pytest --cov` TOTAL / vitest `All files`, threshold colors), LOC total + Python/TS split, API-endpoint count (route decorators). Runs on every `npm test` via posttest; idempotent.
 
 ## Architecture

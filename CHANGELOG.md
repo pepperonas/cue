@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.2] - 2026-08-15
+
+### Added
+- **Vier Testsuiten, die eine Eigenschaft der gesamten Oberfläche prüfen** statt
+  einzelner Aufrufstellen — gegen die Fehlerklasse, die niemand einbaut,
+  sondern bei der jemand eine Regel schlicht nicht anwendet. 148 neue Tests
+  (744 → 892).
+  - **Mandantentrennung strukturell**: läuft über jede Route der App und fällt,
+    sobald eine weder auf den Mandanten eingeschränkt ist noch eine Maschine
+    authentifiziert noch mit schriftlicher Begründung auf der Ausnahmeliste
+    steht. Dazu: jede verändernde Route braucht den CSRF-Wächter, und ein
+    zweites Konto bekommt auf jede fremde Ressource **404, nie 403** — ein
+    „verboten" bestätigt, dass die Zeile existiert.
+  - **Sortier-Kontrakt zwischen Server und Client**: `contracts/column-order.json`
+    beschreibt zehn Fälle, beide Sprachen rechnen sie mit ihrer eigenen
+    Implementierung durch. Aus der Bitte „ändere beide Seiten zugleich" wird
+    etwas, das rot wird. Ein Attrappen-Objekt schlägt außerdem Alarm, sobald
+    die Sortierung ein Feld liest, das per Drag nicht änderbar ist.
+  - **Signierte Token**: fast ausschließlich Negativfälle (manipuliert,
+    abgeschnitten, fremd signiert, abgelaufen, zweckentfremdet). Eine gültige
+    Signatur IST hier die Berechtigung; ein kaputter Prüfschritt fällt im
+    Normalbetrieb nicht auf.
+  - **Markdown-Vorschau**: das Ergebnis wird mit einem echten DOM geparst — kein
+    Element außerhalb des erlaubten Satzes und **kein einziges Attribut**, was
+    erst rechtfertigt, Anführungszeichen ungeschützt zu lassen. Umgekehrt muss
+    die Nutzlast **lesbar bleiben**: ein Prompt über XSS soll die Vorschau
+    überleben.
+
+### Fixed
+- Der Testhelfer für Mandantenwechsel überschrieb still die Sitzung im
+  gemeinsamen Cookie-Speicher — ein Test, der zurückwechselte, prüfte als
+  falscher Nutzer und wäre aus dem falschen Grund grün gewesen.
+
+
 ## [0.39.1] - 2026-08-14
 
 ### Fixed

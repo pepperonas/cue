@@ -1,0 +1,105 @@
+{
+  "$comment": "Shared contract between app/ordering.py:display_key (server) and frontend/src/lib/order.ts:columnComparator (client). Both sort the same case with their own implementation and must produce `expected_ids`. Consumed by backend/tests/test_ordering_contract.py and frontend/src/lib/order.contract.test.ts — neither owns it.",
+  "why": "A drag sends an ANCHOR ('put it before #42'), never a position. The client picks that anchor from what the user SEES, the server inserts into what it STORES, so the two orderings have to be the same one. While they drifted apart, a drag was saved and still changed nothing on screen — indistinguishable from 'reordering is broken'. A prose note asking the next person to keep both sides in step cannot fail; this can.",
+  "fields": "Only stored fields may take part, and every rule has to be one a drag can work within — a rule the user cannot override (like ordering by execution time) turns their drag into a no-op.",
+  "cases": [
+    {
+      "name": "drag order decides",
+      "why": "The default case: nothing special about these, so sort_order alone rules.",
+      "prompts": [
+        { "id": 1, "sort_order": 3, "status": "queued" },
+        { "id": 2, "sort_order": 1, "status": "queued" },
+        { "id": 3, "sort_order": 2, "status": "queued" }
+      ],
+      "expected_ids": [2, 3, 1]
+    },
+    {
+      "name": "equal sort_order breaks by id",
+      "why": "The order has to be TOTAL. Ties left undecided would let two clients disagree, and the renumbering after a move would then depend on which row the database happened to return first.",
+      "prompts": [
+        { "id": 7, "sort_order": 1, "status": "queued" },
+        { "id": 3, "sort_order": 1, "status": "queued" },
+        { "id": 5, "sort_order": 1, "status": "queued" }
+      ],
+      "expected_ids": [3, 5, 7]
+    },
+    {
+      "name": "blocked sinks to the bottom",
+      "why": "Even with the lowest sort_order — blocked is the first key.",
+      "prompts": [
+        { "id": 1, "sort_order": 1, "status": "queued", "blocked": true },
+        { "id": 2, "sort_order": 9, "status": "queued" }
+      ],
+      "expected_ids": [2, 1]
+    },
+    {
+      "name": "blocked prompts keep their own order among themselves",
+      "why": "Sinking them must not shuffle them; the queue stays predictable.",
+      "prompts": [
+        { "id": 1, "sort_order": 5, "status": "queued", "blocked": true },
+        { "id": 2, "sort_order": 2, "status": "queued", "blocked": true },
+        { "id": 3, "sort_order": 9, "status": "queued" }
+      ],
+      "expected_ids": [3, 2, 1]
+    },
+    {
+      "name": "tested sinks below untested in done",
+      "why": "What is finished and checked moves out of the way of what still needs checking.",
+      "prompts": [
+        { "id": 1, "sort_order": 1, "status": "done", "tested": true },
+        { "id": 2, "sort_order": 9, "status": "done" }
+      ],
+      "expected_ids": [2, 1]
+    },
+    {
+      "name": "tested is meaningless outside done",
+      "why": "The flag only exists for finished work; in the queue it must not move anything.",
+      "prompts": [
+        { "id": 1, "sort_order": 9, "status": "queued", "tested": true },
+        { "id": 2, "sort_order": 1, "status": "queued" }
+      ],
+      "expected_ids": [2, 1]
+    },
+    {
+      "name": "tested prompts follow the drag order among themselves",
+      "why": "They were once ordered by execution time, which put a dragged card straight back where it came from — the move was saved and looked like it was not.",
+      "prompts": [
+        { "id": 1, "sort_order": 2, "status": "done", "tested": true, "ran_at": "2020-01-01T00:00:00Z" },
+        { "id": 2, "sort_order": 1, "status": "done", "tested": true, "ran_at": "2026-01-01T00:00:00Z" }
+      ],
+      "expected_ids": [2, 1]
+    },
+    {
+      "name": "blocked outranks tested",
+      "why": "A blocked prompt goes to the very bottom whatever else is true of it.",
+      "prompts": [
+        { "id": 1, "sort_order": 1, "status": "done", "blocked": true },
+        { "id": 2, "sort_order": 2, "status": "done", "tested": true },
+        { "id": 3, "sort_order": 3, "status": "done" }
+      ],
+      "expected_ids": [3, 2, 1]
+    },
+    {
+      "name": "all three rules at once",
+      "why": "The realistic shape of a done column: untested by drag order, then tested by drag order, then blocked last.",
+      "prompts": [
+        { "id": 1, "sort_order": 4, "status": "done", "tested": true },
+        { "id": 2, "sort_order": 1, "status": "done", "blocked": true },
+        { "id": 3, "sort_order": 3, "status": "done" },
+        { "id": 4, "sort_order": 2, "status": "done", "tested": true },
+        { "id": 5, "sort_order": 5, "status": "done" }
+      ],
+      "expected_ids": [3, 5, 4, 1, 2]
+    },
+    {
+      "name": "negative and zero sort_order are ordinary values",
+      "why": "A prompt moved to the top of DONE gets min-1, which goes negative as soon as the column starts at 0.",
+      "prompts": [
+        { "id": 1, "sort_order": 0, "status": "queued" },
+        { "id": 2, "sort_order": -2, "status": "queued" },
+        { "id": 3, "sort_order": -1, "status": "queued" }
+      ],
+      "expected_ids": [2, 3, 1]
+    }
+  ]
+}
