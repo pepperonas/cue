@@ -7,6 +7,11 @@ RUN corepack enable && corepack prepare pnpm@10.2.1 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile || pnpm install
 COPY frontend/ ./
+# The shared ordering contract lives OUTSIDE frontend/ on purpose — neither
+# side of it owns the file (see contracts/column-order.json). `pnpm build`
+# runs `tsc -b`, which type-checks the test that reads it, so the build needs
+# it at the path the import resolves to: /fe/src/lib/../../../contracts.
+COPY contracts/ /contracts/
 RUN pnpm build
 
 # ---- Stage 2: python runtime ----
