@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0] - 2026-08-23
+
+### Changed
+- **Die stillen Projekte im Board lassen sich wieder von Hand sortieren.**
+  Chips ohne offene Prompts sind ziehbar, Chips mit Zähler nicht: deren Platz
+  bestimmt die Zahl, ein Ablegen dort würde beim nächsten Rendern rückgängig
+  gemacht und der Chip sichtbar zurückspringen. Ohne Zähler gibt es nichts, was
+  die eigene Reihenfolge überstimmt — dort ist die Geste ehrlich.
+  (0.42.0 hatte das Ziehen ganz entfernt; das war zu grob.)
+- Die neue Reihenfolge wird so gespeichert, dass **die belegten Projekte ihre
+  Plätze exakt behalten** (`withReorderedTail`): der Schwanz wird nur innerhalb
+  der Positionen vertauscht, die er ohnehin belegte. Wer die belegten Projekte
+  untereinander ordnen will, tut das weiterhin im Projekte-Tab.
+- Ein Projekt wechselt die Ziehbarkeit **live** mit: sobald sein letzter offener
+  Prompt fertig ist, wird sein Chip ziehbar — ohne Neuladen.
+
+### Note
+- ⚠️ Die ziehbaren Chips bekommen **kein** `touch-action: none`, obwohl ein
+  Ziehgriff das sonst braucht: die Chip-Zeile ist auf dem Handy ein
+  horizontaler Scroller, und die Wischgeste wegzunehmen würde die hinteren
+  Projekte unerreichbar machen. Die Druckverzögerung des TouchSensors trennt
+  Wischen von Ziehen.
+
 ## [0.43.0] - 2026-08-23
 
 ### Added

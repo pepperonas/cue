@@ -7,6 +7,7 @@ import {
   columnKey,
   countOpenByProject,
   sortProjectsByAttention,
+  withReorderedTail,
   defaultGroupsOpen,
   groupByProject,
   isOpen,
@@ -263,5 +264,71 @@ describe('sortProjectsByAttention', () => {
     const after = sortProjectsByAttention(manual, counts([[4, 0], [7, 4]]))
     expect(names(before)[0]).toBe('alpha')
     expect(names(after)[0]).toBe('beta')
+  })
+})
+
+
+describe('withReorderedTail', () => {
+  // Stored order; ids run against it on purpose (see sortProjectsByAttention).
+  const manual = [
+    { id: 4, name: 'busy-a' },
+    { id: 7, name: 'quiet-a' },
+    { id: 2, name: 'busy-b' },
+    { id: 1, name: 'quiet-b' },
+    { id: 9, name: 'quiet-c' },
+  ]
+  const names = (rows: { name: string }[]) => rows.map((r) => r.name)
+
+  it('permutes the tail among the slots it already had', () => {
+    // quiet-a/b/c sit at indices 1, 3, 4 — after the drag they still do, just
+    // in the new order. The busy projects never move.
+    const out = withReorderedTail(manual, [1, 9, 7])
+    expect(names(out)).toEqual(['busy-a', 'quiet-b', 'busy-b', 'quiet-c', 'quiet-a'])
+  })
+
+  it('leaves the busy projects exactly where they were', () => {
+    const out = withReorderedTail(manual, [9, 7, 1])
+    expect(out[0].name).toBe('busy-a')
+    expect(out[2].name).toBe('busy-b')
+  })
+
+  it('is a no-op when the tail order is unchanged', () => {
+    expect(names(withReorderedTail(manual, [7, 1, 9]))).toEqual(names(manual))
+  })
+
+  it('does not mutate its input', () => {
+    const input = [...manual]
+    withReorderedTail(input, [9, 1, 7])
+    expect(names(input)).toEqual(names(manual))
+  })
+
+  it('refuses a tail it cannot place instead of losing a project', () => {
+    // A project deleted while the drag was in flight leaves an id with no slot.
+    // The ORDER of that id matters: trailing, the writes happen to line up and
+    // nothing is lost — leading, every following entry shifts by one, the last
+    // write lands nowhere and a project disappears while another is duplicated.
+    // The second case is the one the guard exists for, so it is the one to pin.
+    for (const tail of [[999, 7, 1], [7, 999, 1], [7, 1, 999]]) {
+      const out = withReorderedTail(manual, tail)
+      expect(out, `tail ${tail}`).toEqual(manual)
+      expect(new Set(out.map((p) => p.id)).size, `tail ${tail}`).toBe(manual.length)
+    }
+    // A duplicate id would claim two slots for one project.
+    expect(withReorderedTail(manual, [7, 7, 1])).toEqual(manual)
+  })
+
+  it('handles a board where every project is quiet', () => {
+    const out = withReorderedTail(manual, [9, 1, 7, 2, 4])
+    expect(names(out)).toEqual(['quiet-c', 'quiet-b', 'quiet-a', 'busy-b', 'busy-a'])
+  })
+
+  it('round-trips with the display order: dragging the tail is what you see', () => {
+    // The property that makes the gesture honest — reorder the quiet chips and
+    // the row shows exactly that, because nothing outranks them.
+    const counts = new Map<number | 'none', number>([[4, 3], [2, 1]])
+    const before = sortProjectsByAttention(manual, counts)
+    expect(names(before)).toEqual(['busy-a', 'busy-b', 'quiet-a', 'quiet-b', 'quiet-c'])
+    const after = sortProjectsByAttention(withReorderedTail(manual, [9, 7, 1]), counts)
+    expect(names(after)).toEqual(['busy-a', 'busy-b', 'quiet-c', 'quiet-a', 'quiet-b'])
   })
 })

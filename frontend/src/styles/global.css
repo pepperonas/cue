@@ -726,6 +726,19 @@ a {
   color: var(--md-on-surface-variant);
   transition: background var(--dur-short), border-color var(--dur-short);
 }
+/* Only the chips whose order is really the user's can be dragged — the ones
+   with open prompts are placed by their count (see ProjectChips). */
+.chip--sortable {
+  cursor: grab;
+  /* Deliberately NO `touch-action: none` here, although a drag handle usually
+     needs it: on a phone this row is a horizontal scroller, and taking the pan
+     gesture away from the chips would make the later projects unreachable. The
+     TouchSensor's press delay (lib/dnd.ts) is what separates a swipe from a
+     drag instead. */
+}
+.chip--sortable:active {
+  cursor: grabbing;
+}
 .chip[data-active='true'] {
   background: var(--md-secondary-container, var(--md-primary-container));
   color: var(--md-on-secondary-container, var(--md-on-primary-container));

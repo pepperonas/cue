@@ -175,6 +175,40 @@ export function sortProjectsByAttention<T extends { id: number }>(
   })
 }
 
+/**
+ * Rewrite the manual order after a drag among the projects with NOTHING open.
+ *
+ * Those are the only ones the board lets you drag: a project with open prompts
+ * is placed by its count, so dropping it somewhere would be undone by the next
+ * render. The ones with an empty queue have no count to overrule them, so their
+ * order IS the manual one and a drag there is real.
+ *
+ * The head keeps its exact positions — the tail entries are permuted among the
+ * slots they already occupied, so reordering the quiet projects can never
+ * disturb the tiebreak order of the busy ones.
+ *
+ * @param manual   projects in their stored order (`Project.sort_order`)
+ * @param tailIds  the draggable ids in their NEW order
+ */
+export function withReorderedTail<T extends { id: number }>(
+  manual: T[],
+  tailIds: number[],
+): T[] {
+  const wanted = new Set(tailIds)
+  const slots: number[] = []
+  manual.forEach((project, index) => {
+    if (wanted.has(project.id)) slots.push(index)
+  })
+  if (slots.length !== tailIds.length) return manual // ids we do not know — leave it alone
+  const byId = new Map(manual.map((project) => [project.id, project]))
+  const next = [...manual]
+  tailIds.forEach((id, position) => {
+    const project = byId.get(id)
+    if (project) next[slots[position]] = project
+  })
+  return next
+}
+
 export function countOpenByProject(prompts: Prompt[]): Map<number | typeof NO_PROJECT, number> {
   const counts = new Map<number | typeof NO_PROJECT, number>()
   for (const prompt of prompts) {
