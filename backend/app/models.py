@@ -115,6 +115,13 @@ class Prompt(SQLModel, table=True):
     optimization_model: str = Field(default="")
     # Highest completed version; 0 = never optimized.
     optimization_version: int = Field(default=0)
+    # When an optimization was last ACCEPTED into `body` — null while none ever
+    # was. Needed as its own field because the prompt row cannot otherwise tell
+    # "übernommen" from "verworfen": both leave `optimized=False` with
+    # `optimization_version` untouched, so a completed-but-discarded attempt
+    # looks exactly like an applied one. Written only by
+    # `optimization/service.py:decide(apply=True)`.
+    optimization_applied_at: datetime | None = Field(default=None)
 
 
 class TagSource(str, enum.Enum):

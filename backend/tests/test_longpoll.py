@@ -128,7 +128,11 @@ def test_without_wait_the_endpoints_answer_immediately(client):
     assert (
         client.post("/api/optimizations/claim", json={}, headers=_RUNNER_HDR).status_code == 204
     )
-    assert time.monotonic() - started < 1.0
+    # Budget, not a benchmark: what this must catch is a default that starts
+    # WAITING, and that costs MAX_WAIT_S (25 s) per call. One second for three
+    # round trips is tight enough to fail on a loaded machine for no reason —
+    # it did, while six other things were building on this box.
+    assert time.monotonic() - started < 5.0
 
 
 def test_a_failing_attempt_surfaces_at_once_instead_of_being_retried(client):

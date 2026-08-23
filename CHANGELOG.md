@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 2026-08-23
+
+### Added
+- **Der KI-Knopf zeigt seinen Zustand in drei Farben.** Grün eingefärbt =
+  Optimierung wurde übernommen, orangenes Icon = ein Vorschlag wartet noch auf
+  die Entscheidung, neutral = noch nie optimiert. Nie nur die Farbe: Symbol
+  (`auto_awesome` / `rate_review` / `check_circle`) und Beschriftung wechseln
+  mit — der Knopf bleibt in Graustufen und für Screenreader eindeutig.
+- **`Prompt.optimization_applied_at`** — der Zustand „wurde per KI optimiert"
+  war aus dem Bestand gar nicht ableitbar: nach Übernehmen UND nach Verwerfen
+  stand auf der Zeile identisch `optimized=False` mit unverändertem
+  `optimization_version`. Geschrieben ausschließlich von
+  `decide(apply=True)`; der Bestand ist exakt aus der Entscheidungs-Historie
+  nachgefüllt (`decision='applied'`), nicht geschätzt.
+- **Semantische Farb-Tokens `--ok` / `--warn`** je Theme in `tokens.css`. Der
+  bisherige Grünwert stand als nackter Hex im Stylesheet und war für die
+  hellen Flächen viel zu hell.
+
+### Fixed
+- **Safe-Area-Insets:** die Kopfleiste stand mit `viewport-fit=cover` unter
+  Statusleiste bzw. Dynamic Island — sie trägt jetzt
+  `env(safe-area-inset-top)`, Kopfleiste und Inhalt zusätzlich die seitlichen
+  Insets fürs Querformat.
+- **Touch-Ziele auf schmalen Viewports:** Kopfleisten-Icons wurden von der
+  scrollenden Reiter-Pille auf gemessene 33 px zusammengedrückt (`flex: none`,
+  jetzt 44), Reiter waren 36 px hoch, Chips 36, Suchfelder nahmen nur ihre
+  26 px hohe Eingabe als Trefferfläche an, Text-Links 18 px. Alles ≥ 44 px.
+  Die 40-px-Knöpfe auf den Karten bleiben bewusst — sechs davon in einer
+  Zeile, 44 würde umbrechen.
+- **iOS-Zoom-Schutz griff nur bei `pointer: coarse`**, anders als jede andere
+  Touch-Regel der Datei: ein Touch-Gerät, das einen feinen Zeiger meldet, bekam
+  die 13,6-px-Textarea und damit den Zoom, aus dem iOS nicht zurückkehrt.
+
 ## [0.42.0] - 2026-08-23
 
 ### Changed

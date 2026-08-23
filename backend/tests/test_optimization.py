@@ -943,3 +943,48 @@ def test_a_pending_proposal_survives_the_prompt_leaving_the_queue(client):
     applied = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
     assert applied.status_code == 200, applied.text
     assert applied.json()["prompt"]["body"] == "Bessere Fassung"
+
+
+# --------------------------------------------------- "was it actually applied?"
+
+
+def test_applying_records_when_and_discarding_does_not(client):
+    """`optimization_applied_at` is what "dieser Prompt wurde per KI optimiert"
+    means. Without it the row cannot tell an accepted rewrite from a rejected
+    one: both leave `optimized=False` and `optimization_version` untouched."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    taken = _mk(client, headers, "Original A")
+    job_a = _finish(client, headers, taken["id"], "Bessere Fassung")
+    assert client.get(f"/api/prompts/{taken['id']}", headers=headers).json()[
+        "optimization_applied_at"
+    ] is None, "ein offener Vorschlag ist noch keine Übernahme"
+    applied = client.post(f"/api/optimizations/{job_a['id']}/apply", headers=headers).json()
+    assert applied["prompt"]["optimization_applied_at"] is not None, applied["prompt"]
+
+    dropped = _mk(client, headers, "Original B")
+    job_b = _finish(client, headers, dropped["id"], "Andere Fassung")
+    client.post(f"/api/optimizations/{job_b['id']}/discard", headers=headers)
+    after = client.get(f"/api/prompts/{dropped['id']}", headers=headers).json()
+    assert after["optimization_applied_at"] is None
+    # ...and the two are otherwise indistinguishable, which is the whole point.
+    assert after["optimized"] is False
+    assert after["optimization_version"] == applied["prompt"]["optimization_version"]
+
+
+def test_the_stamp_survives_a_later_discarded_attempt(client):
+    """Optimizing again and rejecting the result does not un-optimize a prompt."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Original")
+    first = _finish(client, headers, prompt["id"], "v1")
+    stamp = client.post(f"/api/optimizations/{first['id']}/apply", headers=headers).json()[
+        "prompt"
+    ]["optimization_applied_at"]
+
+    second = _finish(client, headers, prompt["id"], "v2")
+    client.post(f"/api/optimizations/{second['id']}/discard", headers=headers)
+    assert client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()[
+        "optimization_applied_at"
+    ] == stamp

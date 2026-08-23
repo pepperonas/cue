@@ -64,6 +64,8 @@ export interface Prompt {
   optimized_at: string | null
   optimization_model: string
   optimization_version: number
+  /** Set once an optimization was accepted into `body`; null otherwise. */
+  optimization_applied_at?: string | null
   blocked: boolean
   created_at: string
   updated_at: string

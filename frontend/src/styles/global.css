@@ -90,6 +90,10 @@ a {
   max-width: 1400px;
   margin: 0 auto;
   padding: var(--gap-4) var(--gap-5) 120px;
+  /* Landscape on a notched phone cuts into one side — `max()` keeps the normal
+     padding everywhere else. */
+  padding-left: max(var(--gap-5), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gap-5), env(safe-area-inset-right, 0px));
 }
 
 /* ---- Top bar ---- */
@@ -100,7 +104,12 @@ a {
   display: flex;
   align-items: center;
   gap: var(--gap-3);
-  padding: var(--gap-3) var(--gap-5);
+  /* The viewport meta says `viewport-fit=cover`, so the page starts BEHIND the
+     status bar / Dynamic Island. The bar is what sits there, so it carries the
+     inset; `env()` is 0 everywhere else, which leaves the desktop untouched. */
+  padding: calc(var(--gap-3) + env(safe-area-inset-top, 0px)) var(--gap-5) var(--gap-3);
+  padding-left: max(var(--gap-5), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gap-5), env(safe-area-inset-right, 0px));
   background: color-mix(in srgb, var(--md-surface) 86%, transparent);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--md-outline-variant);
@@ -885,8 +894,11 @@ a {
    does NOT zoom back out afterwards — the whole app stays magnified and
    sideways-scrollable until you pinch it back. The prompt textarea measured
    13.6 px, so tapping the main field of the main dialog did exactly that.
-   Only on touch: the smaller monospace type is deliberate on a desktop. */
-@media (pointer: coarse) {
+   The narrow half was added later: `pointer: coarse` alone left a touch device
+   that reports a fine pointer (DeX, a tablet with a trackpad) on 13.6 px, and
+   it made the rule unmeasurable in a desktop browser. Below 900 px it is not a
+   desktop any more, which is what "deliberate on a desktop" was protecting. */
+@media (pointer: coarse), (max-width: 900px) {
   .textarea {
     font-size: 16px;
     /* A 240 px floor plus a pinned header and action row leaves little room to
@@ -1667,10 +1679,60 @@ kbd {
   .tab > .tab-label {
     display: none;
   }
-  /* Slightly smaller icon buttons in the header. */
+  /* Header icon buttons: a full 44 px target, and `flex: none` so the
+     scrolling tab pill beside them cannot squeeze them — without it flexbox
+     shrank these from the 40 px asked for here down to a measured 33 px. */
   .topbar .icon-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+    flex: none;
+  }
+  /* Same reason: the logo is a button and was being measured at 34×34. */
+  .topbar .brand,
+  .topbar .brand-btn {
+    flex: none;
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+  .topbar .brand-btn .logo-img {
+    width: 36px;
+    height: 36px;
+  }
+  /* Icon-only tabs are 8+20+8 = 36 px tall; a primary navigation target on a
+     phone should be 44. The pill grows with them, the header does not — the
+     44 px icon buttons beside it already set the row height. */
+  .tabs .tab {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+  /* Everything below was measured under 44 px at 412 px width. The card
+     `.mini-btn` grid is deliberately left at its documented 40 px: six of them
+     sit in one card row and 44 would force a wrap — 40 still clears WCAG 2.5.8
+     (24 px) comfortably. */
+  .range-chip,
+  .chip,
+  .btn,
+  .list-group-head {
+    min-height: 44px;
+  }
+  /* The pill was 46 px tall but only its 26 px input took the tap; the padding
+     around it did nothing. Moving the height onto the input makes the whole
+     pill the target. */
+  .search {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .search input {
+    min-height: 44px;
+  }
+  /* Text-styled buttons ("Nicht wieder anzeigen") measured 18 px tall. Padding
+     rather than a min-height, so the inline text keeps its baseline in the
+     sentence it sits in. */
+  .link-btn {
+    min-height: 44px;
+    padding-block: 12px;
   }
   /* Action bar can wrap if the labels don't fit one row. */
   .select-bar {
@@ -2825,10 +2887,17 @@ img.logo-xl { border-radius: 18px; }
   }
 }
 
-.optimize-btn.is-optimized {
-  color: #7fd1a0;
+/* Three states, addressed by the value the component actually branches on. */
+.optimize-btn[data-opt-state='applied'] {
+  color: var(--ok);
+  background: var(--ok-container);
 }
-.optimize-btn:not(.is-optimized):not(:disabled):hover {
+.optimize-btn[data-opt-state='pending'] {
+  /* Only the glyph — an undecided proposal is a request, not a finished thing,
+     so it stays a plain icon button while "applied" reads as a filled state. */
+  color: var(--warn);
+}
+.optimize-btn[data-opt-state='none']:not(:disabled):hover {
   color: var(--md-primary);
 }
 .optimize-btn.is-busy {
@@ -2864,7 +2933,7 @@ img.logo-xl { border-radius: 18px; }
   align-items: center;
   gap: 6px;
   font: var(--label-l);
-  color: #7fd1a0;
+  color: var(--ok);
 }
 .opt-badge.is-busy {
   color: var(--md-primary);

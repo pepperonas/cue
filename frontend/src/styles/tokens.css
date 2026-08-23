@@ -61,6 +61,16 @@
   --dur-short: 200ms;
   --dur-medium: 400ms;
 
+  /* Semantic status colours. The palette already used these two hues as bare
+     hex (`.st-done`, `.st-running`); as tokens they can differ per theme, which
+     a hex cannot — the dark-theme green is far too light to read on the light
+     theme's white surfaces. Measured against the real card background in both
+     themes, see CLAUDE.md. */
+  --ok: #48c98b;
+  --warn: #eda13c;
+  --ok-container: color-mix(in srgb, var(--ok) 20%, transparent);
+  --warn-container: color-mix(in srgb, var(--warn) 20%, transparent);
+
   /* Elevation via surface tint (no hard shadows) */
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.18);
   --elev-2: 0 2px 8px rgba(0, 0, 0, 0.22);
@@ -71,6 +81,11 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
+  /* Darkened for the light surfaces. The dark-theme tints measure 1.83:1 (ok)
+     and 1.87:1 (warn) on the light card — decoration, not information. These
+     two reach 5.11 and 5.71 there. */
+  --ok: #12734a;
+  --warn: #8a4f04;
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.08);
   --elev-2: 0 2px 8px rgba(0, 0, 0, 0.1);
   --elev-3: 0 6px 20px rgba(0, 0, 0, 0.14);

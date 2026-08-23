@@ -62,6 +62,8 @@ def _migrate(engine: Engine) -> None:
         "optimization_version": "ALTER TABLE prompt ADD COLUMN optimization_version INTEGER NOT NULL DEFAULT 0",
         # Backfilled below with created_at — see the comment at the backfill.
         "edited_at": "ALTER TABLE prompt ADD COLUMN edited_at TIMESTAMP",
+        # Backfilled below from the decision history.
+        "optimization_applied_at": "ALTER TABLE prompt ADD COLUMN optimization_applied_at TIMESTAMP",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
@@ -130,6 +132,19 @@ def _migrate(engine: Engine) -> None:
                         # Everything edited from here on carries the truth.
                         conn.exec_driver_sql(
                             "UPDATE prompt SET edited_at = created_at WHERE edited_at IS NULL"
+                        )
+                    if table == "prompt" and column == "optimization_applied_at":
+                        # Unlike `edited_at`, this backfill is exact: the
+                        # decision is recorded data, not a reconstruction —
+                        # `prompt_optimization.decision` says which attempts
+                        # were taken over, and `decided_at` says when.
+                        conn.exec_driver_sql(
+                            """
+                            UPDATE prompt SET optimization_applied_at = (
+                                SELECT MAX(o.decided_at) FROM prompt_optimization o
+                                WHERE o.prompt_id = prompt.id AND o.decision = 'applied'
+                            )
+                            """
                         )
         # Blocked only exists on queued prompts — clear stale flags from before
         # that rule (idempotent data fix).

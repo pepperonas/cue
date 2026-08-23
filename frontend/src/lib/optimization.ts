@@ -2,6 +2,28 @@
 import type { Optimization, Prompt } from './types'
 
 /**
+ * The three states the ✨-button communicates, as one explicit value.
+ *
+ * Derived once, here, instead of re-deriving `prompt.optimized` and
+ * `optimization_applied_at` at each call site — the two conditions can hold at
+ * the same time (a prompt that was optimized last week and has a fresh
+ * proposal waiting), and the answer to that has to be the same everywhere.
+ *
+ * **Rank: `pending` beats `applied`.** The pending state is the one that asks
+ * something of the user; "wurde schon einmal optimiert" is only history and
+ * stays readable in the panel either way. Showing the green "done" tint over an
+ * undecided proposal would hide the request for a decision.
+ */
+export type OptimizeState = 'none' | 'pending' | 'applied'
+
+export function optimizeState(
+  prompt: Pick<Prompt, 'optimized' | 'optimization_applied_at'>,
+): OptimizeState {
+  if (prompt.optimized) return 'pending'
+  return prompt.optimization_applied_at ? 'applied' : 'none'
+}
+
+/**
  * Whether a prompt may be optimized at all.
  *
  * Optimizing is PREPARATION — it rewrites the text you are about to send. Once

@@ -144,6 +144,8 @@ class PromptRead(BaseModel):
     optimized_at: Utc | None = None
     optimization_model: str = ""
     optimization_version: int = 0
+    # Null until an optimization was accepted into `body` (see the model).
+    optimization_applied_at: Utc | None = None
     attachments: list[AttachmentRead] = []
 
 

@@ -334,6 +334,10 @@ class PromptOptimizationService:
         if apply:
             prompt.body = job.optimized_text or prompt.body
             prompt.updated_at = now
+            # The one place this is written: it is what "dieser Prompt wurde
+            # per KI optimiert" means, as opposed to "es lag mal ein Vorschlag
+            # vor". Discarding deliberately leaves it untouched.
+            prompt.optimization_applied_at = now
             events.record(self.session, prompt, PromptEventType.updated)
         # Pending state is cleared either way: the proposal has been reviewed.
         prompt.optimized = False
