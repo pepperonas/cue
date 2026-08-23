@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
+import { isOptimizable } from '../lib/optimization'
 import { dedupeTags } from '../lib/tags'
 import type { Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
@@ -170,7 +171,7 @@ export function PromptCard({
           <div className="card-end">
             <RelativeTime prompt={prompt} />
             <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-              {onOptimize && (
+              {onOptimize && isOptimizable(prompt) && (
                 <OptimizeButton
                   prompt={prompt}
                   busy={optimizeBusy}

@@ -7,6 +7,7 @@ subprocess (which is covered in `cue-runner/tests/test_optimize.py`).
 """
 from __future__ import annotations
 
+import pytest
 from conftest import RUNNER_HDR
 from conftest import auth as _auth
 
@@ -866,3 +867,79 @@ def test_deleting_a_prompt_with_only_finished_optimizations_still_works(client):
 
     assert client.delete(f"/api/prompts/{prompt['id']}", headers=headers).status_code == 204
     assert client.get(f"/api/prompts/{prompt['id']}", headers=headers).status_code == 404
+
+
+# --------------------------------------------------- only the queue is eligible
+
+
+def _move(client, headers, prompt_id, status):
+    r = client.patch(f"/api/prompts/{prompt_id}", json={"status": status}, headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+@pytest.mark.parametrize("status", ["running", "done", "failed", "archived"])
+def test_only_queued_prompts_can_be_optimized(client, status):
+    """Optimizing rewrites the text you are ABOUT to send.
+
+    Once a prompt has run, that text is history — offering the rewrite there
+    spends money on a result nobody will use.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    _move(client, headers, prompt["id"], status)
+
+    res = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    assert res.status_code == 400, res.text
+    assert "Queue" in res.json()["detail"]
+
+
+def test_a_prompt_moved_back_to_the_queue_is_eligible_again(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    _move(client, headers, prompt["id"], "done")
+    _move(client, headers, prompt["id"], "queued")
+
+    res = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    assert res.status_code == 201, res.text
+
+
+def test_the_batch_takes_the_queue_and_nothing_else(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    queued = [_mk(client, headers, f"Queued {i}") for i in range(2)]
+    for status in ("running", "done", "archived"):
+        _move(client, headers, _mk(client, headers, f"Weg {status}")["id"], status)
+
+    batch = client.post("/api/optimizations/batch", json={}, headers=headers).json()
+    assert batch["total"] == len(queued), batch
+
+    jobs = client.get("/api/optimizations", headers=headers).json()
+    assert {j["prompt_id"] for j in jobs} == {p["id"] for p in queued}
+
+
+def test_an_empty_queue_is_refused_by_name(client):
+    """With only the queue eligible this is the common case, so the message has
+    to say WHICH prompts were not found."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _move(client, headers, _mk(client, headers, "Erledigt")["id"], "done")
+
+    res = client.post("/api/optimizations/batch", json={}, headers=headers)
+    assert res.status_code == 400, res.text
+    assert res.json()["detail"] == "Keine Prompts in der Queue zum Optimieren"
+
+
+def test_a_pending_proposal_survives_the_prompt_leaving_the_queue(client):
+    """Moving a prompt must not strand a finished rewrite it never decided on."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"], "Bessere Fassung")
+    _move(client, headers, prompt["id"], "running")
+
+    applied = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["prompt"]["body"] == "Bessere Fassung"

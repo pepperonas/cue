@@ -11,7 +11,7 @@
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../../lib/motion'
-import { succeededVersions } from '../../lib/optimization'
+import { isOptimizable, succeededVersions } from '../../lib/optimization'
 import { useOptimizationHistory } from '../../state/queries'
 import type { Optimization, Prompt } from '../../lib/types'
 import { Icon } from '../ui'
@@ -118,9 +118,14 @@ export function OptimizationPanel({
             <Icon name="close" /> Abbrechen
           </button>
         ) : (
-          <button className="btn btn--text" onClick={onOptimize}>
-            <Icon name="refresh" /> Erneut optimieren
-          </button>
+          // The panel itself stays visible for a prompt that has left the
+          // queue — that is how an already finished proposal is reviewed and
+          // applied. Only STARTING a new one goes away.
+          isOptimizable(prompt) && (
+            <button className="btn btn--text" onClick={onOptimize}>
+              <Icon name="refresh" /> Erneut optimieren
+            </button>
+          )
         )}
       </header>
 

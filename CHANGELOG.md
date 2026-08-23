@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2026-08-23
+
+### Changed
+- **Die Projekt-Chips im Board sortieren sich nach offener Arbeit.** Projekte
+  mit offenen Prompts stehen oben, das mit den meisten zuerst; die selbst
+  gezogene Reihenfolge bleibt der Gleichstand-Entscheid und gilt weiter für
+  alles mit leerer Queue. Die Reihenfolge ist aus der Prompt-Liste abgeleitet,
+  ändert sich also im selben Moment wie die Zahlen — ohne Neuladen (live
+  geprüft: `cue 3 · disco 2` → `disco 4 · cue 3` → zurück, ein einziger
+  Seitenaufruf).
+- ⚠️ **Die Chips selbst lassen sich dafür nicht mehr ziehen.** Bei einer
+  abgeleiteten Reihenfolge wäre die Geste eine Lüge: das Ablegen schreibt eine
+  neue `sort_order`, die Zählregel sortiert sofort darüber, und der Chip
+  springt sichtbar zurück. Gesetzt wird die eigene Reihenfolge dort, wo man sie
+  auch sieht — im **Projekte**-Tab, der nicht nach Zahlen sortiert.
+- **KI-Optimierung gibt es nur noch für Prompts in der Queue.** Optimieren ist
+  VORBEREITUNG — es schreibt den Text um, den man gleich abschickt. Sobald ein
+  Prompt läuft oder fertig ist, ist dieser Text Geschichte, und ein Umschreiben
+  kostet Geld für ein Ergebnis, das niemand mehr sendet. Der ✨-Knopf
+  verschwindet auf Karte, Listenzeile und im Detail; „Erneut optimieren"
+  ebenfalls. Ein Prompt, den man zurück in die Queue zieht, ist wieder dabei.
+- **Die Regel steht im Server, nicht nur in der Oberfläche** — sonst hätte
+  „Alle optimieren" weiter das ganze Board umgeschrieben: der Sammellauf nahm
+  bisher JEDEN Prompt des Kontos, auch erledigte und archivierte. Er sieht
+  jetzt nur die Queue, und die Meldung bei leerer Queue sagt das auch.
+
+### Note
+- Ein **wartender Vorschlag bleibt erreichbar**, auch wenn der Prompt inzwischen
+  läuft: die Vergleichsansicht und die Übernehmen/Verwerfen-Leiste im Detail
+  bleiben stehen. Nur das STARTEN einer neuen Optimierung entfällt.
+
 ## [0.41.0] - 2026-08-23
 
 Jede Karte sagt jetzt, wie alt sie ist — und die Angabe bleibt von selbst

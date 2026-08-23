@@ -6,6 +6,7 @@ import {
   capToggleLabel,
   columnKey,
   countOpenByProject,
+  sortProjectsByAttention,
   defaultGroupsOpen,
   groupByProject,
   isOpen,
@@ -205,5 +206,62 @@ describe('countOpenByProject', () => {
 
   it('handles an empty board', () => {
     expect(countOpenByProject([]).size).toBe(0)
+  })
+})
+
+
+describe('sortProjectsByAttention', () => {
+  // The manual order is the order the function receives (Project.sort_order).
+  // The ids deliberately run against it — with ids 1..4 in order, a tiebreak of
+  // `a.id - b.id` would pass every test here while ignoring the user's drag.
+  const manual = [
+    { id: 4, name: 'alpha' },
+    { id: 7, name: 'beta' },
+    { id: 2, name: 'gamma' },
+    { id: 1, name: 'delta' },
+  ]
+  const counts = (entries: [number, number][]) => new Map<number | 'none', number>(entries)
+  const names = (rows: { name: string }[]) => rows.map((r) => r.name)
+
+  it('leads with the busiest project', () => {
+    const out = sortProjectsByAttention(manual, counts([[2, 5], [4, 2]]))
+    expect(names(out)).toEqual(['gamma', 'alpha', 'beta', 'delta'])
+  })
+
+  it('keeps the manual order where the counts are equal', () => {
+    // beta before gamma is a decision the user made by dragging; two projects
+    // with the same amount of open work must not swap around on their own.
+    const out = sortProjectsByAttention(manual, counts([[7, 3], [2, 3]]))
+    expect(names(out)).toEqual(['beta', 'gamma', 'alpha', 'delta'])
+  })
+
+  it('keeps the manual order among the projects with nothing open', () => {
+    const out = sortProjectsByAttention(manual, counts([]))
+    expect(names(out)).toEqual(['alpha', 'beta', 'gamma', 'delta'])
+  })
+
+  it('puts every project with open work above every project without', () => {
+    const out = sortProjectsByAttention(manual, counts([[1, 1]]))
+    expect(names(out)).toEqual(['delta', 'alpha', 'beta', 'gamma'])
+  })
+
+  it('does not mutate the list it was given', () => {
+    const input = [...manual]
+    sortProjectsByAttention(input, counts([[1, 9]]))
+    expect(names(input)).toEqual(['alpha', 'beta', 'gamma', 'delta'])
+  })
+
+  it('ignores a count for a project that is not in the list', () => {
+    const out = sortProjectsByAttention(manual, counts([[99, 50], ['none' as never, 7]]))
+    expect(names(out)).toEqual(['alpha', 'beta', 'gamma', 'delta'])
+  })
+
+  it('follows the live counts — the same projects re-sort as work moves', () => {
+    // This is the "no refresh needed" property: the order is a pure function of
+    // the prompt list, so a status change is enough to change it.
+    const before = sortProjectsByAttention(manual, counts([[4, 2]]))
+    const after = sortProjectsByAttention(manual, counts([[4, 0], [7, 4]]))
+    expect(names(before)[0]).toBe('alpha')
+    expect(names(after)[0]).toBe('beta')
   })
 })

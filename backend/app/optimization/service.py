@@ -27,6 +27,7 @@ from ..models import (
     Prompt,
     PromptEventType,
     PromptOptimization,
+    PromptStatus,
     utcnow,
 )
 from . import providers
@@ -109,6 +110,15 @@ class PromptOptimizationService:
         provider: str | None,
         batch_id: str | None,
     ) -> PromptOptimization:
+        # Optimizing is PREPARATION: a prompt that is running or done has
+        # already been used, and rewriting its text there costs money for a
+        # result nobody will send. The batch below catches this and SKIPS such
+        # prompts, which is why the rule lives here rather than in the routers —
+        # one place, both entry points.
+        if prompt.status is not PromptStatus.queued:
+            raise OptimizationError(
+                "Nur Prompts in der Queue können optimiert werden", 400
+            )
         body = (prompt.body or "").strip()
         if not body:
             raise OptimizationError("Prompt hat keinen Text", 400)
@@ -170,7 +180,7 @@ class PromptOptimizationService:
         spec = providers.get(provider or self.settings.optimize_provider)
         candidates = self.repo.prompts_for_batch(uid, project_id=project_id, only_pending=only_pending)
         if not candidates:
-            raise OptimizationError("Keine Prompts zum Optimieren gefunden", 400)
+            raise OptimizationError("Keine Prompts in der Queue zum Optimieren", 400)
 
         batch = self.repo.add_batch(
             OptimizationBatch(user_id=uid, provider=spec.id, total=0)

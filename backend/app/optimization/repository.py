@@ -14,6 +14,7 @@ from ..models import (
     OptimizationStatus,
     Prompt,
     PromptOptimization,
+    PromptStatus,
     utcnow,
 )
 
@@ -28,8 +29,13 @@ class OptimizationRepository:
         return prompt if prompt and prompt.user_id == uid else None
 
     def prompts_for_batch(self, uid: int, *, project_id: int | None, only_pending: bool) -> list[Prompt]:
-        """Candidates for "optimize everything", in board order."""
-        stmt = select(Prompt).where(Prompt.user_id == uid)
+        """Candidates for "optimize everything", in board order.
+
+        Queued only. `_queue_for` rejects everything else anyway, so without
+        this filter the batch would walk the whole board to skip most of it and
+        report a total that has nothing to do with what it queued.
+        """
+        stmt = select(Prompt).where(Prompt.user_id == uid, Prompt.status == PromptStatus.queued)
         if project_id is not None:
             stmt = stmt.where(Prompt.project_id == project_id)
         if only_pending:

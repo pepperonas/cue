@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { columnComparator } from '../lib/order'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
+import { isOptimizable } from '../lib/optimization'
 import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
@@ -256,7 +257,7 @@ function ListRow({
       {project && tones && (
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
       )}
-      {onOptimize && (
+      {onOptimize && isOptimizable(p) && (
         <OptimizeButton prompt={p} busy={optimizeBusy} onOptimize={onOptimize} />
       )}
       {onToggleTested && canTest && (

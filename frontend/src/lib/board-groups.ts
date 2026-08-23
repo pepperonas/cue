@@ -151,6 +151,30 @@ export function capToggleLabel(
  * Always call this with the UNFILTERED prompt list: the counts describe the
  * whole board, so filtering to one project must not zero the other badges.
  */
+/**
+ * Board order for the project chips: whatever needs attention, first.
+ *
+ * Projects with open prompts come first, most open first; everything else keeps
+ * the order the user dragged into place (`Project.sort_order`, which is the
+ * order this function receives). The manual order is also the tiebreak, so two
+ * projects with the same number of open prompts still sit where they were put.
+ *
+ * Derived from the live prompt list, so the row re-sorts itself the moment a
+ * prompt is added, finished or moved — no reload, no second request.
+ */
+export function sortProjectsByAttention<T extends { id: number }>(
+  projects: T[],
+  openCounts: Map<number | typeof NO_PROJECT, number>,
+): T[] {
+  const manual = new Map(projects.map((project, index) => [project.id, index]))
+  return [...projects].sort((a, b) => {
+    const openA = openCounts.get(a.id) ?? 0
+    const openB = openCounts.get(b.id) ?? 0
+    if (openA !== openB) return openB - openA
+    return (manual.get(a.id) ?? 0) - (manual.get(b.id) ?? 0)
+  })
+}
+
 export function countOpenByProject(prompts: Prompt[]): Map<number | typeof NO_PROJECT, number> {
   const counts = new Map<number | typeof NO_PROJECT, number>()
   for (const prompt of prompts) {

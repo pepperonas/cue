@@ -10,6 +10,7 @@ import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { DecisionBar } from './optimize/DecisionBar'
 import { RelativeTime } from './RelativeTime'
+import { isOptimizable } from '../lib/optimization'
 import { promptTimes } from '../lib/relative-time'
 import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
 import { OptimizeButton } from './optimize/OptimizeButton'
@@ -265,7 +266,7 @@ export function DetailSheet({
                 onToggle={() => onToggleBlocked(prompt)}
               />
             )}
-            {canOptimize && onOptimize && (
+            {canOptimize && onOptimize && isOptimizable(prompt) && (
               <OptimizeButton
                 variant="icon-btn"
                 prompt={prompt}

@@ -4,7 +4,7 @@ import { api } from './lib/api'
 import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
-import { countOpenByProject } from './lib/board-groups'
+import { countOpenByProject, sortProjectsByAttention } from './lib/board-groups'
 import { bookmarkedPrompts, filterPrompts } from './lib/filter'
 import { withChunkRecovery } from './lib/lazy-chunk'
 import { columnComparator } from './lib/order'
@@ -229,6 +229,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   // from the UNFILTERED prompt list, so filtering doesn't zero the others, and
   // it re-renders with every optimistic status change — no refresh needed.
   const openCounts = useMemo(() => countOpenByProject(prompts ?? []), [prompts])
+  // The chips lead with whatever has open work; the manual order stays the
+  // tiebreak and still governs everything with an empty queue. Derived from the
+  // same live data as the badges, so the row re-sorts without a reload.
+  const chipProjects = useMemo(
+    () => sortProjectsByAttention(projects ?? [], openCounts),
+    [projects, openCounts],
+  )
 
   // If the persisted filter points at a project that no longer exists, reset.
   useEffect(() => {
@@ -734,7 +741,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             </div>
 
             <ProjectChips
-              projects={projects ?? []}
+              projects={chipProjects}
               filter={projectFilter}
               setFilter={setProjectFilter}
               openCounts={openCounts}
