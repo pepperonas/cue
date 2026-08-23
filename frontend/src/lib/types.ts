@@ -67,6 +67,8 @@ export interface Prompt {
   blocked: boolean
   created_at: string
   updated_at: string
+  /** Last content write — what the cards show. Absent on pre-0.41 responses. */
+  edited_at?: string | null
   ran_at: string | null
   attachments: Attachment[]
 }

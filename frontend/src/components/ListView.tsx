@@ -8,6 +8,7 @@ import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { RelativeTime } from './RelativeTime'
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { Icon } from './ui'
 
@@ -246,9 +247,10 @@ function ListRow({
       <Icon name={STATUS_ICON[p.status]} className={`st-icon ${STATUS_CLASS[p.status]}`} />
       <div className="grow">
         <div className="lt">{p.title || 'Untitled'}</div>
-        <div className="muted" style={{ fontSize: '0.78rem' }}>
+        <div className="muted list-sub">
           {STATUS_LABEL[p.status]}
           {project ? ` · ${project.name}` : ''}
+          <RelativeTime prompt={p} prefix=" · " />
         </div>
       </div>
       {project && tones && (

@@ -89,6 +89,20 @@ class Prompt(SQLModel, table=True):
     blocked: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+    # When the CONTENT was last written — what the cards show as "vor 3 Std.".
+    #
+    # Deliberately NOT `updated_at`, which every write bumps: a drag, a status
+    # change, a bookmark or a "getestet" tick all move it, and in production it
+    # sat more than a minute past the last real edit on 221 of 271 prompts (49 %
+    # by more than a day). A card claiming "gerade eben" because someone
+    # reordered a column is worse than no timestamp at all.
+    #
+    # `updated_at` must keep its meaning regardless: `app/changes.py` builds the
+    # live-sync fingerprint from `max(updated_at)`, so a status change that
+    # stopped bumping it would become invisible on the user's other devices.
+    #
+    # Written ONLY by `events.record()` — see the note there.
+    edited_at: datetime | None = Field(default_factory=utcnow)
     # Set when the prompt first enters running/done.
     ran_at: datetime | None = Field(default=None)
 

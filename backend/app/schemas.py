@@ -1,10 +1,10 @@
 """Pydantic request/response schemas (separate from table models)."""
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from datetime import datetime, timezone
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import AfterValidator, BaseModel
 
 from .models import (
     OptimizationDecision,
@@ -14,6 +14,30 @@ from .models import (
     RunStatus,
     TagSource,
 )
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Make a timestamp explicitly UTC.
+
+    SQLite hands rows back NAIVE while a freshly written row is still aware, so
+    one and the same response used to carry both `...839915` and `...997876Z`.
+    A JSON date-time without a zone designator is LOCAL time to every browser
+    (ES2015+), so the naive half arrived shifted by the viewer's UTC offset —
+    two hours in Berlin. That was invisible while nothing computed with the
+    values; the relative timestamps on the cards would have reported everything
+    younger than the offset as "gerade eben" forever.
+
+    Normalizing on validation (not on serialization) means the value is aware
+    everywhere the model is used, and Pydantic then emits the `Z` by itself.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+# Every timestamp that leaves the API goes through this. `tests/test_wire_time.py`
+# sweeps the module and fails if a schema reintroduces a bare `datetime`.
+Utc = Annotated[datetime, AfterValidator(_as_utc)]
 
 
 # ---- Auth ----
@@ -47,7 +71,7 @@ class ProjectRead(BaseModel):
     name: str
     color: str
     sort_order: int = 0
-    created_at: datetime
+    created_at: Utc
     prompt_count: int = 0
 
 
@@ -109,13 +133,15 @@ class PromptRead(BaseModel):
     bookmark_order: int
     tested: bool
     blocked: bool
-    created_at: datetime
-    updated_at: datetime
-    ran_at: datetime | None
+    created_at: Utc
+    updated_at: Utc
+    # Last content write; null only for rows a client of an older build wrote.
+    edited_at: Utc | None = None
+    ran_at: Utc | None
     # AI optimization state (the original `body` above is never overwritten).
     optimized: bool = False
     optimized_body: str | None = None
-    optimized_at: datetime | None = None
+    optimized_at: Utc | None = None
     optimization_model: str = ""
     optimization_version: int = 0
     attachments: list[AttachmentRead] = []
@@ -220,14 +246,14 @@ class RunStepRead(BaseModel):
     output: str | None
     exit_code: int | None
     cost_usd: float | None
-    started_at: datetime | None
-    finished_at: datetime | None
+    started_at: Utc | None
+    finished_at: Utc | None
 
 
 class RunLogRead(BaseModel):
     seq: int
     step_index: int
-    ts: datetime
+    ts: Utc
     event_type: str
     line: str
 
@@ -237,9 +263,9 @@ class RunRead(BaseModel):
     kind: RunKind
     project_path: str
     status: RunStatus
-    created_at: datetime
-    started_at: datetime | None
-    finished_at: datetime | None
+    created_at: Utc
+    started_at: Utc | None
+    finished_at: Utc | None
     claude_session_id: str | None
     model: str | None
     allowed_tools: str | None
@@ -249,7 +275,7 @@ class RunRead(BaseModel):
     max_turns: int | None
     stop_on_error: bool
     runner_id: str | None
-    last_heartbeat: datetime | None
+    last_heartbeat: Utc | None
     cancel_requested: bool
     total_cost_usd: float | None
     error: str | None
@@ -332,7 +358,7 @@ class CapturedPromptRead(BaseModel):
     id: int
     seq: int
     text: str
-    created_at: datetime
+    created_at: Utc
 
 
 class CaptureSessionRead(BaseModel):
@@ -341,8 +367,8 @@ class CaptureSessionRead(BaseModel):
     project_id: int | None
     project_name: str | None = None
     cwd: str
-    started_at: datetime
-    last_at: datetime
+    started_at: Utc
+    last_at: Utc
     prompt_count: int
     # True when cue knows a live terminal transport for this session (can send).
     deliverable: bool = False
@@ -411,8 +437,8 @@ class SnippetRead(BaseModel):
     group_name: str | None
     sort_order: int
     version: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Utc
+    updated_at: Utc
 
 
 class SnippetGroupCreate(BaseModel):
@@ -502,7 +528,7 @@ class SyncPushResult(BaseModel):
 class SyncSettingsRead(BaseModel):
     has_token: bool
     sync_ungrouped: bool
-    last_sync: datetime | None = None
+    last_sync: Utc | None = None
     # Shown exactly once, right after regeneration.
     token: str | None = None
 
@@ -527,8 +553,8 @@ class AdminUserRead(BaseModel):
     name: str
     picture: str
     approved: bool
-    created_at: datetime
-    last_login_at: datetime
+    created_at: Utc
+    last_login_at: Utc
 
 
 class AdminUserUpdate(BaseModel):
@@ -574,7 +600,7 @@ class OptimizationRead(BaseModel):
     meta_prompt_version: int
     universal: bool
     decision: OptimizationDecision
-    decided_at: datetime | None
+    decided_at: Utc | None
     original_text: str
     previous_text: str | None
     optimized_text: str | None
@@ -584,9 +610,9 @@ class OptimizationRead(BaseModel):
     input_tokens: int | None
     output_tokens: int | None
     error: str | None
-    created_at: datetime
-    started_at: datetime | None
-    finished_at: datetime | None
+    created_at: Utc
+    started_at: Utc | None
+    finished_at: Utc | None
 
 
 class OptimizationBatchRead(BaseModel):
@@ -597,8 +623,8 @@ class OptimizationBatchRead(BaseModel):
     failed: int
     pending: int
     canceled: bool
-    created_at: datetime
-    finished_at: datetime | None
+    created_at: Utc
+    finished_at: Utc | None
 
 
 class OptimizationProviderRead(BaseModel):
@@ -653,8 +679,8 @@ class TagRead(BaseModel):
     name: str
     source: TagSource
     usage_count: int
-    created_at: datetime
-    last_used_at: datetime | None = None
+    created_at: Utc
+    last_used_at: Utc | None = None
 
 
 class TagListResponse(BaseModel):

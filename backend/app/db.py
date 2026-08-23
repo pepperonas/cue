@@ -60,6 +60,8 @@ def _migrate(engine: Engine) -> None:
         "optimized_at": "ALTER TABLE prompt ADD COLUMN optimized_at TIMESTAMP",
         "optimization_model": "ALTER TABLE prompt ADD COLUMN optimization_model VARCHAR NOT NULL DEFAULT ''",
         "optimization_version": "ALTER TABLE prompt ADD COLUMN optimization_version INTEGER NOT NULL DEFAULT 0",
+        # Backfilled below with created_at — see the comment at the backfill.
+        "edited_at": "ALTER TABLE prompt ADD COLUMN edited_at TIMESTAMP",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
@@ -110,6 +112,25 @@ def _migrate(engine: Engine) -> None:
                     if table == "user" and column == "approved":
                         # One-time backfill: pre-existing users were allowlisted.
                         conn.exec_driver_sql("UPDATE user SET approved = 1")
+                    if table == "prompt" and column == "edited_at":
+                        # Existing rows start at their creation time.
+                        #
+                        # The obvious alternative, `updated_at`, is exactly the
+                        # value this column exists to avoid: 82 % of production
+                        # rows had it drifted past the last real edit by drags
+                        # and toggles. The activity log looks like a better
+                        # source but is not — most of its `updated` rows ARE
+                        # that drift, copied in by `_seed_prompt_events` when
+                        # the log was introduced, and nothing in the data tells
+                        # a seeded row from a real one.
+                        #
+                        # So the backfill errs OLD. A card that under-claims
+                        # freshness is stale; one that over-claims it is wrong,
+                        # and wrong is what the whole feature is meant to fix.
+                        # Everything edited from here on carries the truth.
+                        conn.exec_driver_sql(
+                            "UPDATE prompt SET edited_at = created_at WHERE edited_at IS NULL"
+                        )
         # Blocked only exists on queued prompts — clear stale flags from before
         # that rule (idempotent data fix).
         conn.exec_driver_sql("UPDATE prompt SET blocked = 0 WHERE blocked = 1 AND status != 'queued'")

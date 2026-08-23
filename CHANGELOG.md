@@ -4,6 +4,41 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.0] - 2026-08-23
+
+Jede Karte sagt jetzt, wie alt sie ist — und die Angabe bleibt von selbst
+aktuell, ohne die Seite neu zu laden.
+
+### Added
+- **Relative Zeitangaben auf Karten, in der Liste und im Detail** („gerade
+  eben", „vor 7 Minuten", „vor 3 Stunden", „vor 1 Tag"). Auf der Karte stehen
+  Alter und Symbolleiste als ein Block unten rechts, damit die Zahl unabhängig
+  von der Zahl der Tags immer an derselben Stelle steht; in der Liste hängt sie
+  an der vorhandenen Meta-Zeile („Queued · cue · vor 3 Stunden"). Der
+  Tooltip nennt die genauen Zeitpunkte.
+- **`Prompt.edited_at`** — der Zeitstempel, den diese Anzeige meint: wann der
+  INHALT zuletzt geschrieben wurde. Ein erneutes Speichern setzt die Angabe auf
+  „gerade eben" zurück und markiert sie mit einem Stift; ein Verschieben, ein
+  Statuswechsel, ein Lesezeichen oder ein „getestet"-Haken tun das
+  ausdrücklich nicht.
+- **Eine gemeinsame Uhr** (`lib/clock.ts`) treibt alle Angaben auf der Seite:
+  ein Timer statt einer je Karte, und React verwirft den Neuaufbau überall
+  dort, wo sich der Text gar nicht geändert hat (gemessen: 1 von 21 möglichen
+  Aktualisierungen in drei Takten). Nach einem Tabwechsel wird sofort
+  nachgezogen, weil Browser die Timer eines Hintergrundtabs drosseln.
+
+### Fixed
+- **Die API lieferte Zeitstempel ohne Zeitzone aus.** SQLite gibt Zeilen naiv
+  zurück, frisch geschriebene sind zonenbehaftet — dieselbe Antwort enthielt
+  beides. Ein Datum ohne Zonenangabe ist für jeden Browser ORTSZEIT, in Berlin
+  also zwei Stunden verschoben; die Detailansicht zeigte seit jeher falsche
+  Zeiten, und die neuen Altersangaben hätten alles unter zwei Stunden für immer
+  als „gerade eben" gemeldet. Alle 28 Zeitfelder laufen jetzt über einen
+  gemeinsamen Typ, und ein Test durchsucht das ganze Schema-Modul, damit das
+  nächste Feld es nicht wieder einschleppt.
+- **Die Symbolleiste der Karte wurde auf dem Handy rechts abgeschnitten**,
+  sobald das Alter danebenstand — der Block bricht jetzt um.
+
 ## [0.40.0] - 2026-08-16
 
 Fünf Fehler, gefunden über Produktionslogs, Produktionsdaten und Code — nicht

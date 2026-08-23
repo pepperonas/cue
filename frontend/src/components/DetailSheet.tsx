@@ -9,6 +9,8 @@ import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { DecisionBar } from './optimize/DecisionBar'
+import { RelativeTime } from './RelativeTime'
+import { promptTimes } from '../lib/relative-time'
 import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { useBackDismiss } from '../state/overlays'
@@ -485,7 +487,16 @@ export function DetailSheet({
         )}
 
         <div className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.8 }}>
+          {/* The age stands on its own line: it describes the last EDIT, so
+              appending it to "Erstellt" would contradict the date next to it.
+              The three absolute lines below stay the exact record — note that
+              "Aktualisiert" also moves on a drag or a status change, which is
+              precisely why it is not the one the age is derived from. */}
+          <div>
+            <RelativeTime prompt={prompt} />
+          </div>
           <div>Erstellt: {fmt(prompt.created_at)}</div>
+          {promptTimes(prompt).edited && <div>Bearbeitet: {fmt(prompt.edited_at ?? null)}</div>}
           <div>Aktualisiert: {fmt(prompt.updated_at)}</div>
           <div>Gestartet: {fmt(prompt.ran_at)}</div>
         </div>

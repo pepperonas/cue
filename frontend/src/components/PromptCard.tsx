@@ -10,6 +10,7 @@ import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
+import { RelativeTime } from './RelativeTime'
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { Icon } from './ui'
 
@@ -163,62 +164,68 @@ export function PromptCard({
               <Icon name="image" /> {prompt.attachments.length}
             </span>
           )}
-          <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-            {onOptimize && (
-              <OptimizeButton
-                prompt={prompt}
-                busy={optimizeBusy}
-                onOptimize={onOptimize}
-              />
-            )}
-            {onToggleTested && canTest && (
-              <TestedButton
-                tested={prompt.tested}
-                disabled={prompt.status !== 'done'}
-                onToggle={() => onToggleTested(prompt)}
-              />
-            )}
-            {onToggleBlocked && canBlock && (
-              <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />
-            )}
-            {onToggleBookmark && (
-              <BookmarkButton
-                bookmarked={prompt.bookmarked}
-                onToggle={() => onToggleBookmark(prompt)}
-              />
-            )}
-            <button
-              className="mini-btn"
-              aria-label="Status"
-              title={prompt.status}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onOpen(prompt)}
-            >
-              <Icon
-                name={STATUS_ICON[prompt.status]}
-                className={`st-icon ${STATUS_CLASS[prompt.status]}`}
-              />
-            </button>
-            {onDuplicate && (
+          {/* Age and actions are one block so the age keeps the same spot no
+              matter how many tags wrapped above it — a column of cards is only
+              scannable if the number is always in the same place. */}
+          <div className="card-end">
+            <RelativeTime prompt={prompt} />
+            <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+              {onOptimize && (
+                <OptimizeButton
+                  prompt={prompt}
+                  busy={optimizeBusy}
+                  onOptimize={onOptimize}
+                />
+              )}
+              {onToggleTested && canTest && (
+                <TestedButton
+                  tested={prompt.tested}
+                  disabled={prompt.status !== 'done'}
+                  onToggle={() => onToggleTested(prompt)}
+                />
+              )}
+              {onToggleBlocked && canBlock && (
+                <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />
+              )}
+              {onToggleBookmark && (
+                <BookmarkButton
+                  bookmarked={prompt.bookmarked}
+                  onToggle={() => onToggleBookmark(prompt)}
+                />
+              )}
               <button
                 className="mini-btn"
-                aria-label="Duplizieren"
-                title="Duplizieren"
+                aria-label="Status"
+                title={prompt.status}
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => onDuplicate(prompt)}
+                onClick={() => onOpen(prompt)}
               >
-                <Icon name="control_point_duplicate" />
+                <Icon
+                  name={STATUS_ICON[prompt.status]}
+                  className={`st-icon ${STATUS_CLASS[prompt.status]}`}
+                />
               </button>
-            )}
-            <button
-              className="mini-btn copy-btn"
-              aria-label="Kopieren"
-              title="Kopieren (c)"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onCopy(prompt)}
-            >
-              <Icon name="content_copy" />
-            </button>
+              {onDuplicate && (
+                <button
+                  className="mini-btn"
+                  aria-label="Duplizieren"
+                  title="Duplizieren"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => onDuplicate(prompt)}
+                >
+                  <Icon name="control_point_duplicate" />
+                </button>
+              )}
+              <button
+                className="mini-btn copy-btn"
+                aria-label="Kopieren"
+                title="Kopieren (c)"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => onCopy(prompt)}
+              >
+                <Icon name="content_copy" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -338,10 +338,45 @@ a {
   flex-wrap: wrap;
   margin-top: var(--gap-1);
 }
+/* Age + actions as one right-aligned block. The auto margin lives HERE, not on
+   `.card-actions`: with it on both, flexbox would split the free space between
+   the two and the age would drift to the middle of the row. */
+.card-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gap-2);
+  margin-left: auto;
+  /* On a phone the six action buttons already fill the card, so the age wraps
+     to its own line ABOVE them rather than pushing the copy button off the
+     right edge — which is what it did before this line existed. */
+  flex-wrap: wrap;
+}
 .card-actions {
   display: flex;
   gap: var(--gap-1);
-  margin-left: auto;
+}
+.rel-time {
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  /* Tabular figures keep the label from jittering as the number changes. */
+  font-variant-numeric: tabular-nums;
+}
+.rel-time .material-symbols-rounded {
+  font-size: 13px;
+  opacity: 0.75;
+}
+.list-sub {
+  font-size: 0.78rem;
+}
+/* Inside the list subline the age is part of a sentence, not a chip. */
+.list-sub .rel-time {
+  font: inherit;
+  color: inherit;
 }
 .card.selected {
   outline: 2px solid var(--md-primary);
@@ -3318,6 +3353,9 @@ img.logo-xl { border-radius: 18px; }
   }
   .card-actions {
     gap: 2px;
+  }
+  .card-end {
+    gap: var(--gap-1);
   }
   /* A card is only draggable after the long-press delay — until then the
      browser must be free to scroll the page. */
