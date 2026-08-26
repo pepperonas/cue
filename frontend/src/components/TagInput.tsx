@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { rankSuggestions, type TagSuggestion } from '../lib/tags'
+import { rankSuggestions, type RankContext, type TagSuggestion } from '../lib/tags'
+import { Icon } from './ui'
 
 interface Props {
   id?: string
@@ -7,8 +8,19 @@ interface Props {
   placeholder?: string
   /** Merged pool: saved vocabulary (with usage counts) + curated catalogue. */
   suggestions: TagSuggestion[]
+  /**
+   * What the prompt implies regardless of what is typed — tags the title points
+   * at, and tags that go with the ones already picked. Only ever breaks ties
+   * between equally good matches, so typing still decides.
+   */
+  context?: RankContext
   onChange: (value: string) => void
 }
+
+const REASON_HINT = {
+  title: 'Passt zum Titel',
+  related: 'Wird oft zusammen verwendet',
+} as const
 
 const MAX_SUGGESTIONS = 8
 
@@ -25,7 +37,7 @@ function splitTags(value: string): { completed: string[]; current: string } {
  * the token after the last comma; picking one keeps the rest intact and leaves
  * the field ready for the next tag.
  */
-export function TagInput({ id, value, placeholder, suggestions, onChange }: Props) {
+export function TagInput({ id, value, placeholder, suggestions, context, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const [dropUp, setDropUp] = useState(false)
@@ -62,8 +74,8 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
   // Relevance ranking lives in lib/tags.ts (exact > prefix > word-start >
   // substring, then usage, then recency) so it can be unit tested.
   const matches = useMemo(
-    () => rankSuggestions(suggestions, query, { exclude: chosen, limit: MAX_SUGGESTIONS }),
-    [suggestions, chosen, query],
+    () => rankSuggestions(suggestions, query, { exclude: chosen, limit: MAX_SUGGESTIONS, context }),
+    [suggestions, chosen, query, context],
   )
 
   function commit(tag: string) {
@@ -129,7 +141,10 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
             <li key={tag.name} role="option" aria-selected={i === active}>
               <button
                 type="button"
-                className={`tag-suggest-item ${i === active ? 'active' : ''}`}
+                className={`tag-suggest-item ${i === active ? 'active' : ''} ${
+                  tag.reason ? 'tag-suggest-item--context' : ''
+                }`}
+                title={tag.reason ? REASON_HINT[tag.reason] : undefined}
                 onMouseEnter={() => setActive(i)}
                 // mousedown fires before the input's blur, so the click lands.
                 onMouseDown={(e) => {
@@ -137,7 +152,15 @@ export function TagInput({ id, value, placeholder, suggestions, onChange }: Prop
                   commit(tag.name)
                 }}
               >
-                <span className="tag-suggest-name">#{tag.name}</span>
+                <span className="tag-suggest-name">
+                  {tag.reason && (
+                    <Icon
+                      name={tag.reason === 'title' ? 'auto_awesome' : 'link'}
+                      className="tag-suggest-why"
+                    />
+                  )}
+                  #{tag.name}
+                </span>
                 {tag.usage > 0 ? (
                   <span className="tag-suggest-meta" title={`${tag.usage}× verwendet`}>
                     {tag.usage}×

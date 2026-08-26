@@ -4,6 +4,54 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] - 2026-08-26
+
+### Added
+- **Der Titel vervollständigt sich Wort für Wort.** Das Feld zeigt den nächsten
+  Wortvorschlag als graue Fortsetzung hinter dem Cursor; **Enter** übernimmt
+  **genau ein Wort**, danach steht sofort der nächste Vorschlag da — so lässt
+  sich ein Titel Wort für Wort zusammensetzen, ohne die Kontrolle über den Satz
+  abzugeben. `→` am Feldende tut dasselbe (fish/zsh-Gewohnheit), Escape blendet
+  den Vorschlag aus, **ohne den Dialog zu schließen**. Tab bleibt bewusst
+  Fokuswechsel: das hier ist ein Formularfeld, kein Editor.
+- **Die Vorschläge stammen aus den eigenen bisherigen Titeln** (`lib/title-complete.ts`),
+  nicht aus einer Wortliste. Gemessen am Live-Bestand (291 Titel): 94 davon sind
+  genau zwei Wörter lang, „optimieren" kommt 20×, „animation" 11×, „fixen" 8× vor
+  — genau diese Wiederholung macht ein n-Gramm-Modell über den eigenen Bestand
+  brauchbar und eine generische Liste nutzlos.
+- **Tags entstehen aus dem Titel** (`lib/tag-rules.ts`). „doku updaten" trägt
+  `documentation` ein, „theme wechsel fixen" trägt `bugfix` ein — das Feld füllt
+  sich, solange man es nicht selbst anfasst, und eine Zeile darunter sagt, woher
+  die Tags kommen, mit „Entfernen" daneben. Beim **Bearbeiten** eines
+  bestehenden Prompts passiert das nie: dessen Tags sind eine getroffene
+  Entscheidung.
+- **Die Tag-Auswahl ordnet nach dem, was der Prompt nahelegt**: Tags aus dem
+  Titel zuerst (✨ „Passt zum Titel"), dann Tags, die mit den bereits gewählten
+  zusammen auftreten (🔗 „Wird oft zusammen verwendet"), erst danach die reine
+  Häufigkeit. Beides bricht nur **Gleichstände** — wer „sec" tippt, bekommt
+  weiterhin `security`, egal was der Titel sagt.
+
+### Note
+- ⚠️ **Die Schwellen sind gemessen, nicht geschätzt** (Leave-one-out über
+  denselben Bestand): ein Wort aus dem Kontext zu raten trifft zu 20 %, auf
+  einem **leeren Feld nur zu 2 %** — deshalb kommt ohne Eingabe nie ein
+  Vorschlag. Beim Vervollständigen des getippten Wortes sind es 25 % (1 Zeichen),
+  36 % (2), **51 % (3)** — deshalb beginnt der Vorschlag ab dem zweiten Zeichen.
+  Ein falscher Vorschlag kostet nichts: er ist träger grauer Text, der beim
+  nächsten Tastendruck verschwindet. Genau diese Asymmetrie rechtfertigt 36 %.
+- ⚠️ **Automatisch geschrieben wird nur, was messbar trägt.** Für jedes
+  Stichwort wurde der Hebel gegen die Grundrate bestimmt: `doku`→documentation
+  86 % (×28,3), `animier`→animation 82 % (×8,2), `fix|fehler`→bugfix 75 % (×4,8),
+  `mobil|s24`→mobile ×38,5. Dagegen `optimier`→optimization nur ×1,8 und
+  `button|icon|menü`→gui **gar kein Hebel** — beide werden deshalb nur
+  vorgeschlagen, nie eingetragen. Ein falsches Tag, das ungefragt geschrieben
+  wird, ist schlimmer als gar keins.
+- ⚠️ Höchstens **zwei** Tags werden automatisch gesetzt: von 231 getaggten
+  Prompts tragen 208 genau ein oder zwei.
+- Der Ghost-Text schweigt, sobald der Titel breiter ist als das Feld — dann
+  scrollt das Eingabefeld und die Überlagerung läge nicht mehr deckungsgleich.
+  Gemessener Kontrast des Vorschlags: **4,58:1 hell, 6,94:1 dunkel**.
+
 ## [0.44.0] - 2026-08-23
 
 ### Changed

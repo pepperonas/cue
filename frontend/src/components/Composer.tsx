@@ -6,9 +6,19 @@ import { IS_MAC } from '../lib/platform'
 import { api } from '../lib/api'
 import type { Attachment, Project, Prompt, Status } from '../lib/types'
 import { STATUS_LABEL, STATUSES } from '../lib/types'
-import { useCreatePrompt, useTags, useUpdatePrompt } from '../state/queries'
+import { useCreatePrompt, usePrompts, useTags, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
-import { mergeSuggestionPool, normalizeTags, type TagSuggestion } from '../lib/tags'
+import {
+  dedupeTags,
+  mergeSuggestionPool,
+  normalizeTags,
+  relatedTags,
+  type RankContext,
+  type TagSuggestion,
+} from '../lib/tags'
+import { autoTags, deriveTags } from '../lib/tag-rules'
+import { buildTitleModel } from '../lib/title-complete'
+import { GhostInput } from './GhostInput'
 import { useDictation } from '../lib/speech'
 import { compressImage } from '../lib/image-compress'
 import { formatBytes } from '../lib/format'
@@ -56,6 +66,14 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
     [tagData],
   )
 
+  // Completion source for the title: the titles written before. React Query
+  // dedupes with the board's own call, so this costs no extra request.
+  const { data: prompts } = usePrompts()
+  const titleModel = useMemo(
+    () => buildTitleModel((prompts ?? []).map((p) => p.title)),
+    [prompts],
+  )
+
   const [body, setBody] = useState(
     () => editing?.body ?? localStorage.getItem(DRAFT_KEY) ?? '',
   )
@@ -74,6 +92,10 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
   })
   const [status, setStatus] = useState<Status>(editing?.status ?? 'queued')
   const [tags, setTags] = useState(editing?.tags ?? '')
+  // Tags derived from the title fill the field until the user takes it over.
+  // Editing counts as taken over from the start: the tags on an existing prompt
+  // are its author's decision, and an unrelated edit must not rewrite them.
+  const [tagsTouched, setTagsTouched] = useState(isEdit)
   const [preview, setPreview] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
@@ -91,6 +113,28 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
   const newIds = useRef<Set<number>>(new Set())
   const removedExisting = useRef<Set<number>>(new Set())
   const savedRef = useRef(false)
+
+  // What the prompt is called drives the tags. The title wins; while it is
+  // still empty the first body line stands in for it — that is the text the
+  // server would derive the title from anyway.
+  const tagSource = useMemo(
+    () => (title.trim() ? title : (body.split('\n').find((l) => l.trim()) ?? '')),
+    [title, body],
+  )
+  const derived = useMemo(() => autoTags(tagSource), [tagSource])
+  // The field shows exactly what will be saved: the derived tags until the user
+  // edits it, their own text from then on. No effect, no state to keep in sync.
+  // The trailing ", " is what `commit()` leaves behind after picking a tag too:
+  // it puts the field in "ready for the next one" state, so focusing it opens
+  // the menu instead of treating the last tag as a half-typed query.
+  const effectiveTags = tagsTouched ? tags : derived.length ? `${derived.join(', ')}, ` : ''
+  const tagContext = useMemo<RankContext>(
+    () => ({
+      derived: new Set(deriveTags(tagSource).map((d) => d.tag)),
+      related: relatedTags(prompts ?? [], dedupeTags(effectiveTags)),
+    }),
+    [tagSource, prompts, effectiveTags],
+  )
 
   // Voice dictation (Web Speech API): finalized phrases are appended to the
   // body with smart spacing; interim text shows in a live readout below the
@@ -238,14 +282,16 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
       return
     }
     const attachment_ids = attachments.map((a) => a.id)
-    const cleanTags = normalizeTags(tags) // dedup so a prompt never holds a tag twice
+    const cleanTags = normalizeTags(effectiveTags) // dedup so a prompt never holds a tag twice
+    // Accepting a completion leaves a trailing space behind the caret.
+    const cleanTitle = title.trim()
     try {
       if (isEdit && editing) {
         await update.mutateAsync({
           id: editing.id,
           patch: {
             body,
-            title,
+            title: cleanTitle,
             status,
             tags: cleanTags,
             project_id: projectId,
@@ -257,7 +303,7 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
       } else {
         await create.mutateAsync({
           body,
-          title: title || undefined,
+          title: cleanTitle || undefined,
           project_id: projectId,
           status,
           tags: cleanTags,
@@ -367,12 +413,12 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
         <div className="composer-scroll">
         <div className="field">
           <label htmlFor="c-title">Titel (optional)</label>
-          <input
+          <GhostInput
             id="c-title"
-            className="input"
             value={title}
+            model={titleModel}
             placeholder="Aus erster Zeile abgeleitet, wenn leer"
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={setTitle}
           />
         </div>
 
@@ -464,11 +510,32 @@ export function Composer({ projects, editing, defaultProjectId, asBookmark, onCl
           <label htmlFor="c-tags">Tags (kommagetrennt)</label>
           <TagInput
             id="c-tags"
-            value={tags}
+            value={effectiveTags}
             placeholder="refactor, bug, idea"
             suggestions={tagSuggestions}
-            onChange={setTags}
+            context={tagContext}
+            onChange={(v) => {
+              setTagsTouched(true)
+              setTags(v)
+            }}
           />
+          {!tagsTouched && derived.length > 0 && (
+            <div className="auto-tags" aria-live="polite">
+              <Icon name="auto_awesome" />
+              <span>
+                Aus dem Titel ergänzt: {derived.map((t) => `#${t}`).join(', ')}
+              </span>
+              <button
+                className="link-btn"
+                onClick={() => {
+                  setTagsTouched(true)
+                  setTags('')
+                }}
+              >
+                Entfernen
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="field" ref={attachFieldRef}>

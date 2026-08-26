@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEV_TAGS, dedupeTags, mergeSuggestionPool, normalizeTags, rankSuggestions, type TagSuggestion } from './tags'
+import {
+  DEV_TAGS,
+  dedupeTags,
+  mergeSuggestionPool,
+  normalizeTags,
+  rankSuggestions,
+  relatedTags,
+  type TagSuggestion,
+} from './tags'
 
 describe('dedupeTags', () => {
   it('splits, trims and drops empty segments', () => {
@@ -129,5 +137,76 @@ describe('mergeSuggestionPool', () => {
     )
     expect(merged).toHaveLength(1)
     expect(merged[0].usage).toBe(1)
+  })
+})
+
+describe('rankSuggestions — context', () => {
+  const pool: TagSuggestion[] = [
+    { name: 'improvement', usage: 94, source: 'system' },
+    { name: 'optimization', usage: 68, source: 'system' },
+    { name: 'animation', usage: 23, source: 'system' },
+    { name: 'security', usage: 1, source: 'system' },
+    { name: 'section', usage: 0, source: 'catalog' },
+    { name: 'enhancement', usage: 43, source: 'system' },
+  ]
+
+  it('leads with what the title implies when nothing is typed', () => {
+    const ranked = rankSuggestions(pool, '', { context: { derived: new Set(['animation']) } })
+    expect(ranked[0].name).toBe('animation')
+    expect(ranked[0].reason).toBe('title')
+  })
+
+  it('never lets context outrank a better match for what was typed', () => {
+    // Typing "sec" must find `security`, however loudly the title says animation.
+    const ranked = rankSuggestions(pool, 'sec', { context: { derived: new Set(['animation']) } })
+    expect(ranked[0].name).toBe('security')
+
+    // The sharper case: both candidates match "an", so both survive the filter —
+    // `animation` by prefix, `enhancement` only as a substring. Match quality
+    // has to win even though the title points at the weaker match.
+    const typed = rankSuggestions(pool, 'an', { context: { derived: new Set(['enhancement']) } })
+    expect(typed[0].name).toBe('animation')
+  })
+
+  it('ranks a co-occurring tag above an equally-matching but unrelated one', () => {
+    const ranked = rankSuggestions(pool, '', { context: { related: new Set(['animation']) } })
+    expect(ranked[0].name).toBe('animation')
+    expect(ranked[0].reason).toBe('related')
+    // …and the title still beats mere co-occurrence.
+    const both = rankSuggestions(pool, '', {
+      context: { derived: new Set(['security']), related: new Set(['animation']) },
+    })
+    expect(both.map((t) => t.name).slice(0, 2)).toEqual(['security', 'animation'])
+  })
+
+  it('falls back to usage when there is no context at all', () => {
+    expect(rankSuggestions(pool, '')[0].name).toBe('improvement')
+    expect(rankSuggestions(pool, '')[0].reason).toBeUndefined()
+  })
+})
+
+describe('relatedTags', () => {
+  const prompts = [
+    { tags: 'feature, enhancement' },
+    { tags: 'feature, enhancement' },
+    { tags: 'feature, improvement' },
+    { tags: 'bugfix, animation' },
+  ]
+
+  it('finds what travels with the chosen tags, most frequent first', () => {
+    expect([...relatedTags(prompts, ['feature'])]).toEqual(['enhancement', 'improvement'])
+  })
+
+  it('excludes the tags already chosen', () => {
+    expect([...relatedTags(prompts, ['feature', 'enhancement'])]).toEqual(['improvement'])
+  })
+
+  it('is empty when nothing is chosen yet', () => {
+    expect(relatedTags(prompts, []).size).toBe(0)
+    expect(relatedTags(prompts, ['  ']).size).toBe(0)
+  })
+
+  it('matches case-insensitively and honours the limit', () => {
+    expect([...relatedTags(prompts, ['FEATURE'], 1)]).toEqual(['enhancement'])
   })
 })

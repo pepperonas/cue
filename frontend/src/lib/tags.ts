@@ -71,35 +71,108 @@ function matchRank(name: string, query: string): number {
   return lower.includes(query) ? 3 : -1
 }
 
+/** Why a suggestion was pushed up — shown as a hint in the menu. */
+export type SuggestReason = 'title' | 'related'
+
+export interface RankedSuggestion extends TagSuggestion {
+  reason?: SuggestReason
+}
+
+/**
+ * What the prompt being written implies, independent of the typed fragment.
+ *
+ * `derived` comes from the title (see lib/tag-rules.ts), `related` from tags
+ * that co-occur with the ones already picked. Both are measured signals: given
+ * `enhancement`, the tag `feature` follows in 42 % of prompts against a 22 %
+ * base rate; given `feature`, `improvement` follows in 41 % against 41 %… which
+ * is why co-occurrence only breaks ties and never outranks what was typed.
+ */
+export interface RankContext {
+  derived?: ReadonlySet<string>
+  related?: ReadonlySet<string>
+}
+
+/** 2 = the title says so, 1 = it goes with what is already chosen, 0 = neither. */
+function contextScore(name: string, context: RankContext | undefined): number {
+  if (!context) return 0
+  const key = name.toLowerCase()
+  if (context.derived?.has(key)) return 2
+  if (context.related?.has(key)) return 1
+  return 0
+}
+
 /**
  * Rank suggestions for the typed fragment.
  *
- * Order: match quality, then how often the tag is used, then how recently, then
- * alphabetically — so the vocabulary a user actually works with floats up while
- * the catalogue stays reachable for partial matches.
+ * Order: match quality, then context, then how often the tag is used, then how
+ * recently, then alphabetically — so the vocabulary a user actually works with
+ * floats up while the catalogue stays reachable for partial matches.
+ *
+ * Match quality stays FIRST on purpose: typing "sec" must offer `security`,
+ * however strongly the title suggests something else. Context only decides
+ * between candidates the query ranks equally — which, with an empty query, is
+ * all of them, and that is exactly the moment the menu has nothing else to go on.
  */
 export function rankSuggestions(
   pool: TagSuggestion[],
   rawQuery: string,
-  { exclude = new Set<string>(), limit = 8 }: { exclude?: Set<string>; limit?: number } = {},
-): TagSuggestion[] {
+  {
+    exclude = new Set<string>(),
+    limit = 8,
+    context,
+  }: { exclude?: Set<string>; limit?: number; context?: RankContext } = {},
+): RankedSuggestion[] {
   const query = rawQuery.trim().toLowerCase()
-  const scored: { entry: TagSuggestion; rank: number }[] = []
+  const scored: { entry: TagSuggestion; rank: number; ctx: number }[] = []
   for (const entry of pool) {
     const key = entry.name.toLowerCase()
     if (exclude.has(key)) continue
     const rank = matchRank(entry.name, query)
     if (rank < 0) continue
-    scored.push({ entry, rank })
+    scored.push({ entry, rank, ctx: contextScore(entry.name, context) })
   }
   scored.sort((a, b) => {
     if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.ctx !== b.ctx) return b.ctx - a.ctx
     if (a.entry.usage !== b.entry.usage) return b.entry.usage - a.entry.usage
     const recency = (b.entry.lastUsed ?? 0) - (a.entry.lastUsed ?? 0)
     if (recency !== 0) return recency
     return a.entry.name.localeCompare(b.entry.name)
   })
-  return scored.slice(0, limit).map((s) => s.entry)
+  return scored.slice(0, limit).map((s) => ({
+    ...s.entry,
+    reason: s.ctx === 2 ? ('title' as const) : s.ctx === 1 ? ('related' as const) : undefined,
+  }))
+}
+
+/**
+ * Tags that travel with the ones already chosen, most frequent first.
+ *
+ * Built from the prompts the client already holds — no extra request, and it
+ * stays current with every optimistic update.
+ */
+export function relatedTags(
+  prompts: readonly { tags: string }[],
+  chosen: Iterable<string>,
+  limit = 6,
+): Set<string> {
+  const picked = new Set([...chosen].map((t) => t.trim().toLowerCase()).filter(Boolean))
+  if (!picked.size) return new Set()
+  const counts = new Map<string, number>()
+  for (const prompt of prompts) {
+    const tags = dedupeTags(prompt.tags).map((t) => t.toLowerCase())
+    if (!tags.some((t) => picked.has(t))) continue
+    for (const tag of tags) {
+      if (picked.has(tag)) continue
+      counts.set(tag, (counts.get(tag) ?? 0) + 1)
+    }
+  }
+  return new Set(
+    [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, limit)
+      .map(([tag]) => tag),
+  )
 }
 
 // Curated English software-development tags suggested in the tag autocomplete.
