@@ -117,8 +117,12 @@ class Settings:
         # Directory holding the built frontend (StaticFiles). Optional in dev.
         self.static_dir: str = os.environ.get("STATIC_DIR", str(Path("static")))
 
-        # When true, copying a prompt flips queued -> running by default on the
-        # client; this is purely a client preference but mirrored here for docs.
+        # Local development switch. It is NOT a client preference — it turns off
+        # four production guards, so it must never be set on a live host:
+        #   * validate() stops failing fast on a missing SECRET_KEY / Google client
+        #   * an empty allowlist means "everyone" instead of "nobody"
+        #   * the strict Origin check on mutating requests is skipped
+        #   * the owner-only gate opens when OWNER_EMAIL is unset
         self.dev_mode: bool = _bool(os.environ.get("CUE_DEV"), default=False)
 
     @property

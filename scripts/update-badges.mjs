@@ -1,54 +1,134 @@
 #!/usr/bin/env node
 /**
- * update-badges.mjs — keeps the README's DYNAMIC badges honest.
+ * update-badges.mjs — keeps the README's generated blocks honest.
  *
- * Computed live, never hardcoded:
- * - Version: read from backend/app/main.py (`version="X.Y.Z"`).
- * - Tests: total + per suite, parsed from the real runners' output
- *   (pytest --collect-only for the two Python suites, `vitest list` for the
- *   frontend — counting it() occurrences would miss skips/todos).
- * - Coverage: backend + runner, parsed from `pytest --cov` TOTAL lines.
- * - LOC: source only (tests, node_modules, dist, generated files excluded),
- *   total plus Python/TypeScript split.
- * - API endpoints: route decorators counted across backend/app (routers + main).
+ * Nothing here is hardcoded; every number is computed from a real source:
  *
- * The badges live between the `<!-- badges:dynamic -->` markers in README.md
- * and are rewritten in place — idempotent, safe to run repeatedly.
+ *   version .......... backend/app/main.py (`version="X.Y.Z"`)
+ *   tests ............ the real runners (pytest --collect-only, vitest list,
+ *                      node --test) — counting `it(`/`def test_` in the sources
+ *                      would miss skips, todos and loops
+ *   coverage ......... pytest --cov TOTAL rows, vitest --coverage summary
+ *   LOC .............. source only, per language (tests, node_modules, dist and
+ *                      generated files excluded)
+ *   endpoints ........ route decorators across backend/app
+ *   tables ........... SQLModel `table=True` classes
+ *   components ....... .tsx files under frontend/src/components
+ *   docs ............. markdown pages
  *
- * Usage: node scripts/update-badges.mjs   (also: npm run update-badges,
- * and automatically after `npm test` via the posttest hook)
+ * Two blocks are rewritten in place, both idempotent:
+ *   <!-- badges:dynamic -->  the badge wall
+ *   <!-- tests:dynamic -->   the test-suite table
+ *
+ * The test table is generated for one reason: it used to be prose, and the
+ * prose said "290 Tests" while the badges said 1038. Numbers a human has to
+ * retype are numbers that rot.
+ *
+ * The parsing half lives in badges-lib.mjs and is unit tested; this file is the
+ * shell that fetches and writes.
+ *
+ * Usage: node scripts/update-badges.mjs   (also `npm run update-badges`, and
+ * automatically after `npm test` via the posttest hook)
  */
 import { execFileSync } from 'node:child_process'
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  EXCLUDED_DIRS,
+  SOURCE_EXTS,
+  badge,
+  countCodeLines,
+  countEndpoints,
+  countTables,
+  covColor,
+  isTestFile,
+  languageOf,
+  parseNodeTestCount,
+  parsePytestCount,
+  parsePytestCoverage,
+  parseVersion,
+  parseVitestCoverage,
+  parseVitestList,
+  replaceMarkedBlock,
+} from './badges-lib.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const read = (rel) => readFileSync(join(ROOT, rel), 'utf8')
 
-// ---- LOC (per language) ----
+// ---- LOC (per language, source vs. test) ----
 const SOURCE_ROOTS = ['backend/app', 'cue-runner/cue_runner', 'cue-runner/hooks', 'frontend/src']
-const SOURCE_EXTS = new Set(['.py', '.ts', '.tsx', '.css', '.mjs'])
-const EXCLUDED_DIRS = new Set([
-  'node_modules', 'dist', '__pycache__', '.venv', 'tests', '__tests__', 'coverage',
-])
-const isTestFile = (name) =>
-  /\.test\.tsx?$/.test(name) || /^test_.*\.py$/.test(name) || name === 'conftest.py'
+const TEST_ROOTS = ['backend/tests', 'cue-runner/tests', 'frontend/src', 'scripts/tests']
 
-function countLoc(dir, tally) {
+function walk(dir, onFile) {
+  if (!existsSync(dir)) return
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry)
-    const stat = statSync(path)
-    if (stat.isDirectory()) {
-      if (!EXCLUDED_DIRS.has(entry)) countLoc(path, tally)
-    } else if (SOURCE_EXTS.has(extname(entry)) && !isTestFile(entry)) {
-      const lines = readFileSync(path, 'utf8').split('\n').filter((l) => l.trim() !== '').length
-      const ext = extname(entry)
-      tally.total += lines
-      if (ext === '.py') tally.python += lines
-      else if (ext === '.ts' || ext === '.tsx') tally.typescript += lines
+    if (statSync(path).isDirectory()) {
+      if (!EXCLUDED_DIRS.has(entry)) walk(path, onFile)
+    } else {
+      onFile(path, entry)
     }
   }
+}
+
+function sourceLoc() {
+  const tally = { total: 0, python: 0, typescript: 0, css: 0 }
+  for (const root of SOURCE_ROOTS) {
+    walk(join(ROOT, root), (path, name) => {
+      const ext = extname(name)
+      if (!SOURCE_EXTS.has(ext) || isTestFile(name)) return
+      const lines = countCodeLines(readFileSync(path, 'utf8'))
+      tally.total += lines
+      const bucket = languageOf(ext)
+      if (bucket !== 'other') tally[bucket] += lines
+    })
+  }
   return tally
+}
+
+/** Test lines + files. `EXCLUDED_DIRS` holds "tests", so walk those roots directly. */
+function testLoc() {
+  const seen = new Set()
+  let lines = 0
+  let files = 0
+  for (const root of TEST_ROOTS) {
+    const dir = join(ROOT, root)
+    const visit = (path, name) => {
+      if (!isTestFile(name) || seen.has(path)) return
+      seen.add(path)
+      files += 1
+      lines += countCodeLines(readFileSync(path, 'utf8'))
+    }
+    // Walk without the "tests" exclusion — that guard is for LOC, not for this.
+    const walkAll = (d) => {
+      if (!existsSync(d)) return
+      for (const entry of readdirSync(d)) {
+        const p = join(d, entry)
+        if (statSync(p).isDirectory()) {
+          if (!['node_modules', 'dist', '__pycache__', '.venv', 'coverage'].includes(entry)) walkAll(p)
+        } else visit(p, entry)
+      }
+    }
+    walkAll(dir)
+  }
+  return { lines, files }
+}
+
+function countFiles(dir, predicate) {
+  let n = 0
+  walk(join(ROOT, dir), (_path, name) => {
+    if (predicate(name)) n += 1
+  })
+  return n
+}
+
+function backendSource() {
+  let src = ''
+  walk(join(ROOT, 'backend/app'), (path, name) => {
+    if (name.endsWith('.py')) src += `${readFileSync(path, 'utf8')}\n`
+  })
+  return src
 }
 
 // ---- runners ----
@@ -60,127 +140,119 @@ function run(cwd, cmd, args) {
   })
 }
 
-function pytestCount(cwd, cmd, args) {
-  const out = run(cwd, cmd, [...args, '--collect-only', '-q'])
-  const m = out.match(/(\d+)\s+tests?\s+collected/)
-  if (!m) throw new Error(`Could not parse pytest collection output for ${cwd}:\n${out.slice(-400)}`)
-  return Number(m[1])
-}
+const pytestCount = (cwd, cmd, args) =>
+  parsePytestCount(run(cwd, cmd, [...args, '--collect-only', '-q']))
 
-function pytestCoverage(cwd, cmd, args, covTarget) {
-  const out = run(cwd, cmd, [...args, '-q', `--cov=${covTarget}`, '--cov-report=term'])
-  const m = out.match(/^TOTAL\s+\d+\s+\d+\s+(\d+)%/m)
-  if (!m) throw new Error(`Could not parse coverage TOTAL for ${cwd}:\n${out.slice(-400)}`)
-  return Number(m[1])
-}
+const pytestCoverage = (cwd, cmd, args, target) =>
+  parsePytestCoverage(run(cwd, cmd, [...args, '-q', `--cov=${target}`, '--cov-report=term']))
 
-/** Coverage of the pure lib modules only. Components and hooks are
- *  deliberately untested (see CLAUDE.md), so measuring all of src/ would
- *  report a number nobody intends to raise. */
-function vitestCoverage() {
-  const out = run('frontend', 'pnpm', [
-    '-s', 'vitest', 'run', '--coverage',
-    '--coverage.include=src/lib/**', '--coverage.reporter=text',
-  ])
-  const m = out.match(/^All files\s*\|\s*([\d.]+)/m)
-  if (!m) throw new Error(`Could not parse vitest coverage summary:\n${out.slice(-400)}`)
-  return Math.round(Number(m[1]))
-}
+/** Coverage of the pure lib modules only. Components and hooks are deliberately
+ *  untested (see CLAUDE.md), so measuring all of src/ would report a number
+ *  nobody intends to raise. */
+const vitestCoverage = () =>
+  parseVitestCoverage(
+    run('frontend', 'pnpm', [
+      '-s', 'vitest', 'run', '--coverage',
+      '--coverage.include=src/lib/**', '--coverage.reporter=text',
+    ]),
+  )
 
-function vitestCount() {
-  const out = run('frontend', 'pnpm', ['-s', 'vitest', 'list'])
-  const count = out.split('\n').filter((line) => line.trim() !== '').length
-  if (count === 0) throw new Error(`vitest list reported no tests:\n${out.slice(-400)}`)
-  return count
-}
+const vitestCount = () => parseVitestList(run('frontend', 'pnpm', ['-s', 'vitest', 'list']))
 
-// ---- version (single source: FastAPI app version) ----
-function appVersion() {
-  const main = readFileSync(join(ROOT, 'backend/app/main.py'), 'utf8')
-  const m = main.match(/version="(\d+\.\d+\.\d+)"/)
-  if (!m) throw new Error('backend/app/main.py: version="X.Y.Z" not found')
-  return m[1]
-}
-
-// ---- API endpoint count (route decorators across the backend) ----
-function endpointCount() {
-  let count = 0
-  const scan = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      if (statSync(path).isDirectory()) {
-        if (!EXCLUDED_DIRS.has(entry)) scan(path)
-      } else if (entry.endsWith('.py')) {
-        const src = readFileSync(path, 'utf8')
-        count += (src.match(/^@(router|api|app)\.(get|post|patch|put|delete)\(/gm) ?? []).length
-      }
-    }
+/** `node --test` exits non-zero on failure, which execFileSync turns into a
+ *  throw — the output is on the error, so read it from there. */
+function scriptTestCount() {
+  try {
+    return parseNodeTestCount(run('.', 'node', ['--test', 'scripts/tests/']))
+  } catch (err) {
+    return parseNodeTestCount(err.stdout ?? '')
   }
-  scan(join(ROOT, 'backend/app'))
-  return count
 }
 
-const covColor = (pct) => (pct >= 90 ? 'brightgreen' : pct >= 75 ? 'green' : 'yellow')
-
-const version = appVersion()
+// ---- collect ----
+const version = parseVersion(read('backend/app/main.py'))
 const backendTests = pytestCount('backend', 'uv', ['run', 'pytest'])
 const runnerTests = pytestCount('cue-runner', '.venv/bin/python', ['-m', 'pytest'])
 const frontendTests = vitestCount()
-const totalTests = backendTests + runnerTests + frontendTests
+const scriptTests = scriptTestCount()
+const totalTests = backendTests + runnerTests + frontendTests + scriptTests
 const backendCov = pytestCoverage('backend', 'uv', ['run', 'pytest'], 'app')
 const runnerCov = pytestCoverage('cue-runner', '.venv/bin/python', ['-m', 'pytest'], 'cue_runner')
 const frontendCov = vitestCoverage()
-const loc = SOURCE_ROOTS.reduce(
-  (t, dir) => countLoc(join(ROOT, dir), t),
-  { total: 0, python: 0, typescript: 0 },
-)
-const endpoints = endpointCount()
 
-// shields.io reads `<label>-<message>-<color>`, so a literal hyphen inside a
-// label or value splits the badge apart and the URL 404s. It has to be doubled
-// BEFORE encoding (`encodeURIComponent` leaves hyphens alone). Escaping here
-// means no future badge can trip over it.
-const shieldEscape = (text) => String(text).replace(/-/g, '--')
+const loc = sourceLoc()
+const tests = testLoc()
+const endpoints = countEndpoints(backendSource())
+const tables = countTables(read('backend/app/models.py'))
+const components = countFiles('frontend/src/components', (n) => n.endsWith('.tsx') && !isTestFile(n))
+const docPages =
+  countFiles('docs', (n) => n.endsWith('.md')) +
+  readdirSync(ROOT).filter((n) => n.endsWith('.md')).length
+const testRatio = Math.round((tests.lines / loc.total) * 100)
 
-const badge = (label, value, color, link = '#') =>
-  `[![${label}](https://img.shields.io/badge/${encodeURIComponent(shieldEscape(label))}-${encodeURIComponent(shieldEscape(value))}-${color}.svg)](${link})`
-
-const dynamicBlock = [
-  '<!-- badges:dynamic -->',
+// ---- badge wall ----
+const badgesBlock = [
   [
     badge('version', version, 'blue', 'CHANGELOG.md'),
-    badge('tests', `${totalTests} passing`, 'brightgreen', 'backend/tests/'),
+    badge('tests', `${totalTests} passing`, 'brightgreen', 'docs/TESTING.md'),
     badge('backend tests', String(backendTests), 'brightgreen', 'backend/tests/'),
     badge('runner tests', String(runnerTests), 'brightgreen', 'cue-runner/tests/'),
     badge('frontend tests', String(frontendTests), 'brightgreen', 'frontend/src/lib/'),
+    badge('script tests', String(scriptTests), 'brightgreen', 'scripts/tests/'),
   ].join('\n'),
   [
     badge('coverage backend', `${backendCov}%`, covColor(backendCov), 'backend/tests/'),
     badge('coverage runner', `${runnerCov}%`, covColor(runnerCov), 'cue-runner/tests/'),
     badge('coverage frontend-lib', `${frontendCov}%`, covColor(frontendCov), 'frontend/src/lib/'),
+    badge('test files', String(tests.files), '0A9EDC', 'docs/TESTING.md'),
+    badge('test LOC', String(tests.lines), '0A9EDC', 'docs/TESTING.md'),
+    badge('test:code ratio', `${testRatio}%`, '0A9EDC', 'docs/TESTING.md'),
+  ].join('\n'),
+  [
     badge('LOC', String(loc.total), 'blue'),
     badge('Python LOC', String(loc.python), '3776AB'),
     badge('TypeScript LOC', String(loc.typescript), '3178C6'),
-    badge('API endpoints', String(endpoints), '8A2BE2', 'backend/app/routers/'),
+    badge('CSS LOC', String(loc.css), '663399'),
+    badge('API endpoints', String(endpoints), '8A2BE2', 'docs/API.md'),
+    badge('DB tables', String(tables), '003B57', 'docs/ARCHITECTURE.md'),
+    badge('React components', String(components), '61DAFB', 'frontend/src/components/'),
+    badge('docs pages', String(docPages), '4c1', 'docs/'),
   ].join('\n'),
-  '<!-- /badges:dynamic -->',
 ].join('\n')
 
-// ---- README update (idempotent, marker-based) ----
-const readmePath = join(ROOT, 'README.md')
-const readme = readFileSync(readmePath, 'utf8')
-const markerRe = /<!-- badges:dynamic -->[\s\S]*?<!-- \/badges:dynamic -->/
-if (!markerRe.test(readme)) {
-  throw new Error('README.md: <!-- badges:dynamic --> marker block not found')
-}
-const updated = readme.replace(markerRe, dynamicBlock)
+// ---- test-suite table ----
+const suiteRow = (name, where, count, cov, what) =>
+  `| ${name} | \`${where}\` | ${count} | ${cov} | ${what} |`
 
-if (updated !== readme) {
-  writeFileSync(readmePath, updated)
-  console.log(
-    `README badges updated: v${version}, ${totalTests} tests (be ${backendTests} / run ${runnerTests} / fe ${frontendTests}), ` +
-    `cov be ${backendCov}% / run ${runnerCov}% / fe-lib ${frontendCov}%, ${loc.total} LOC (py ${loc.python} / ts ${loc.typescript}), ${endpoints} endpoints`,
-  )
+const testsBlock = [
+  '| Suite | Ort | Tests | Coverage | Prüft |',
+  '| --- | --- | --: | --: | --- |',
+  suiteRow('Backend', 'backend/tests/', backendTests, `${backendCov} %`,
+    'HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP'),
+  suiteRow('Runner', 'cue-runner/tests/', runnerTests, `${runnerCov} %`,
+    'Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt'),
+  suiteRow('Frontend', 'frontend/src/lib/', frontendTests, `${frontendCov} %`,
+    'die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben'),
+  suiteRow('Skripte', 'scripts/tests/', scriptTests, '—',
+    'die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst'),
+  `| **Gesamt** | | **${totalTests}** | | |`,
+].join('\n')
+
+// ---- write ----
+const readmePath = join(ROOT, 'README.md')
+const before = readFileSync(readmePath, 'utf8')
+let after = replaceMarkedBlock(before, 'badges:dynamic', badgesBlock)
+after = replaceMarkedBlock(after, 'tests:dynamic', testsBlock)
+
+const summary =
+  `v${version}, ${totalTests} tests (be ${backendTests} / run ${runnerTests} / fe ${frontendTests} / scripts ${scriptTests}), ` +
+  `cov be ${backendCov}% / run ${runnerCov}% / fe-lib ${frontendCov}%, ` +
+  `${loc.total} LOC (py ${loc.python} / ts ${loc.typescript} / css ${loc.css}), ` +
+  `${tests.files} test files, ${endpoints} endpoints, ${tables} tables, ${components} components, ${docPages} docs`
+
+if (after !== before) {
+  writeFileSync(readmePath, after)
+  console.log(`README updated: ${summary}`)
 } else {
-  console.log(`README badges already current: v${version}, ${totalTests} tests, ${loc.total} LOC`)
+  console.log(`README already current: ${summary}`)
 }

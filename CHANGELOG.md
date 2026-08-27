@@ -4,6 +4,65 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.0] - 2026-08-28
+
+### Added
+- **Dokumentation, die nicht mehr rosten kann.** `backend/tests/test_docs.py`
+  hält sie an den Code: jede Einstellung aus `config.py` muss in `.env.example`
+  **und** in `docs/CONFIGURATION.md` stehen (und keines von beiden darf eine
+  erfinden), jeder Route-Dekorator in `docs/API.md` (und umgekehrt), die
+  ausgelieferte Version braucht einen CHANGELOG-Eintrag, der CHANGELOG muss
+  eindeutig und neueste-zuerst sein, die generierten README-Marker müssen als
+  eigene Zeile existieren, und **jeder relative Link in jedem Dokument muss
+  auflösen**.
+- **Vier neue Dokumente**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (wie
+  die Teile zusammenhängen), [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)
+  (jede Umgebungsvariable mit Standard und Wirkung),
+  [`docs/API.md`](docs/API.md) (alle 90 Endpunkte, Berechtigungen, Statuscodes,
+  Long-Poll) und [`docs/TESTING.md`](docs/TESTING.md) (die Methode inklusive der
+  Mutationsprobe). Dazu [`SECURITY.md`](SECURITY.md) und
+  [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Vierte Testsuite**: `scripts/tests/` (26 Tests, `node --test`, ohne
+  Abhängigkeiten) prüft die Parser des Badge-Generators. Die riskante Stelle
+  war nie das Einsammeln, sondern die Regex über die Ausgabe eines Werkzeugs —
+  eine, die still danebenparst, macht aus jedem Badge eine selbstbewusste Lüge.
+- **20 generierte Badges statt 12**: dazugekommen sind Skript-Tests, Test-Dateien,
+  Test-LOC, Test:Code-Verhältnis, CSS-LOC, DB-Tabellen, React-Komponenten und
+  Doku-Seiten. Alle aus echten Quellen, keiner getippt.
+
+### Fixed
+- ⚠️ **Die README-Anleitung zum Backup sagte `cp`** — genau das, was das
+  Sicherungsskript bewusst vermeidet. Ein `cp` ist nicht atomar, und das WAL
+  hält bestätigte Transaktionen, die noch nicht in der Hauptdatei stehen
+  (gemessen: 4,4 MB WAL neben 4,2 MB Datenbank). Jetzt dokumentiert:
+  `.backup` über Python, plus der Hinweis, beim Zurückspielen die `-wal`/`-shm`
+  der **ersetzten** Datei zu löschen.
+- ⚠️ **Drei Einstellungen waren nirgends dokumentiert** — `CUE_DEV`,
+  `OPTIMIZE_MAX_RETRIES`, `OPTIMIZE_STALE_GRACE`. Ausgerechnet die erste
+  schaltet vier Produktionsschutzmaßnahmen ab.
+- ⚠️ **Der Kommentar an `CUE_DEV` im Code war schlicht falsch**: er beschrieb
+  eine harmlose Client-Voreinstellung. Tatsächlich hebelt der Schalter die
+  Start-Prüfung, die geschlossene Allowlist, die Origin-Prüfung und die
+  Owner-Sperre aus.
+- **Die README-Prosa behauptete 290 Tests**, während die Badges 1038 zeigten,
+  und nannte Coverage-Zahlen von vorgestern. Die Testtabelle wird jetzt
+  **generiert** (`<!-- tests:dynamic -->`) — Zahlen, die jemand abtippen muss,
+  sind Zahlen, die rosten.
+
+### Note
+- ⚠️ **Zwei der neuen Tests waren zunächst grün-blind**, gefunden nur durch die
+  Mutationsprobe: (1) die Marker-Prüfung suchte den Marker als **Teilstring** —
+  und die README erklärt ihre eigenen Marker in Backticks, was die Prüfung auch
+  bei umbenanntem echtem Block erfüllte; jetzt wird eine **eigene Zeile**
+  verlangt. (2) Der TOTAL-Zeilen-Test benutzte eine Eingabe, die auch eine
+  schlampige Regex ablehnt — die unterscheidende Eingabe ist eine, in der das
+  Wort TOTAL vorher in Prosa mit einer anderen Prozentzahl vorkommt.
+- ⚠️ **Beim Ermitteln der Einstellungen muss der reguläre Ausdruck einen
+  Zeilenumbruch zwischen `get(` und dem Namen zulassen** — black umbricht lange
+  Aufrufe, `ATTACHMENTS_DIR` steht auf einer eigenen Zeile. Meine erste,
+  einzeilige Fassung meldete das Gegenteil: eine dokumentierte Einstellung, die
+  es im Code angeblich nicht gibt.
+
 ## [0.46.0] - 2026-08-27
 
 ### Changed

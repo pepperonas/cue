@@ -86,7 +86,44 @@ asserts no element outside the allowed set and **no attribute at all**, which is
 quotes unescaped safe; it also asserts the payload stays READABLE, so nothing is silently swallowed.
 **Assert against the DOM, not the string**: escaped inert text legitimately contains `onerror=` and
 `javascript:`, so a substring check there fails on correct code.
-`scripts/update-badges.mjs` maintains 12 DYNAMIC badges between `<!-- badges:dynamic -->` markers in README.md (marker block must exist): version (single source = `backend/app/main.py` — the badge syncs automatically, only bump main.py), tests total + per suite (`pytest --collect-only` / `vitest list`, never grep `it()`), backend+runner+frontend-lib coverage (`pytest --cov` TOTAL / vitest `All files`, threshold colors), LOC total + Python/TS split, API-endpoint count (route decorators). Runs on every `npm test` via posttest; idempotent.
+`scripts/update-badges.mjs` maintains TWO generated blocks in README.md — the badge wall (`<!-- badges:dynamic -->`, 20 badges) and the test-suite table (`<!-- tests:dynamic -->`). Both marker blocks must exist; a missing one **throws** rather than appending, because silently growing a second copy of the badges at the end of the README is worse than a red build. Sources: version (single source = `backend/app/main.py` — only bump main.py, everything else follows), tests total + per suite (`pytest --collect-only` / `vitest list` / `node --test`, never grep `it()`), coverage (`pytest --cov` TOTAL / vitest `All files`, threshold colors), LOC per language incl. test LOC and the test:code ratio, API endpoints (route decorators), DB tables (`table=True`), React components, docs pages. Runs on every `npm test` via posttest; idempotent. ⚠️ **The parsing half lives in `scripts/badges-lib.mjs` and is unit tested** (`scripts/tests/`, `node --test`, dependency-free — the 4th suite): the risky part is not the fetching but the regex over a tool's output, and one that silently stops matching turns every badge into a confident lie. Two of those tests were themselves too weak until mutation-checked — the TOTAL-row test used input a loose `/TOTAL.*?(\d+)%/` also rejects, so it could not tell the anchored pattern from a sloppy one.
+
+## Documentation
+
+Six documents, and the split is deliberate: **`CLAUDE.md` is the working
+surface** (dense, gotcha-first, for whoever edits the code), everything under
+`docs/` is for someone who has to understand or run the thing.
+
+| File | For |
+| --- | --- |
+| `README.md` | first contact — features, quickstart, deployment, badges |
+| `docs/ARCHITECTURE.md` | how the pieces fit: one process/one port, data model, tenancy, live-sync, the runner |
+| `docs/CONFIGURATION.md` | every env var, its default and its effect |
+| `docs/API.md` | all 90 endpoints, who may call them, status codes, long-poll |
+| `docs/TESTING.md` | the testing method, incl. the mutation rule and the four property-suites |
+| `SECURITY.md` | threat boundaries, what is protected how, and what is explicitly NOT claimed |
+| `CONTRIBUTING.md` | setup + the rules that have actually prevented bugs here |
+
+⚠️ **`backend/tests/test_docs.py` holds the docs to the code** and is the reason
+they can be trusted: every setting `config.py` reads must appear in
+`.env.example` AND in `CONFIGURATION.md` (and neither may invent one), every
+route decorator must appear in `API.md` (and vice versa), the shipped version
+must have a CHANGELOG entry, the CHANGELOG must be unique and newest-first, the
+generated README markers must exist as standalone lines, and every relative link
+in every doc must resolve. It was written after finding real drift: the README
+prose claimed **290 tests while the badges said 1038**, three settings
+(`CUE_DEV`, `OPTIMIZE_MAX_RETRIES`, `OPTIMIZE_STALE_GRACE`) were in the code and
+in no document at all, the README's backup instructions said `cp` where the ops
+script deliberately uses `.backup`, and the code comment on `CUE_DEV` described
+it as a harmless client preference when it disables four production guards.
+
+⚠️ Two traps when writing such tests, both hit here: the env-var extraction must
+allow a **newline between `get(` and the name** (black wraps long calls, and
+`ATTACHMENTS_DIR` sits on its own line — a single-line regex under-reports and
+the test becomes decoration); and the marker check must match a **standalone
+line**, not a substring, because the README explains its own marker names in
+backticked prose and that prose satisfied the `in text` check with the real block
+renamed. Both were found by mutation, not by reading.
 
 ## Architecture
 

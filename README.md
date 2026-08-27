@@ -3,24 +3,36 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.46.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1038%20passing-brightgreen.svg)](backend/tests/)
-[![backend tests](https://img.shields.io/badge/backend%20tests-459-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.47.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1084%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-479-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-123-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-456-brightgreen.svg)](frontend/src/lib/)
+[![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![LOC](https://img.shields.io/badge/LOC-27967-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-8951-3776AB.svg)](#)
+[![test files](https://img.shields.io/badge/test%20files-59-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-11687-0A9EDC.svg)](docs/TESTING.md)
+[![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
+[![LOC](https://img.shields.io/badge/LOC-27971-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-8955-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-15280-3178C6.svg)](#)
-[![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](backend/app/routers/)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3736-663399.svg)](#)
+[![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](docs/API.md)
+[![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
+[![React components](https://img.shields.io/badge/React%20components-42-61DAFB.svg)](frontend/src/components/)
+[![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 <!-- /badges:dynamic -->
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/pepperonas/cue/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/)
+[![Keep a Changelog](https://img.shields.io/badge/Keep%20a%20Changelog-1.1.0-E05735?logo=keepachangelog&logoColor=white)](CHANGELOG.md)
+[![Security policy](https://img.shields.io/badge/security-policy-important.svg)](SECURITY.md)
+[![Docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
+[![Made with](https://img.shields.io/badge/made%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -30,6 +42,10 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Vitest](https://img.shields.io/badge/Vitest-2-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![ESLint](https://img.shields.io/badge/ESLint-flat%20config-4B32C3?logo=eslint&logoColor=white)](frontend/eslint.config.js)
+[![TS strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](frontend/tsconfig.json)
+[![uv](https://img.shields.io/badge/uv-managed-DE5FE9?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
+[![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 
 [![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154?logo=reactquery&logoColor=white)](https://tanstack.com/query)
 [![dnd-kit](https://img.shields.io/badge/dnd--kit-drag%20%26%20drop-6332F6)](https://dndkit.com/)
@@ -39,11 +55,29 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
 [![Self-hosted](https://img.shields.io/badge/Self--hosted-cue.celox.io-1a1c22)](https://cue.celox.io)
+[![SQLite WAL](https://img.shields.io/badge/SQLite-WAL%20%2B%20single%20file-003B57?logo=sqlite&logoColor=white)](docs/ARCHITECTURE.md)
+[![Multi-tenant](https://img.shields.io/badge/multi--tenant-404%20not%20403-1a1c22)](docs/API.md)
+[![Offline tests](https://img.shields.io/badge/tests-offline%20%26%20deterministic-brightgreen.svg)](docs/TESTING.md)
+[![Mutation-checked](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 
 `cue` (≈ *queue*, „Stichwort zum Handeln") ist eine durchdachte Prompt-/Todo-Queue:
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
 Status-Workflow (Queued → Running → Done) abarbeiten und mit einem Klick in die
 Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
+
+## Dokumentation
+
+| Dokument | Inhalt |
+| --- | --- |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Wie die Teile zusammenhängen: ein Prozess/ein Port, Datenmodell, Mandantentrennung, Live-Sync, der Runner |
+| **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | Jede Umgebungsvariable mit Standard und Wirkung — testgepinnt gegen `config.py` |
+| **[docs/API.md](docs/API.md)** | Alle Endpunkte, wer sie aufrufen darf, Statuscodes, Long-Poll — testgepinnt gegen die Routen |
+| **[docs/TESTING.md](docs/TESTING.md)** | Wie hier getestet wird und warum so (inklusive der Mutationsprobe) |
+| **[SECURITY.md](SECURITY.md)** | Sicherheitsmodell, Grenzen, Meldeweg |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Einrichten, Regeln, Commit-Konventionen |
+| **[CHANGELOG.md](CHANGELOG.md)** | Alle Versionen |
+| **[CLAUDE.md](CLAUDE.md)** | Die Fallstricke im Detail — Arbeitsgrundlage am Code |
+| **[cue-runner/README.md](cue-runner/README.md)** | Der Mac-Daemon |
 
 ## Screenshots
 
@@ -92,7 +126,10 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
 - **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** öffnet den Bearbeiten-Dialog; `Cmd/Ctrl+Enter` speichert dort — egal, wo der Fokus liegt.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips (**per Drag & Drop direkt im Board sortierbar**). Jeder Chip zeigt, **wie viel dort offen ist** — Queued plus Running, **ohne blockierte** Prompts; wo nichts offen ist, steht auch keine Zahl.  neuer Prompt übernimmt das zuletzt genutzte Projekt. Im Prompt-Detail öffnet der **Projekt-Badge ein Menü**: Prompt in ein anderes Projekt **verschieben** oder als **Kopie** (inkl. Screenshots, landet als Queued) dorthin **duplizieren**.
-- **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft, **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
+- **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft und **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
+- **Titel vervollständigt sich Wort für Wort**: das Feld zeigt den nächsten Wortvorschlag als graue Fortsetzung hinter dem Cursor, **Enter** übernimmt **genau ein Wort**, danach steht sofort der nächste Vorschlag da; `→` am Feldende tut dasselbe, Escape blendet ihn aus, ohne den Dialog zu schließen. Die Vorschläge stammen aus den **eigenen bisherigen Titeln**, nicht aus einer Wortliste. Die Schwellen sind gemessen, nicht geschätzt: auf leerem Feld trifft ein Rateversuch nur zu 2 % — deshalb kommt dort nie einer; beim Vervollständigen des getippten Wortes sind es 25 / 36 / 51 % bei 1 / 2 / 3 Zeichen, also beginnt der Vorschlag ab dem zweiten Zeichen.
+- **Tags entstehen aus dem Titel**: „doku updaten" trägt `documentation` ein, „theme wechsel fixen" trägt `bugfix` ein — das Feld füllt sich, solange man es nicht selbst anfasst, und eine Zeile darunter sagt, woher die Tags kommen. Geschrieben wird nur, was **messbar trägt** (`doku`→documentation ×28,3 gegenüber der Grundrate, `animier`→animation ×8,2, `fix|fehler`→bugfix ×4,8); was das nicht tut (`optimier` nur ×1,8, `button|icon`→gui gar nicht), wird ausschließlich **vorgeschlagen**. Höchstens zwei automatisch, und beim **Bearbeiten** eines bestehenden Prompts nie.
+- **Zwei Wege, ein Tag zu beenden**: `→` und `Tab` übernehmen den **Vorschlag** (graue Ergänzung bzw. markierte Zeile), **Enter, Leertaste und Komma** speichern **das Getippte wörtlich**. Danach ist das Feld sofort für das nächste Tag bereit und die Liste öffnet wieder — neu sortiert nach dem, was mit dem gerade gesetzten Tag zusammen auftritt. Die Vorschlagstasten greifen nur, solange getippt wird: bei leerem Token trägt `Tab` den Fokus weiter, statt die Tastatur im Feld einzusperren.
 - **Diktat**: Prompts per **Sprachaufzeichnung** erstellen — Mikro-Button am Prompt-Feld (Web Speech API, browser-nativ, kein Server-Roundtrip); erkannte Sätze werden angehängt, Zwischenergebnis läuft live mit. In Browsern ohne Support (Firefox) ausgeblendet.
 - **Snippet-Bibliothek**: Bearbeitungs-Werkbank für die AI-Prompt-Snippets aus **Inspector Rust** — IR-Backup-JSON importieren, in cue gruppieren/bearbeiten (Drag & Drop mit Griffen, sichtbarer Auswahl-Modus mit Gruppen-Select-All, Suche, 1-Klick-Copy des Bodys, Live-Duplikat-Check der Abkürzung, Markdown-Vorschau, **Versionsnummer pro Snippet** (v1 aufwärts, zählt bei inhaltlichen Änderungen hoch)), wieder als IR-Backup exportieren und in IR über „Settings → Backup & restore" zurückspielen. **Verlustfreier Roundtrip** (Merge-Key = Abkürzung, Gruppen reisen per Name, auch leere Gruppen überleben); verschlüsselte Backups werden mit klarer Meldung abgelehnt.
 - **Import** von `.txt` (Split an `---`/Leerzeilen/keiner) + **Export** als JSON-Backup oder ZIP (`.txt` pro Prompt).
@@ -143,33 +180,45 @@ Im Dev (`CUE_DEV=1`) ist die Konfigurationsprüfung gelockert und die Allowlist 
 
 ### Tests
 
-Drei Suiten, alle deterministisch und offline lauffähig (externe Abhängigkeiten
-gemockt) — zusammen **290 Tests**:
+Vier Suiten, alle deterministisch und offline lauffähig — externe
+Abhängigkeiten (Google OAuth, Subprozesse, Browser-APIs) sind gemockt, kein Test
+braucht Netz oder eine laufende Instanz.
 
 ```bash
-npm test                             # alle drei Suiten + Badge-Update (posttest)
+npm test                 # alle vier Suiten + Lint, danach die Badges (posttest)
 
-# einzeln:
-cd backend    && uv run pytest                    # 155 Tests — API-Verhalten end-to-end
-                                                  # (Auth/OAuth, Tenant-Isolation, CRUD,
-                                                  #  Runs, Capture, SPA-Guard, CSP …)
-cd cue-runner && .venv/bin/python -m pytest       # 65 Tests — Executor, Orchestrierungs-Loops,
-                                                  #  Stream-Parser, Delivery, API-Client (Mocks)
-cd frontend   && pnpm vitest run                  # 70 Tests — src/lib (markdown-XSS, tags,
-                                                  #  color, api-CSRF, clipboard, speech)
-cd frontend   && pnpm typecheck                   # tsc
-
-# Coverage (backend 99 %, runner 91 %):
-cd backend && uv run pytest --cov=app --cov-report=term-missing
+npm run test:backend     # cd backend    && uv run pytest -q
+npm run test:runner      # cd cue-runner && .venv/bin/python -m pytest -q
+npm run test:frontend    # cd frontend   && pnpm vitest run
+npm run test:scripts     # node --test scripts/tests/
+cd frontend && pnpm typecheck
 ```
 
+<!-- tests:dynamic -->
+| Suite | Ort | Tests | Coverage | Prüft |
+| --- | --- | --: | --: | --- |
+| Backend | `backend/tests/` | 479 | 98 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Runner | `cue-runner/tests/` | 123 | 90 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
+| Frontend | `frontend/src/lib/` | 456 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
+| **Gesamt** | | **1084** | | |
+<!-- /tests:dynamic -->
+
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
-liegen in `backend/tests/conftest.py`.
+liegen in `backend/tests/conftest.py`. Die Zahlen oben sind **generiert** —
+sie standen hier jahrelang von Hand und liefen um den Faktor drei auseinander.
 
-### README-Badges (LOC + Testanzahl)
+**Die Regel, die hier am meisten trägt:** ein Test, den man nicht hat scheitern
+sehen, ist keine Zusicherung. Jede neue Prüfung wird einmal absichtlich
+kaputtgemacht und muss dabei rot werden — das hat wiederholt Tests entlarvt, die
+grün waren, ohne etwas zu prüfen. Ausführlich, mit Beispielen und den vier
+Suiten, die eine *Eigenschaft* statt eines Aufrufortes prüfen:
+**[docs/TESTING.md](docs/TESTING.md)**.
 
-`scripts/update-badges.mjs` hält alle **dynamischen Badges** ehrlich — komplett
-aus echten Quellen berechnet, nichts hardcodiert:
+### Generierte README-Blöcke
+
+`scripts/update-badges.mjs` hält die **Badge-Wand** und die **Test-Tabelle**
+ehrlich — komplett aus echten Quellen berechnet, nichts hardcodiert:
 
 | Badge | Quelle |
 | --- | --- |
@@ -177,14 +226,22 @@ aus echten Quellen berechnet, nichts hardcodiert:
 | Tests gesamt + je Suite | `pytest --collect-only` / `vitest list` (kein `it()`-Grep — Skips/Todos würden mitzählen) |
 | Coverage Backend/Runner | `pytest --cov` (TOTAL-Zeile), Ampelfarbe nach Schwellwert |
 | LOC gesamt + Python/TypeScript | Source-Zeilen ohne Tests, `node_modules`, `dist`, Generiertes |
-| API-Endpoints | gezählte Route-Dekoratoren im Backend |
+| API-Endpoints · DB-Tabellen · Komponenten | gezählte Route-Dekoratoren, `table=True`-Klassen, `.tsx`-Dateien |
+| Test-Dateien, Test-LOC, Tests je 100 LOC | dieselbe Zählung, getrennt nach Quell- und Testcode |
 
-Die Badges leben zwischen `<!-- badges:dynamic -->`-Markern im README und werden
-in-place ersetzt — idempotent, automatisch nach `npm test` (posttest-Hook) oder manuell:
+Beide Blöcke leben zwischen Markern (`<!-- badges:dynamic -->`,
+`<!-- tests:dynamic -->`) und werden in-place ersetzt — idempotent, automatisch
+nach `npm test` (posttest-Hook) oder manuell:
 
 ```bash
 npm run update-badges
 ```
+
+Fehlt ein Marker, **bricht der Generator ab**, statt eine zweite Kopie ans Ende
+zu hängen. Die Parser der Werkzeug-Ausgaben liegen als reine Funktionen in
+`scripts/badges-lib.mjs` und sind einzeln getestet (`scripts/tests/`) — eine
+Regex, die still danebenparst, macht aus jedem Badge eine selbstbewusste Lüge,
+und Badges sind das Erste, was jemand liest.
 
 ## Deployment (VPS, `cue.celox.io`)
 
@@ -209,16 +266,33 @@ Hinter dem Proxy bleibt `COOKIE_SECURE=true` und `TRUST_PROXY=true` (der Proxy s
 
 Die gesamte App-State liegt in einer SQLite-Datei im `cue-data`-Volume (`/data/cue.db`).
 
+⚠️ **Nicht mit `cp` kopieren.** Ein `cp` ist nicht atomar, und das WAL hält
+bestätigte Transaktionen, die noch nicht in der Hauptdatei stehen — einmal
+gemessen: 4,4 MB WAL neben einer 4,2 MB großen Datenbank. Richtig ist
+`.backup`, das einen konsistenten Stand schreibt. Der Container bringt kein
+`sqlite3`-Binary mit, also über Python:
+
 ```bash
-# Backup (Hot-Copy ist mit WAL sicher)
-docker compose exec cue sh -c 'cp /data/cue.db /data/cue-backup.db'
-docker cp cue:/data/cue-backup.db ./cue-backup-$(date +%F).db
+# Backup — konsistent, auch während die App schreibt
+docker compose exec cue python -c "import sqlite3; \
+  src=sqlite3.connect('/data/cue.db'); dst=sqlite3.connect('/data/backup.db'); \
+  src.backup(dst); dst.close(); src.close()"
+docker cp cue:/data/backup.db ./cue-backup-$(date +%F).db
 
 # Restore
 docker compose down
 docker cp ./cue-backup.db cue:/data/cue.db   # Volume muss existieren
 docker compose up -d
 ```
+
+⚠️ Beim Zurückspielen die **`-wal`/`-shm`-Dateien der ersetzten Datenbank
+löschen** — sie gehören zur alten Datei und würden auf die neue angewandt.
+
+Nächtlich läuft das automatisch: `ops/cue-backup.timer` (03:50, 30 Stände) prüft
+jede Kopie mit `PRAGMA integrity_check` und **verwirft sie bei Fehlern** — eine
+kaputte Kopie, die die Rotation später als gültig zählt, verdeckt die Lücke, die
+sie reißt. Die Screenshots reisen in einem zweiten Archiv, weil die DB-Zeilen
+sie über den Dateinamen referenzieren.
 
 Alternativ jederzeit über die UI: **Settings → JSON-Backup / ZIP-Export** (pro Konto).
 
@@ -263,14 +337,21 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 ## Projektstruktur
 
 ```
-backend/    FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine, Tests (conftest.py)
-frontend/   React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA, Vitest (src/lib)
-cue-runner/ Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
-scripts/    update-badges.mjs — LOC-/Test-Badges im README automatisch aktualisieren
-deploy/     Caddyfile + nginx.conf
-docs/       Screenshots
-package.json  Root-Skripte: npm test (alle Suiten) + posttest-Badge-Hook
-Dockerfile  Multi-Stage (node build → python runtime)
+backend/      FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine
+  app/        Router je Domäne, config.py als einzige Env-Quelle
+  tests/      pytest — HTTP-Verhalten, Mandantentrennung, Doku-Vertrag
+frontend/     React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
+  src/lib/    die reinen Module — hier liegt die getestete Logik
+  src/components/  Komponenten (bewusst ungetestet)
+cue-runner/   Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
+scripts/      update-badges.mjs + badges-lib.mjs (die getesteten Parser)
+  tests/      node --test, ohne Abhängigkeiten
+contracts/    sprachübergreifende Verträge (column-order.json)
+ops/          Deploy-Skript + nächtliche Sicherung (systemd)
+deploy/       Caddyfile, nginx.conf, Wartungsseite
+docs/         Architektur, Konfiguration, API, Testen, Screenshots
+package.json  Root-Skripte: npm test (alle vier Suiten) + posttest-Badge-Hook
+Dockerfile    Multi-Stage (node build → python runtime)
 ```
 
 ## Versionierung
