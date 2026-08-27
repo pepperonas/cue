@@ -1,6 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
-import { rankSuggestions, type RankContext, type TagSuggestion } from '../lib/tags'
+import {
+  inlineCompletion,
+  rankSuggestions,
+  type RankContext,
+  type TagSuggestion,
+} from '../lib/tags'
+import { isHandled, tagKeyAction } from '../lib/tag-keys'
 import { Icon } from './ui'
+import { GhostOverlay, useGhostGuards } from './GhostOverlay'
 
 interface Props {
   id?: string
@@ -17,12 +24,12 @@ interface Props {
   onChange: (value: string) => void
 }
 
+const MAX_SUGGESTIONS = 8
+
 const REASON_HINT = {
   title: 'Passt zum Titel',
   related: 'Wird oft zusammen verwendet',
 } as const
-
-const MAX_SUGGESTIONS = 8
 
 // Split the raw comma-separated value into completed segments + the segment
 // currently being typed (after the last comma).
@@ -33,15 +40,34 @@ function splitTags(value: string): { completed: string[]; current: string } {
 }
 
 /**
- * Comma-separated tag field with type-ahead suggestions. Completion applies to
- * the token after the last comma; picking one keeps the rest intact and leaves
- * the field ready for the next tag.
+ * Comma-separated tag field with type-ahead.
+ *
+ * Two ways to end a tag, and they mean different things:
+ *
+ *   → / Tab            take the SUGGESTION (the grey completion, or the highlighted row)
+ *   Enter / Space / ,  take WHAT I TYPED, verbatim, as its own tag
+ *
+ * That split is the point: the suggestion keys mean "yes, that word", the
+ * literal keys mean "no, mine" — and neither has to be undone by the other.
+ * (Before 0.46.0 Enter took the suggestion, so writing a tag the catalogue
+ * already half-matched meant deleting what the field had just done for you.)
+ * After either, the field is ready for the next tag and the menu re-opens, now
+ * ranked by what the tag just added co-occurs with.
+ *
+ * ⚠️ The suggestion keys only fire while a token is actually being TYPED. With
+ * an empty token the menu still lists tags, and binding Tab there would trap the
+ * keyboard in this field: every commit re-opens the menu, so there would never
+ * be a press that moves focus on.
+ *
+ * Space is a separator here, never a character: across 291 prompts and 20 tags
+ * not one tag token contains a space (they are single-token, hyphenated).
  */
 export function TagInput({ id, value, placeholder, suggestions, context, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const [dropUp, setDropUp] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const ghost = useGhostGuards(inputRef, value, open)
 
   // Open above the field when there isn't enough room below (the tag field sits
   // near the bottom of the dialog, so dropping down would cover the actions).
@@ -58,7 +84,8 @@ export function TagInput({ id, value, placeholder, suggestions, context, onChang
   }
 
   const { completed, current } = splitTags(value)
-  const query = current.trim().toLowerCase()
+  const query = current.trim()
+  const typing = query.length > 0
 
   const chosen = useMemo(
     () =>
@@ -72,18 +99,29 @@ export function TagInput({ id, value, placeholder, suggestions, context, onChang
   )
 
   // Relevance ranking lives in lib/tags.ts (exact > prefix > word-start >
-  // substring, then usage, then recency) so it can be unit tested.
+  // substring, then context, then usage, then recency) so it can be unit tested.
   const matches = useMemo(
-    () => rankSuggestions(suggestions, query, { exclude: chosen, limit: MAX_SUGGESTIONS, context }),
+    () =>
+      rankSuggestions(suggestions, query.toLowerCase(), {
+        exclude: chosen,
+        limit: MAX_SUGGESTIONS,
+        context,
+      }),
     [suggestions, chosen, query, context],
   )
 
+  const suggestion = matches[active] ?? matches[0]
+  // A trailing blank would put the ghost a space away from the word it completes.
+  // Space commits, so this can only happen after a paste.
+  const insert = /\s$/.test(value) ? null : inlineCompletion(query, suggestion?.name)
+  const showGhost = open && ghost.ready && typing && !!insert
+
   function commit(tag: string) {
+    const clean = tag.trim()
+    if (!clean) return
     const kept = completed.map((t) => t.trim()).filter(Boolean)
     // Don't add a tag the prompt already has (case-insensitive).
-    const next = kept.some((t) => t.toLowerCase() === tag.toLowerCase())
-      ? kept
-      : [...kept, tag]
+    const next = kept.some((t) => t.toLowerCase() === clean.toLowerCase()) ? kept : [...kept, clean]
     onChange(next.join(', ') + ', ')
     setActive(0)
     inputRef.current?.focus()
@@ -91,26 +129,39 @@ export function TagInput({ id, value, placeholder, suggestions, context, onChang
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || matches.length === 0) {
-      if (e.key === 'ArrowDown') {
+    // The decision table lives in lib/tag-keys.ts so it can be tested; this
+    // only carries it out.
+    const action = tagKeyAction(e, {
+      typing,
+      menuOpen: open,
+      hasSuggestion: matches.length > 0,
+      caretAtEnd: ghost.atEnd,
+    })
+    if (!isHandled(action)) return
+    e.preventDefault()
+    switch (action) {
+      case 'takeSuggestion':
+        if (suggestion) commit(suggestion.name)
+        break
+      case 'takeTyped':
+        commit(query)
+        break
+      case 'moveDown':
+        setActive((i) => (i + 1) % matches.length)
+        break
+      case 'moveUp':
+        setActive((i) => (i + matches.length - 1) % matches.length)
+        break
+      case 'openMenu':
         openMenu()
-        e.preventDefault()
-      }
-      return
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive((i) => (i + 1) % matches.length)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive((i) => (i - 1 + matches.length) % matches.length)
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      // Only intercept Enter/Tab when actively typing a token to complete.
-      if (e.key === 'Enter' && !query) return
-      e.preventDefault()
-      commit((matches[active] ?? matches[0]).name)
-    } else if (e.key === 'Escape') {
-      setOpen(false)
+        break
+      case 'closeMenu':
+        // Without this the first Escape closed the whole composer.
+        e.stopPropagation()
+        setOpen(false)
+        break
+      case 'swallow':
+        break
     }
   }
 
@@ -119,22 +170,45 @@ export function TagInput({ id, value, placeholder, suggestions, context, onChang
       <input
         id={id}
         ref={inputRef}
-        className="input"
+        className="input ghost-input"
         value={value}
         placeholder={placeholder}
         autoComplete="off"
         role="combobox"
         aria-expanded={open && matches.length > 0}
-        aria-autocomplete="list"
+        // Both, now: a list below and a completion inside the field.
+        aria-autocomplete="both"
+        aria-describedby={showGhost ? `${id ?? 'tags'}-ghost-hint` : undefined}
         onChange={(e) => {
           onChange(e.target.value)
           setActive(0)
           openMenu()
+          ghost.syncCaret()
         }}
-        onFocus={openMenu}
+        onSelect={ghost.syncCaret}
+        onKeyUp={ghost.syncCaret}
+        onFocus={() => {
+          openMenu()
+          ghost.syncCaret()
+        }}
         onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         onKeyDown={onKeyDown}
+        {...ghost.compositionProps}
       />
+      {showGhost && insert && (
+        <>
+          <GhostOverlay
+            value={value}
+            insert={insert}
+            hint="→"
+            hintTitle="Tab oder → übernimmt den Vorschlag · Enter, Leertaste oder Komma übernimmt das Getippte"
+          />
+          <span id={`${id ?? 'tags'}-ghost-hint`} className="sr-only">
+            Vorschlag {suggestion?.name}. Mit Tab oder Pfeil rechts übernehmen; mit Enter,
+            Leertaste oder Komma das Getippte als eigenes Tag speichern.
+          </span>
+        </>
+      )}
       {open && matches.length > 0 && (
         <ul className={`tag-suggest ${dropUp ? 'up' : ''}`} role="listbox">
           {matches.map((tag, i) => (

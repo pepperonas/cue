@@ -1,10 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   acceptCompletion,
   completeTitle,
   type Completion,
   type TitleModel,
 } from '../lib/title-complete'
+import { GhostOverlay, useGhostGuards } from './GhostOverlay'
 
 interface Props {
   id?: string
@@ -31,9 +32,8 @@ interface Props {
 export function GhostInput({ id, value, placeholder, model, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [focused, setFocused] = useState(false)
-  const [atEnd, setAtEnd] = useState(true)
-  const [composing, setComposing] = useState(false)
-  const [overflow, setOverflow] = useState(false)
+  // Caret / IME / overflow guards are shared with the tag field.
+  const ghost = useGhostGuards(inputRef, value, focused)
   // Escape hides the suggestion for the value it was shown for — typing anything
   // brings suggestions back. Remembering the VALUE instead of a boolean means no
   // effect has to reset it, and there is no moment where the two disagree.
@@ -42,22 +42,7 @@ export function GhostInput({ id, value, placeholder, model, onChange }: Props) {
 
   const completion = useMemo(() => completeTitle(model, value), [model, value])
 
-  // The ghost is an overlay aligned to the field's text. Once the value is
-  // wider than the field, the input scrolls and the overlay would drift out of
-  // register — so measure and stay quiet in that case.
-  useLayoutEffect(() => {
-    const el = inputRef.current
-    if (!el) return
-    setOverflow(el.scrollWidth > el.clientWidth + 1)
-  }, [value, focused])
-
-  const visible = !!completion && focused && atEnd && !composing && !overflow && !dismissed
-
-  function syncCaret() {
-    const el = inputRef.current
-    if (!el) return
-    setAtEnd(el.selectionStart === el.value.length && el.selectionEnd === el.value.length)
-  }
+  const visible = !!completion && focused && ghost.ready && !dismissed
 
   function accept(c: Completion) {
     const next = acceptCompletion(value, c)
@@ -68,13 +53,13 @@ export function GhostInput({ id, value, placeholder, model, onChange }: Props) {
       const el = inputRef.current
       if (!el) return
       el.setSelectionRange(next.length, next.length)
-      setAtEnd(true)
+      ghost.syncCaret()
     })
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!visible || !completion) return
-    if (e.key === 'Enter' || (e.key === 'ArrowRight' && atEnd)) {
+    if (e.key === 'Enter' || (e.key === 'ArrowRight' && ghost.atEnd)) {
       // Cmd/Ctrl+Enter is the save shortcut and must keep working.
       if (e.metaKey || e.ctrlKey || e.altKey) return
       e.preventDefault()
@@ -101,30 +86,28 @@ export function GhostInput({ id, value, placeholder, model, onChange }: Props) {
         aria-describedby={visible ? `${id ?? 'ghost'}-hint` : undefined}
         onChange={(e) => {
           onChange(e.target.value)
-          syncCaret()
+          ghost.syncCaret()
         }}
-        onSelect={syncCaret}
-        onKeyUp={syncCaret}
+        onSelect={ghost.syncCaret}
+        onKeyUp={ghost.syncCaret}
         onFocus={() => {
           setFocused(true)
-          syncCaret()
+          ghost.syncCaret()
         }}
         onBlur={() => setFocused(false)}
-        onCompositionStart={() => setComposing(true)}
-        onCompositionEnd={() => setComposing(false)}
         onKeyDown={onKeyDown}
+        {...ghost.compositionProps}
       />
       {visible && completion && (
         <>
-          <div className="ghost-layer" aria-hidden="true">
-            <span className="ghost-typed">{value}</span>
-            <span className="ghost-rest">{completion.insert}</span>
-          </div>
+          <GhostOverlay
+            value={value}
+            insert={completion.insert}
+            hint="↵"
+            hintTitle="Enter übernimmt das nächste Wort"
+          />
           <span id={`${id ?? 'ghost'}-hint`} className="sr-only">
             Vorschlag {completion.word}. Mit Enter Wort für Wort übernehmen.
-          </span>
-          <span className="ghost-key" aria-hidden="true">
-            ↵
           </span>
         </>
       )}

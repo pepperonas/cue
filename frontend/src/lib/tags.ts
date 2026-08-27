@@ -146,6 +146,23 @@ export function rankSuggestions(
 }
 
 /**
+ * The characters that would complete `query` into `suggestion` — the grey text
+ * the tag field shows behind the caret.
+ *
+ * The prefix test is deliberately CASE-SENSITIVE. Ghost text is a promise about
+ * the exact characters that will be inserted, and "Sec" + "urity" would render
+ * "Security" while `→` commits the catalogue's "security" — a small lie, and
+ * ghost text that lies is worse than none. When the case differs the field shows
+ * no ghost; the suggestion is still right there in the list and `→`/Tab still
+ * takes it (in its canonical spelling).
+ */
+export function inlineCompletion(query: string, suggestion?: string | null): string | null {
+  if (!query || !suggestion) return null
+  if (!suggestion.startsWith(query)) return null
+  return suggestion.slice(query.length) || null
+}
+
+/**
  * Tags that travel with the ones already chosen, most frequent first.
  *
  * Built from the prompts the client already holds — no extra request, and it

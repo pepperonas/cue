@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEV_TAGS,
   dedupeTags,
+  inlineCompletion,
   mergeSuggestionPool,
   normalizeTags,
   rankSuggestions,
@@ -208,5 +209,29 @@ describe('relatedTags', () => {
 
   it('matches case-insensitively and honours the limit', () => {
     expect([...relatedTags(prompts, ['FEATURE'], 1)]).toEqual(['enhancement'])
+  })
+})
+
+describe('inlineCompletion', () => {
+  it('returns the characters that finish the typed fragment', () => {
+    expect(inlineCompletion('anim', 'animation')).toBe('ation')
+  })
+
+  it('stays silent when the case differs — ghost text must not lie', () => {
+    // "Sec" + "urity" would render "Security" while → commits "security".
+    expect(inlineCompletion('Sec', 'security')).toBeNull()
+  })
+
+  it('stays silent when the suggestion is not a continuation at all', () => {
+    // A word-start match inside the tag ("dark-mode" for "mode") is a valid
+    // suggestion but nothing can be appended to what was typed.
+    expect(inlineCompletion('mode', 'dark-mode')).toBeNull()
+  })
+
+  it('stays silent when nothing would be added or nothing was typed', () => {
+    expect(inlineCompletion('animation', 'animation')).toBeNull()
+    expect(inlineCompletion('', 'animation')).toBeNull()
+    expect(inlineCompletion('anim', undefined)).toBeNull()
+    expect(inlineCompletion('anim', null)).toBeNull()
   })
 })

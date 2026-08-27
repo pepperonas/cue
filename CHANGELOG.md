@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0] - 2026-08-27
+
+### Changed
+- **Das Tag-Feld trennt jetzt „nimm den Vorschlag" von „nimm mein Wort".**
+  `→` und `Tab` übernehmen den **Vorschlag** (die graue Ergänzung bzw. die
+  markierte Zeile); **Enter, Leertaste und Komma** speichern **das Getippte
+  wörtlich** als eigenes Tag. Danach ist das Feld sofort für das nächste Tag
+  bereit und die Liste öffnet wieder — neu sortiert nach dem, was mit dem
+  gerade gesetzten Tag zusammen auftritt.
+  Vorher nahm Enter den Vorschlag: wer ein eigenes Wort schreiben wollte, das
+  der Katalog halb erriet, musste hinterher wegräumen, was das Feld gerade für
+  ihn getan hatte.
+- **Das Tag-Feld zeigt den Vorschlag jetzt inline** als graue Ergänzung hinter
+  dem Cursor — dieselbe Darstellung wie im Titelfeld, mit `→` statt `↵` auf dem
+  Tastenhinweis. Erst dadurch bekommt `→` überhaupt eine Bedeutung: es gibt
+  sichtbaren Text, in den man hineinfährt. Die Liste bleibt für `↑/↓` und Klick.
+
+### Fixed
+- **Escape im Tag-Feld schloss den ganzen Dialog.** Jetzt schließt der erste
+  Druck die Vorschlagsliste, der zweite den Dialog — wie im Titelfeld.
+
+### Note
+- ⚠️ **Die Vorschlagstasten greifen nur, solange wirklich getippt wird.** Bei
+  leerem Token listet das Menü weiterhin Tags, und `Tab` dort auf „übernehmen"
+  zu legen würde die Tastatur im Feld **einsperren**: jede Übernahme öffnet das
+  Menü erneut, es gäbe also keinen Druck mehr, der den Fokus weiterträgt. Mit
+  leerem Token trägt `Tab` den Fokus weiter und `→` bewegt den Cursor.
+- ⚠️ **Die Leertaste ist hier ein Trennzeichen, nie ein Zeichen.** Geprüft, statt
+  angenommen: über 291 Prompts und 20 Tags enthält **kein einziges** Tag-Token
+  ein Leerzeichen (sie sind einwortig, mit Bindestrich).
+- ⚠️ **Der Ghost-Text prüft den Präfix groß-/kleinschreibungsgenau.** „Sec" +
+  „urity" würde „Security" anzeigen, während `→` das katalogisierte „security"
+  einträgt — eine kleine Lüge, und lügender Ghost-Text ist schlimmer als keiner.
+  Bei abweichender Schreibung bleibt das Feld grau-frei; der Vorschlag steht
+  weiter in der Liste und `→`/`Tab` nehmen ihn (in kanonischer Schreibweise).
+- Die Tastenlogik liegt als reine Tabelle in `lib/tag-keys.ts` und ist einzeln
+  getestet: die Einsperr-Gefahr, der Cmd+Enter-Durchlass (das Speichern-Kürzel)
+  und die Escape-Abgrenzung sind aus einer gerenderten Komponente heraus sonst
+  nicht prüfbar.
+
 ## [0.45.0] - 2026-08-26
 
 ### Added
