@@ -820,6 +820,11 @@ a {
 .sheet--detail {
   overflow: hidden;
 }
+/* `.sheet--editing` deliberately carries NO styling. A one-tone surface shift
+   was tried and measured 1.05:1 against the normal sheet — a mode signal that
+   does not signal. What actually says "this is the form now" is the content:
+   the heading, the fields, "Speichern", and the swap animation getting there.
+   The class stays as a state marker in the DOM. */
 .sheet--detail > * {
   flex: none;
 }
@@ -1463,9 +1468,13 @@ kbd {
   color: var(--md-on-surface-variant);
   text-align: center;
 }
-.sheet.drag-over {
+/* The drop zone is the form area, not the whole sheet: the editor renders into
+   a host it does not own (the composer and the detail sheet both), and the
+   dashed outline round the fields says where to drop more plainly anyway. */
+.prompt-form.drag-over {
   outline: 2px dashed var(--md-primary);
-  outline-offset: -6px;
+  outline-offset: -4px;
+  border-radius: var(--shape-s);
 }
 .attach-grid {
   display: grid;

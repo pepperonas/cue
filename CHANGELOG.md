@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.0] - 2026-08-30
+
+### Changed
+- **Ein geöffneter Prompt wird an Ort und Stelle bearbeitet.** Doppelklick (oder
+  `e`, oder „Bearbeiten") tauscht im Detail-Dialog nur den INHALT gegen das
+  Formular — vorher wurde der Dialog geschlossen und ein zweiter mit eigener
+  Auftrittsanimation aufgebaut. Gemessen: das `.sheet`-Element ist danach
+  **dasselbe DOM-Element**, es existiert nie ein zweiter Dialog, und Position
+  und Größe bleiben unverändert (720×582 an derselben Stelle).
+- **Der Moduswechsel ist animiert:** Kopf, Formular und Aktionszeile blenden um
+  45 ms versetzt ein, das Formular steigt dabei von unten (y 12 → 0), die
+  zurückkehrende Ansicht senkt sich von oben (y −12 → 0) — die beiden
+  Richtungen lesen sich als Weggehen und Zurückkommen. `prefers-reduced-motion`
+  überspringt das.
+- **Speichern schließt den Dialog nicht mehr**, sondern zeigt das Ergebnis: man
+  bleibt im geöffneten Prompt und sieht die neue Fassung.
+- Escape/Zurück verlässt erst das Formular und schließt beim zweiten Druck den
+  Dialog (`useBackDismiss`, dieselbe LIFO-Ordnung wie Lightbox und
+  Projekt-Menü). Ein Klick daneben verwirft nichts mehr — dieselbe Regel, die
+  der Composer beim Bearbeiten schon hatte.
+
+### Added
+- `lib/detail-keys.ts` — die Tastentabelle des Detail-Dialogs als reine
+  Funktion, inklusive der Regel, dass im Bearbeitungsmodus **keine** Taste
+  feuert (4 Tests, mutationsgeprüft).
+
+### Fixed
+- Cmd/Ctrl+A und Cmd/Ctrl+C des Detail-Dialogs standen im Formular nicht still.
+  Eine Textarea-Auswahl gehört in Chrome **nicht** zu `window.getSelection()`,
+  also hätte der Wächter sie nicht gesehen und Cmd+C hätte statt der Auswahl
+  den ganzen Prompt kopiert.
+- Cmd/Ctrl+Enter hätte im Formular gleichzeitig gespeichert **und** einen
+  offenen Optimierungs-Vorschlag übernommen, den niemand angesehen hat.
+- Bare `1`/`2`/`3` konnten den Prompt hinter dem Formular umstatusen, sobald
+  der Fokus neben der Textarea lag (live nachgestellt und behoben).
+- Screenshots per Einfügen kommen jetzt auch an, wenn der Fokus auf `<body>`
+  liegt (nach einem Klick in die Vorschau) — der Listener hängt am Fenster
+  statt am Dialogelement, das ein `<body>`-Paste nie erreicht.
+
+### Internal
+- Das Formular liegt in `components/PromptEditor.tsx` und hat damit **eine**
+  Definition für beide Wirte (Composer und Detail-Dialog). Es rendert bewusst
+  drei direkte Kinder ohne eigenen Container: die Layout-Regeln der Dialoge
+  (`.sheet--x > *`) sprechen direkte Kinder an, ein Wrapper würde den
+  Scrollbereich kollabieren lassen.
+
 ## [0.48.0] - 2026-08-30
 
 ### Changed

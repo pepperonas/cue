@@ -109,8 +109,17 @@ schriftlichen Begründung in `UNSCOPED_BY_DESIGN` steht.
 Die Trennung ist die Testpolitik: **wenn testenswerte Logik in einem Hook oder
 einer Komponente feststeckt, wird sie herausgezogen**, statt einen Renderer zu
 testen. `lib/live-sync.ts` exportiert die komplette Polling-Schleife
-framework-frei, `lib/tag-keys.ts` die Tastentabelle des Tag-Feldes — die
-zugehörigen Hooks sind danach nur noch Verdrahtung.
+framework-frei, `lib/tag-keys.ts` die Tastentabelle des Tag-Feldes,
+`lib/detail-keys.ts` die des Detail-Dialogs — die zugehörigen Hooks sind danach
+nur noch Verdrahtung.
+
+**Ein Dialog, zwei Betriebsarten.** Das Prompt-Formular liegt in
+`components/PromptEditor.tsx` und wird von zwei Wirten gerendert: vom
+`Composer` (Anlegen) und vom `DetailSheet`, das beim Bearbeiten nur seinen
+Inhalt austauscht, statt sich zu schließen und einen zweiten Dialog
+aufzubauen. Der Editor rendert bewusst **drei direkte Kinder ohne eigenen
+Container** — die Layoutregeln der Dialoge (`.sheet--x > *`) sprechen direkte
+Kinder an, ein Wrapper ließe den Scrollbereich kollabieren.
 
 ## Wie eine Änderung auf allen Geräten ankommt
 

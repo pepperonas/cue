@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api } from './lib/api'
+import { detailAction } from './lib/detail-keys'
 import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
@@ -240,6 +241,12 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [editing, setEditing] = useState<Prompt | null>(null)
   const [detail, setDetail] = useState<Prompt | null>(null)
+  /**
+   * Which prompt the DETAIL sheet is editing in place. An id, not a boolean:
+   * closing the sheet or opening a different prompt then cannot leave a stale
+   * "still editing" flag behind — there is no reset to forget.
+   */
+  const [editDetailId, setEditDetailId] = useState<number | null>(null)
   // Prompts pending deletion (hidden immediately; really deleted after the undo window).
   const [pendingDelete, setPendingDelete] = useState<number[]>([])
   // Same ids as a ref, so the pagehide handler below can read them without
@@ -318,6 +325,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   }, [filtered, showExtra, view])
 
   const detailLive = detail ? (prompts ?? []).find((p) => p.id === detail.id) ?? null : null
+  const detailEditing = !!detailLive && editDetailId === detailLive.id
 
   const handleCopy = useCallback(
     async (p: Prompt) => {
@@ -587,15 +595,13 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       if (anyModalOpen) {
         // Within detail, allow status keys + copy + edit.
         if (detail && detailLive) {
-          if (e.key === 'c') void handleCopy(detailLive)
-          if (e.key === 'e') {
-            setEditing(detailLive)
-            setDetail(null)
-            setComposerOpen(true)
-          }
-          if (e.key === '1') applyStatus(detailLive, 'queued')
-          if (e.key === '2') applyStatus(detailLive, 'running')
-          if (e.key === '3') applyStatus(detailLive, 'done')
+          // The table (and the "nothing fires while editing" rule) lives in
+          // lib/detail-keys.ts, where it can be tested. `e` switches the OPEN
+          // sheet into edit mode — it never opens a second dialog.
+          const action = detailAction(e.key, { editing: detailEditing })
+          if (action?.kind === 'copy') void handleCopy(detailLive)
+          else if (action?.kind === 'edit') setEditDetailId(detailLive.id)
+          else if (action?.kind === 'status') applyStatus(detailLive, action.status)
         }
         return
       }
@@ -641,6 +647,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     closeTopOverlay,
     composerOpen,
     detail,
+    detailEditing,
     detailLive,
     handleCopy,
     mergeOpen,
@@ -1022,11 +1029,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             dark={settings.resolvedDark}
             onClose={() => setDetail(null)}
             onCopy={handleCopy}
-            onEdit={(p) => {
-              setEditing(p)
-              setDetail(null)
-              setComposerOpen(true)
-            }}
+            editing={detailEditing}
+            onCancelEdit={() => setEditDetailId(null)}
+            onEdit={(p) => setEditDetailId(p.id)}
             onDelete={(p) => requestDelete([p.id])}
             onStatus={applyStatus}
             onToggleBookmark={handleToggleBookmark}

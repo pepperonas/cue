@@ -3,25 +3,25 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.48.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1086%20passing-brightgreen.svg)](docs/TESTING.md)
+[![version](https://img.shields.io/badge/version-0.49.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1090%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-481-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-123-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-456-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-460-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-98%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-90%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test files](https://img.shields.io/badge/test%20files-59-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-11719-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-60-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-11756-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-27976-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-28192-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-8960-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-15280-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3736-663399.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-15487-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3745-663399.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](docs/API.md)
 [![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
-[![React components](https://img.shields.io/badge/React%20components-42-61DAFB.svg)](frontend/src/components/)
+[![React components](https://img.shields.io/badge/React%20components-43-61DAFB.svg)](frontend/src/components/)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 <!-- /badges:dynamic -->
 
@@ -124,7 +124,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **KI-Prompt-Optimierung**: ✨-Button auf jeder Karte/Zeile schreibt den Prompt per **Claude Code CLI** um (Meta-Prompt für Struktur, Rollenklarheit, Ausgabeformate). Das **Original bleibt immer erhalten** — die optimierte Fassung liegt daneben, umschaltbar über **Original / Optimierte Version / Unterschiede** mit **GitHub-artigem Diff** (grün/rot, wortgenau). Eine fertige Optimierung ist ein **Vorschlag**: sie **öffnet sich von selbst in der Diff-Ansicht**, unter dem Diff stehen **Übernehmen** und **Verwerfen** — nach dem Übernehmen schließt sich der Dialog und die Karte zeigt sofort den neuen Text. Optimierst du erneut, ohne entschieden zu haben, wird die ältere Fassung als **ersetzt** markiert (nachlesbar, aber nicht mehr übernehmbar) — es ist immer nur ein Vorschlag offen — erst Übernehmen schreibt den Text in den Prompt, Verworfenes bleibt in der Historie nachlesbar. **Bookmarks werden universell optimiert**: projektgebundene Angaben (Pfade, Modul-/Repo-/Projektnamen, Framework) werden zu Platzhaltern, während alles, was dem Autor gehört und überall gleich ist (eigene Links, Konten, Marken- und Produktnamen), unverändert stehen bleibt — das Ergebnis passt so in jedes Projekt. **Erneut optimieren** schickt Original *und* letzte Fassung an Claude und legt eine neue Version an; ältere Versionen bleiben über die Historie (v1, v2, …) abrufbar, inklusive Modell, Dauer, Kosten und Tokens. **„Alle optimieren"** arbeitet alle noch nicht optimierten Prompts **nacheinander** ab (Fortschrittsanzeige „12 / 143", Abbrechen, fehlerhafte werden übersprungen und am Ende gezählt). Ausgeführt wird auf dem Mac-Runner — der Server ruft nie eine Shell auf; Provider-Architektur, sodass später OpenAI/Gemini/Ollama ohne Änderung am Rest ergänzt werden können. **Welches Modell schreibt, legt `OPTIMIZE_MODEL` fest** (Standard `opus`). Bleibt die Variable leer, wird gar kein `--model` übergeben und es rechnet das, worauf die Claude-Code-CLI auf dem Runner-Mac gerade eingestellt ist — ein `/model` dort ändert dann still mit, womit deine Prompts umgeschrieben werden. Die Historie hält pro Versuch fest, welches Modell **tatsächlich** geantwortet hat (ein Alias wie `opus` löst sich erst in der CLI zu einem konkreten Namen auf).
 - **Statistiken**: eigener Tab mit Analytics-Dashboard — KPI-Kacheln mit Sparkline und Vergleich zur Vorperiode (erstellt / erledigt / bearbeitet / gelöscht / CLI-Prompts / Serie / Durchlaufzeit / Backlog) und Sektionen für **Prompts** (Zeitverlauf, Statusverteilung, Längen), **Nutzung** (Aktivitätskalender, Wochentag×Stunde-Heatmap, Wochentags-Radar, Tageszeiten, Streaks), **Projekte** (Top-Listen, Treemap, zuletzt verwendet), **Tags** (Top, Wolke, Vokabular-Wachstum) und **KI-Runs** (Kostenverlauf, Erfolgsquote, Laufzeit). Zeitraum umschaltbar von **Heute bis Gesamt** inkl. **benutzerdefiniertem** Bereich; Tages-/Stundenraster in der **Zeitzone des Browsers**. Charts mit Recharts, nur in diesem Tab nachgeladen.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
-- **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** öffnet den Bearbeiten-Dialog; `Cmd/Ctrl+Enter` speichert dort — egal, wo der Fokus liegt.
+- **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** (oder `e`, oder „Bearbeiten“) schaltet **denselben Dialog** ins Formular um, statt einen zweiten zu öffnen: Kopf, Felder und Aktionszeile blenden versetzt um, das Formular steigt von unten, die zurückkehrende Ansicht senkt sich von oben. `Cmd/Ctrl+Enter` speichert — egal, wo der Fokus liegt — und der Dialog bleibt offen und zeigt das Ergebnis. Escape verlässt erst das Formular, beim zweiten Druck den Dialog.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips (**per Drag & Drop direkt im Board sortierbar**). Jeder Chip zeigt, **wie viel dort offen ist** — Queued plus Running, **ohne blockierte** Prompts; wo nichts offen ist, steht auch keine Zahl.  neuer Prompt übernimmt das zuletzt genutzte Projekt. Im Prompt-Detail öffnet der **Projekt-Badge ein Menü**: Prompt in ein anderes Projekt **verschieben** oder als **Kopie** (inkl. Screenshots, landet als Queued) dorthin **duplizieren**.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft und **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
 - **Titel vervollständigt sich Wort für Wort**: das Feld zeigt den nächsten Wortvorschlag als graue Fortsetzung hinter dem Cursor, **Enter** übernimmt **genau ein Wort**, danach steht sofort der nächste Vorschlag da; `→` am Feldende tut dasselbe, Escape blendet ihn aus, ohne den Dialog zu schließen. Die Vorschläge stammen aus den **eigenen bisherigen Titeln**, nicht aus einer Wortliste. Die Schwellen sind gemessen, nicht geschätzt: auf leerem Feld trifft ein Rateversuch nur zu 2 % — deshalb kommt dort nie einer; beim Vervollständigen des getippten Wortes sind es 25 / 36 / 51 % bei 1 / 2 / 3 Zeichen, also beginnt der Vorschlag ab dem zweiten Zeichen.
@@ -199,9 +199,9 @@ cd frontend && pnpm typecheck
 | --- | --- | --: | --: | --- |
 | Backend | `backend/tests/` | 481 | 98 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 123 | 90 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 456 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 460 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1086** | | |
+| **Gesamt** | | **1090** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
