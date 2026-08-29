@@ -1762,6 +1762,46 @@ def test_merge_archive_and_keep_variants(client):
                        headers=headers).status_code == 400
 
 
+def test_a_merged_prompt_lands_at_the_top_of_its_column(client):
+    """Merging is curation: the user just decided these belong together and
+    will work on the result next. Appended, it was buried under a queue of
+    hundreds — so it goes to the top, like a bug-tagged create."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    older = _mk_prompt(client, headers, "older, untouched")
+    a, b = _mk_prompt(client, headers, "src a"), _mk_prompt(client, headers, "src b")
+    merged = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [a, b], "body": "merged", "originals": "keep"},
+        headers=headers,
+    ).json()["id"]
+
+    queued = [p["id"] for p in client.get("/api/prompts?status=queued").json()]
+    # Every source survived ("keep"), so first place is a real position.
+    assert queued[0] == merged
+    assert set(queued[1:]) == {older, a, b}
+
+
+def test_a_merge_into_done_also_lands_on_top(client):
+    """The rule follows the chosen status — it is not a queue special case."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    done_before = _mk_prompt(client, headers, "already done")
+    client.patch(f"/api/prompts/{done_before}", json={"status": "done"}, headers=headers)
+    a, b = _mk_prompt(client, headers, "src a"), _mk_prompt(client, headers, "src b")
+    merged = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [a, b], "body": "merged", "status": "done",
+              "originals": "keep"},
+        headers=headers,
+    ).json()["id"]
+
+    done = [p["id"] for p in client.get("/api/prompts?status=done").json()]
+    assert done == [merged, done_before]
+
+
 def test_merge_delete_carries_attachments_over(client):
     csrf = _login(client)
     headers = {"X-CSRF-Token": csrf}

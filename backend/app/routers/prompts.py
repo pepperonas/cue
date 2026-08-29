@@ -420,6 +420,12 @@ def merge_prompts(
 
     The client composes the merged body/order/format; the server creates the new
     prompt and then deletes / archives / keeps the sources — all in one commit.
+
+    The result lands at the TOP of its column. Merging is an act of curation —
+    the user just decided these belong together and will work on the result
+    next — and appending buried it under everything else, in a queue that holds
+    hundreds of prompts. Same placement rule as a bug-tagged create or a
+    freshly finished prompt.
     """
     if len(payload.source_ids) < 2:
         raise HTTPException(status_code=400, detail="Select at least two prompts to merge")
@@ -440,7 +446,7 @@ def merge_prompts(
         body=payload.body,
         project_id=payload.project_id,
         status=payload.status,
-        sort_order=_next_sort_order(session, payload.status, uid),
+        sort_order=_top_sort_order(session, payload.status, uid),
     )
     if payload.status in _RAN_STATUSES:
         merged.ran_at = utcnow()

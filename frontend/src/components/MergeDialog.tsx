@@ -254,6 +254,12 @@ export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
           </div>
         </div>
 
+        {/* Where the result lands. The server puts a merge on top of its column
+            (_top_sort_order) — saying so up front spares the hunt for it. */}
+        <div className="muted" style={{ fontSize: '0.78rem', marginTop: -8 }}>
+          Das Ergebnis erscheint ganz oben in „{STATUS_LABEL[status]}".
+        </div>
+
         <div className="field">
           <label htmlFor="m-tags">Tags</label>
           <input

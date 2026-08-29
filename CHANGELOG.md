@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.0] - 2026-08-30
+
+### Changed
+- **Ein zusammengeführter Prompt landet ganz oben in seiner Spalte**, nicht mehr
+  hinten. Zusammenführen ist ein Akt der Kuration — man hat gerade entschieden,
+  dass diese Prompts zusammengehören, und arbeitet als Nächstes am Ergebnis;
+  angehängt verschwand es in einer Warteschlange mit Hunderten von Einträgen.
+  Dieselbe Platzierungsregel wie bei einem `bug`-getaggten Anlegen oder einem
+  frisch fertiggestellten Prompt (`_top_sort_order`). Die Regel folgt dem
+  **gewählten Status**, ist also kein Sonderfall der Warteschlange: eine
+  Zusammenführung nach „Done" steht dort ebenfalls oben. Zwei Tests pinnen
+  beides, beide mutationsgeprüft (mit der alten Anhänge-Logik werden sie rot).
+
 ## [0.47.0] - 2026-08-28
 
 ### Added
