@@ -25,7 +25,7 @@ hochkommt, signiert Sessions mit einem leeren Schlüssel.
 
 | Variable | Standard | Bedeutung |
 | --- | --- | --- |
-| `OWNER_EMAIL` | – | Der Admin. Übernimmt beim ersten Login die noch besitzerlosen Daten und ist der Einzige, der Runs, Optimierung und CLI-Delivery auslösen darf. |
+| `OWNER_EMAIL` | – | Der Admin. Übernimmt beim ersten Login die noch besitzerlosen Daten und ist der Einzige, der **Runs und CLI-Delivery** auslösen darf — beides führt Code auf dem Runner-Mac aus. Die **Optimierung** darf zusätzlich jeder mit eigenem API-Schlüssel (siehe unten). |
 | `GOOGLE_ALLOWED_EMAILS` | – | Komma-Liste. Wirkt als **Auto-Freischaltung**, nicht als Sperre — anmelden kann sich jeder, freigeschaltet wird über die UI. |
 | `GOOGLE_ALLOWED_DOMAINS` | – | Wie oben, auf Domain-Ebene. Beide leer heißt in Produktion: niemand wird automatisch freigeschaltet. |
 | `SESSION_MAX_AGE` | `2592000` | Sitzungsdauer in Sekunden (30 Tage). |
@@ -56,12 +56,32 @@ hochkommt, signiert Sessions mit einem leeren Schlüssel.
 | Variable | Standard | Bedeutung |
 | --- | --- | --- |
 | `OPTIMIZE_ENABLED` | `true` | Schaltet die Funktion samt ✨-Knöpfen ab. |
-| `OPTIMIZE_PROVIDER` | `claude_cli` | Backend-Kennung aus `app/optimization/providers.py`. |
+| `OPTIMIZE_PROVIDER` | `claude_cli` | Backend-Kennung aus `app/optimization/providers.py`. Gilt für Nutzer **ohne** eigenen Schlüssel; wer einen hinterlegt hat, läuft immer über `anthropic_api`. |
 | `OPTIMIZE_MODEL` | – (leer) | **Gesetzt lassen** (Produktion: `opus`). Leer heißt: kein `--model` erreicht die CLI, und der Optimierer rechnet mit dem, worauf die Claude-Code-CLI des Runner-Macs gerade steht — ein `/model` dort ändert dann still mit, womit deine Prompts umgeschrieben werden. |
 | `OPTIMIZE_TIMEOUT` | `180` | Harte Laufzeitgrenze je Optimierung (Sekunden). |
 | `OPTIMIZE_MAX_CHARS` | `24000` | Längere Prompts werden abgelehnt, bevor sie in die Warteschlange kommen. |
 | `OPTIMIZE_MAX_RETRIES` | `1` | Wiederholungen bei einem vorübergehenden CLI-Fehler. Kontingent- und Auth-Fehler werden **nicht** wiederholt — dieselbe Fehlermeldung noch einmal zu erzeugen kostet nur Zeit. |
 | `OPTIMIZE_STALE_GRACE` | `120` | Zusatzfrist über `OPTIMIZE_TIMEOUT` hinaus, bevor ein übernommener Job als tot gilt. |
+
+### Der Schlüssel je Nutzer steht nicht in der Umgebung
+
+Die Optimierung hat eine zweite Konfigurationsebene, und die liegt bewusst in
+der **Datenbank** statt in der `.env`: jeder freigeschaltete Nutzer kann in
+`Einstellungen → KI-Optimierung` einen eigenen Anthropic-API-Schlüssel und ein
+Modell hinterlegen (`User.anthropic_key_enc`, verschlüsselt — siehe
+[`../SECURITY.md`](../SECURITY.md); `User.optimize_model`).
+
+Das ist keine Inkonsequenz, sondern folgt daraus, wem die Einstellung gehört:
+eine Umgebungsvariable ist eine Aussage des **Betreibers** über die Instanz, ein
+API-Schlüssel eine Aussage eines **Nutzers** über sein eigenes Konto. Praktisch
+heißt das:
+
+- Ist ein Schlüssel hinterlegt, läuft die Optimierung im Container gegen die
+  Messages API und kostet den Nutzer Geld. `OPTIMIZE_PROVIDER` und
+  `OPTIMIZE_MODEL` gelten dann nicht — es zählt, was in der UI steht.
+- Ist keiner hinterlegt, gilt der alte Weg (Mac-Runner + CLI) und damit auch die
+  Tabelle oben. Anstoßen darf ihn nur `OWNER_EMAIL`.
+- `OPTIMIZE_ENABLED=false` schaltet **beide** Wege ab.
 
 ## Prompt-Capture
 

@@ -3,9 +3,9 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.56.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1163%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-527-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.56.1-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1164%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-528-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-485-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
@@ -13,10 +13,10 @@
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
 [![test files](https://img.shields.io/badge/test%20files-63-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-12685-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-12742-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-30281-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-9839-3776AB.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-30284-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-9842-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16511-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3931-663399.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
@@ -69,11 +69,11 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 
 | Dokument | Inhalt |
 | --- | --- |
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Wie die Teile zusammenhängen: ein Prozess/ein Port, Datenmodell, Mandantentrennung, Live-Sync, der Runner |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Wie die Teile zusammenhängen: ein Prozess/ein Port, Datenmodell, Mandantentrennung, die dreifach gespiegelte Spaltenordnung, Live-Sync, der Runner und die zwei Wege der Optimierung |
 | **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** | Jede Umgebungsvariable mit Standard und Wirkung — testgepinnt gegen `config.py` |
 | **[docs/API.md](docs/API.md)** | Alle Endpunkte, wer sie aufrufen darf, Statuscodes, Long-Poll — testgepinnt gegen die Routen |
 | **[docs/TESTING.md](docs/TESTING.md)** | Wie hier getestet wird und warum so (inklusive der Mutationsprobe) |
-| **[SECURITY.md](SECURITY.md)** | Sicherheitsmodell, Grenzen, Meldeweg |
+| **[SECURITY.md](SECURITY.md)** | Sicherheitsmodell (inkl. fremder API-Schlüssel), Grenzen, Meldeweg |
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Einrichten, Regeln, Commit-Konventionen |
 | **[CHANGELOG.md](CHANGELOG.md)** | Alle Versionen |
 | **[CLAUDE.md](CLAUDE.md)** | Die Fallstricke im Detail — Arbeitsgrundlage am Code |
@@ -144,7 +144,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 
 ## Tech-Stack
 
-- **Backend**: Python 3.12, FastAPI, SQLModel (SQLAlchemy 2.0 + Pydantic), SQLite (WAL). Auth: argon2-cffi, itsdangerous.
+- **Backend**: Python 3.12, FastAPI, SQLModel (SQLAlchemy 2.0 + Pydantic), SQLite (WAL). Auth: argon2-cffi, itsdangerous. Optimierung: `anthropic` (Messages API), `cryptography` (Fernet für hinterlegte API-Schlüssel). ⚠️ Abhängigkeiten gehören in `pyproject.toml` **und** `requirements.txt` — letzteres installiert das Docker-Image.
 - **Frontend**: React 18 + TypeScript + Vite, `motion` (Spring-Physik), `@dnd-kit`, `@tanstack/react-query`, `vite-plugin-pwa`.
 - **Serving**: FastAPI serviert die gebaute `dist/` + die API unter `/api` — ein Container, ein Port.
 
@@ -200,11 +200,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 527 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 528 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
 | Frontend | `frontend/src/lib/` | 485 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1163** | | |
+| **Gesamt** | | **1164** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
@@ -342,7 +342,9 @@ Konto und bietet **Abmelden**. Zugang wird zentral über die Allowlist in der `.
 ```
 backend/      FastAPI + SQLModel API, Google-OAuth/Security, Run-Engine
   app/        Router je Domäne, config.py als einzige Env-Quelle
-  tests/      pytest — HTTP-Verhalten, Mandantentrennung, Doku-Vertrag
+              ordering.py (Spaltenordnung), stats.py (Aggregation),
+              secrets_store.py (Key-Verschlüsselung), optimization/
+  tests/      pytest — HTTP-Verhalten, Mandantentrennung, Doku- und Dependency-Vertrag
 frontend/     React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
   src/lib/    die reinen Module — hier liegt die getestete Logik
   src/components/  Komponenten (bewusst ungetestet)

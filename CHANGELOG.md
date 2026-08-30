@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.1] - 2026-08-30
+
+### Documentation
+- **Ausführlicher Doku-Durchgang** nach neun Feature-Versionen — die `docs/`
+  waren auf dem Stand von 0.47.0 und behaupteten teils das Gegenteil des Codes.
+- `ARCHITECTURE.md`: die Aussage „Optimierung ist owner-only" ist seit 0.54.0
+  **falsch** und korrigiert; neu die Sektionen **„Eine Regel, drei Spiegel"**
+  (die Spaltenordnung samt der zwei Bedingungen, die jede neue Sortierregel
+  erfüllen muss) und **„Zwei Wege für die Optimierung — und wer sie bezahlt"**;
+  dazu Routing/Landing-Page, das erweiterte Datenmodell und die neuen Module.
+- `SECURITY.md`: neuer Abschnitt **„Fremde API-Schlüssel"** (Verschlüsselung im
+  Ruhezustand, keine Rückgabe, Prüfung vor dem Speichern, getrennte Rechte für
+  Ausgeben und Lesen) sowie zwei ehrliche Grenzen: **kein Ausgabenlimit** und
+  Kostenzahlen, die auf dem API-Weg **Schätzung** sind.
+- `CONFIGURATION.md`: `OWNER_EMAIL` beschrieb sich als alleiniger Auslöser der
+  Optimierung; korrigiert und erklärt, warum der Schlüssel je Nutzer bewusst in
+  der Datenbank statt in der Umgebung liegt.
+- `API.md`: fünf statt vier Zugangsarten (`require_optimizer`), plus die vier
+  Felder, die die Spaltenordnung mitbestimmen.
+- `TESTING.md`: `test_deps_contract.py` als sechste Eigenschafts-Suite und die
+  zwei grün-blinden Tests dieser Runde (Rundung je Zeit-Eimer, Runner-Claim).
+- `CONTRIBUTING.md`: **eine Abhängigkeit gehört in zwei Dateien** und die
+  Bedingungen für neue Sortierregeln; `cue-runner/README.md`: der
+  Optimierungs-Loop und die bislang undokumentierten Umgebungsvariablen.
+
+### Fixed
+- ⚠️ **Ein sporadisch roter Test hatte eine echte Ursache**, keine Zufallslaune:
+  `tests/test_housekeeping.py` ersetzt `asyncio.sleep` auf dem **geteilten**
+  Modul, also sahen es alle Event-Loops im Prozess — auch die echten
+  Hintergrund-Tasks im Portal-Thread des TestClients. Deren 60-s-Weckrufe
+  wurden als eigene gezählt und konnten den `CancelledError` abfangen. Gegen
+  einen konkurrierenden Loop gemessen: **187.301 gestohlene Aufrufe statt 1**.
+  Es zählen jetzt nur noch Aufrufe aus der eigenen Task.
+- ⚠️ Der zugehörige Regressionstest war in **zwei** Fassungen wirkungslos
+  (einmal immer grün, einmal zwei von drei Läufen), weil er auf ein
+  Mikrosekunden-Fenster hoffte. Jetzt wird die Überlappung **erzwungen**: der
+  getriebene Schleifenkörper wartet, bis der konkurrierende Loop wirklich
+  Aufrufe im Patch-Fenster gemacht hat — Mutationsprobe 5× rot, 5× grün.
+
 ## [0.56.0] - 2026-08-30
 
 ### Changed

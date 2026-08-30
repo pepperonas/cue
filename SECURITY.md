@@ -12,15 +12,18 @@ direkt in `main` und von dort auf die Instanz.
 
 ## Was hier geschützt wird
 
-Eine Instanz hält die Prompts, Projekte und Screenshots mehrerer Konten sowie
-Zugangsdaten zu einer Maschine, auf der Code ausgeführt werden kann. Die drei
-Grenzen, die dabei zählen:
+Eine Instanz hält die Prompts, Projekte und Screenshots mehrerer Konten, den
+Zugang zu einer Maschine, auf der Code ausgeführt werden kann, und die
+API-Schlüssel einzelner Nutzer. Die vier Grenzen, die dabei zählen:
 
 1. **Zwischen den Konten.** Kein Nutzer sieht die Daten eines anderen.
 2. **Zwischen Nutzer und Maschine.** Nur der Betreiber darf etwas auslösen, das
    auf dem Runner-Mac läuft.
 3. **Zwischen Browser und Server.** Sitzungen sind nicht fälschbar,
    schreibende Anfragen nicht von fremden Seiten auslösbar.
+4. **Zwischen den Geldbeuteln.** Wer die KI-Optimierung nutzt, bezahlt sie mit
+   dem eigenen Schlüssel; ein fremder Schlüssel ist weder lesbar noch
+   verwendbar.
 
 ## Wie
 
@@ -66,8 +69,11 @@ Deshalb:
 
 - **Der Server ruft nie eine Shell auf.** Er reiht einen Job ein; abgeholt wird
   er vom Mac-Daemon. Auf dem VPS gibt es weder die CLI noch deren Zugangsdaten.
-- **Nur der Betreiber** (`OWNER_EMAIL`) kann Runs, Optimierungen und
-  CLI-Deliveries auslösen — auch andere freigeschaltete Konten nicht.
+- **Nur der Betreiber** (`OWNER_EMAIL`) kann Runs und CLI-Deliveries auslösen —
+  auch andere freigeschaltete Konten nicht. Die Grenze verläuft entlang der
+  **fremden Maschine**: die Optimierung darf inzwischen auch, wer einen eigenen
+  API-Key hinterlegt hat (`require_optimizer`), weil dieser Weg im Container
+  läuft und keine Shell anfasst.
 - **Pfad-Whitelist** (`ALLOWED_PROJECT_BASES`), serverseitig geprüft und im
   Runner ein zweites Mal.
 - **Kein `shell=True`, nirgends.** Argumente gehen als eigene argv-Elemente
@@ -77,6 +83,32 @@ Deshalb:
 - **Runner-Geheimnisse werden aus der Kindumgebung entfernt**, Modellnamen, die
   wie Flags aussehen, verworfen; Größen-, Zeit- und Ausgabegrenzen gelten auf
   beiden Seiten.
+
+### Fremde API-Schlüssel
+
+Ein Nutzer kann einen eigenen Anthropic-API-Key hinterlegen, um die Optimierung
+auf eigene Rechnung laufen zu lassen. Ein solcher Schlüssel ist ein Zahlungs-
+mittel, also gilt:
+
+- **Verschlüsselt gespeichert.** Fernet (AES-128-CBC + HMAC) mit einem aus
+  `SECRET_KEY` abgeleiteten Schlüssel (PBKDF2-SHA256, 200 000 Runden, eigener
+  Domain-Salt) — `app/secrets_store.py`. Ein rotierter `SECRET_KEY` macht
+  bestehende Schlüssel unlesbar; das degradiert bewusst zu „kein Schlüssel
+  hinterlegt" statt zu einem Fehler.
+- **Er kommt nie zurück.** Die API liefert ausschließlich eine Vorschau
+  (`…ABCD`) und ein Ja/Nein. Es gibt keinen Endpunkt, der einen gespeicherten
+  Schlüssel im Klartext ausgibt — auch nicht für den Betreiber, auch nicht für
+  den Eigentümer selbst.
+- **Vor dem Speichern geprüft.** Ein neuer Schlüssel wird mit einem minimalen
+  Aufruf verifiziert, damit ein Tippfehler sofort auffällt und nicht erst, wenn
+  ein Job scheitert.
+- **Kein Weg zurück in fremde Jobs.** Die Claim-Abfrage des Runners filtert auf
+  `providers.runner_ids()`; ein Job, der gegen einen Nutzer-Schlüssel laufen
+  soll, kann vom Mac gar nicht übernommen werden.
+- **Ausgeben und Lesen sind getrennte Rechte.** Einen Job anstoßen braucht einen
+  Schlüssel (oder den Betreiber-Status), einen bereits bezahlten Vorschlag lesen,
+  übernehmen oder verwerfen nicht — sonst würde das Entfernen des Schlüssels
+  rückwirkend Arbeit sperren, die schon bezahlt ist.
 
 ### Auslieferung
 
@@ -109,6 +141,13 @@ eine kaputte Prüfung still aufhört zu prüfen.
   ausschließt; die SQLite-Datei liegt im Klartext auf dem Server.
 - **Prompt-Inhalte gehen an Anthropic**, sobald ein Run oder eine Optimierung
   läuft — das ist der Zweck der Funktion.
+- **Kein Ausgabenlimit.** Ein hinterlegter Schlüssel begrenzt, *wessen* Konto
+  belastet wird, nicht *wie viel*. Ein Kostendeckel gehört in die Anthropic-
+  Konsole; die Statistik zeigt die Ausgaben, sie bremst sie nicht.
+- **Die Kostenzahlen sind teils Schätzung.** Über die Messages API werden sie
+  aus der Usage und einer im Code gepflegten Preistabelle gerechnet
+  (`pricing.STATE` nennt deren Stand) — eine veraltete Tabelle ergibt eine
+  falsche, aber datierte Zahl.
 - **Kein Audit-Log für Lesezugriffe.** Änderungen sind über das Ereignis-Log
   nachvollziehbar, Lesen nicht.
 - **Screenshots werden nach 30 Tagen gelöscht**, aber es gibt kein sicheres
@@ -126,5 +165,8 @@ eine kaputte Prüfung still aufhört zu prüfen.
   die geschlossene Allowlist, die Origin-Prüfung und die Owner-Sperre ab.
 - `OPTIMIZE_MODEL` gesetzt lassen, sonst entscheidet der Zustand der CLI auf dem
   Runner-Mac, was deine Prompts umschreibt.
+- **`SECRET_KEY` rotieren heißt: alle hinterlegten API-Schlüssel sind weg.** Die
+  Nutzer tragen sie danach neu ein; ein Fehler entsteht nicht, die Optimierung
+  fällt still auf „kein Schlüssel" zurück.
 - Nach jedem Deploy zeigt `/api/health` den Zustand; die nächtliche Sicherung
   prüft jede Kopie mit `PRAGMA integrity_check` und verwirft sie bei Fehlern.

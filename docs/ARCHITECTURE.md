@@ -27,6 +27,13 @@ Referenz; dieses Dokument ist die Übersicht davor.
 │  cue-runner (Mac, dort wo `claude` angemeldet ist)        │
 │  Runs · Prompt-Optimierung · CLI-Delivery · Capture        │
 └───────────────────────────────────────────────────────────┘
+
+   … und daneben, für Nutzer mit eigenem API-Key:
+
+┌───────────────────────────────────────────────────────────┐
+│  In-Process-Optimierer im Container                        │
+│  Messages API, bezahlt vom Key des jeweiligen Nutzers      │
+└───────────────────────────────────────────────────────────┘
 ```
 
 Drei Entscheidungen prägen alles Weitere:
@@ -40,8 +47,15 @@ proxyt `/api` auf `:8000`.
 **Der Server ruft niemals eine Shell auf.** Alles, was die Claude-Code-CLI
 braucht — Runs, Prompt-Optimierung, Tippen in eine laufende Session —, holt sich
 ein Daemon auf dem Mac ab, auf dem `claude` angemeldet ist. Der VPS hat weder
-die CLI noch deren Zugangsdaten. Deshalb sind diese Funktionen **owner-only**:
-sie führen Code auf einer fremden Maschine aus.
+die CLI noch deren Zugangsdaten.
+
+Daraus folgt, wer was darf, und die Grenze verläuft entlang der **fremden
+Maschine**, nicht entlang „ist wichtig": Runs und CLI-Delivery führen Code auf
+dem Rechner des Betreibers aus und bleiben **owner-only**. Die
+Prompt-Optimierung nicht mehr — sie hat seit 0.54.0 einen zweiten Weg, der
+niemandes Maschine anfasst: einen HTTPS-Aufruf gegen die Messages API mit dem
+**eigenen API-Key** des Nutzers, ausgeführt im Container. „Keine Shell" gilt
+dort unverändert; „owner-only" wäre eine Einschränkung ohne Grund geworden.
 
 **Der Zustand ist eine Datei.** Eine SQLite-Datei im Volume ist das ganze
 Backup: `sqlite3 .backup` (nie `cp` — das WAL hält bestätigte Transaktionen, die
@@ -57,8 +71,12 @@ noch nicht in der Hauptdatei stehen).
 | `models.py` | SQLModel-Tabellen — jede besitzte Zeile hat `user_id` |
 | `schemas.py` | Pydantic-Request/Response, bewusst getrennt von den Tabellen |
 | `security.py` | Signierte Session-Token, CSRF-Double-Submit, OAuth-`state` |
-| `deps.py` | `current_user_id` (Mandant), `require_csrf`, `require_owner`, `require_runner` |
+| `deps.py` | `current_user_id` (Mandant), `require_csrf`, `require_owner` (fremde Maschine), `require_optimizer` (Besitzer **oder** eigener Key), `require_runner` |
 | `routers/` | ein Modul je Domäne — jede Abfrage nach `user_id` gefiltert |
+| `ordering.py` | wo eine gezogene Karte landet — **und** die Spaltenordnung, die der Client spiegelt |
+| `stats.py` | die ganze Aggregation des Statistik-Tabs, FastAPI-frei und damit einzeln testbar |
+| `secrets_store.py` | Verschlüsselung der fremden API-Keys (Fernet, Schlüssel aus `SECRET_KEY`) |
+| `optimization/` | Service, Repository, Provider-Registry, Preistabelle, Meta-Prompt, In-Process-Executor |
 
 ### Datenmodell
 
@@ -67,8 +85,11 @@ noch nicht in der Hauptdatei stehen).
 ```
 User ──┬── Project ──┐
        ├── Prompt ───┴── PromptTag ── Tag
-       ├── Snippet ── SnippetGroup
-       ├── CaptureSession ── CapturedPrompt
+       │     ├── PromptOptimization ── OptimizationBatch
+       │     ├── PromptEvent   (überlebt seinen Prompt bewusst)
+       │     └── Attachment
+       ├── Snippet ── SnippetGroup · SnippetTombstone
+       ├── CaptureSession ── CapturedPrompt · CliDelivery
        └── Run ── RunStep · RunLog
 ```
 
@@ -78,6 +99,11 @@ Zwei Muster wiederholen sich und sind wichtig zu kennen:
 String) ist ein Cache über `prompt_tag`; einziger Schreiber ist `TagService`.
 Ebenso `Snippet.group_name`. Der Vorteil: Liste, Suche, Export und Clients
 bleiben unverändert einfach. Die Bedingung: nie direkt schreiben.
+
+**Sortierrelevantes wird gespeichert, nicht gerechnet.** `Prompt` trägt neben
+Status und `sort_order` vier Flaggen, die die Reihenfolge mitbestimmen —
+`blocked`, `tested`, `test_closely` und `priority` — weil der Server dieselbe
+Ordnung herstellen muss wie der Browser (siehe „Eine Regel, drei Spiegel").
 
 **Abgeleitet statt gemerkt.** Der Live-Sync-Cursor ist kein Zähler, sondern ein
 Fingerabdruck über die Daten (`app/changes.py`) — an einen Zähler denkt man beim
@@ -113,6 +139,26 @@ framework-frei, `lib/tag-keys.ts` die Tastentabelle des Tag-Feldes,
 `lib/detail-keys.ts` die des Detail-Dialogs — die zugehörigen Hooks sind danach
 nur noch Verdrahtung.
 
+**Eine einzige Adresse.** Es gibt kein Router-Paket und das ist keins im
+Werden: jede Ansicht der App ist ein Zustandswert in `App.tsx`, die URL bleibt
+`/`. Genau eine Sache braucht eine eigene Adresse — die **Landing-Page**
+(`/willkommen`), weil die Adresse ihr Zweck ist: ein Link, den man verschickt,
+eine Seite, auf der ein Reload bleibt, ein funktionierender Zurück-Knopf.
+`lib/route.ts` hält die Regeln (rein, getestet, tolerant gegen Schrägstrich und
+Groß-/Kleinschreibung), `state/route.ts` verdrahtet sie mit `popstate`.
+
+⚠️ Das kollidiert **nicht** mit dem Overlay-Stack, obwohl beide an der History
+hängen: dessen Einträge werden `history.pushState(state, '')` **ohne
+URL-Argument** gepusht und bewegen den Pfad daher nie. Ein per Zurück-Geste
+geschlossener Dialog erzeugt ein `popstate` mit unverändertem Pfad, und
+`routeFrom` liefert dieselbe Route. Die beiden Historien sind **von der
+Konstruktion her** unabhängig, nicht per Absprache.
+
+Angemeldete Nutzer landen direkt in der App; die Landing-Page bleibt über einen
+Kopfzeilen-Knopf jederzeit erreichbar und zeigt ihnen dann „Zur App" statt eines
+Login-Knopfs. Sie trägt außerdem den OAuth-Fehler (`?auth_error=…`), auf den
+Google zurückleitet.
+
 **Ein Dialog, zwei Betriebsarten.** Das Prompt-Formular liegt in
 `components/PromptEditor.tsx` und wird von zwei Wirten gerendert: vom
 `Composer` (Anlegen) und vom `DetailSheet`, das beim Bearbeiten nur seinen
@@ -120,6 +166,41 @@ Inhalt austauscht, statt sich zu schließen und einen zweiten Dialog
 aufzubauen. Der Editor rendert bewusst **drei direkte Kinder ohne eigenen
 Container** — die Layoutregeln der Dialoge (`.sheet--x > *`) sprechen direkte
 Kinder an, ein Wrapper ließe den Scrollbereich kollabieren.
+
+## Eine Regel, drei Spiegel: die Spaltenordnung
+
+In welcher Reihenfolge Karten in einer Spalte stehen, ist an **drei** Stellen
+formuliert — und das ist kein Versehen, sondern die Konsequenz aus drei
+verschiedenen Laufzeiten:
+
+| Ort | Wofür |
+| --- | --- |
+| `backend/app/ordering.py` → `display_key` | wo eine gezogene Karte einsortiert wird (der Anker ist eine *sichtbare* Nachbarkarte) |
+| `frontend/src/lib/order.ts` → `columnComparator` | was der Browser malt |
+| `ordering.py` → `BOARD_ORDER_SQL` | das `ORDER BY`, mit dem `db._repair_sort_order` beim Start durchnummeriert |
+
+Driften sie auseinander, wird ein Drag **gespeichert und tut trotzdem nichts** —
+genau das ist hier schon passiert. Deshalb liegt der Vertrag als Datei vor:
+`contracts/column-order.json` beschreibt 18 Fälle, und dieselben Fälle laufen in
+`backend/tests/test_ordering_contract.py`, in
+`frontend/src/lib/order.contract.test.ts` und zusätzlich einmal durch echtes
+SQLite. Wer eine Regel ändert, ändert den Vertrag; wer nur eine Sprache anfasst,
+bekommt zwei rote Suiten.
+
+Die aktuelle Reihenfolge, von außen nach innen: **blockiert** ganz nach unten ·
+in *Done* getestete Prompts unter die ungetesteten (eigene aufklappbare Sektion)
+· in *Done* die mit **„genau testen"** nach oben · in *Queued* nach
+**Priorität** (hoch, normal, gering) · dann die gezogene Ordnung (`sort_order`,
+`id`).
+
+Zwei Bedingungen gelten für **jede** neue Regel:
+
+1. **Nur gespeicherte Felder.** Was der Server nicht sieht, kann er nicht
+   spiegeln.
+2. **Der Nutzer muss die Regel überstimmen können.** Priorität und „genau
+   testen" erfüllen das — ein Klick bringt die Karte dorthin, wo sie hin soll.
+   Eine Sortierung nach `ran_at` erfüllte es nicht und wurde deshalb entfernt:
+   sie machte das Ziehen in diesem Block zu einem garantierten Nichts.
 
 ## Wie eine Änderung auf allen Geräten ankommt
 
@@ -159,6 +240,43 @@ auf den VPS ausgerollt.
 - **Herrenlose Läufe werden eingesammelt**: `reap_stale()` beendet Läufe, deren
   Herzschlag älter ist als `RUN_STALE_TIMEOUT`, und räumt damit auch auf, was
   ein Backend-Neustart mitten im Lauf hinterlassen hat.
+
+## Zwei Wege für die Optimierung — und wer sie bezahlt
+
+Einen Prompt umschreiben zu lassen kostet Geld, und zwar echtes. Deshalb gibt es
+seit 0.54.0 zwei Ausführungswege, die sich in **genau einem** Punkt
+unterscheiden: wessen Konto belastet wird.
+
+| Provider | Wo er läuft | Bezahlt von | Kosten kommen |
+| --- | --- | --- | --- |
+| `claude_cli` | Mac-Runner, `claude -p` | Betreiber (Claude-Code-Abo) | **gemeldet** von der CLI (`total_cost_usd`) |
+| `anthropic_api` | im Container, Messages API | dem Nutzer, über seinen hinterlegten Key | **gerechnet** aus der Usage (`optimization/pricing.py`) |
+
+Die Weiche steht am **Nutzer**, nicht an der Konfiguration:
+`service.provider_for(uid)` liefert `anthropic_api`, sobald ein Key hinterlegt
+ist, sonst den konfigurierten Standard. `providers.runner_ids()` filtert die
+Claim-Abfrage des Runners, damit der Mac niemals einen Job übernimmt, der gegen
+einen fremden API-Key laufen sollte — und umgekehrt.
+
+**Warum die Kosten einmal gemeldet und einmal gerechnet werden**, obwohl das
+inkonsistent aussieht: die CLI *nennt* den Preis, speichert aber unvollständige
+Token (gecachter Input fehlt) — Preis × Token unterschätzt die Eingabeseite um
+etwa das Fünfzigfache. Die Messages API macht es genau andersherum: vollständige
+Usage, kein Preis. Beide Zahlen landen in derselben Spalte
+`PromptOptimization.cost_usd`; die Statistik weist den Gesamtwert überall dort
+als **Schätzung** aus, wo der gerechnete Weg beteiligt war, und nennt den Stand
+der Preistabelle (`pricing.STATE`) dazu.
+
+**Der Key liegt verschlüsselt** (`app/secrets_store.py`, Fernet, Schlüssel aus
+`SECRET_KEY` abgeleitet) und verlässt den Server nie wieder — die API liefert nur
+eine Vorschau der letzten vier Zeichen. Details in
+[`../SECURITY.md`](../SECURITY.md).
+
+**Die Rechte sind zweigeteilt**, weil Ausgeben und Lesen verschiedene Dinge
+sind: einen Job *anstoßen* braucht `require_optimizer` (Besitzer oder eigener
+Key), einen fertigen Vorschlag *lesen, übernehmen oder verwerfen* braucht nur
+die Mandantenprüfung. Sonst hätte das Entfernen des eigenen Keys Vorschläge
+gesperrt, die der Nutzer bereits bezahlt hat.
 
 ## Prompt-Capture, in beide Richtungen
 

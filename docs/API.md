@@ -9,14 +9,20 @@ Alle Endpunkte liegen unter **`/api`** (FastAPI-Sub-App). Interaktiv:
 
 ## Wer darf was
 
-Vier Zugangsarten, sichtbar an der Abhängigkeit im Router:
+Fünf Zugangsarten, sichtbar an der Abhängigkeit im Router:
 
 | Gate | Wer | Wie |
 | --- | --- | --- |
 | `current_user_id` | jeder freigeschaltete Nutzer | signiertes `cue_session`-Cookie; **jede** Abfrage ist auf den Mandanten gefiltert |
-| `require_owner` | nur `OWNER_EMAIL` | alles, was Code auf der Runner-Maschine ausführt: Runs, Optimierung, CLI-Delivery |
+| `require_owner` | nur `OWNER_EMAIL` | alles, was Code auf der **Runner-Maschine** ausführt: Runs und CLI-Delivery |
+| `require_optimizer` | Besitzer **oder** wer einen eigenen API-Key hinterlegt hat | eine Optimierung *anstoßen* — sie kostet Geld, also braucht sie ein Konto, das dafür geradesteht |
 | `require_runner` | der Mac-Daemon | `Authorization: Bearer $RUNNER_TOKEN` — **kein** Cookie, kein CSRF |
 | Bearer-Token je Nutzer | Capture-Weiterleiter, Inspector Rust | eigenes Token pro Konto |
+
+**Ausgeben und Lesen sind getrennt.** Eine Optimierung *einreihen* braucht
+`require_optimizer`; einen fertigen Vorschlag lesen, übernehmen oder verwerfen
+braucht nur die Mandantenprüfung. Sonst hätte das Entfernen des eigenen Keys
+Arbeit gesperrt, die bereits bezahlt ist.
 
 **Schreibende Anfragen brauchen CSRF.** Jede mutierende Anfrage einer
 Cookie-Sitzung führt `require_csrf` und damit den Header `X-CSRF-Token` mit dem
@@ -92,6 +98,16 @@ Ressource.
 | `POST` | `/prompts/{prompt_id}/bookmarks/move` | Dasselbe innerhalb der Bookmark-Spalte. |
 | `POST` | `/prompts/reorder` | Reihenfolge einer kompletten Spalte setzen (Altweg; das Board nutzt `move`). |
 | `POST` | `/prompts/bookmarks/reorder` | Wie oben für Bookmarks. |
+
+**Vier Felder bestimmen die Reihenfolge mit**, und der Server sortiert genauso
+wie der Client, weil ein Verschiebe-Anker eine **sichtbare** Nachbarkarte nennt:
+`blocked` (immer ganz unten), `tested` (in *done* unter die ungetesteten),
+`test_closely` (in *done* nach oben) und `priority` (`high`/`normal`/`low`, wirkt
+nur in *queued*). Die verbindliche Fassung ist
+[`contracts/column-order.json`](../contracts/column-order.json) — siehe
+[`ARCHITECTURE.md`](ARCHITECTURE.md#eine-regel-drei-spiegel-die-spaltenordnung).
+Zwei Invarianten setzt der Server durch: `tested` ohne `done` ergibt **400**, und
+jeder Weg aus *done* heraus löscht die Kennzeichen wieder.
 
 ### Tags
 

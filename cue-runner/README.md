@@ -61,6 +61,13 @@ A clean start logs `cue-runner started → <CUE_API_URL>` followed by
 | `CAPTURE_TOKEN` | no | — | enables the capture forwarder (spool → `/api/capture`) |
 | `CUE_DELIVER` | no | `1` | `0` disables the "send prompt into a live session" loop |
 | `DELIVER_INTERVAL` | no | `1.5` | seconds between delivery-claim polls |
+| `CUE_OPTIMIZE` | no | `1` | `0` disables the prompt-optimization loop |
+| `OPTIMIZE_INTERVAL` | no | `3` | floor on the optimization claim cycle |
+| `OPTIMIZE_TIMEOUT` | no | `180` | hard timeout for one optimization (seconds) |
+| `OPTIMIZE_MAX_CHARS` | no | `32000` | refuse anything longer before spending a call |
+| `CUE_CAPTURE_SPOOL` | no | `~/.cue-runner/capture-spool.jsonl` | where the hook writes captured prompts |
+| `CUE_CAPTURE_STATE` | no | `~/.cue-runner/capture-state.json` | forwarder position in that spool |
+| `CAPTURE_INTERVAL` | no | `2` | seconds between forwarder passes |
 
 ## Long polling
 
@@ -77,6 +84,27 @@ cycle time rather than a fixed sleep, so if the server answers immediately —
 long polling off, or an older backend that ignores `wait` — the loops fall back
 to exactly the old behaviour. That is what makes the runner safe to start
 against either version.
+
+## Prompt optimization — only for jobs that belong here
+
+The runner also claims **prompt optimizations** and runs them through
+`claude -p … --output-format json`. Since cue 0.54.0 that is no longer the only
+way: a user who stores their own Anthropic API key has their jobs executed
+**server-side** against the Messages API, billed to them.
+
+The two paths must not cross, so the server's claim query filters on
+provider (`providers.runner_ids()`): a job queued against somebody's API key is
+invisible to this runner. Nothing has to be configured for that — but it is the
+reason a queued optimization may never show up here, and that is correct rather
+than broken.
+
+`CUE_OPTIMIZE=0` turns the loop off; the runner keeps doing runs, deliveries and
+capture.
+
+⚠️ Errors come out of **stdout**, not stderr: the CLI puts API failures (weekly
+quota, auth, 429) into the JSON envelope and often leaves stderr empty even on
+exit 1. Quota and auth failures are not retried — producing the same message
+again only costs time.
 
 ## Sending prompts into a live session (iTerm2 / tmux)
 

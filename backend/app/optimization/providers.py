@@ -6,11 +6,14 @@ work. Today that is the Mac runner driving the Claude Code CLI; adding an
 OpenAI / Gemini / Ollama optimizer later means one entry here plus a matching
 strategy in the executing process — no changes in services, routers or UI.
 
-`executed_by` says WHERE a provider runs:
+`executed_by` says WHERE a provider runs, and it is what keeps the two paths
+from stealing each other's work:
   * "runner"  — the job is queued and a claiming runner performs it (the CLI
-                lives on the owner's Mac, not on the server).
-  * "server"  — reserved for future in-process providers (HTTP APIs); the
-                service layer already keys off this flag.
+                lives on the owner's Mac, not on the server). `claim()` filters
+                on `runner_ids()`, so the Mac never picks up an API-key job.
+  * "server"  — the in-process executor performs it inside the container
+                (`optimization/server_executor.py`), an HTTPS call against the
+                Messages API paid for by the user's own key.
 """
 from __future__ import annotations
 

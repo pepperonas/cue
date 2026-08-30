@@ -58,6 +58,26 @@ Ein Wert, den man beim nächsten neuen Schreibpfad aktualisieren *müsste*, wird
 irgendwann vergessen. Ein abgeleiteter Wert kann nicht vergessen werden — der
 Live-Sync-Cursor ist deshalb ein Fingerabdruck über die Daten und kein Zähler.
 
+### Eine Python-Abhängigkeit gehört in **zwei** Dateien
+
+`backend/pyproject.toml` ist, was uv und die Tests installieren —
+`backend/requirements.txt` ist, **was das Docker-Image installiert**. Nur eines
+davon zu pflegen baut ein Image ohne das Paket, und der Fehler landet beim Import
+in Produktion, nachdem der Health-Check den Container schon getauscht hat. Genau
+das ist passiert; seitdem hält `backend/tests/test_deps_contract.py` beide Listen
+deckungsgleich (Pakete **und** Versionsuntergrenzen), und `ops/deploy.sh`
+importiert die App einmal im frischen Image, bevor es umschaltet.
+
+### Sortierregeln gibt es dreimal — und nur unter zwei Bedingungen
+
+Wo eine Karte in ihrer Spalte steht, ist in `backend/app/ordering.py`
+(`display_key` **und** `BOARD_ORDER_SQL`) und in `frontend/src/lib/order.ts`
+formuliert. Driften sie, wird ein Drag gespeichert und tut trotzdem nichts.
+Änderungen laufen deshalb über `contracts/column-order.json`, das beide Sprachen
+prüfen. Eine neue Regel darf **nur gespeicherte Felder** verwenden, und der
+Nutzer muss sie **überstimmen können** — sonst wird das Ziehen in dem betroffenen
+Block zu einem garantierten Nichts.
+
 ### Denormalisierte Spalten haben genau einen Schreiber
 
 `Prompt.tags` geht ausschließlich über `TagService`, `Snippet.group_name`
@@ -105,12 +125,15 @@ wert.
 
 ## Ausrollen
 
-Siehe [README](README.md#deployment). Zwei Dinge, die teuer waren:
+Siehe [README](README.md#deployment). Drei Dinge, die teuer waren:
 
 - **`rsync` ohne `--delete`** — die `.env` liegt nur auf dem Server.
 - **`ops/deploy.sh` baut zuerst.** Ein kaputter Build lässt die Produktion
   unangetastet; das Umschalten schließt den Port für rund vier Sekunden, in
   denen der Proxy eine Wartungsseite ausliefert.
+- **Das frische Image wird einmal importiert**, bevor umgeschaltet wird — ein
+  grüner Health-Check kam schon einmal zu spät, weil das Image eine
+  Abhängigkeit gar nicht enthielt.
 
 ## Lizenz
 

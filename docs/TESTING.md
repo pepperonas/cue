@@ -69,7 +69,7 @@ Drei echte Fälle:
   bricht die laufende Anfrage ab, also erreichte „eine Antwort nach `stop()`"
   nie den Guard, den sie zu prüfen behauptete.
 
-## Vier Suiten prüfen eine Eigenschaft, nicht einen Aufrufort
+## Sechs Suiten prüfen eine Eigenschaft, nicht einen Aufrufort
 
 Diese Tests existieren, weil die Fehler, gegen die sie schützen, niemand
 absichtlich einbaut — es sind die, auf die niemand eine Regel *anwendet*.
@@ -85,8 +85,10 @@ wird über jede besitzbare Ressource gefegt — erwartet wird **404, nie 403**.
 **`contracts/column-order.json` + `test_ordering_contract.py` +
 `order.contract.test.ts`** machen aus dem Spiegel zwischen Python und
 TypeScript („änderst du eins, ändere das andere") etwas, das scheitern kann:
-beide Sprachen fahren **dieselben zehn Fälle**. Ein Platzhalter-Objekt wirft,
-sobald `display_key` ein Feld liest, das ein Drag nicht beeinflussen kann.
+beide Sprachen fahren **dieselben 18 Fälle**, und dieselben Fälle laufen
+zusätzlich einmal durch echtes SQLite — denn die Ordnung ist ein *drittes* Mal
+als `ORDER BY` formuliert. Ein Platzhalter-Objekt wirft, sobald `display_key`
+ein Feld liest, das ein Drag nicht beeinflussen kann.
 
 **`test_security_tokens.py`** ist fast vollständig negativ — manipuliert,
 abgeschnitten, quer signiert, abgelaufen, zweckentfremdet. Eine gültige Signatur
@@ -102,11 +104,35 @@ Nutzlast **lesbar bleibt**, damit nichts stillschweigend verschluckt wird.
 Text enthält legitim `onerror=` und `javascript:` — eine Teilstring-Suche würde
 dort an korrektem Code scheitern.
 
-**`test_docs.py`** (neu) hält die Dokumentation an den Code: jede
+**`test_docs.py`** hält die Dokumentation an den Code: jede
 Umgebungsvariable steht in `.env.example` **und** in `CONFIGURATION.md`, jeder
 Endpunkt in `API.md`, die Version hat einen CHANGELOG-Eintrag, und die
 generierten README-Blöcke haben ihre Marker. Grund: die README-Prosa behauptete
 über Monate „290 Tests", während die Badges 1038 zeigten.
+
+**`test_deps_contract.py`** hält die **zwei** Abhängigkeitslisten deckungsgleich:
+`backend/pyproject.toml` (was uv und die Tests installieren) und
+`backend/requirements.txt` (was das **Docker-Image** installiert). Geprüft werden
+Paketmenge *und* Versionsuntergrenzen. Geschrieben nach einem echten Ausfall:
+`cryptography` und `anthropic` standen nur in der `pyproject.toml`, das Image kam
+ohne sie hoch, und der Fehler landete beim Import in Produktion — nachdem der
+Health-Check den Container bereits getauscht hatte. Die Mutationsprobe war
+derselbe Ausfall, absichtlich wiederholt.
+
+## Zwei weitere grün-blinde Tests (Herkunft der Regel oben)
+
+Beide stammen aus dem Ausbau der Statistik und der Optimierung und sind gute
+Beispiele dafür, wie unauffällig eine wirkungslose Zusicherung aussieht:
+
+- **Rundung je Zeit-Eimer.** Der Test seedete Werte, die alle in *einem* Eimer
+  landeten — damit hielt er auch, wenn man auf „bei jedem Schritt runden"
+  zurückfiel. Der ersetzende Fall ist konstruiert: 3 × 0,00005 $ ergibt gerundet
+  0,0002 $, schrittweise gerundet aber 0,0003 $ — **50 % zu viel**. Erst dieser
+  Fall wird bei der Mutation rot.
+- **„Der Runner bekommt keinen API-Key-Job".** Das hielt auch dann, wenn die
+  Claim-Abfrage *überhaupt nichts* zurückgab — also auch bei kaputter Übernahme.
+  Neu werden **beide** Jobs eingereiht, und der Test verlangt, dass genau der des
+  Betreibers ankommt.
 
 ## Konventionen
 

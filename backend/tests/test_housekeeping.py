@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
+import time
 
 import pytest
 
@@ -27,8 +29,18 @@ def _drive(loop_factory, *, ticks: int = 1) -> None:
     # an earlier version of this helper run the loop body exactly once no
     # matter what `ticks` said — and the flood test below passed vacuously.
     real_sleep = asyncio.sleep
+    # ⚠️ For the same reason the patch below is GLOBAL: every event loop in the
+    # process sees it, and the `client` fixture runs one in another thread
+    # (TestClient's portal) whose lifespan started these very loops for real.
+    # Their 60 s / 24 h wake-ups then land in `fake_sleep` too — they inflate
+    # `seen` and can swallow the CancelledError meant for us. Measured against a
+    # competing loop: 187.301 stolen calls instead of 1. That is what made this
+    # file fail about one run in five. Only sleeps from OUR task count.
+    mine: dict = {"task": None}
 
-    async def fake_sleep(_seconds):
+    async def fake_sleep(seconds):
+        if asyncio.current_task() is not mine["task"]:
+            return await real_sleep(seconds)
         seen["n"] += 1
         if seen["n"] >= ticks:
             raise asyncio.CancelledError
@@ -37,6 +49,7 @@ def _drive(loop_factory, *, ticks: int = 1) -> None:
     async def scenario():
         import app.main as main_module
 
+        mine["task"] = asyncio.current_task()
         main_module.asyncio.sleep = fake_sleep
         try:
             with pytest.raises(asyncio.CancelledError):
@@ -102,3 +115,56 @@ def test_a_healthy_loop_logs_nothing(client, caplog):
     with caplog.at_level(logging.WARNING):
         _drive(lambda m: m._run_reaper_loop(), ticks=2)
     assert caplog.text == ""
+
+
+def test_a_foreign_event_loop_cannot_steal_the_patched_sleep(client, monkeypatch):
+    """`_drive` patches `asyncio.sleep` on the shared module, so EVERY loop in
+    the process sees it — including the app's real background tasks in
+    TestClient's portal thread. Their wake-ups used to be counted as ours and
+    could swallow the CancelledError, which is why this file failed roughly one
+    run in five.
+
+    ⚠️ Racing a competing loop against the patch window is NOT enough: the
+    window is a few microseconds wide, and the first two versions of this test
+    passed with the guard removed (once always, once two runs in three). The
+    overlap is therefore forced — the driven loop body blocks until the
+    competitor has really made calls while the patch was installed.
+    """
+    from app.routers import runs
+
+    beats = {"n": 0}
+    stop = threading.Event()
+    ready = threading.Event()
+
+    def wait_for_the_competitor(*_args):
+        """The loop body. Runs INSIDE the patched window and holds it open."""
+        target = beats["n"] + 5
+        deadline = time.monotonic() + 2
+        while beats["n"] < target and time.monotonic() < deadline:
+            time.sleep(0.001)  # this thread blocks; the competitor keeps going
+        assert beats["n"] >= target, "the competing loop never ran — test is void"
+
+    monkeypatch.setattr(runs, "reap_stale", wait_for_the_competitor)
+
+    def competitor():
+        async def spin():
+            ready.set()
+            while not stop.is_set():
+                try:
+                    await asyncio.sleep(0)
+                except asyncio.CancelledError:
+                    pass  # a real background loop survives a stray cancel, too
+                beats["n"] += 1
+
+        asyncio.run(spin())
+
+    thread = threading.Thread(target=competitor, daemon=True)
+    thread.start()
+    assert ready.wait(timeout=2), "competing loop did not start"
+    try:
+        # `_drive` asserts the tick count itself: ours are 2, the competitor's
+        # are thousands — without the guard this cannot be off by a little.
+        _drive(lambda m: m._run_reaper_loop(), ticks=2)
+    finally:
+        stop.set()
+        thread.join(timeout=2)

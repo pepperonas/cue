@@ -68,7 +68,7 @@ than they read: `stop()` aborts the in-flight request, so "an answer arriving af
 reached the `stopped` guard it claimed to cover, and "stops for good" passed with the abort removed
 entirely (no new calls either way — the leak is on the server, invisible locally). Both were rewritten
 to reach the real thing.
-**Four suites test a PROPERTY of the whole surface rather than one call site**, because the bugs they
+**Six suites test a PROPERTY of the whole surface rather than one call site**, because the bugs they
 guard against are the kind nobody introduces on purpose — they are the kind nobody applies a rule to:
 `backend/tests/test_tenancy.py` walks every route in the app and fails when one neither scopes to
 `current_user_id` nor authenticates a machine nor sits in `UNSCOPED_BY_DESIGN` with a written reason
@@ -77,8 +77,14 @@ behind for whatever reuses its path); it also asserts every mutating tenant endp
 `require_csrf`, and sweeps a second account across every owned resource expecting **404, never 403** —
 "forbidden" confirms the row exists. `contracts/column-order.json` + `test_ordering_contract.py` +
 `order.contract.test.ts` turn the Python/TypeScript ordering mirror from a comment ("change one,
-change the other") into something that fails: both languages run the SAME ten cases, and a stand-in
-object raises if `display_key` ever reads a field a drag cannot control. `test_security_tokens.py`
+change the other") into something that fails: both languages run the SAME 18 cases, and those cases
+additionally run through real SQLite, because the order is stated a THIRD time as `BOARD_ORDER_SQL`;
+a stand-in object raises if `display_key` ever reads a field a drag cannot control.
+`backend/tests/test_deps_contract.py` holds the two dependency lists — `pyproject.toml` (what uv and
+the tests install) and `requirements.txt` (**what the Docker image installs**) — to the same packages
+AND the same version floors, after `cryptography` + `anthropic` shipped in only one of them and the
+image came up without them: the failure landed at import time in production, after the health check
+had already swapped the container. `test_security_tokens.py`
 is almost entirely negative — tampered, truncated, cross-signed, expired, cross-purpose — because a
 valid signature IS the authorisation here and every happy path keeps working while a broken check
 quietly stops checking. `markdown.security.test.ts` parses the rendered output with a real DOM and
