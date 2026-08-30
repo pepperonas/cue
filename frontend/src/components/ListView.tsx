@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { columnComparator } from '../lib/order'
+import { splitTested } from '../lib/board-groups'
+import { useTestedFold } from '../state/tested-fold'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import { isOptimizable } from '../lib/optimization'
 import type { Project, Prompt, Status } from '../lib/types'
@@ -11,6 +13,7 @@ import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { RelativeTime } from './RelativeTime'
 import { OptimizeButton } from './optimize/OptimizeButton'
+import { TestedSection } from './BoardSection'
 import { Icon } from './ui'
 
 interface Props {
@@ -65,6 +68,7 @@ export function ListView({
   onModSelect,
 }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed)
+  const [testedOpen, onToggleTestedFold] = useTestedFold()
 
   function toggle(status: Status) {
     setCollapsed((prev) => {
@@ -81,6 +85,34 @@ export function ListView({
           .filter((p) => p.status === status)
           .sort(columnComparator)
         const isCollapsed = collapsed.includes(status)
+        // Same rule as the board: checked-off work goes under a lid, and it is
+        // the SAME lid — one setting, so the two views cannot disagree about
+        // whether the tested prompts are showing.
+        const { untested, tested } =
+          status === 'done' ? splitTested(items) : { untested: items, tested: [] }
+        const rows = (list: Prompt[], offset = 0) =>
+          list.map((p, i) => (
+            <ListRow
+              key={p.id}
+              prompt={p}
+              project={p.project_id ? projects.get(p.project_id) : undefined}
+              dark={dark}
+              index={offset + i}
+              selected={selectedId === p.id}
+              onOpen={onOpen}
+              onCopy={onCopy}
+              onDuplicate={onDuplicate}
+              onToggleBookmark={onToggleBookmark}
+              onToggleTested={onToggleTested}
+              onToggleBlocked={onToggleBlocked}
+              onOptimize={onOptimize}
+              optimizeBusy={optimizingIds?.includes(p.id) ?? false}
+              selectMode={selectMode}
+              selectedForMerge={selectedIds?.includes(p.id)}
+              onToggleSelect={onToggleSelect}
+              onModSelect={onModSelect}
+            />
+          ))
         return (
           <section className="list-group" key={status}>
             <button
@@ -110,28 +142,16 @@ export function ListView({
                     {items.length === 0 ? (
                       <div className="muted list-group-empty">Leer</div>
                     ) : (
-                      items.map((p, i) => (
-                        <ListRow
-                          key={p.id}
-                          prompt={p}
-                          project={p.project_id ? projects.get(p.project_id) : undefined}
-                          dark={dark}
-                          index={i}
-                          selected={selectedId === p.id}
-                          onOpen={onOpen}
-                          onCopy={onCopy}
-                          onDuplicate={onDuplicate}
-                          onToggleBookmark={onToggleBookmark}
-                          onToggleTested={onToggleTested}
-                          onToggleBlocked={onToggleBlocked}
-                          onOptimize={onOptimize}
-                          optimizeBusy={optimizingIds?.includes(p.id) ?? false}
-                          selectMode={selectMode}
-                          selectedForMerge={selectedIds?.includes(p.id)}
-                          onToggleSelect={onToggleSelect}
-                          onModSelect={onModSelect}
-                        />
-                      ))
+                      rows(untested)
+                    )}
+                    {tested.length > 0 && (
+                      <TestedSection
+                        count={tested.length}
+                        open={testedOpen}
+                        onToggle={onToggleTestedFold}
+                      >
+                        {rows(tested, untested.length)}
+                      </TestedSection>
                     )}
                   </div>
                 </motion.div>

@@ -3501,6 +3501,50 @@ img.logo-xl { border-radius: 18px; }
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Folded "tested" block at the bottom of Done ----
+   Present on BOTH layouts. Quieter than a project group on purpose: it is a
+   lid over finished work, not another place to look. `--ok` carries the theme,
+   unlike the hard-coded green of the per-card tested button above. */
+.tested-group {
+  border-top: 1px solid var(--md-outline-variant);
+  margin-top: var(--gap-2);
+  padding-top: var(--gap-2);
+}
+.tested-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--md-on-surface-variant);
+  text-align: left;
+  cursor: pointer;
+  font: var(--label-l);
+  min-height: 44px;
+  padding: 6px var(--gap-2);
+  border-radius: var(--shape-s);
+  -webkit-tap-highlight-color: transparent;
+}
+.tested-head:hover,
+.tested-head:active {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+}
+.tested-icon {
+  color: var(--ok);
+  flex: none;
+}
+.tested-label {
+  flex: 1;
+  min-width: 0;
+}
+.tested-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding-top: var(--gap-2);
+}
+
 /* Dragging feedback: the lifted copy is tilted and shadowed, the source dims. */
 .card--drag-preview {
   box-shadow: var(--elev-3, 0 16px 40px rgba(0, 0, 0, 0.45));

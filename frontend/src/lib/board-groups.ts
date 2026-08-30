@@ -85,6 +85,48 @@ export function isOpen(
   return overrides[id] ?? fallback
 }
 
+/**
+ * Split a Done column into the prompts still to be checked and the ones already
+ * marked tested.
+ *
+ * Takes prompts rather than ids so the board and the list view can share it —
+ * they are the two places the Done column exists, and the split has to mean the
+ * same thing in both.
+ *
+ * `columnComparator` already sinks tested below untested, so in practice the
+ * two parts arrive contiguous — but this partitions rather than slices, so the
+ * split stays correct if that ordering rule is ever changed. Order inside each
+ * part is preserved.
+ */
+export function splitTested<T extends { tested: boolean }>(
+  items: T[],
+): { untested: T[]; tested: T[] } {
+  const untested: T[] = []
+  const tested: T[] = []
+  for (const item of items) (item.tested ? tested : untested).push(item)
+  return { untested, tested }
+}
+
+/**
+ * Where the folded "tested" block remembers its state.
+ *
+ * ONE key for the whole board, deliberately not one per project. The project
+ * chips *filter* the same board rather than switching to a different one, and
+ * with "Alle" selected there is no project to key on — a per-project setting
+ * would need an extra bucket for that case, and the same card would then be
+ * folded in one view and unfolded in the other. Folding finished work away is
+ * a preference about the Done column, not a property of a project, and the
+ * board's other folds (the list view's per-status collapse, the
+ * Failed/Archived toggle) are board-wide for the same reason.
+ *
+ * localStorage, not sessionStorage: this one has to survive a reload. The
+ * mobile project groups deliberately do not — see SECTION_KEY in Board.tsx.
+ */
+export const TESTED_OPEN_KEY = 'cue-done-tested-open'
+
+/** Cap key of the folded block, so it expands independently of the part above it. */
+export const TESTED_CAP_KEY = 'col:done:tested'
+
 /** Cards rendered before the "show more" cut-off. */
 export const COLUMN_CAP = 10
 

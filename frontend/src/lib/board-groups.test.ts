@@ -11,11 +11,12 @@ import {
   defaultGroupsOpen,
   groupByProject,
   isOpen,
+  splitTested,
   visibleCards,
 } from './board-groups'
 import type { Project, Prompt } from './types'
 
-function prompt(id: number, projectId: number | null): Prompt {
+function prompt(id: number, projectId: number | null, tested = false): Prompt {
   return {
     id,
     title: `p${id}`,
@@ -26,7 +27,7 @@ function prompt(id: number, projectId: number | null): Prompt {
     tags: '',
     bookmarked: false,
     bookmark_order: 0,
-    tested: false,
+    tested,
     blocked: false,
     optimized: false,
     optimized_body: null,
@@ -330,5 +331,38 @@ describe('withReorderedTail', () => {
     expect(names(before)).toEqual(['busy-a', 'busy-b', 'quiet-a', 'quiet-b', 'quiet-c'])
     const after = sortProjectsByAttention(withReorderedTail(manual, [9, 7, 1]), counts)
     expect(names(after)).toEqual(['busy-a', 'busy-b', 'quiet-c', 'quiet-a', 'quiet-b'])
+  })
+})
+
+
+describe('splitTested', () => {
+  const p1 = prompt(1, 1, false)
+  const p2 = prompt(2, 1, true)
+  const p3 = prompt(3, 2, false)
+  const p4 = prompt(4, 2, true)
+
+  it('separates checked from unchecked and keeps each order', () => {
+    const { untested, tested } = splitTested([p1, p3, p2, p4])
+    expect(untested.map((p) => p.id)).toEqual([1, 3])
+    expect(tested.map((p) => p.id)).toEqual([2, 4])
+  })
+
+  it('partitions rather than slicing, so an interleaved column still splits', () => {
+    // columnComparator sinks tested to the bottom, so the two parts arrive
+    // contiguous in practice. Relying on that would make this silently wrong
+    // the day the ordering rule changes.
+    const { untested, tested } = splitTested([p2, p1, p4, p3])
+    expect(untested.map((p) => p.id)).toEqual([1, 3])
+    expect(tested.map((p) => p.id)).toEqual([2, 4])
+  })
+
+  it('loses no card', () => {
+    const { untested, tested } = splitTested([p4, p3, p2, p1])
+    expect([...untested, ...tested].map((p) => p.id).sort()).toEqual([1, 2, 3, 4])
+  })
+
+  it('handles the columns that have no tested prompts at all', () => {
+    expect(splitTested([p1])).toEqual({ untested: [p1], tested: [] })
+    expect(splitTested([])).toEqual({ untested: [], tested: [] })
   })
 })

@@ -5,8 +5,11 @@
 // visible — status/project name, its colour and the card count — so a folded
 // board still reads as a summary instead of hiding information.
 //
-// Desktop renders `<Column>` from Board.tsx unchanged; these components are
-// only mounted below the mobile breakpoint.
+// Desktop renders `<Column>` from Board.tsx unchanged, so StatusSection and
+// ProjectGroupSection are only mounted below the mobile breakpoint.
+// `TestedSection` is the exception — the folded "tested" block in Done exists
+// on both layouts, and giving it its own component is what keeps the two from
+// drifting apart.
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useDroppable } from '@dnd-kit/core'
@@ -106,6 +109,49 @@ export function ProjectGroupSection({
       </button>
       <Collapsible open={open}>
         <div className="pgroup-list" id={`group-${id}`}>
+          {children}
+        </div>
+      </Collapsible>
+    </div>
+  )
+}
+
+/**
+ * The folded block of already-tested prompts at the bottom of Done.
+ *
+ * Rendered by BOTH layouts (desktop below the untested cards, mobile below the
+ * untested project groups), because finished-and-checked work is exactly the
+ * kind of thing that should be reachable without being in the way. The header
+ * keeps the count visible while collapsed, so folding hides the cards, not the
+ * information that they exist.
+ */
+export function TestedSection({
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="tested-group" data-open={open}>
+      <button
+        className="tested-head"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls="done-tested"
+        title={open ? 'Getestete Prompts einklappen' : 'Getestete Prompts anzeigen'}
+      >
+        <Icon name="chevron_right" className={`sect-chevron ${open ? 'open' : ''}`} />
+        <Icon name="verified" className="tested-icon" />
+        <span className="tested-label">Getestet</span>
+        <span className="count">{count}</span>
+      </button>
+      <Collapsible open={open}>
+        <div className="tested-list" id="done-tested">
           {children}
         </div>
       </Collapsible>

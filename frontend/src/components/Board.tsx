@@ -9,18 +9,21 @@ import type { Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
 import {
+  TESTED_CAP_KEY,
   capToggleLabel,
   columnKey,
   defaultGroupsOpen,
   groupByProject,
   isOpen,
+  splitTested,
   visibleCards,
 } from '../lib/board-groups'
 import { boardCollision, dragSelection, useDragSensors } from '../lib/dnd'
 import { useIsMobile } from '../lib/media'
+import { useTestedFold } from '../state/tested-fold'
 import { columnComparator } from '../lib/order'
 import { PromptCard } from './PromptCard'
-import { ProjectGroupSection, StatusSection } from './BoardSection'
+import { ProjectGroupSection, StatusSection, TestedSection } from './BoardSection'
 import { Icon } from './ui'
 
 type Containers = Record<string, number[]>
@@ -137,6 +140,8 @@ export function Board({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   // Explicit open/closed choices for the mobile sections (status + project).
   const [sections, setSections] = useState<Record<string, boolean>>(loadSections)
+  // The one fold that outlives the tab; shared with the list view.
+  const [testedOpen, toggleTested] = useTestedFold()
   const dragging = useRef(false)
 
   // Re-sync from server data unless a drag is in progress.
@@ -395,16 +400,38 @@ export function Board({
       <div className={`board${isMobile ? ' board--mobile' : ''}`}>
         {columns.map((status) => {
           const all = containers[status] ?? []
+          // Done carries two kinds of card: what still wants checking, and what
+          // has been checked off. Only the first kind is work.
+          const split =
+            status === 'done'
+              ? splitTested(all.map((id) => byId.get(id)).filter((p): p is Prompt => !!p))
+              : null
+          const untested = split ? split.untested.map((p) => p.id) : all
+          const tested = split ? split.tested.map((p) => p.id) : []
+
           if (!isMobile) {
             const colKey = columnKey(status)
-            const { shown: visible, hidden } = visibleCards(all, {
-              expanded: expanded[colKey],
-            })
+            const main = visibleCards(untested, { expanded: expanded[colKey] })
+            // No `open` here: the section's own Collapsible decides whether
+            // these are in the DOM, so mounting stays in ONE place and the
+            // fold can animate its children out instead of blinking.
+            const done = visibleCards(tested, { expanded: expanded[TESTED_CAP_KEY] })
             return (
               <Column key={status} status={status} count={all.length}>
-                <SortableContext items={visible} strategy={verticalListSortingStrategy}>
-                  <AnimatePresence>{visible.map(renderCard)}</AnimatePresence>
-                  {capToggle(colKey, all.length, hidden)}
+                <SortableContext
+                  // Sortable ids must be cards that are actually rendered — a
+                  // folded block contributes none.
+                  items={testedOpen ? [...main.shown, ...done.shown] : main.shown}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <AnimatePresence>{main.shown.map(renderCard)}</AnimatePresence>
+                  {capToggle(colKey, untested.length, main.hidden)}
+                  {tested.length > 0 && (
+                    <TestedSection count={tested.length} open={testedOpen} onToggle={toggleTested}>
+                      {done.shown.map(renderCard)}
+                      {capToggle(TESTED_CAP_KEY, tested.length, done.hidden)}
+                    </TestedSection>
+                  )}
                   {all.length === 0 && (
                     <div className="empty" style={{ padding: 'var(--gap-4)' }}>
                       <span className="muted">Leer</span>
@@ -416,32 +443,46 @@ export function Board({
           }
 
           // ---- mobile: status section > project groups > cards ----
-          const groups = groupByProject(all, byId, projects, status)
-          const groupsOpenByDefault = defaultGroupsOpen(all.length)
           const sectionOpen = isOpen(sections, `col:${status}`, true)
           const visibleIds: number[] = []
-          const bodies = groups.map((g) => {
-            const groupOpen = isOpen(sections, g.id, groupsOpenByDefault)
-            const { shown, hidden } = visibleCards(g.ids, {
-              open: groupOpen,
-              expanded: expanded[g.id],
+
+          /**
+           * Project groups of one part of a column. `collect` is false for the
+           * folded block: its cards are mounted by the section's Collapsible,
+           * so while it is closed they are not in the DOM and must not be in
+           * the sortable list either.
+           */
+          const renderGroups = (ids: number[], keyPrefix: string, collect: boolean) => {
+            // The default follows the PART, not the whole column: a short list
+            // of unchecked prompts stays open even when hundreds of tested ones
+            // sit folded below it.
+            const groupsOpenByDefault = defaultGroupsOpen(ids.length)
+            return groupByProject(ids, byId, projects, keyPrefix).map((g) => {
+              const groupOpen = isOpen(sections, g.id, groupsOpenByDefault)
+              const { shown, hidden } = visibleCards(g.ids, {
+                open: groupOpen,
+                expanded: expanded[g.id],
+              })
+              if (collect) visibleIds.push(...shown)
+              return (
+                <ProjectGroupSection
+                  key={g.id}
+                  id={g.id}
+                  name={g.name}
+                  color={g.color}
+                  count={g.ids.length}
+                  open={groupOpen}
+                  onToggle={() => toggleSection(g.id, !groupOpen)}
+                >
+                  {shown.map(renderCard)}
+                  {groupOpen && capToggle(g.id, g.ids.length, hidden)}
+                </ProjectGroupSection>
+              )
             })
-            visibleIds.push(...shown)
-            return (
-              <ProjectGroupSection
-                key={g.id}
-                id={g.id}
-                name={g.name}
-                color={g.color}
-                count={g.ids.length}
-                open={groupOpen}
-                onToggle={() => toggleSection(g.id, !groupOpen)}
-              >
-                {shown.map(renderCard)}
-                {groupOpen && capToggle(g.id, g.ids.length, hidden)}
-              </ProjectGroupSection>
-            )
-          })
+          }
+
+          const bodies = renderGroups(untested, status, true)
+          const testedBodies = tested.length ? renderGroups(tested, `${status}:tested`, testedOpen) : []
 
           return (
             <StatusSection
@@ -453,6 +494,11 @@ export function Board({
             >
               <SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
                 {bodies}
+                {tested.length > 0 && (
+                  <TestedSection count={tested.length} open={testedOpen} onToggle={toggleTested}>
+                    {testedBodies}
+                  </TestedSection>
+                )}
                 {all.length === 0 && (
                   <div className="empty" style={{ padding: 'var(--gap-3)' }}>
                     <span className="muted">Leer</span>

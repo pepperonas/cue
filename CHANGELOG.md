@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.50.0] - 2026-08-30
+
+### Added
+- **Getestete Prompts liegen in Done unter einem Deckel.** Was fertig UND
+  geprüft ist, steht jetzt in einer zuklappbaren Sektion „✓ Getestet (n)"
+  unter den ungeprüften — auf dem Board, in der Listenansicht und auf dem
+  Handy. Der Kopf zeigt die Anzahl auch im zugeklappten Zustand: gefaltet wird
+  die Kartenmenge, nicht die Information, dass es sie gibt.
+- Der Zustand überlebt den Reload (`localStorage`, Schlüssel
+  `cue-done-tested-open`) und gilt **board-weit, nicht pro Projekt** —
+  Begründung siehe unten. Standard: zugeklappt, denn genau das ist der Zweck.
+- Der gefaltete Block hat einen **eigenen „N weitere anzeigen"-Zähler**, klappt
+  also unabhängig vom Teil darüber auf.
+
+### Changed
+- Auf dem Handy richtet sich die Voreinstellung der Projektgruppen jetzt nach
+  dem **Teil** statt nach der ganzen Spalte: drei ungeprüfte Prompts bleiben
+  offen, auch wenn darunter 100 getestete gefaltet liegen.
+
+### Internal
+- `lib/board-groups.ts:splitTested` (generisch über Prompts, 4 Tests,
+  mutationsgeprüft — es partitioniert, statt am ersten getesteten Eintrag zu
+  schneiden) und `state/tested-fold.ts:useTestedFold` als die eine Definition
+  für beide Ansichten.
+- ⚠️ Der gefaltete Block liefert **keine Sortier-Ids**, solange er zu ist —
+  gemessen: gerenderte Karten und dnd-kit-Sortables stimmen in beiden
+  Zuständen exakt überein (3/3 zu, 13/13 offen).
+
 ## [0.49.0] - 2026-08-30
 
 ### Changed
