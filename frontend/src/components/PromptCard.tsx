@@ -6,9 +6,10 @@ import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import { isOptimizable } from '../lib/optimization'
 import { dedupeTags } from '../lib/tags'
-import type { Project, Prompt } from '../lib/types'
+import type { Priority, Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
+import { PriorityButton } from './PriorityButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { RelativeTime } from './RelativeTime'
@@ -30,6 +31,7 @@ interface Props {
   onOptimize?: (p: Prompt) => void
   optimizeBusy?: boolean
   onToggleBlocked?: (p: Prompt) => void
+  onSetPriority?: (p: Prompt, next: Priority) => void
   selectMode?: boolean
   /** Part of a multi-card drag, but not the grabbed card: drawn as on the move. */
   carried?: boolean
@@ -52,6 +54,7 @@ export function PromptCard({
   onOptimize,
   optimizeBusy = false,
   onToggleBlocked,
+  onSetPriority,
   selectMode,
   carried,
   selectedForMerge,
@@ -59,6 +62,8 @@ export function PromptCard({
   onModSelect,
 }: Props) {
   const canTest = prompt.status === 'running' || prompt.status === 'done'
+  // Blocking and priority are both queue-only: a control that cannot do
+  // anything where it sits is worse than no control.
   const canBlock = prompt.status === 'queued'
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prompt.id,
@@ -187,6 +192,12 @@ export function PromptCard({
               )}
               {onToggleBlocked && canBlock && (
                 <BlockedButton blocked={prompt.blocked} onToggle={() => onToggleBlocked(prompt)} />
+              )}
+              {onSetPriority && canBlock && (
+                <PriorityButton
+                  priority={prompt.priority}
+                  onChange={(next) => onSetPriority(prompt, next)}
+                />
               )}
               {onToggleBookmark && (
                 <BookmarkButton

@@ -13,10 +13,12 @@ import {
   BOARD_COLUMNS,
   EXTRA_COLUMNS,
   STATUS_CLASS,
+  PRIORITY_LABEL,
   STATUS_ICON,
   STATUS_LABEL,
   type Me,
   type Optimization,
+  type Priority,
   type Prompt,
   type RunKind,
   type StatsQuery,
@@ -370,6 +372,23 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       update.mutate({ id: p.id, patch: { blocked: !p.blocked } })
       vibrate(8)
       toast.show(p.blocked ? 'Blockierung aufgehoben' : 'Blockiert — wandert ans Spaltenende', 'success')
+    },
+    [toast, update],
+  )
+
+  const handleSetPriority = useCallback(
+    (p: Prompt, next: Priority) => {
+      if (next === p.priority) return
+      update.mutate({ id: p.id, patch: { priority: next } })
+      vibrate(8)
+      // Only the queue is banded by priority, so only there is the toast about
+      // a move; elsewhere the level is recorded and nothing jumps.
+      toast.show(
+        p.status === 'queued'
+          ? `Priorität: ${PRIORITY_LABEL[next]} — Position in der Queue angepasst`
+          : `Priorität: ${PRIORITY_LABEL[next]}`,
+        'success',
+      )
     },
     [toast, update],
   )
@@ -774,6 +793,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onOptimize={canOptimize ? handleOptimize : undefined}
                 optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
+                onSetPriority={handleSetPriority}
                 onMove={(move) => movePrompt.mutate(move)}
                 onMoveMany={moveSelection}
                 selectMode={selectMode}
@@ -796,6 +816,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 onOptimize={canOptimize ? handleOptimize : undefined}
                 optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
+                onSetPriority={handleSetPriority}
                 selectMode={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
@@ -1037,6 +1058,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onToggleBookmark={handleToggleBookmark}
             onToggleTested={handleToggleTested}
             onToggleBlocked={handleToggleBlocked}
+            onSetPriority={handleSetPriority}
             canOptimize={canOptimize}
             optimizeBusy={optimizingIds.includes(detailLive.id)}
             activeOptimization={

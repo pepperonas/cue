@@ -18,6 +18,7 @@ import type {
   OptimizationBatch,
   OptimizationDecisionResult,
   OptimizationConfig,
+  Priority,
   Project,
   Prompt,
   Run,
@@ -137,6 +138,7 @@ export const api = {
     tags?: string
     attachment_ids?: number[]
     bookmarked?: boolean
+    priority?: Priority
   }) => request<Prompt>('POST', '/prompts', input),
   updatePrompt: (
     id: number,
@@ -149,6 +151,7 @@ export const api = {
       bookmarked: boolean
       tested: boolean
       blocked: boolean
+      priority: Priority
       attachment_ids: number[]
       unassign_project: boolean
     }>,

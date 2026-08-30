@@ -1802,6 +1802,98 @@ def test_a_merge_into_done_also_lands_on_top(client):
     assert done == [merged, done_before]
 
 
+def test_priority_defaults_to_normal_and_can_be_set(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    plain = client.post("/api/prompts", json={"body": "gewöhnlich"}, headers=headers).json()
+    assert plain["priority"] == "normal"
+
+    urgent = client.post(
+        "/api/prompts", json={"body": "eilig", "priority": "high"}, headers=headers
+    ).json()
+    assert urgent["priority"] == "high"
+
+    lowered = client.patch(
+        f"/api/prompts/{urgent['id']}", json={"priority": "low"}, headers=headers
+    ).json()
+    assert lowered["priority"] == "low"
+    assert client.get(f"/api/prompts/{urgent['id']}").json()["priority"] == "low"
+
+
+def test_a_merge_always_inherits_the_highest_priority(client):
+    """Not a choice in the dialog: folding urgent work into a calm prompt must
+    not quietly demote it. The dialog never sends a priority."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    def mk(priority: str) -> int:
+        return client.post(
+            "/api/prompts", json={"body": f"p {priority}", "priority": priority}, headers=headers
+        ).json()["id"]
+
+    high, normal, low = mk("high"), mk("normal"), mk("low")
+    merged = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [low, high], "body": "zusammen", "originals": "keep"},
+        headers=headers,
+    ).json()
+    assert merged["priority"] == "high"
+
+    calm = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [low, normal], "body": "auch zusammen", "originals": "keep"},
+        headers=headers,
+    ).json()
+    assert calm["priority"] == "normal"
+
+    quiet = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [low, mk("low")], "body": "leise", "originals": "keep"},
+        headers=headers,
+    ).json()
+    assert quiet["priority"] == "low"
+
+
+def test_a_duplicate_keeps_the_urgency(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    src = client.post(
+        "/api/prompts", json={"body": "eilig", "priority": "high"}, headers=headers
+    ).json()["id"]
+    copy = client.post(
+        f"/api/prompts/{src}/duplicate", json={"in_place": True}, headers=headers
+    ).json()
+    assert copy["priority"] == "high"
+
+
+def test_an_anchored_move_inserts_into_the_order_priority_produces(client):
+    """The anchor names a card the user SEES, so the server has to renumber
+    along the same banded sequence — otherwise the drag lands mid-list."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    def mk(body: str, priority: str) -> int:
+        return client.post(
+            "/api/prompts", json={"body": body, "priority": priority}, headers=headers
+        ).json()["id"]
+
+    urgent = mk("eilig", "high")
+    first = mk("a", "normal")
+    second = mk("b", "normal")
+
+    # Displayed: urgent, first, second. Put `second` before `first`.
+    r = client.post(
+        f"/api/prompts/{second}/move", json={"before_id": first}, headers=headers
+    )
+    assert r.status_code == 200
+
+    rows = client.get("/api/prompts?status=queued").json()
+    by_id = {row["id"]: row for row in rows}
+    # The urgent one still leads, and the two normals swapped.
+    assert by_id[urgent]["sort_order"] < by_id[second]["sort_order"] < by_id[first]["sort_order"]
+
+
 def test_merge_delete_carries_attachments_over(client):
     csrf = _login(client)
     headers = {"X-CSRF-Token": csrf}

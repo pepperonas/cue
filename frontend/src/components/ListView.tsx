@@ -6,9 +6,10 @@ import { splitTested } from '../lib/board-groups'
 import { useTestedFold } from '../state/tested-fold'
 import { emphasized, prefersReducedMotion, springs } from '../lib/motion'
 import { isOptimizable } from '../lib/optimization'
-import type { Project, Prompt, Status } from '../lib/types'
+import type { Priority, Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
+import { PriorityButton } from './PriorityButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { RelativeTime } from './RelativeTime'
@@ -28,6 +29,7 @@ interface Props {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  onSetPriority?: (p: Prompt, next: Priority) => void
   // Prompt optimization (owner-only): undefined hides the button.
   onOptimize?: (p: Prompt) => void
   optimizingIds?: number[]
@@ -60,6 +62,7 @@ export function ListView({
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
+  onSetPriority,
   onOptimize,
   optimizingIds,
   selectMode,
@@ -105,6 +108,7 @@ export function ListView({
               onToggleBookmark={onToggleBookmark}
               onToggleTested={onToggleTested}
               onToggleBlocked={onToggleBlocked}
+              onSetPriority={onSetPriority}
               onOptimize={onOptimize}
               optimizeBusy={optimizingIds?.includes(p.id) ?? false}
               selectMode={selectMode}
@@ -176,6 +180,7 @@ interface RowProps {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  onSetPriority?: (p: Prompt, next: Priority) => void
   onOptimize?: (p: Prompt) => void
   optimizeBusy?: boolean
   selectMode?: boolean
@@ -196,6 +201,7 @@ function ListRow({
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
+  onSetPriority,
   onOptimize,
   optimizeBusy = false,
   selectMode,
@@ -204,6 +210,8 @@ function ListRow({
   onModSelect,
 }: RowProps) {
   const canTest = p.status === 'running' || p.status === 'done'
+  // Blocking and priority are both queue-only: a control that cannot do
+  // anything where it sits is worse than no control.
   const canBlock = p.status === 'queued'
   const tones = project ? projectTones(project.color, dark) : null
 
@@ -289,6 +297,9 @@ function ListRow({
       )}
       {onToggleBlocked && canBlock && (
         <BlockedButton blocked={p.blocked} onToggle={() => onToggleBlocked(p)} />
+      )}
+      {onSetPriority && canBlock && (
+        <PriorityButton priority={p.priority} onChange={(next) => onSetPriority(p, next)} />
       )}
       {onToggleBookmark && (
         <BookmarkButton bookmarked={p.bookmarked} onToggle={() => onToggleBookmark(p)} />

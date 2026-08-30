@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import contract from '../../../contracts/column-order.json'
 import { columnComparator } from './order'
-import type { Prompt, Status } from './types'
+import type { Priority, Prompt, Status } from './types'
 
 /**
  * The client half of the shared column-order contract.
@@ -27,6 +27,7 @@ interface OrderCase {
     status?: string
     blocked?: boolean
     tested?: boolean
+    priority?: string
     ran_at?: string
   }[]
   expected_ids: number[]
@@ -46,6 +47,7 @@ function prompt(spec: OrderCase['prompts'][number]): Prompt {
     bookmarked: false,
     bookmark_order: 0,
     tested: spec.tested ?? false,
+    priority: (spec.priority ?? 'normal') as Priority,
     blocked: spec.blocked ?? false,
     optimized: false,
     optimized_body: null,

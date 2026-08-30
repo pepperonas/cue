@@ -37,6 +37,7 @@ def _row(spec: dict) -> SimpleNamespace:
         status=spec.get("status", "queued"),
         blocked=spec.get("blocked", False),
         tested=spec.get("tested", False),
+        priority=spec.get("priority", "normal"),
         ran_at=spec.get("ran_at"),
     )
 
@@ -81,7 +82,7 @@ def test_the_key_reads_no_field_the_contract_does_not_declare():
     """
     from app.ordering import display_key
 
-    allowed = {"id", "sort_order", "status", "blocked", "tested"}
+    allowed = {"id", "sort_order", "status", "blocked", "tested", "priority"}
     touched: set[str] = set()
 
     class Strict:
@@ -118,3 +119,58 @@ def test_the_contract_file_is_substantial():
         assert case["why"].strip(), f"{case['name']} has no rationale"
         assert len(case["prompts"]) >= 2, f"{case['name']} cannot express an order"
         assert sorted(case["expected_ids"]) == sorted(p["id"] for p in case["prompts"])
+
+
+# --------------------------------------------------------------------------
+# the THIRD mirror: the SQL used to renumber a column
+# --------------------------------------------------------------------------
+
+def test_the_sql_order_agrees_with_display_key():
+    """`db._repair_sort_order` renumbers along an ORDER BY, not along the key.
+
+    That expression is a third copy of the same rule, and it is the one nobody
+    looks at: a divergence here does not throw, it quietly rewrites sort_order
+    into a sequence the board never shows — and every anchored move afterwards
+    lands somewhere the user did not point at. Two implementations were already
+    pinned against each other; this puts the third in the same harness.
+    """
+    import sqlite3
+
+    from app.ordering import BOARD_ORDER_SQL, display_key
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE prompt (id INTEGER, sort_order INTEGER, status TEXT, "
+        "blocked INTEGER, tested INTEGER, priority TEXT)"
+    )
+    for case in _load()["cases"]:
+        conn.execute("DELETE FROM prompt")
+        for spec in case["prompts"]:
+            conn.execute(
+                "INSERT INTO prompt VALUES (?,?,?,?,?,?)",
+                (
+                    spec["id"],
+                    spec["sort_order"],
+                    spec.get("status", "queued"),
+                    int(spec.get("blocked", False)),
+                    int(spec.get("tested", False)),
+                    spec.get("priority", "normal"),
+                ),
+            )
+        by_sql = [
+            row[0]
+            for row in conn.execute(f"SELECT id FROM prompt ORDER BY {BOARD_ORDER_SQL}")
+        ]
+        by_key = [row.id for row in sorted((_row(s) for s in case["prompts"]), key=display_key)]
+        assert by_sql == by_key == case["expected_ids"], case["name"]
+    conn.close()
+
+
+def test_the_repair_uses_that_shared_expression():
+    """...and the renumbering actually uses it, rather than its own copy."""
+    from app import db, ordering
+
+    source = Path(db.__file__).read_text(encoding="utf-8")
+    assert "BOARD_ORDER_SQL" in source, "db.py builds its own ORDER BY again"
+    assert "CASE WHEN status = 'done'" not in source, "a second copy crept back into db.py"
+    assert ordering.BOARD_ORDER_SQL.strip(), "the shared expression is empty"

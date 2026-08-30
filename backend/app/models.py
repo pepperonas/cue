@@ -25,6 +25,19 @@ class PromptStatus(str, enum.Enum):
     archived = "archived"
 
 
+class PromptPriority(str, enum.Enum):
+    """How urgent a queued prompt is.
+
+    Three levels on purpose: more would need thinking about, fewer would not
+    separate "do this next" from "some day". `normal` is the default, so every
+    prompt that predates the field keeps its exact place on the board.
+    """
+
+    low = "low"
+    normal = "normal"
+    high = "high"
+
+
 class User(SQLModel, table=True):
     __tablename__ = "user"
 
@@ -77,6 +90,8 @@ class Prompt(SQLModel, table=True):
     status: PromptStatus = Field(default=PromptStatus.queued, index=True)
     # Position within its status column / list. Lower = higher up.
     sort_order: int = Field(default=0, index=True)
+    # Urgency. Sorts the QUEUE only (high first) — see app/ordering.py.
+    priority: PromptPriority = Field(default=PromptPriority.normal, index=True)
     # Simple comma-separated tags.
     tags: str = Field(default="")
     # Bookmarking: pinned prompts get their own drag-sortable section.

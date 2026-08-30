@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { projectTones } from '../lib/color'
 import { prefersReducedMotion, springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
-import type { Optimization, Project, Prompt, Status } from '../lib/types'
+import type { Optimization, Priority, Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { BookmarkButton } from './BookmarkButton'
@@ -15,6 +15,7 @@ import { promptTimes } from '../lib/relative-time'
 import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPanel'
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { PromptEditor } from './PromptEditor'
+import { PrioritySelect } from './PriorityButton'
 import { useBackDismiss } from '../state/overlays'
 import { usePendingProposal } from '../state/queries'
 import { Button, Icon, IconButton } from './ui'
@@ -37,6 +38,7 @@ interface Props {
   onToggleBookmark: (p: Prompt) => void
   onToggleTested: (p: Prompt) => void
   onToggleBlocked: (p: Prompt) => void
+  onSetPriority?: (p: Prompt, next: Priority) => void
   onMoveProject: (p: Prompt, projectId: number | null) => void
   onCopyToProject: (p: Prompt, projectId: number | null) => void
   onRun?: (p: Prompt) => void
@@ -76,6 +78,7 @@ export function DetailSheet({
   onToggleBookmark,
   onToggleTested,
   onToggleBlocked,
+  onSetPriority,
   onMoveProject,
   onCopyToProject,
   onRun,
@@ -440,6 +443,24 @@ export function DetailSheet({
               </button>
             ))}
           </div>
+
+          {onSetPriority && (
+            <div className="detail-prio">
+              <label htmlFor="d-prio-view" className="muted">
+                Priorität
+              </label>
+              <PrioritySelect
+                id="d-prio-view"
+                priority={prompt.priority}
+                onChange={(next) => onSetPriority(prompt, next)}
+              />
+              {/* Only the queue is banded by it — saying so beats leaving the
+                  user to wonder why nothing moved. */}
+              {prompt.status !== 'queued' && (
+                <span className="muted detail-prio-note">wirkt in der Queue</span>
+              )}
+            </div>
+          )}
 
           <Button
             variant="filled"

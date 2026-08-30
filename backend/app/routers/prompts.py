@@ -21,7 +21,7 @@ from ..models import (
 )
 from ..config import get_settings
 from ..optimization import PromptOptimizationService
-from ..ordering import display_key, insert_block
+from ..ordering import display_key, highest_priority, insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
 from ..tags import TagService, is_bug_priority
 from ..schemas import (
@@ -208,6 +208,7 @@ def create_prompt(
         project_id=payload.project_id,
         status=payload.status,
         sort_order=sort_order,
+        priority=payload.priority,
     )
     if payload.status in _RAN_STATUSES:
         prompt.ran_at = utcnow()
@@ -290,6 +291,9 @@ def update_prompt(
             raise HTTPException(status_code=400, detail="Only queued prompts can be blocked")
         prompt.blocked = payload.blocked
 
+    if payload.priority is not None:
+        prompt.priority = payload.priority
+
     status_changed = payload.status is not None and payload.status != prompt.status
     if status_changed:
         if prompt.blocked and payload.status in _RAN_STATUSES:
@@ -367,6 +371,7 @@ def duplicate_prompt(
             status=src.status,
             sort_order=src.sort_order,
             blocked=src.blocked,
+            priority=src.priority,
         )
         if src.bookmarked:
             copy.bookmarked = True
@@ -382,6 +387,7 @@ def duplicate_prompt(
             project_id=payload.project_id,
             status=PromptStatus.queued,
             sort_order=_next_sort_order(session, PromptStatus.queued, uid),
+            priority=src.priority,
         )
     session.add(copy)
     session.flush()  # assign copy.id for the cloned attachments
@@ -447,6 +453,11 @@ def merge_prompts(
         project_id=payload.project_id,
         status=payload.status,
         sort_order=_top_sort_order(session, payload.status, uid),
+        # Always the HIGHEST of the sources, never a choice in the dialog:
+        # merging urgent work into a calm prompt must not quietly demote it,
+        # and the opposite mistake (inheriting "low") is the one that loses
+        # work. Derived server-side so no client can get it wrong.
+        priority=highest_priority(p.priority for p in sources),
     )
     if payload.status in _RAN_STATUSES:
         merged.ran_at = utcnow()

@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { AnimatePresence } from 'motion/react'
 import type { MovePayload } from '../lib/api'
-import type { Project, Prompt, Status } from '../lib/types'
+import type { Priority, Project, Prompt, Status } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL } from '../lib/types'
 import { vibrate } from '../lib/clipboard'
 import {
@@ -40,6 +40,7 @@ interface Props {
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
+  onSetPriority?: (p: Prompt, next: Priority) => void
   // Prompt optimization (owner-only): undefined hides the button on the cards.
   onOptimize?: (p: Prompt) => void
   optimizingIds?: number[]
@@ -114,6 +115,7 @@ export function Board({
   onOptimize,
   optimizingIds,
   onToggleBlocked,
+  onSetPriority,
   onMove,
   onMoveMany,
   selectMode,
@@ -321,6 +323,7 @@ export function Board({
           optimizeBusy={optimizingIds?.includes(p.id) ?? false}
           carried={dragIds.length > 1 && id !== activeId && dragIds.includes(id)}
           onToggleBlocked={onToggleBlocked}
+          onSetPriority={onSetPriority}
           selectMode={selectMode}
           selectedForMerge={selectedIds?.includes(id)}
           onToggleSelect={onToggleSelect}
@@ -338,6 +341,7 @@ export function Board({
       onModSelect,
       onOpen,
       onOptimize,
+      onSetPriority,
       onToggleBlocked,
       onToggleBookmark,
       onToggleSelect,

@@ -4,8 +4,8 @@ import { prefersReducedMotion, springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import { IS_MAC } from '../lib/platform'
 import { api } from '../lib/api'
-import type { Attachment, Project, Prompt, Status } from '../lib/types'
-import { STATUS_LABEL, STATUSES } from '../lib/types'
+import type { Attachment, Priority, Project, Prompt, Status } from '../lib/types'
+import { PRIORITIES, PRIORITY_LABEL, STATUS_LABEL, STATUSES } from '../lib/types'
 import { useCreatePrompt, usePrompts, useTags, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
 import {
@@ -128,6 +128,7 @@ export function PromptEditor({
     return Number.isFinite(n) && projects.some((p) => p.id === n) ? n : null
   })
   const [status, setStatus] = useState<Status>(editing?.status ?? 'queued')
+  const [priority, setPriority] = useState<Priority>(editing?.priority ?? 'normal')
   const [tags, setTags] = useState(editing?.tags ?? '')
   // Tags derived from the title fill the field until the user takes it over.
   // Editing counts as taken over from the start: the tags on an existing prompt
@@ -313,6 +314,7 @@ export function PromptEditor({
             body,
             title: cleanTitle,
             status,
+            priority,
             tags: cleanTags,
             project_id: projectId,
             unassign_project: projectId === null,
@@ -326,6 +328,7 @@ export function PromptEditor({
           title: cleanTitle || undefined,
           project_id: projectId,
           status,
+          priority,
           tags: cleanTags,
           attachment_ids,
           bookmarked: asBookmark || undefined,
@@ -556,6 +559,23 @@ export function PromptEditor({
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ flex: 1, minWidth: 180 }}>
+            <label htmlFor={id('priority')}>Priorität</label>
+            <select
+              id={id('priority')}
+              className="select"
+              data-prio={priority}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as Priority)}
+            >
+              {/* Urgent first — the list reads top-down like the queue it orders. */}
+              {PRIORITIES.map((level) => (
+                <option key={level} value={level}>
+                  {PRIORITY_LABEL[level]}
                 </option>
               ))}
             </select>

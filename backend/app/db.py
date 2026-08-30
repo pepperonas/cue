@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 from .config import get_settings
+from .ordering import BOARD_ORDER_SQL
 
 _settings = get_settings()
 _settings.ensure_dirs()
@@ -64,6 +65,9 @@ def _migrate(engine: Engine) -> None:
         "edited_at": "ALTER TABLE prompt ADD COLUMN edited_at TIMESTAMP",
         # Backfilled below from the decision history.
         "optimization_applied_at": "ALTER TABLE prompt ADD COLUMN optimization_applied_at TIMESTAMP",
+        # Urgency. The default is what makes this migration invisible: every
+        # existing prompt becomes `normal` and keeps its exact board position.
+        "priority": "ALTER TABLE prompt ADD COLUMN priority VARCHAR NOT NULL DEFAULT 'normal'",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
@@ -170,12 +174,12 @@ def _repair_sort_order(conn) -> None:  # noqa: ANN001
     """
     users = [row[0] for row in conn.exec_driver_sql("SELECT id FROM user")]
     statuses = [row[0] for row in conn.exec_driver_sql("SELECT DISTINCT status FROM prompt")]
-    # Same sequence the board renders (mirror of app/ordering.py:display_key):
-    # storing a different order than the one on screen is what made anchored
-    # moves land somewhere the user never pointed at.
-    board_order = (
-        "blocked, CASE WHEN status = 'done' AND tested = 1 THEN 1 ELSE 0 END, sort_order, id"
-    )
+    # Same sequence the board renders. The expression lives beside
+    # `display_key` in app/ordering.py so the two cannot drift unnoticed, and a
+    # test runs every contract case through both: storing a different order
+    # than the one on screen is what made anchored moves land somewhere the
+    # user never pointed at.
+    board_order = BOARD_ORDER_SQL
     for uid in users:
         for status_value in statuses:
             _densify(

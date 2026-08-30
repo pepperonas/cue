@@ -9,6 +9,7 @@ from pydantic import AfterValidator, BaseModel
 from .models import (
     OptimizationDecision,
     OptimizationStatus,
+    PromptPriority,
     PromptStatus,
     RunKind,
     RunStatus,
@@ -104,6 +105,7 @@ class PromptCreate(BaseModel):
     # Set when the prompt is created from the bookmarks tab: it has to land on
     # that shelf, otherwise the user creates something and sees nothing.
     bookmarked: bool = False
+    priority: PromptPriority = PromptPriority.normal
 
 
 class PromptUpdate(BaseModel):
@@ -115,6 +117,7 @@ class PromptUpdate(BaseModel):
     bookmarked: bool | None = None
     tested: bool | None = None
     blocked: bool | None = None
+    priority: PromptPriority | None = None
     # Additional attachments to associate with this prompt.
     attachment_ids: list[int] | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
@@ -133,6 +136,7 @@ class PromptRead(BaseModel):
     bookmark_order: int
     tested: bool
     blocked: bool
+    priority: PromptPriority = PromptPriority.normal
     created_at: Utc
     updated_at: Utc
     # Last content write; null only for rows a client of an older build wrote.
@@ -221,6 +225,9 @@ class MergeRequest(BaseModel):
     tags: str = ""
     # What to do with the source prompts after the merge.
     originals: Literal["delete", "archive", "keep"] = "delete"
+    # NOTE: no `priority` here on purpose — the merged prompt always inherits
+    # the HIGHEST of its sources, which is a rule, not a choice. The server
+    # derives it; see routers/prompts.py:merge_prompts.
 
 
 # ---- Run engine ----

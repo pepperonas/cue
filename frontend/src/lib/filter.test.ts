@@ -13,6 +13,7 @@ function prompt(id: number, extra: Partial<Prompt> = {}): Prompt {
     tags: '',
     bookmarked: false,
     bookmark_order: 0,
+    priority: 'normal',
     tested: false,
     blocked: false,
     optimized: false,

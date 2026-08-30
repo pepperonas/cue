@@ -2024,6 +2024,50 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   background: color-mix(in srgb, var(--md-error) 14%, transparent);
 }
 
+/* ── Priorität ────────────────────────────────────────────────────────
+   Only HIGH is tinted. The glyph already says which of the three a prompt is
+   (double arrow up / dash / double arrow down); colouring all three would put
+   three competing signals on a card that already carries six buttons, and
+   "normal" — nearly every prompt — is precisely the one that must not shout.
+   `--warn` rather than a bare hex: measured on the real card background,
+   5.71:1 light and 7.80:1 dark. A fixed amber cannot do both — the light
+   theme's version has to be darkened, which is exactly why this is a token. */
+.prio-btn[data-prio='high'] {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.prio-btn[data-prio='high']:hover {
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+}
+.prio-btn[data-prio='low'] {
+  color: var(--md-on-surface-variant);
+}
+.select[data-prio='high'] {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--md-outline));
+}
+
+/* The dropdown in the detail sheet's READ view: a labelled row, not a form
+   field — it sits among status chips and badges, so it must not span the
+   sheet like the editor's selects do. */
+.detail-prio {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+}
+.detail-prio > label {
+  flex: none;
+}
+.select--prio {
+  width: auto;
+  min-width: 148px;
+  padding: 10px 12px;
+}
+.detail-prio-note {
+  font-size: 0.8rem;
+}
+
 /* ── Board: "+N weitere" column expander ─────────────────────────────── */
 .col-more {
   display: flex;

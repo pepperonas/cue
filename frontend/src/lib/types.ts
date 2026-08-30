@@ -47,6 +47,25 @@ export interface Attachment {
   size: number
 }
 
+export const PRIORITIES = ['high', 'normal', 'low'] as const
+export type Priority = (typeof PRIORITIES)[number]
+
+/** German labels, in the order the dropdown offers them (urgent first). */
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  high: 'Hoch',
+  normal: 'Mittel',
+  low: 'Gering',
+}
+
+/** Glyph per level. The middle one is a plain dash on purpose: "normal" is
+ *  the default of almost every prompt, and an eye-catching icon for "nothing
+ *  special" would shout on every card. */
+export const PRIORITY_ICON: Record<Priority, string> = {
+  high: 'keyboard_double_arrow_up',
+  normal: 'remove',
+  low: 'keyboard_double_arrow_down',
+}
+
 export interface Prompt {
   id: number
   title: string
@@ -58,6 +77,8 @@ export interface Prompt {
   bookmarked: boolean
   bookmark_order: number
   tested: boolean
+  /** Urgency. Sorts the QUEUE only; absent on pre-0.51 responses. */
+  priority: Priority
   // AI optimization — `body` above always stays the untouched original.
   optimized: boolean
   optimized_body: string | null

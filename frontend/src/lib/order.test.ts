@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { columnComparator } from './order'
+import { columnComparator, nextPriority } from './order'
 import type { Prompt, Status } from './types'
 
 function p(id: number, over: Partial<Prompt> = {}): Prompt {
@@ -13,6 +13,7 @@ function p(id: number, over: Partial<Prompt> = {}): Prompt {
     tags: '',
     bookmarked: false,
     bookmark_order: 0,
+    priority: 'normal',
     tested: false,
     blocked: false,
     optimized: false,
@@ -118,5 +119,52 @@ describe('mirror of the backend display_key', () => {
       p(1, { status: 'done', tested: true, sort_order: 1, ran_at: '2026-07-01T10:00:00Z' }),
     ]
     expect(list.sort(columnComparator).map((x) => x.id)).toEqual([1, 2])
+  })
+})
+
+describe('priority bands the queue', () => {
+  const q = (id: number, priority: 'high' | 'normal' | 'low', sort_order: number) =>
+    p(id, { status: 'queued', priority, sort_order })
+
+  it('puts urgent work first, whatever was dragged where', () => {
+    const rows = [q(1, 'low', 1), q(2, 'normal', 2), q(3, 'high', 3)]
+    expect([...rows].sort(columnComparator).map((x) => x.id)).toEqual([3, 2, 1])
+  })
+
+  it('leaves the drag order in charge inside a band', () => {
+    const rows = [q(1, 'high', 9), q(2, 'high', 4)]
+    expect([...rows].sort(columnComparator).map((x) => x.id)).toEqual([2, 1])
+  })
+
+  it('ignores priority outside the queue', () => {
+    // Urgency answers "what next"; a finished prompt must not reshuffle Done.
+    const rows = [p(1, { status: 'done', priority: 'low', sort_order: 1 }),
+                  p(2, { status: 'done', priority: 'high', sort_order: 2 })]
+    expect([...rows].sort(columnComparator).map((x) => x.id)).toEqual([1, 2])
+  })
+
+  it('still sinks blocked prompts below an urgent one', () => {
+    const rows = [q(1, 'high', 1), q(2, 'low', 9)]
+    rows[0].blocked = true
+    expect([...rows].sort(columnComparator).map((x) => x.id)).toEqual([2, 1])
+  })
+})
+
+describe('nextPriority', () => {
+  it('reaches every level and returns home', () => {
+    // From the default one click makes a prompt urgent — the thing people
+    // actually reach for. Three clicks are a full circle from anywhere, so
+    // the cycle can never strand someone on a level they did not want.
+    expect(nextPriority('normal')).toBe('high')
+    expect(nextPriority('high')).toBe('low')
+    expect(nextPriority('low')).toBe('normal')
+    let level: ReturnType<typeof nextPriority> = 'normal'
+    const seen = new Set<string>()
+    for (let i = 0; i < 3; i++) {
+      level = nextPriority(level)
+      seen.add(level)
+    }
+    expect(seen).toEqual(new Set(['high', 'low', 'normal']))
+    expect(level).toBe('normal')
   })
 })

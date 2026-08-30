@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.0] - 2026-08-30
+
+### Added
+- **Priorität: gering · mittel · hoch.** Auf dem Board und in der Liste als
+  **Umschalter** an der Karte (ein Klick von „mittel" macht dringend, der
+  nächste macht gering, der dritte ist wieder mittel — drei Klicks sind von
+  überall ein voller Kreis), im Detail-Dialog als **Dropdown** — in der
+  Ansicht **und** im Bearbeiten-Modus.
+- **Hoch zuerst in der Queue.** Priorität bündelt die Warteschlange in drei
+  Bänder; innerhalb eines Bandes gilt weiter die selbst gezogene Reihenfolge.
+- **Beim Zusammenführen gewinnt immer die höchste** Priorität der Quellen. Das
+  ist keine Wahl im Dialog, sondern eine Regel: dringende Arbeit in einen
+  ruhigen Prompt zu falten darf sie nicht stillschweigend herabstufen. Der
+  Server leitet sie ab, das Formular schickt gar keine.
+- Ein Duplikat übernimmt die Priorität — eine Kopie von etwas Dringendem ist
+  ebenfalls dringend.
+
+### Changed
+- Der kompakte Umschalter erscheint **nur an Prompts in der Queue** — dieselbe
+  Regel wie beim Blockiert-Schalter, denn nur dort wirkt er. Der Dropdown im
+  Detail-Dialog ist überall verfügbar und sagt bei anderen Status dazu
+  „wirkt in der Queue".
+
+### Internal
+- Die Sortierregel steht jetzt an **drei** Stellen synchron: `display_key`,
+  `columnComparator` und — neu ausgewiesen — `BOARD_ORDER_SQL`, das die
+  Neunummerierung beim Start benutzt. Der geteilte Vertrag
+  (`contracts/column-order.json`) hat 5 neue Fälle, und ein neuer Test fährt
+  jeden davon zusätzlich durch **SQLite**: der dritte Spiegel war bis hierhin
+  ungetestet, und eine Abweichung dort schreibt still eine Reihenfolge fest,
+  die niemand sieht.
+- ⚠️ `priority_rank` vergleicht mit `==` statt über ein dict: `PromptPriority`
+  ist ein str-Enum, dessen Mitglieder zwar gleich ihrem Wert sind, aber **nicht
+  gleich hashen** — ein Dictionary-Zugriff ginge daneben.
+- Migration setzt jede bestehende Zeile auf `normal`; die Board-Position bleibt
+  damit exakt wie vorher (live an 21 Prompts geprüft).
+
 ## [0.50.0] - 2026-08-30
 
 ### Added
