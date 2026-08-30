@@ -1,4 +1,10 @@
 # Fallback for environments without uv. Mirrors pyproject.toml dependencies.
+#
+# ⚠️ This file is what the DOCKER IMAGE installs — pyproject.toml is not read
+# there. Adding a dependency to only one of the two builds an image that is
+# missing it, and the failure lands at import time in production, after the
+# health check has already swapped the container. `tests/test_deps_contract.py`
+# holds the two lists together so that cannot happen quietly again.
 fastapi>=0.115
 uvicorn[standard]>=0.32
 sqlmodel>=0.0.22
@@ -6,3 +12,5 @@ argon2-cffi>=23.1
 itsdangerous>=2.2
 python-multipart>=0.0.12
 pydantic>=2.9
+cryptography>=43.0
+anthropic>=0.40

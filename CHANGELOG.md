@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.1] - 2026-08-30
+
+### Fixed
+- ⚠️ **Zwei Abhängigkeitslisten, eine gepflegt — Produktion stand kurz auf 502.**
+  `cryptography` und `anthropic` landeten nur in `pyproject.toml`; das
+  Docker-Image installiert `backend/requirements.txt`. Der Build lief sauber
+  durch, der Container tauschte, und erst der Import scheiterte
+  (`ModuleNotFoundError`). Beide Pakete sind jetzt in beiden Listen.
+- **`tests/test_deps_contract.py`** hält die zwei Listen aneinander — gleiche
+  Pakete, gleiche Versionsgrenzen (mutationsgeprüft mit genau dem Ausfall, der
+  passiert ist).
+- **`ops/deploy.sh` testet das gebaute Image, bevor es umschaltet:** ein
+  Wegwerf-Container importiert `app.main`. Ein erfolgreicher Build sagt, dass
+  die Layer zusammengesetzt wurden — nicht, dass die App startet; der
+  Health-Check merkt es erst, wenn der alte Container schon weg ist.
+
 ## [0.54.0] - 2026-08-30
 
 ### Added

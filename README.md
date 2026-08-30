@@ -3,17 +3,17 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.54.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1146%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-519-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.54.1-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1149%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-522-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-476-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-97%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test files](https://img.shields.io/badge/test%20files-61-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-12516-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-62-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-12581-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
 [![LOC](https://img.shields.io/badge/LOC-30009-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-9824-3776AB.svg)](#)
@@ -199,11 +199,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 519 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 522 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
 | Frontend | `frontend/src/lib/` | 476 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1146** | | |
+| **Gesamt** | | **1149** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

@@ -28,6 +28,21 @@ cd "${CUE_DIR:-/opt/cue}"
 echo "==> Bauen (die laufende Instanz bleibt unberührt)"
 docker compose build
 
+# Smoke-test the IMAGE before the running container is touched.
+#
+# A build succeeding says the layers assembled, not that the app can start:
+# `cryptography` was added to pyproject.toml and not to requirements.txt (which
+# is what the image installs), the build was perfectly happy, and the swap took
+# production down with a ModuleNotFoundError at import time. Importing the app
+# in a throwaway container costs a second and catches exactly that class of
+# failure while the old container is still serving.
+echo "==> Image-Rauchtest (Import)"
+if ! docker compose run --rm --no-deps --entrypoint python cue -c "import app.main" >/dev/null; then
+  echo "FEHLER: das gebaute Image kann app.main nicht importieren — Deploy abgebrochen." >&2
+  echo "Die laufende Version bleibt unangetastet." >&2
+  exit 1
+fi
+
 echo "==> Umschalten und auf Gesundheit warten"
 # --wait needs a healthcheck; ours lives in the Dockerfile. --wait-timeout keeps
 # a hanging start from blocking the deploy forever.
