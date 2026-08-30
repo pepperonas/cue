@@ -142,6 +142,12 @@ class ClaudeCliService:
                 exit_code=exit_code,
                 duration_ms=duration_ms,
                 error=error,
+                # Present only when the CLI reported them alongside the error;
+                # None otherwise, which the statistics count as "nicht erfasst"
+                # rather than as zero.
+                cost_usd=parsed.get("cost_usd"),
+                input_tokens=parsed.get("input_tokens"),
+                output_tokens=parsed.get("output_tokens"),
             )
         return OptimizationOutcome(
             status="succeeded",
@@ -172,11 +178,18 @@ class ClaudeCliService:
                 payload = json.loads(text[start:])
         if not isinstance(payload, dict):
             return {"text": text}  # plain-text fallback
-        if payload.get("is_error"):
-            return {
-                "error": str(payload.get("result") or payload.get("error") or "CLI meldete einen Fehler")[:800]
-            }
         usage = payload.get("usage") or {}
+        if payload.get("is_error"):
+            # A failed attempt can still have burned tokens, and the envelope
+            # carries the accounting either way. Dropping it here made every
+            # failure look free in the cost statistics — the money was spent,
+            # we simply stopped writing it down.
+            return {
+                "error": str(payload.get("result") or payload.get("error") or "CLI meldete einen Fehler")[:800],
+                "cost_usd": _as_float(payload.get("total_cost_usd")),
+                "input_tokens": _as_int(usage.get("input_tokens")),
+                "output_tokens": _as_int(usage.get("output_tokens")),
+            }
         models = payload.get("modelUsage") or {}
         return {
             "text": str(payload.get("result") or "").strip(),

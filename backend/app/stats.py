@@ -28,16 +28,20 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from . import changes
 from .models import (
     CaptureSession,
     CapturedPrompt,
+    OptimizationDecision,
+    OptimizationStatus,
     Project,
     Prompt,
     PromptEvent,
     PromptEventType,
+    PromptOptimization,
     PromptStatus,
     PromptTag,
     Run,
@@ -46,6 +50,39 @@ from .models import (
     Snippet,
     Tag,
 )
+
+# ------------------------------------------------------------------- money
+#
+# HOW OPTIMIZATION COST IS DETERMINED — read this before touching the numbers.
+#
+# 1. The figure is the one the PROVIDER reported: the Claude CLI prints
+#    `total_cost_usd` in its `--output-format json` envelope, and the runner
+#    stores it verbatim in `PromptOptimization.cost_usd`
+#    (cue-runner/cue_runner/optimize/providers.py). It is therefore not our
+#    estimate but the provider's own accounting — the UI says so.
+#
+# 2. There is deliberately NO price-per-token fallback. The stored
+#    `input_tokens` come from `usage.input_tokens`, which EXCLUDES cached and
+#    system input; measured on the live data, 34 successful optimizations
+#    report 68 input tokens in total for 14 125 characters of source text
+#    (≈3 500 tokens at 4 chars/token). A price × tokens computation from these
+#    columns would understate the input side by roughly fifty times, so it
+#    would not be an estimate but a wrong number wearing one's clothes.
+#
+# 3. Attempts without a reported cost are counted and shown as such
+#    ("nicht erfasst"), never spread across the others or silently treated as
+#    zero. In practice these are the failed and canceled ones: the CLI's error
+#    envelope reaches the runner without cost fields.
+#
+# Unit: US dollars as a float, matching `Run.total_cost_usd` and the existing
+# run-cost KPIs. Not integer cents — the surrounding code does not, and one
+# half of the money in this dashboard being cents would be worse than either
+# convention consistently applied.
+COST_CURRENCY = "USD"
+#: How many decimals the payload carries. Single optimizations run to ~$1.4,
+#: so cents would round several of them to the same number.
+COST_DECIMALS = 4
+
 
 # ---------------------------------------------------------------- time ranges
 
@@ -293,6 +330,7 @@ class _Data:
     sessions: list[CaptureSession] = field(default_factory=list)
     runs: list[Run] = field(default_factory=list)
     steps: list[RunStep] = field(default_factory=list)
+    optimizations: list[PromptOptimization] = field(default_factory=list)
     snippets: int = 0
     tags: list[Tag] = field(default_factory=list)
     tag_links: list[tuple[int, int]] = field(default_factory=list)  # (prompt_id, tag_id)
@@ -320,6 +358,9 @@ def _load(session: Session, uid: int) -> _Data:
     run_ids = [r.id for r in data.runs]
     if run_ids:
         data.steps = session.exec(select(RunStep).where(RunStep.run_id.in_(run_ids))).all()
+    data.optimizations = session.exec(
+        select(PromptOptimization).where(PromptOptimization.user_id == uid)
+    ).all()
     data.snippets = len(session.exec(select(Snippet.id).where(Snippet.user_id == uid)).all())
     data.tags = list(session.exec(select(Tag).where(Tag.user_id == uid)).all())
     tag_ids = [t.id for t in data.tags]
@@ -755,12 +796,18 @@ def _ai_section(data: _Data, rng: TimeRange) -> dict[str, Any] | None:
         }
         for b in buckets
     ]
+    # Accumulate at full precision and round ONCE per bucket. Rounding inside
+    # the loop let the error compound: the bars then no longer summed to the
+    # total printed above them, which is the kind of small lie that costs a
+    # dashboard its credibility.
     for run, cost in costs:
         moment = _local(run.created_at, tz)
         pos = index.get(bucket_key(moment, rng.granularity)) if moment else None
         if pos is not None:
-            cost_series[pos]["cost"] = round(cost_series[pos]["cost"] + cost, 4)
+            cost_series[pos]["cost"] += cost
             cost_series[pos]["runs"] += 1
+    for bucket in cost_series:
+        bucket["cost"] = round(bucket["cost"], 4)
 
     by_model: Counter = Counter((r.model or "Standard") for r in runs)
     by_status: Counter = Counter(r.status.value for r in runs)
@@ -779,6 +826,169 @@ def _ai_section(data: _Data, rng: TimeRange) -> dict[str, Any] | None:
         "by_status": [{"status": key, "count": count} for key, count in by_status.most_common()],
         "lifetime_cost": round(sum(r.total_cost_usd or 0.0 for r in data.runs), 4),
         "lifetime_runs": len(data.runs),
+    }
+
+
+def _optimization_section(data: _Data, rng: TimeRange) -> dict[str, Any] | None:
+    """What the AI rewriting of prompts produced, and what it cost.
+
+    None when the tenant never optimized anything — an empty panel of zeroes
+    says nothing except that a feature exists.
+
+    Cost is the provider's own reported figure; see the money block at the top
+    of this module for why nothing here is derived from the token columns.
+    """
+    if not data.optimizations:
+        return None
+    tz = rng.tz
+
+    def created(row: PromptOptimization) -> datetime | None:
+        return _local(row.created_at, tz)
+
+    rows = [o for o in data.optimizations if _in(created(o), rng.start, rng.end)]
+    prev = [o for o in data.optimizations if _in(created(o), rng.prev_start, rng.prev_end)]
+    if not rows and not prev:
+        # The feature was used, just not in this window. Still return the
+        # lifetime figures so the panel does not vanish when you look at today.
+        rows = []
+
+    done = [o for o in rows if o.status == OptimizationStatus.succeeded]
+    failed = [o for o in rows if o.status == OptimizationStatus.failed]
+    canceled = [o for o in rows if o.status == OptimizationStatus.canceled]
+    finished = done + failed
+
+    # "Optimized prompts" = prompts that actually got a rewrite back, not
+    # prompts someone pressed the button on.
+    prompts_done = {o.prompt_id for o in done}
+    applied = [o for o in rows if o.decision == OptimizationDecision.applied]
+    discarded = [o for o in rows if o.decision == OptimizationDecision.discarded]
+    decided = len(applied) + len(discarded)
+
+    priced = [o for o in rows if o.cost_usd is not None]
+    cost_sum = sum(o.cost_usd or 0.0 for o in priced)
+    prev_cost = sum(o.cost_usd or 0.0 for o in prev if o.cost_usd is not None)
+    # Attempts that cost something we cannot name. Reported, never guessed and
+    # never folded into the average as if they were free.
+    unpriced = len(rows) - len(priced)
+
+    durations = [o.duration_ms / 1000 for o in rows if o.duration_ms]
+    out_tokens = [o.output_tokens for o in rows if o.output_tokens]
+
+    # Individual values per prompt — the question "which prompt ate the money"
+    # is the one a total cannot answer.
+    per_prompt: dict[int, dict[str, Any]] = {}
+    titles = {p.id: p.title for p in data.prompts}
+    for row in priced:
+        entry = per_prompt.setdefault(
+            row.prompt_id,
+            {"prompt_id": row.prompt_id, "title": titles.get(row.prompt_id, "—"), "attempts": 0, "cost": 0.0},
+        )
+        entry["attempts"] += 1
+        entry["cost"] += row.cost_usd or 0.0
+    top_prompts = sorted(per_prompt.values(), key=lambda e: e["cost"], reverse=True)[:8]
+    for entry in top_prompts:
+        entry["cost"] = round(entry["cost"], COST_DECIMALS)
+
+    # Per model, because that is where the money actually differs: the same job
+    # on two models is the comparison a single total hides.
+    models: dict[str, dict[str, Any]] = {}
+    for row in done:
+        entry = models.setdefault(
+            row.model or "unbekannt",
+            {"model": row.model or "unbekannt", "attempts": 0, "cost": 0.0, "priced": 0, "tokens": 0},
+        )
+        entry["attempts"] += 1
+        if row.cost_usd is not None:
+            entry["cost"] += row.cost_usd
+            entry["priced"] += 1
+        entry["tokens"] += row.output_tokens or 0
+    by_model = []
+    for entry in sorted(models.values(), key=lambda e: e["cost"], reverse=True):
+        by_model.append(
+            {
+                "model": entry["model"],
+                "attempts": entry["attempts"],
+                "cost": round(entry["cost"], COST_DECIMALS),
+                "cost_avg": round(entry["cost"] / entry["priced"], COST_DECIMALS)
+                if entry["priced"]
+                else None,
+                "tokens_avg": round(entry["tokens"] / entry["attempts"]) if entry["attempts"] else 0,
+            }
+        )
+
+    # How much longer the rewrite makes a prompt. The MEDIAN factor, not the
+    # mean: the distribution is dominated by one-line prompts that come back as
+    # a full brief, where the ratio runs into the dozens and drags a mean far
+    # away from anything typical.
+    factors = [
+        len(o.optimized_text) / len(o.original_text)
+        for o in applied
+        if o.optimized_text and o.original_text
+    ]
+    length_factor = round(_percentile(factors, 0.5), 2) if factors else None
+
+    buckets = bucket_starts(rng)
+    index = {bucket_key(b, rng.granularity): i for i, b in enumerate(buckets)}
+    cost_series: list[dict[str, Any]] = [
+        {
+            "t": bucket_key(b, rng.granularity),
+            "label": bucket_label(bucket_key(b, rng.granularity), rng.granularity),
+            "cost": 0.0,
+            "attempts": 0,
+        }
+        for b in buckets
+    ]
+    # Full precision while summing, rounded once at the end — see the same note
+    # in `_ai_section`: bars that do not add up to their own total read as a
+    # bug in the numbers, and here they would be one.
+    for row in rows:
+        moment = created(row)
+        pos = index.get(bucket_key(moment, rng.granularity)) if moment else None
+        if pos is not None:
+            cost_series[pos]["cost"] += row.cost_usd or 0.0
+            cost_series[pos]["attempts"] += 1
+    for bucket in cost_series:
+        bucket["cost"] = round(bucket["cost"], COST_DECIMALS)
+
+    lifetime_done = [o for o in data.optimizations if o.status == OptimizationStatus.succeeded]
+    repeats = Counter(o.prompt_id for o in lifetime_done)
+
+    return {
+        "currency": COST_CURRENCY,
+        "attempts": _kpi(len(rows), len(prev)),
+        "prompts_optimized": len(prompts_done),
+        "succeeded": len(done),
+        "failed": len(failed),
+        "canceled": len(canceled),
+        # Guarded everywhere: an empty window must not divide by its own size.
+        "success_rate": round(len(done) / len(finished) * 100, 1) if finished else None,
+        "accept_rate": round(len(applied) / decided * 100, 1) if decided else None,
+        "applied": len(applied),
+        "discarded": len(discarded),
+        "pending": len([o for o in rows if o.decision == OptimizationDecision.pending and o.status == OptimizationStatus.succeeded]),
+        "cost_total": round(cost_sum, COST_DECIMALS),
+        "cost_previous": round(prev_cost, COST_DECIMALS),
+        "cost_delta_pct": _delta_pct(cost_sum, prev_cost),
+        # "per prompt" and "per attempt" are different questions: a prompt
+        # optimized three times cost three attempts' worth.
+        "cost_per_prompt": round(cost_sum / len(prompts_done), COST_DECIMALS)
+        if prompts_done
+        else None,
+        "cost_per_attempt": round(cost_sum / len(priced), COST_DECIMALS) if priced else None,
+        "cost_unpriced": unpriced,
+        "top_prompts": top_prompts,
+        "by_model": by_model,
+        "avg_duration_s": round(sum(durations) / len(durations), 1) if durations else None,
+        "output_tokens": sum(out_tokens),
+        "length_factor": length_factor,
+        "cost_series": cost_series,
+        "lifetime_attempts": len(data.optimizations),
+        "lifetime_prompts": len({o.prompt_id for o in lifetime_done}),
+        "lifetime_cost": round(
+            sum(o.cost_usd or 0.0 for o in data.optimizations if o.cost_usd is not None),
+            COST_DECIMALS,
+        ),
+        "lifetime_repeated": len([pid for pid, n in repeats.items() if n > 1]),
     }
 
 
@@ -825,6 +1035,31 @@ def _cache_put(key: tuple, payload: dict[str, Any]) -> None:
 # -------------------------------------------------------------------- public
 
 
+def _optimization_signature(session: Session, uid: int) -> tuple[int, int, int, int]:
+    """Cheap "has anything about the optimizations moved" value.
+
+    Four indexed counts rather than a digest: rows are never updated after a
+    terminal status, so (how many exist, the newest id, how many finished, how
+    many were decided) moves on every transition the dashboard shows. The
+    queued→running flip is deliberately not covered — no number here reports
+    it.
+    """
+    where = PromptOptimization.user_id == uid
+    total = session.exec(select(func.count()).select_from(PromptOptimization).where(where)).one()
+    newest = session.exec(select(func.max(PromptOptimization.id)).where(where)).one() or 0
+    finished = session.exec(
+        select(func.count())
+        .select_from(PromptOptimization)
+        .where(where, PromptOptimization.status != OptimizationStatus.queued)
+    ).one()
+    decided = session.exec(
+        select(func.count())
+        .select_from(PromptOptimization)
+        .where(where, PromptOptimization.decision != OptimizationDecision.pending)
+    ).one()
+    return (total, newest, finished, decided)
+
+
 def first_activity(session: Session, uid: int) -> datetime | None:
     """Earliest known timestamp for a tenant — the floor of the "all" preset."""
     stamps = [
@@ -854,6 +1089,12 @@ def build(session: Session, uid: int, rng: TimeRange, *, use_cache: bool = True)
         # `events.prune()` deletes activity history without touching any of
         # them, and the counter covers that.
         changes.cursor_for(session, uid),
+        # The shared fingerprint does not watch `prompt_optimization` — that
+        # table is not part of the live-sync contract, and adding it there just
+        # to key a cache would make every client refetch on it. A FAILED
+        # attempt touches no prompt row, so without this the failure count
+        # would sit behind the TTL for two minutes.
+        _optimization_signature(session, uid),
         rng.key,
         rng.start.isoformat(),
         rng.end.isoformat(),
@@ -882,6 +1123,7 @@ def build(session: Session, uid: int, rng: TimeRange, *, use_cache: bool = True)
         "tags": _tag_section(data, rng),
         "activity": _activity_section(data, rng),
         "ai": _ai_section(data, rng),
+        "optimization": _optimization_section(data, rng),
         "library": {
             "snippets": data.snippets,
             "sessions_total": len(data.sessions),

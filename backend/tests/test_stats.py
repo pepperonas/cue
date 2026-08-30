@@ -471,3 +471,214 @@ def test_an_unchanged_tenant_still_gets_a_cached_answer(client, monkeypatch):
     _stats(client, headers)
 
     assert builds["n"] == 0, f"rebuilt {builds['n']}x although nothing changed"
+
+
+# --------------------------------------------------- AI optimization costs
+
+
+def _seed_optimizations(client, rows: list[dict]) -> dict[str, int]:
+    """Write optimization attempts straight to the table.
+
+    Going through the API would need a live runner; the statistics read the
+    stored rows, so this is what the section actually sees.
+    """
+    import app.db as db_module
+    from sqlmodel import Session, select
+
+    from app.models import (
+        OptimizationDecision,
+        OptimizationStatus,
+        Prompt,
+        PromptOptimization,
+        User,
+        utcnow,
+    )
+
+    ids: dict[str, int] = {}
+    with Session(db_module.engine) as s:
+        uid = s.exec(select(User)).first().id
+        prompts = s.exec(select(Prompt).where(Prompt.user_id == uid)).all()
+        for spec in rows:
+            prompt = prompts[spec["prompt"]]
+            ids[str(spec["prompt"])] = prompt.id
+            s.add(
+                PromptOptimization(
+                    user_id=uid,
+                    prompt_id=prompt.id,
+                    version=spec.get("version", 1),
+                    status=OptimizationStatus(spec.get("status", "succeeded")),
+                    decision=OptimizationDecision(spec.get("decision", "applied")),
+                    model=spec.get("model", "claude-opus-5"),
+                    cost_usd=spec.get("cost"),
+                    output_tokens=spec.get("out_tokens"),
+                    duration_ms=spec.get("duration_ms"),
+                    original_text=spec.get("original", "kurz"),
+                    optimized_text=spec.get("optimized", "deutlich laenger als vorher"),
+                    created_at=utcnow(),
+                )
+            )
+        s.commit()
+    return ids
+
+
+def test_no_optimization_section_without_optimizations(client):
+    """An empty panel of zeroes says nothing except that a feature exists."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    assert client.get("/api/stats?range=7d", headers=headers).json()["optimization"] is None
+
+
+def test_optimization_counts_prompts_not_attempts(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    for i in range(3):
+        _mk(client, headers, body=f"Prompt {i}")
+    _seed_optimizations(
+        client,
+        [
+            {"prompt": 0, "cost": 1.25, "out_tokens": 900, "duration_ms": 20000},
+            # Same prompt again: two attempts, still ONE optimized prompt.
+            {"prompt": 0, "version": 2, "cost": 0.75, "out_tokens": 500, "duration_ms": 30000},
+            {"prompt": 1, "cost": 2.0, "out_tokens": 1100, "duration_ms": 40000},
+        ],
+    )
+    opt = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    assert opt["attempts"]["value"] == 3
+    assert opt["prompts_optimized"] == 2
+    assert opt["succeeded"] == 3
+    assert opt["cost_total"] == 4.0
+    # Per PROMPT and per ATTEMPT are different questions, and both are asked.
+    assert opt["cost_per_prompt"] == 2.0
+    assert opt["cost_per_attempt"] == round(4.0 / 3, 4)
+    assert opt["currency"] == "USD"
+    assert opt["lifetime_repeated"] == 1
+    assert opt["avg_duration_s"] == 30.0
+    assert opt["output_tokens"] == 2500
+
+
+def test_individual_prompt_costs_are_reported_not_just_the_total(client):
+    """"Which prompt ate the money" is the question a total cannot answer."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    for i in range(2):
+        _mk(client, headers, body=f"Prompt {i}")
+    _seed_optimizations(
+        client,
+        [
+            {"prompt": 0, "cost": 0.5},
+            {"prompt": 1, "cost": 3.0},
+            {"prompt": 1, "version": 2, "cost": 1.0},
+        ],
+    )
+    top = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]["top_prompts"]
+    assert [row["cost"] for row in top] == [4.0, 0.5]
+    assert top[0]["attempts"] == 2
+    assert top[0]["title"]
+
+
+def test_attempts_without_a_reported_cost_are_shown_not_averaged_in(client):
+    """A failed attempt whose cost the CLI never reported is "nicht erfasst".
+
+    Counting it as 0 would drag every average down and quietly claim the
+    attempt was free.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    _seed_optimizations(
+        client,
+        [
+            {"prompt": 0, "cost": 2.0},
+            {"prompt": 0, "version": 2, "status": "failed", "decision": "pending", "cost": None},
+        ],
+    )
+    opt = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    assert opt["attempts"]["value"] == 2
+    assert opt["failed"] == 1
+    assert opt["cost_unpriced"] == 1
+    assert opt["cost_total"] == 2.0
+    # Divided by the PRICED attempt only — 1.0 would be the wrong answer.
+    assert opt["cost_per_attempt"] == 2.0
+    assert opt["success_rate"] == 50.0
+
+
+def test_cost_per_prompt_is_defined_when_nothing_succeeded(client):
+    """Zero optimized prompts must not divide by zero — and must not read as
+    "costs nothing" either."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    _seed_optimizations(
+        client,
+        [{"prompt": 0, "status": "failed", "decision": "pending", "cost": None}],
+    )
+    opt = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    assert opt["prompts_optimized"] == 0
+    assert opt["cost_per_prompt"] is None
+    assert opt["cost_per_attempt"] is None
+    assert opt["cost_total"] == 0.0
+    assert opt["cost_unpriced"] == 1
+
+
+def test_cost_is_broken_down_by_model(client):
+    """Where the money differs is between models — a single total hides it."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    _seed_optimizations(
+        client,
+        [
+            {"prompt": 0, "model": "claude-opus-5", "cost": 1.0, "out_tokens": 1000},
+            {"prompt": 0, "version": 2, "model": "claude-opus-5", "cost": 2.0, "out_tokens": 2000},
+            {"prompt": 0, "version": 3, "model": "claude-fable-5", "cost": 5.0, "out_tokens": 2500},
+        ],
+    )
+    by_model = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]["by_model"]
+    rows = {row["model"]: row for row in by_model}
+    assert rows["claude-fable-5"]["cost_avg"] == 5.0
+    assert rows["claude-opus-5"]["cost_avg"] == 1.5
+    assert rows["claude-opus-5"]["tokens_avg"] == 1500
+    # Sorted by spend, so the expensive one is the first thing read.
+    assert by_model[0]["model"] == "claude-fable-5"
+
+
+def test_a_finished_optimization_is_not_hidden_behind_the_cache(client):
+    """A FAILED attempt touches no prompt row, so the shared change fingerprint
+    does not move — without its own signature the failure count would sit
+    behind the 120 s TTL."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    _seed_optimizations(client, [{"prompt": 0, "cost": 1.0}])
+    first = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    assert first["attempts"]["value"] == 1
+
+    _seed_optimizations(
+        client,
+        [{"prompt": 0, "version": 2, "status": "failed", "decision": "pending", "cost": None}],
+    )
+    second = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    assert second["attempts"]["value"] == 2, "the cached payload outlived the new attempt"
+    assert second["failed"] == 1
+
+
+def test_a_bucket_is_the_exact_sum_of_its_attempts_rounded_once(client):
+    """Rounding after every addition let the error compound.
+
+    Verified by construction rather than by hope: three attempts at $0.00005
+    come to $0.00015, which rounds to $0.0002 — while rounding after each
+    addition yields $0.0003, a 50 % overstatement of that bar. The same
+    mechanism cost the live dashboard $0.0002 across 66 daily buckets, where
+    the bars no longer summed to the total printed above them.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers)
+    _seed_optimizations(
+        client, [{"prompt": 0, "version": i + 1, "cost": 0.00005} for i in range(3)]
+    )
+    opt = client.get("/api/stats?range=7d", headers=headers).json()["optimization"]
+    today = [bucket for bucket in opt["cost_series"] if bucket["attempts"] == 3]
+    assert len(today) == 1, "all three attempts belong in one bucket"
+    assert today[0]["cost"] == 0.0002, "the bar was accumulated at reduced precision"

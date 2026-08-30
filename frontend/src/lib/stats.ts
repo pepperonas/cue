@@ -59,6 +59,17 @@ export function formatCost(usd: number): string {
   }).format(usd)
 }
 
+/**
+ * A cost that may not exist.
+ *
+ * "—" rather than "$0.00": zero optimized prompts is not the same statement as
+ * "it was free", and the difference is the whole point of the unpriced-attempt
+ * counter next to it.
+ */
+export function formatCostOrDash(usd: number | null | undefined): string {
+  return usd == null ? '—' : formatCost(usd)
+}
+
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '–'
   return `${trimZero(value)} %`

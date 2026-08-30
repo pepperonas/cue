@@ -33,6 +33,7 @@ import {
   formatCost,
   formatDay,
   formatHours,
+  formatCostOrDash,
   formatNumber,
   formatPercent,
   formatRelative,
@@ -89,6 +90,7 @@ export function StatsView({
           <ActivitySection data={data} theme={theme} />
           <ProjectSection data={data} theme={theme} />
           <TagSection data={data} theme={theme} />
+          <OptimizationSection data={data} theme={theme} />
           <AiSection data={data} theme={theme} />
           <footer className="stats-foot">
             Zeitraum {new Date(data.range.from).toLocaleDateString('de-DE')} –{' '}
@@ -715,6 +717,171 @@ function TagSection({ data, theme }: { data: Stats; theme: Theme }) {
               ))}
             </ul>
           )}
+        </ChartCard>
+      </div>
+    </section>
+  )
+}
+
+function OptimizationSection({ data, theme }: { data: Stats; theme: Theme }) {
+  const opt = data.optimization
+  const axis = { stroke: theme.textDim, fontSize: 11, tickLine: false, axisLine: false }
+  if (!opt) return null
+  // Everything below is the provider's own reported figure. Saying so once, in
+  // the section head, beats an asterisk on every number — and the difference
+  // matters: nobody should read these as our estimate.
+  const note =
+    `${opt.lifetime_prompts} Prompts optimiert · ${opt.lifetime_attempts} Versuche · ` +
+    `${opt.lifetime_repeated} mehrfach · ${formatCost(opt.lifetime_cost)} ` +
+    `(${opt.currency}, von der Claude-CLI gemeldet)`
+  return (
+    <section className="stats-section">
+      <SectionHead icon="auto_awesome" title="Prompt-Optimierung" note={note} />
+      <div className="stats-grid">
+        <ChartCard
+          index={0}
+          title="Umfang & Kosten"
+          subtitle="Im gewählten Zeitraum"
+        >
+          <dl className="fact-list">
+            <div>
+              <dt>optimierte Prompts</dt>
+              <dd>{formatNumber(opt.prompts_optimized)}</dd>
+            </div>
+            <div>
+              <dt>Versuche</dt>
+              <dd>{formatNumber(opt.attempts.value)}</dd>
+            </div>
+            <div>
+              <dt>Kosten gesamt</dt>
+              <dd>{formatCost(opt.cost_total)}</dd>
+            </div>
+            <div>
+              <dt>je Prompt</dt>
+              <dd>{formatCostOrDash(opt.cost_per_prompt)}</dd>
+            </div>
+            <div>
+              <dt>je Versuch</dt>
+              <dd>{formatCostOrDash(opt.cost_per_attempt)}</dd>
+            </div>
+            <div>
+              <dt>Ø Dauer</dt>
+              <dd>{formatSeconds(opt.avg_duration_s)}</dd>
+            </div>
+          </dl>
+          {/* Only rendered when there is something to admit — a permanent
+              "0 ohne Kostenmeldung" would be noise pretending to be a metric. */}
+          {opt.cost_unpriced > 0 && (
+            <p className="stats-note">
+              {opt.cost_unpriced} Versuch{opt.cost_unpriced === 1 ? '' : 'e'} ohne
+              Kostenmeldung der CLI — als „nicht erfasst" geführt, nicht als 0 gewertet.
+            </p>
+          )}
+        </ChartCard>
+
+        <ChartCard index={1} title="Ergebnis" subtitle="Erfolg und Übernahme">
+          <div className="streak-row">
+            <div className="streak-box">
+              <span className="streak-value">{formatPercent(opt.success_rate)}</span>
+              <span className="streak-label">Erfolgsquote</span>
+            </div>
+            <div className="streak-box">
+              <span className="streak-value">{formatPercent(opt.accept_rate)}</span>
+              <span className="streak-label">Übernahmequote</span>
+            </div>
+          </div>
+          <ul className="legend-list">
+            <li>
+              <i style={{ background: STATUS_COLORS.done }} />
+              übernommen
+              <b>{opt.applied}</b>
+            </li>
+            <li>
+              <i style={{ background: STATUS_COLORS.queued }} />
+              verworfen
+              <b>{opt.discarded}</b>
+            </li>
+            <li>
+              <i style={{ background: theme.tertiary }} />
+              offen
+              <b>{opt.pending}</b>
+            </li>
+            <li>
+              <i style={{ background: STATUS_COLORS.failed }} />
+              fehlgeschlagen
+              <b>{opt.failed}</b>
+            </li>
+          </ul>
+          {opt.length_factor != null && (
+            <p className="stats-note">
+              Übernommene Fassungen sind im Median {opt.length_factor.toLocaleString('de-DE')}×
+              so lang wie das Original.
+            </p>
+          )}
+        </ChartCard>
+
+        <ChartCard index={2} title="Kosten je Modell" subtitle="Nur erfolgreiche Versuche">
+          {opt.by_model.length === 0 ? (
+            <p className="stats-note">Kein erfolgreicher Versuch im Zeitraum.</p>
+          ) : (
+            <ul className="legend-list">
+              {opt.by_model.map((row) => (
+                <li key={row.model}>
+                  <i style={{ background: theme.primary }} />
+                  {row.model}
+                  <b>
+                    {formatCost(row.cost)} · Ø {formatCostOrDash(row.cost_avg)}
+                  </b>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ChartCard>
+
+        {opt.top_prompts.length > 0 && (
+          <ChartCard
+            index={3}
+            title="Teuerste Prompts"
+            subtitle="Einzelwerte je Prompt im Zeitraum"
+          >
+            <ul className="legend-list">
+              {opt.top_prompts.map((row) => (
+                <li key={row.prompt_id}>
+                  <i style={{ background: theme.tertiary }} />
+                  {row.title || `#${row.prompt_id}`}
+                  <b>
+                    {formatCost(row.cost)}
+                    {row.attempts > 1 ? ` · ${row.attempts}×` : ''}
+                  </b>
+                </li>
+              ))}
+            </ul>
+          </ChartCard>
+        )}
+
+        <ChartCard index={4} wide title="Ausgaben je Intervall" subtitle="Prompt-Optimierungen">
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+            <AreaChart data={opt.cost_series} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="grad-opt-cost" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={theme.primary} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={theme.primary} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={theme.grid} vertical={false} />
+              <XAxis dataKey="label" {...axis} minTickGap={18} />
+              <YAxis {...axis} width={52} tickFormatter={(v) => `$${v}`} />
+              <Tooltip {...theme.tooltip} formatter={unitFormatter('Kosten', formatCost)} />
+              <Area
+                type="monotone"
+                dataKey="cost"
+                name="Kosten"
+                stroke={theme.primary}
+                fill="url(#grad-opt-cost)"
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </ChartCard>
       </div>
     </section>

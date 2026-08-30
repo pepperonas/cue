@@ -410,6 +410,53 @@ export interface AiStats {
   lifetime_runs: number
 }
 
+/**
+ * Prompt optimization: how much AI rewriting happened and what it cost.
+ *
+ * ⚠️ `cost_*` is the figure the provider REPORTED (the Claude CLI prints
+ * `total_cost_usd`), not a price × tokens calculation of ours — see the money
+ * block at the top of `backend/app/stats.py` for why the stored token columns
+ * cannot carry one. `cost_unpriced` counts the attempts that came back with no
+ * accounting at all; they are shown as such and never averaged in as zero.
+ */
+export interface OptimizationStats {
+  currency: string
+  attempts: Kpi
+  prompts_optimized: number
+  succeeded: number
+  failed: number
+  canceled: number
+  success_rate: number | null
+  accept_rate: number | null
+  applied: number
+  discarded: number
+  pending: number
+  cost_total: number
+  cost_previous: number
+  cost_delta_pct: number | null
+  /** null when nothing succeeded in the window — never 0, which would read as free. */
+  cost_per_prompt: number | null
+  cost_per_attempt: number | null
+  cost_unpriced: number
+  top_prompts: { prompt_id: number; title: string; attempts: number; cost: number }[]
+  by_model: {
+    model: string
+    attempts: number
+    cost: number
+    cost_avg: number | null
+    tokens_avg: number
+  }[]
+  avg_duration_s: number | null
+  output_tokens: number
+  /** Median length factor original → accepted rewrite. */
+  length_factor: number | null
+  cost_series: { t: string; label: string; cost: number; attempts: number }[]
+  lifetime_attempts: number
+  lifetime_prompts: number
+  lifetime_cost: number
+  lifetime_repeated: number
+}
+
 export interface Stats {
   range: StatsRange
   prompts: PromptStats
@@ -417,6 +464,7 @@ export interface Stats {
   tags: TagStats
   activity: ActivityStats
   ai: AiStats | null
+  optimization: OptimizationStats | null
   library: { snippets: number; sessions_total: number; captured_total: number }
   generated_at: string
 }

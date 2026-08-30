@@ -4,6 +4,44 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.0] - 2026-08-30
+
+### Added
+- **Statistik-Abschnitt „Prompt-Optimierung".** Wie viele Prompts die KI
+  umgeschrieben hat und was das gekostet hat — **gesamt**, **je Prompt**, **je
+  Versuch** und als **Einzelwerte** (die teuersten Prompts mit Anzahl der
+  Versuche). Dazu Erfolgs- und Übernahmequote, Kosten je Modell (Gesamt und
+  Durchschnitt), Ø Dauer, Output-Tokens, der Median-Längenfaktor
+  Original → übernommene Fassung und eine Kostenkurve je Intervall.
+- ⚠️ **Die Kosten sind gemeldet, nicht geschätzt.** Es ist die Zahl, die die
+  Claude-CLI selbst im `--output-format json`-Umschlag ausgibt
+  (`total_cost_usd`), gespeichert in `PromptOptimization.cost_usd`. Der
+  Abschnittskopf sagt das ausdrücklich. Bewusst gibt es **keine** Hochrechnung
+  aus Tokenpreisen: die gespeicherten `input_tokens` enthalten keine
+  Cache-/System-Eingaben — auf den Livedaten stehen **68 Input-Tokens für
+  14 125 Zeichen Quelltext** (≈3 500 Tokens). Preis × Tokens aus diesen Spalten
+  wäre keine Schätzung, sondern eine falsche Zahl im Gewand einer.
+- Versuche ohne Kostenmeldung werden **gezählt und ausgewiesen** („nicht
+  erfasst"), nie als 0 mitgemittelt.
+
+### Fixed
+- **Der Runner verwarf die Abrechnung fehlgeschlagener Optimierungen.** Der
+  CLI-Umschlag trägt `total_cost_usd` auch neben `is_error`; damit sah jeder
+  Fehlversuch in der Kostenstatistik kostenlos aus. Wird jetzt übernommen —
+  wirkt nur auf künftige Versuche, die 14 bestehenden bleiben ohne Meldung.
+- **Kostenbalken rundeten nach jeder Addition** und summierten sich dadurch
+  nicht mehr auf ihren eigenen Gesamtwert (live gemessen: 45,5299 statt
+  45,5297 über 66 Tagesbalken). Betraf beide Kostencharts, also auch die
+  bestehende Run-Auswertung.
+
+### Internal
+- `stats.build` schlüsselt seinen Cache zusätzlich auf eine
+  Optimierungs-Signatur: ein **fehlgeschlagener** Versuch fasst keine
+  Prompt-Zeile an, der geteilte Änderungs-Fingerabdruck bewegt sich also
+  nicht — ohne das säße die Fehlerzahl 120 s hinter der TTL fest.
+- Kostenmodell und Einheit stehen als Block mit `COST_CURRENCY`/`COST_DECIMALS`
+  am Kopf von `app/stats.py`, nicht verstreut.
+
 ## [0.51.0] - 2026-08-30
 
 ### Added

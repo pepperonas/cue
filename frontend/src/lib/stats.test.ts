@@ -3,6 +3,7 @@ import {
   buildCalendar,
   formatChars,
   formatCost,
+  formatCostOrDash,
   formatDay,
   formatDelta,
   formatHours,
@@ -141,5 +142,19 @@ describe('readableInk', () => {
 
   it('falls back to dark ink for unparseable input', () => {
     expect(readableInk('nope')).toBe('#0d1117')
+  })
+})
+
+describe('formatCostOrDash', () => {
+  it('prints a dash for an unknown cost, not zero dollars', () => {
+    // "Zero optimized prompts" and "the optimizations were free" are different
+    // statements, and only one of them is true.
+    expect(formatCostOrDash(null)).toBe('—')
+    expect(formatCostOrDash(undefined)).toBe('—')
+    expect(formatCostOrDash(0)).not.toBe('—')
+  })
+
+  it('formats a real cost as USD', () => {
+    expect(formatCostOrDash(2.5)).toContain('2,50')
   })
 })

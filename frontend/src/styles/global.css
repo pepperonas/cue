@@ -2691,6 +2691,16 @@ img.logo-xl { border-radius: 18px; }
   font: var(--title-m);
   font-variant-numeric: tabular-nums;
 }
+/* Caveat under a stats card: the sentence that keeps a number honest ("N
+   attempts without a cost report", "median length factor"). Quiet enough not
+   to compete with the figure it qualifies, present enough to be read. */
+.stats-note {
+  margin: var(--gap-2) 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--md-on-surface-variant);
+}
+
 .meter-list {
   display: flex;
   flex-direction: column;

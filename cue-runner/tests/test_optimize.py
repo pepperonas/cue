@@ -151,6 +151,26 @@ def test_parse_output_handles_error_envelopes_and_empty_output():
     assert "error" in ClaudeCliService.parse_output("   ")
 
 
+def test_a_failed_attempt_keeps_the_cost_the_cli_reported():
+    """A failure can still have burned tokens.
+
+    The envelope carries `total_cost_usd` next to `is_error`, and dropping it
+    made every failed optimization look free in the cost statistics — the money
+    was spent, it just stopped being written down.
+    """
+    err = ClaudeCliService.parse_output(result_json(is_error=True, result="Rate limited").decode())
+    assert err["cost_usd"] == 0.0175
+    assert err["input_tokens"] == 10 and err["output_tokens"] == 68
+
+
+def test_an_error_without_accounting_reports_no_cost_rather_than_zero():
+    """`None`, not 0.0 — the statistics count these as "nicht erfasst", and a
+    zero would quietly claim the attempt was free."""
+    err = ClaudeCliService.parse_output(json.dumps({"is_error": True, "result": "boom"}))
+    assert err["cost_usd"] is None
+    assert err["output_tokens"] is None
+
+
 def test_parse_output_falls_back_to_plain_text():
     # A future CLI printing bare text must not break the feature.
     assert ClaudeCliService.parse_output("Nur Text")["text"] == "Nur Text"
