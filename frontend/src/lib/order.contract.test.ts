@@ -28,6 +28,7 @@ interface OrderCase {
     blocked?: boolean
     tested?: boolean
     priority?: string
+    test_closely?: boolean
     ran_at?: string
   }[]
   expected_ids: number[]
@@ -48,7 +49,7 @@ function prompt(spec: OrderCase['prompts'][number]): Prompt {
     bookmark_order: 0,
     tested: spec.tested ?? false,
     priority: (spec.priority ?? 'normal') as Priority,
-    test_closely: false,
+    test_closely: spec.test_closely ?? false,
     blocked: spec.blocked ?? false,
     optimized: false,
     optimized_body: null,

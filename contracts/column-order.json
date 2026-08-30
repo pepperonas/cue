@@ -395,6 +395,76 @@
         2,
         1
       ]
+    },
+    {
+      "name": "genau-testen leads the done column",
+      "why": "Done is where 'what still needs checking' is asked, so the prompts marked for a thorough test come first — whatever was dragged where.",
+      "prompts": [
+        {
+          "id": 1,
+          "sort_order": 1,
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "sort_order": 2,
+          "status": "done",
+          "test_closely": true
+        },
+        {
+          "id": 3,
+          "sort_order": 3,
+          "status": "done"
+        }
+      ],
+      "expected_ids": [
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "name": "being tested outranks genau-testen",
+      "why": "A marked prompt that has ALREADY been tested must not climb over the untested ones — it would leave the folded block and land back in the part that means 'still to do', after the careful look it asked for has happened.",
+      "prompts": [
+        {
+          "id": 1,
+          "sort_order": 9,
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "sort_order": 1,
+          "status": "done",
+          "tested": true,
+          "test_closely": true
+        }
+      ],
+      "expected_ids": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "genau-testen does nothing outside done",
+      "why": "The flag survives a status change but is only a note elsewhere; a queued prompt carrying it must keep its dragged position.",
+      "prompts": [
+        {
+          "id": 1,
+          "sort_order": 1,
+          "status": "queued"
+        },
+        {
+          "id": 2,
+          "sort_order": 2,
+          "status": "queued",
+          "test_closely": true
+        }
+      ],
+      "expected_ids": [
+        1,
+        2
+      ]
     }
   ]
 }

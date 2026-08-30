@@ -39,10 +39,28 @@ def display_key(prompt) -> tuple:  # noqa: ANN001 - duck-typed on purpose
     return (
         1 if prompt.blocked else 0,
         tested_last,
+        close_test_rank(prompt),
         priority_rank(prompt),
         prompt.sort_order,
         prompt.id,
     )
+
+
+def close_test_rank(prompt) -> int:  # noqa: ANN001 - duck-typed like display_key
+    """0 for "needs a thorough test", 1 otherwise — and 1 outside DONE.
+
+    Marked work leads the Done column, which is where the question "what still
+    needs checking" is asked. Elsewhere the flag is only a note and must not
+    move anything.
+
+    ⚠️ It sorts BELOW `tested_last` on purpose. Above it, a prompt that is
+    marked AND already tested would climb over the untested ones — back out of
+    the folded block and into the part that means "still to do", after the
+    careful look it asked for has happened.
+    """
+    if getattr(prompt, "status", None) != "done":
+        return 1
+    return 0 if getattr(prompt, "test_closely", False) else 1
 
 
 def priority_rank(prompt) -> int:  # noqa: ANN001 - duck-typed like display_key
@@ -91,6 +109,7 @@ def highest_priority(values) -> str:
 BOARD_ORDER_SQL = (
     "blocked, "
     "CASE WHEN status = 'done' AND tested = 1 THEN 1 ELSE 0 END, "
+    "CASE WHEN status = 'done' AND test_closely = 1 THEN 0 ELSE 1 END, "
     "CASE WHEN status = 'queued' THEN "
     "(CASE priority WHEN 'high' THEN 0 WHEN 'low' THEN 2 ELSE 1 END) ELSE 1 END, "
     "sort_order, id"

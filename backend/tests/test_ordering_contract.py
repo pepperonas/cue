@@ -38,6 +38,7 @@ def _row(spec: dict) -> SimpleNamespace:
         blocked=spec.get("blocked", False),
         tested=spec.get("tested", False),
         priority=spec.get("priority", "normal"),
+        test_closely=spec.get("test_closely", False),
         ran_at=spec.get("ran_at"),
     )
 
@@ -82,7 +83,7 @@ def test_the_key_reads_no_field_the_contract_does_not_declare():
     """
     from app.ordering import display_key
 
-    allowed = {"id", "sort_order", "status", "blocked", "tested", "priority"}
+    allowed = {"id", "sort_order", "status", "blocked", "tested", "priority", "test_closely"}
     touched: set[str] = set()
 
     class Strict:
@@ -141,13 +142,13 @@ def test_the_sql_order_agrees_with_display_key():
     conn = sqlite3.connect(":memory:")
     conn.execute(
         "CREATE TABLE prompt (id INTEGER, sort_order INTEGER, status TEXT, "
-        "blocked INTEGER, tested INTEGER, priority TEXT)"
+        "blocked INTEGER, tested INTEGER, priority TEXT, test_closely INTEGER)"
     )
     for case in _load()["cases"]:
         conn.execute("DELETE FROM prompt")
         for spec in case["prompts"]:
             conn.execute(
-                "INSERT INTO prompt VALUES (?,?,?,?,?,?)",
+                "INSERT INTO prompt VALUES (?,?,?,?,?,?,?)",
                 (
                     spec["id"],
                     spec["sort_order"],
@@ -155,6 +156,7 @@ def test_the_sql_order_agrees_with_display_key():
                     int(spec.get("blocked", False)),
                     int(spec.get("tested", False)),
                     spec.get("priority", "normal"),
+                    int(spec.get("test_closely", False)),
                 ),
             )
         by_sql = [

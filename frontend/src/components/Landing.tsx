@@ -49,9 +49,10 @@ const FEATURES: {
     icon: 'auto_awesome',
     title: 'Prompts von der KI umschreiben lassen',
     text: 'Ein Klick schreibt einen Prompt schärfer — das Original bleibt immer erhalten, das Ergebnis ist ein Vorschlag mit Diff, den du übernimmst oder verwirfst. Mit eigenem Anthropic-API-Key läuft das auf deine Rechnung; die Statistiken zeigen Kosten gesamt, je Prompt und je Modell.',
-    // No screenshot on purpose: the only one on hand shows the snippet
-    // library, and an image whose alt text describes a different screen is
-    // worse than no image. `shot` is optional — the card renders text-only.
+    shot: {
+      src: '/landing/optimize-demo.png',
+      alt: 'Detail-Dialog mit dem Unterschied zwischen Original und optimierter Fassung, darunter Übernehmen und Verwerfen',
+    },
   },
   {
     icon: 'data_object',

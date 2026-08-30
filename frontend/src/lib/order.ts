@@ -16,8 +16,9 @@ export function priorityRank(prompt: Pick<Prompt, 'status' | 'priority'>): numbe
 /** Ordering inside one status column:
  *  1. blocked prompts always sink to the very bottom,
  *  2. in DONE, tested prompts sink below untested ones,
- *  3. in QUEUED, higher priority comes first,
- *  4. everything else follows the drag order (sort_order, id).
+ *  3. in DONE, "genau testen" leads what is left,
+ *  4. in QUEUED, higher priority comes first,
+ *  5. everything else follows the drag order (sort_order, id).
  *
  *  The backend mirrors this in `app/ordering.py:display_key` so an anchored
  *  move ("put it before #42") means the same thing on both sides — see the
@@ -36,6 +37,12 @@ export function columnComparator(a: Prompt, b: Prompt): number {
   if (a.status === 'done' && b.status === 'done') {
     const tested = Number(a.tested) - Number(b.tested)
     if (tested) return tested
+    // "Genau testen" leads the Done column — that is where "what still needs
+    // checking" is asked. Below the tested split on purpose: above it, a
+    // marked AND already tested prompt would climb back out of the folded
+    // block into the part that means "still to do".
+    const close = Number(b.test_closely) - Number(a.test_closely)
+    if (close) return close
   }
   const priority = priorityRank(a) - priorityRank(b)
   if (priority) return priority

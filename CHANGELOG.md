@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0] - 2026-08-30
+
+### Changed
+- **„Genau testen" führt jetzt die Done-Spalte an.** Markierte Prompts stehen
+  ganz oben — das kehrt die Entscheidung aus 0.53.0 („reiner Marker, keine
+  Sortierung") auf Wunsch um.
+- ⚠️ **Unterhalb des Getestet-Schnitts**, nicht darüber: ein markierter Prompt,
+  der bereits getestet ist, würde sonst über die ungeprüften klettern — aus dem
+  zugeklappten Block heraus zurück in den Teil, der „noch zu tun" bedeutet,
+  nachdem der genaue Blick stattgefunden hat. Außerhalb von Done bewegt das
+  Flag weiterhin nichts.
+- Wie bei der Priorität gilt: ein Zug über die Bandgrenze prallt zurück, aber
+  das Flag umzuschalten bringt die Karte immer dorthin.
+
+### Added
+- **Echter Screenshot der Optimierungs-Ansicht** auf der Landing Page
+  (`/landing/optimize-demo.png`, 2560×1640 wie die übrigen): Diff mit
+  +18/−1, Versionsschalter und die Entscheidungsleiste „Übernehmen /
+  Verwerfen". Die Karte lief bis hierhin ohne Bild, weil das einzige
+  vorhandene die Snippet-Bibliothek zeigte.
+
+### Internal
+- Dritter Rundgang durch **alle drei Spiegel** der Spaltenordnung
+  (`display_key`, `columnComparator`, `BOARD_ORDER_SQL`) plus 3 neue Fälle im
+  geteilten Vertrag; jeder Spiegel einzeln mutationsgeprüft (3 / 1 / 2 rote
+  Tests).
+
 ## [0.55.0] - 2026-08-30
 
 ### Added

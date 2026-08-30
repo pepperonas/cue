@@ -3,21 +3,21 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.55.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1155%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-522-brightgreen.svg)](backend/tests/)
+[![version](https://img.shields.io/badge/version-0.56.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1163%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-527-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-482-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-485-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-97%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
 [![test files](https://img.shields.io/badge/test%20files-63-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-12629-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-12685-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-30258-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-9824-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16503-3178C6.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-30281-blue.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-9839-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16511-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3931-663399.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
 [![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
@@ -106,7 +106,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 
 - **Kanban-Board** mit Drag-zwischen-Spalten (Statuswechsel) + Reorder, optimistisch, Spring-Motion. Nach **Done** verschobene Prompts landen immer **ganz oben**; **neu angelegte Prompts mit Bug-Tag** (`bug`, `bugfix`, …) landen ebenfalls **oben in der Queue**. Pro Spalte sind **max. 10 Karten** sichtbar (Rest aufklappbar über „+N weitere anzeigen"). Das aktive Projekt steht animiert **im Header** neben dem cue-Logo. **Mehrere ausgewählte Prompts wandern gemeinsam**: eine selektierte Karte ziehen nimmt die ganze Auswahl mit (alle mitgezogenen Karten hängen sichtbar am Cursor), oder man nutzt die Ziel-Buttons Queued/Running/Done in der Auswahlleiste — auf dem Handy der bequemere Weg.
 - **Priorität** (gering · mittel · hoch): auf Board und Liste ein **Umschalter** an der Karte (ein Klick von „mittel" macht dringend, der nächste gering, der dritte wieder mittel), im Detail-Dialog ein **Dropdown** — in der Ansicht wie im Bearbeiten-Modus. **In der Queue steht Hohes zuerst**; innerhalb eines Bandes gilt weiter die selbst gezogene Reihenfolge. Der kompakte Umschalter erscheint nur an Prompts in der Queue, weil er nur dort wirkt. Beim **Zusammenführen gewinnt immer die höchste** Priorität der Quellen — eine Regel, keine Wahl im Dialog.
-- **„Genau testen"**: rotes `!` an fertigen Prompts — gesetzt oder nicht. Sitzt an derselben Stelle wie der Prioritäts-Umschalter, der nur in der Queue erscheint (dort „wie dringend", in Done „wie genau prüfen"); zusätzlich im Detail-Dialog. Reiner Marker ohne Einfluss auf die Reihenfolge. Überlebt einen Statuswechsel — anders als „Getestet", das ein Ergebnis ist; beim Zusammenführen genügt eine markierte Quelle.
+- **„Genau testen"**: rotes `!` an fertigen Prompts — gesetzt oder nicht. Sitzt an derselben Stelle wie der Prioritäts-Umschalter, der nur in der Queue erscheint (dort „wie dringend", in Done „wie genau prüfen"); zusätzlich im Detail-Dialog. **Markierte Prompts stehen in Done ganz oben** — unterhalb des Getestet-Schnitts, damit etwas bereits Geprüftes nicht wieder in den Teil „noch zu tun" klettert. Überlebt einen Statuswechsel — anders als „Getestet", das ein Ergebnis ist; beim Zusammenführen genügt eine markierte Quelle.
 - **Blocked-Status**: Toggle links vom Bookmark — blockierte Prompts sind ausgegraut, wandern ans Spaltenende, lassen sich nicht draggen und nicht auf Running/Done setzen, bis die Blockierung (Klick) aufgehoben ist.
 - **Listenansicht** nach Status **gruppiert + ein-/aufklappbar**; Status dezent farbcodiert (grüner Haken = Done usw.).
 - **Bookmarks**: Prompts mit einem Klick anpinnen; **direkt im Tab anlegbar** (ohne Projektbezug — Filter und zuletzt genutztes Projekt werden bewusst ignoriert); eigener Tab zeigt **immer alle** Bookmarks — unabhängig davon, welches Projekt gerade gefiltert ist —, **per Drag & Drop frei sortierbar**. Bookmarks werden außerdem **universell optimiert** (siehe KI-Prompt-Optimierung).
@@ -200,11 +200,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 522 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 527 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 482 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 485 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1155** | | |
+| **Gesamt** | | **1163** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

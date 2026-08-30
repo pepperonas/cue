@@ -2281,3 +2281,68 @@ def test_head_is_answered_like_get(client):
         response = client.head(path)
         assert response.status_code != 405, f"HEAD {path} is not allowed"
         assert response.status_code < 400, f"HEAD {path} -> {response.status_code}"
+
+
+def test_marking_genau_testen_moves_a_prompt_to_the_top_of_done(client):
+    """The flag leads the Done column — that is where "what still needs
+    checking" is asked.
+
+    Reverses the 0.53.0 decision ("pure marker, no ordering"), on request.
+    """
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    ids = []
+    for i in range(3):
+        pid = _mk_prompt(client, headers, f"fertig {i}")
+        client.patch(f"/api/prompts/{pid}", json={"status": "done"}, headers=headers)
+        ids.append(pid)
+    # Freshly-done prompts land on top, so the display order is the reverse.
+    def order() -> list[int]:
+        rows = client.get("/api/prompts?status=done").json()
+        return [r["id"] for r in sorted(rows, key=lambda r: (r["sort_order"], r["id"]))]
+
+    before = order()
+    last = before[-1]
+    client.patch(f"/api/prompts/{last}", json={"test_closely": True}, headers=headers)
+
+    rows = {r["id"]: r for r in client.get("/api/prompts?status=done").json()}
+    # The board sorts by display order, and the marked one now leads it.
+    from app.ordering import display_key
+    from types import SimpleNamespace
+
+    shown = sorted(
+        (SimpleNamespace(**{k: r[k] for k in
+                            ("id", "sort_order", "status", "blocked", "tested", "priority", "test_closely")})
+         for r in rows.values()),
+        key=display_key,
+    )
+    assert shown[0].id == last, "the marked prompt did not lead the column"
+    assert [p.id for p in shown[1:]] == [i for i in before if i != last]
+
+
+def test_a_tested_prompt_does_not_climb_back_out_of_the_folded_block(client):
+    """Marked AND already tested: the careful look has happened, so it stays
+    below the untested work instead of returning to the "still to do" part."""
+    from types import SimpleNamespace
+
+    from app.ordering import display_key
+
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    offen = _mk_prompt(client, headers, "noch ungeprüft")
+    fertig = _mk_prompt(client, headers, "markiert und getestet")
+    for pid in (offen, fertig):
+        client.patch(f"/api/prompts/{pid}", json={"status": "done"}, headers=headers)
+    client.patch(
+        f"/api/prompts/{fertig}", json={"test_closely": True, "tested": True}, headers=headers
+    )
+
+    rows = client.get("/api/prompts?status=done").json()
+    shown = sorted(
+        (SimpleNamespace(**{k: r[k] for k in
+                            ("id", "sort_order", "status", "blocked", "tested", "priority", "test_closely")})
+         for r in rows),
+        key=display_key,
+    )
+    assert [p.id for p in shown] == [offen, fertig]
