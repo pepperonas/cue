@@ -68,6 +68,7 @@ def _migrate(engine: Engine) -> None:
         # Urgency. The default is what makes this migration invisible: every
         # existing prompt becomes `normal` and keeps its exact board position.
         "priority": "ALTER TABLE prompt ADD COLUMN priority VARCHAR NOT NULL DEFAULT 'normal'",
+        "test_closely": "ALTER TABLE prompt ADD COLUMN test_closely BOOLEAN NOT NULL DEFAULT 0",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",

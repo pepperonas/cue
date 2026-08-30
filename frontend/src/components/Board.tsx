@@ -41,6 +41,7 @@ interface Props {
   onToggleTested?: (p: Prompt) => void
   onToggleBlocked?: (p: Prompt) => void
   onSetPriority?: (p: Prompt, next: Priority) => void
+  onToggleCloseTest?: (p: Prompt) => void
   // Prompt optimization (owner-only): undefined hides the button on the cards.
   onOptimize?: (p: Prompt) => void
   optimizingIds?: number[]
@@ -116,6 +117,7 @@ export function Board({
   optimizingIds,
   onToggleBlocked,
   onSetPriority,
+  onToggleCloseTest,
   onMove,
   onMoveMany,
   selectMode,
@@ -324,6 +326,7 @@ export function Board({
           carried={dragIds.length > 1 && id !== activeId && dragIds.includes(id)}
           onToggleBlocked={onToggleBlocked}
           onSetPriority={onSetPriority}
+          onToggleCloseTest={onToggleCloseTest}
           selectMode={selectMode}
           selectedForMerge={selectedIds?.includes(id)}
           onToggleSelect={onToggleSelect}
@@ -342,6 +345,7 @@ export function Board({
       onOpen,
       onOptimize,
       onSetPriority,
+      onToggleCloseTest,
       onToggleBlocked,
       onToggleBookmark,
       onToggleSelect,

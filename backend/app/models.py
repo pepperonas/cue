@@ -92,6 +92,12 @@ class Prompt(SQLModel, table=True):
     sort_order: int = Field(default=0, index=True)
     # Urgency. Sorts the QUEUE only (high first) — see app/ordering.py.
     priority: PromptPriority = Field(default=PromptPriority.normal, index=True)
+    # "Needs a thorough test." A durable note on the work, NOT a result:
+    # unlike `tested` it survives the prompt going back to queued, because a
+    # prompt being reworked will still need that careful look when it returns.
+    # Deliberately no status guard either — the UI shows it where it is useful
+    # (done), the flag itself is nobody's business to clear.
+    test_closely: bool = Field(default=False)
     # Simple comma-separated tags.
     tags: str = Field(default="")
     # Bookmarking: pinned prompts get their own drag-sortable section.

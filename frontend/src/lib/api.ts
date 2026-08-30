@@ -152,6 +152,7 @@ export const api = {
       tested: boolean
       blocked: boolean
       priority: Priority
+      test_closely: boolean
       attachment_ids: number[]
       unassign_project: boolean
     }>,

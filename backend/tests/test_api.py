@@ -1894,6 +1894,60 @@ def test_an_anchored_move_inserts_into_the_order_priority_produces(client):
     assert by_id[urgent]["sort_order"] < by_id[second]["sort_order"] < by_id[first]["sort_order"]
 
 
+def test_the_close_test_flag_is_set_kept_and_inherited(client):
+    """"Genau testen" is an INTENTION about the work, not a result.
+
+    So unlike `tested` it survives the prompt going back to queued — a prompt
+    being reworked will still want that careful look when it returns — and
+    unlike `blocked` it has no status guard to trip over.
+    """
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = _mk_prompt(client, headers, "fertig")
+    assert client.get(f"/api/prompts/{pid}").json()["test_closely"] is False
+
+    client.patch(f"/api/prompts/{pid}", json={"status": "done"}, headers=headers)
+    marked = client.patch(
+        f"/api/prompts/{pid}", json={"test_closely": True}, headers=headers
+    ).json()
+    assert marked["test_closely"] is True
+
+    # Back to the queue: `tested` is invalidated, the note is not.
+    back = client.patch(f"/api/prompts/{pid}", json={"status": "queued"}, headers=headers).json()
+    assert back["tested"] is False
+    assert back["test_closely"] is True, "the note was cleared by a status change"
+
+    copy = client.post(
+        f"/api/prompts/{pid}/duplicate", json={"in_place": True}, headers=headers
+    ).json()
+    assert copy["test_closely"] is True
+
+
+def test_a_merge_keeps_the_close_test_flag_of_any_source(client):
+    """Same asymmetry as the priority: if any part needed a careful look, the
+    merged whole does. Losing the note is the costly direction."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    plain = _mk_prompt(client, headers, "unmarkiert")
+    marked = _mk_prompt(client, headers, "markiert")
+    client.patch(f"/api/prompts/{marked}", json={"test_closely": True}, headers=headers)
+
+    merged = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [plain, marked], "body": "zusammen", "originals": "keep"},
+        headers=headers,
+    ).json()
+    assert merged["test_closely"] is True
+
+    quiet = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": [plain, _mk_prompt(client, headers, "auch nicht")],
+              "body": "ruhig", "originals": "keep"},
+        headers=headers,
+    ).json()
+    assert quiet["test_closely"] is False
+
+
 def test_merge_delete_carries_attachments_over(client):
     csrf = _login(client)
     headers = {"X-CSRF-Token": csrf}

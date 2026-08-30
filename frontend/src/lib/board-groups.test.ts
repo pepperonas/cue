@@ -29,6 +29,7 @@ function prompt(id: number, projectId: number | null, tested = false): Prompt {
     bookmark_order: 0,
     tested,
     priority: 'normal',
+    test_closely: false,
     blocked: false,
     optimized: false,
     optimized_body: null,

@@ -2019,6 +2019,21 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   opacity: 1;
   filter: none;
 }
+/* "Genau testen" — a red ! on a done prompt that wants a thorough look.
+   `--danger`, not `--md-error`: the latter is generated from the seed and came
+   out peach here (see tokens.css). Inactive it is the ordinary muted glyph,
+   like every other flag on these cards. */
+.close-test-btn.active {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.close-test-btn.active:hover {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+.close-test-btn.active .material-symbols-rounded {
+  font-variation-settings: 'wght' 700;
+}
+
 .blocked-btn.active {
   color: var(--md-error);
   background: color-mix(in srgb, var(--md-error) 14%, transparent);

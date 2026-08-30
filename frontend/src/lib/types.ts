@@ -79,6 +79,8 @@ export interface Prompt {
   tested: boolean
   /** Urgency. Sorts the QUEUE only; absent on pre-0.51 responses. */
   priority: Priority
+  /** "Needs a thorough test" — a marker on done work, no ordering effect. */
+  test_closely: boolean
   // AI optimization — `body` above always stays the untouched original.
   optimized: boolean
   optimized_body: string | null

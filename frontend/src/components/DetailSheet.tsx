@@ -16,6 +16,7 @@ import { OptimizationPanel, type PromptVariant } from './optimize/OptimizationPa
 import { OptimizeButton } from './optimize/OptimizeButton'
 import { PromptEditor } from './PromptEditor'
 import { PrioritySelect } from './PriorityButton'
+import { CloseTestButton } from './CloseTestButton'
 import { useBackDismiss } from '../state/overlays'
 import { usePendingProposal } from '../state/queries'
 import { Button, Icon, IconButton } from './ui'
@@ -39,6 +40,7 @@ interface Props {
   onToggleTested: (p: Prompt) => void
   onToggleBlocked: (p: Prompt) => void
   onSetPriority?: (p: Prompt, next: Priority) => void
+  onToggleCloseTest?: (p: Prompt) => void
   onMoveProject: (p: Prompt, projectId: number | null) => void
   onCopyToProject: (p: Prompt, projectId: number | null) => void
   onRun?: (p: Prompt) => void
@@ -79,6 +81,7 @@ export function DetailSheet({
   onToggleTested,
   onToggleBlocked,
   onSetPriority,
+  onToggleCloseTest,
   onMoveProject,
   onCopyToProject,
   onRun,
@@ -310,6 +313,13 @@ export function DetailSheet({
               {prompt.title || 'Untitled'}
             </h2>
             <div className="row">
+              {onToggleCloseTest && prompt.status === 'done' && (
+                <CloseTestButton
+                  variant="icon-btn"
+                  marked={prompt.test_closely}
+                  onToggle={() => onToggleCloseTest(prompt)}
+                />
+              )}
               {canTest && (
                 <TestedButton
                   variant="icon-btn"

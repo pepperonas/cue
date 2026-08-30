@@ -118,6 +118,7 @@ class PromptUpdate(BaseModel):
     tested: bool | None = None
     blocked: bool | None = None
     priority: PromptPriority | None = None
+    test_closely: bool | None = None
     # Additional attachments to associate with this prompt.
     attachment_ids: list[int] | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
@@ -137,6 +138,7 @@ class PromptRead(BaseModel):
     tested: bool
     blocked: bool
     priority: PromptPriority = PromptPriority.normal
+    test_closely: bool = False
     created_at: Utc
     updated_at: Utc
     # Last content write; null only for rows a client of an older build wrote.

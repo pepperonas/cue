@@ -14,6 +14,7 @@ function p(id: number, over: Partial<Prompt> = {}): Prompt {
     bookmarked: false,
     bookmark_order: 0,
     priority: 'normal',
+    test_closely: false,
     tested: false,
     blocked: false,
     optimized: false,

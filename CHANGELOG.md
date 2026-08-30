@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.0] - 2026-08-30
+
+### Added
+- **„Genau testen"** — ein rotes `!` an fertigen Prompts, gesetzt oder nicht.
+  Es sitzt an derselben Stelle wie der Prioritäts-Umschalter, der nur in der
+  Queue erscheint: dort lautet die Frage „wie dringend", in Done „wie genau
+  muss das geprüft werden". Die beiden treffen sich nie auf einer Karte.
+  Zusätzlich als Umschalter im Detail-Dialog.
+- **Reiner Marker, keine Sortierung** (Nutzer-Entscheid): die Reihenfolge in
+  Done bleibt wie sie ist.
+- Das Flag **überlebt einen Statuswechsel** — anders als `tested`, das ein
+  Ergebnis ist und von einer Überarbeitung entwertet wird. „Muss genau getestet
+  werden" ist eine Absicht über die Arbeit und gilt weiter, wenn der Prompt
+  zurück in die Queue geht. Ein Duplikat erbt es; beim Zusammenführen genügt
+  **eine** markierte Quelle, damit das Ergebnis markiert ist.
+
+### Fixed
+- **`--md-error` ist in diesem Theme gar nicht rot.** Die Fehlerfarbe wird aus
+  dem Seed erzeugt und landet, wo die Tonpalette sie hinsetzt: gemessen
+  `#f2c6a6` (Pfirsich) im dunklen und `#b35919` (Braun) im hellen Theme — der
+  helle Ton misst auf der hellen Karte **1,36:1**, also praktisch nichts. Neues
+  Token **`--danger`** nach derselben Methode wie `--ok`/`--warn`, gemessen auf
+  der echten Karte: **6,05:1 dunkel · 5,69:1 hell**.
+
 ## [0.52.1] - 2026-08-30
 
 ### Fixed

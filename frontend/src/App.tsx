@@ -393,6 +393,18 @@ function Shell({ onLogout }: { onLogout: () => void }) {
     [toast, update],
   )
 
+  const handleToggleCloseTest = useCallback(
+    (p: Prompt) => {
+      update.mutate({ id: p.id, patch: { test_closely: !p.test_closely } })
+      vibrate(8)
+      toast.show(
+        p.test_closely ? 'Markierung entfernt' : 'Für genaues Testen markiert',
+        'success',
+      )
+    },
+    [toast, update],
+  )
+
   // Single gate for every status change: blocked prompts refuse running/done.
   const applyStatus = useCallback(
     (p: Prompt, s: Status) => {
@@ -794,6 +806,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 optimizingIds={optimizingIds}
                 onToggleBlocked={handleToggleBlocked}
                 onSetPriority={handleSetPriority}
+                onToggleCloseTest={handleToggleCloseTest}
                 onMove={(move) => movePrompt.mutate(move)}
                 onMoveMany={moveSelection}
                 selectMode={selectMode}
@@ -1059,6 +1072,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
             onToggleTested={handleToggleTested}
             onToggleBlocked={handleToggleBlocked}
             onSetPriority={handleSetPriority}
+            onToggleCloseTest={handleToggleCloseTest}
             canOptimize={canOptimize}
             optimizeBusy={optimizingIds.includes(detailLive.id)}
             activeOptimization={

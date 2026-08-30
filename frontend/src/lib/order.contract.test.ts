@@ -48,6 +48,7 @@ function prompt(spec: OrderCase['prompts'][number]): Prompt {
     bookmark_order: 0,
     tested: spec.tested ?? false,
     priority: (spec.priority ?? 'normal') as Priority,
+    test_closely: false,
     blocked: spec.blocked ?? false,
     optimized: false,
     optimized_body: null,

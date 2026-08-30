@@ -68,8 +68,16 @@
      themes, see CLAUDE.md. */
   --ok: #48c98b;
   --warn: #eda13c;
+  /* Red, and actually red. `--md-error` is GENERATED from the user's seed and
+     lands wherever the tonal palette puts it — measured here it is #f2c6a6, a
+     pale peach, and in the light theme #b35919, a brown. Neither reads as the
+     signal a red "!" is supposed to be. Measured against the real card
+     background: 6.05:1 dark, 5.69:1 light (the peach manages 1.36:1 on the
+     light card, i.e. nothing at all). */
+  --danger: #ff6b6b;
   --ok-container: color-mix(in srgb, var(--ok) 20%, transparent);
   --warn-container: color-mix(in srgb, var(--warn) 20%, transparent);
+  --danger-container: color-mix(in srgb, var(--danger) 20%, transparent);
 
   /* Elevation via surface tint (no hard shadows) */
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.18);
@@ -86,6 +94,7 @@
      two reach 5.11 and 5.71 there. */
   --ok: #12734a;
   --warn: #8a4f04;
+  --danger: #b3261e;
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.08);
   --elev-2: 0 2px 8px rgba(0, 0, 0, 0.1);
   --elev-3: 0 6px 20px rgba(0, 0, 0, 0.14);

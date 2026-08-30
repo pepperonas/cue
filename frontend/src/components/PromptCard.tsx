@@ -10,6 +10,7 @@ import type { Priority, Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
 import { PriorityButton } from './PriorityButton'
+import { CloseTestButton } from './CloseTestButton'
 import { BookmarkButton } from './BookmarkButton'
 import { TestedButton } from './TestedButton'
 import { RelativeTime } from './RelativeTime'
@@ -32,6 +33,7 @@ interface Props {
   optimizeBusy?: boolean
   onToggleBlocked?: (p: Prompt) => void
   onSetPriority?: (p: Prompt, next: Priority) => void
+  onToggleCloseTest?: (p: Prompt) => void
   selectMode?: boolean
   /** Part of a multi-card drag, but not the grabbed card: drawn as on the move. */
   carried?: boolean
@@ -55,6 +57,7 @@ export function PromptCard({
   optimizeBusy = false,
   onToggleBlocked,
   onSetPriority,
+  onToggleCloseTest,
   selectMode,
   carried,
   selectedForMerge,
@@ -197,6 +200,15 @@ export function PromptCard({
                 <PriorityButton
                   priority={prompt.priority}
                   onChange={(next) => onSetPriority(prompt, next)}
+                />
+              )}
+              {/* Same slot as the priority toggle, which is queued-only: in
+                  done the question is not "how urgent" but "how carefully does
+                  this need checking". The two never appear together. */}
+              {onToggleCloseTest && prompt.status === 'done' && (
+                <CloseTestButton
+                  marked={prompt.test_closely}
+                  onToggle={() => onToggleCloseTest(prompt)}
                 />
               )}
               {onToggleBookmark && (

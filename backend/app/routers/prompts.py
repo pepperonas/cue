@@ -294,6 +294,13 @@ def update_prompt(
     if payload.priority is not None:
         prompt.priority = payload.priority
 
+    # No status guard and no clearing on a status change, unlike `blocked`
+    # (meaningless outside the queue) and `tested` (a result that a rework
+    # invalidates). This one is an intention about the work and stays true
+    # while the prompt is being reworked.
+    if payload.test_closely is not None:
+        prompt.test_closely = payload.test_closely
+
     status_changed = payload.status is not None and payload.status != prompt.status
     if status_changed:
         if prompt.blocked and payload.status in _RAN_STATUSES:
@@ -372,6 +379,7 @@ def duplicate_prompt(
             sort_order=src.sort_order,
             blocked=src.blocked,
             priority=src.priority,
+            test_closely=src.test_closely,
         )
         if src.bookmarked:
             copy.bookmarked = True
@@ -458,6 +466,9 @@ def merge_prompts(
         # and the opposite mistake (inheriting "low") is the one that loses
         # work. Derived server-side so no client can get it wrong.
         priority=highest_priority(p.priority for p in sources),
+        # Same asymmetry as the priority: if any part of this needed a careful
+        # look, the merged whole does. Losing the note is the costly direction.
+        test_closely=any(p.test_closely for p in sources),
     )
     if payload.status in _RAN_STATUSES:
         merged.ran_at = utcnow()
