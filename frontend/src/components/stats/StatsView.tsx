@@ -764,10 +764,6 @@ function OptimizationSection({ data, theme }: { data: Stats; theme: Theme }) {
               <dt>je Versuch</dt>
               <dd>{formatCostOrDash(opt.cost_per_attempt)}</dd>
             </div>
-            <div>
-              <dt>Ø Dauer</dt>
-              <dd>{formatSeconds(opt.avg_duration_s)}</dd>
-            </div>
           </dl>
           {/* Only rendered when there is something to admit — a permanent
               "0 ohne Kostenmeldung" would be noise pretending to be a metric. */}
@@ -788,6 +784,10 @@ function OptimizationSection({ data, theme }: { data: Stats; theme: Theme }) {
             <div className="streak-box">
               <span className="streak-value">{formatPercent(opt.accept_rate)}</span>
               <span className="streak-label">Übernahmequote</span>
+            </div>
+            <div className="streak-box">
+              <span className="streak-value">{formatSeconds(opt.avg_duration_s)}</span>
+              <span className="streak-label">Ø Dauer</span>
             </div>
           </div>
           <ul className="legend-list">
@@ -824,14 +824,13 @@ function OptimizationSection({ data, theme }: { data: Stats; theme: Theme }) {
           {opt.by_model.length === 0 ? (
             <p className="stats-note">Kein erfolgreicher Versuch im Zeitraum.</p>
           ) : (
-            <ul className="legend-list">
+            <ul className="recent-list">
               {opt.by_model.map((row) => (
                 <li key={row.model}>
                   <i style={{ background: theme.primary }} />
-                  {row.model}
-                  <b>
-                    {formatCost(row.cost)} · Ø {formatCostOrDash(row.cost_avg)}
-                  </b>
+                  <span className="recent-name">{row.model}</span>
+                  <span className="recent-meta">Ø {formatCostOrDash(row.cost_avg)}</span>
+                  <time>{formatCost(row.cost)}</time>
                 </li>
               ))}
             </ul>
@@ -844,15 +843,15 @@ function OptimizationSection({ data, theme }: { data: Stats; theme: Theme }) {
             title="Teuerste Prompts"
             subtitle="Einzelwerte je Prompt im Zeitraum"
           >
-            <ul className="legend-list">
+            <ul className="recent-list">
               {opt.top_prompts.map((row) => (
                 <li key={row.prompt_id}>
                   <i style={{ background: theme.tertiary }} />
-                  {row.title || `#${row.prompt_id}`}
-                  <b>
-                    {formatCost(row.cost)}
-                    {row.attempts > 1 ? ` · ${row.attempts}×` : ''}
-                  </b>
+                  <span className="recent-name">{row.title || `#${row.prompt_id}`}</span>
+                  <span className="recent-meta">
+                    {row.attempts > 1 ? `${row.attempts} Versuche` : '1 Versuch'}
+                  </span>
+                  <time>{formatCost(row.cost)}</time>
                 </li>
               ))}
             </ul>

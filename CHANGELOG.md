@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.1] - 2026-08-30
+
+### Fixed
+- **Einzelwerte je Prompt waren nicht eindeutig zuzuordnen.** „Teuerste
+  Prompts" und „Kosten je Modell" liefen als Inline-Liste (`legend-list`,
+  gedacht für kurze Statuswörter): ein Prompttitel und sein Betrag standen
+  neben dem NÄCHSTEN Paar. Beide nutzen jetzt `recent-list` — eine Zeile je
+  Eintrag, Titel links, Anzahl und Betrag rechtsbündig. Auf 390 px bleibt der
+  Betrag im Kartenrahmen, der Titel kürzt mit Auslassungspunkten.
+- „Ø Dauer" stand als sechste Kachel allein in einer zweiten Zeile; sie gehört
+  ohnehin zu den Qualitätswerten und steht jetzt neben Erfolgs- und
+  Übernahmequote. Die Kachelzeile ist damit auf dem Desktop wieder eine.
+
 ## [0.52.0] - 2026-08-30
 
 ### Added

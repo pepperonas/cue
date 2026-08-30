@@ -3,7 +3,7 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.52.0-blue.svg)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.52.1-blue.svg)](CHANGELOG.md)
 [![tests](https://img.shields.io/badge/tests-1127%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-500-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
@@ -15,9 +15,9 @@
 [![test files](https://img.shields.io/badge/test%20files-60-0A9EDC.svg)](docs/TESTING.md)
 [![test LOC](https://img.shields.io/badge/test%20LOC-12163-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-29218-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-29217-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-9278-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16101-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16100-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3839-663399.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-90-8A2BE2.svg)](docs/API.md)
 [![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
