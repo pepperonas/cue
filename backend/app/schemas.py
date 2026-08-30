@@ -590,6 +590,37 @@ class OptimizationDecisionResult(BaseModel):
     prompt: PromptRead
 
 
+class ApiKeyModel(BaseModel):
+    """One model the user can point their own key at, with its list price."""
+
+    id: str
+    label: str
+    input_per_mtok: float
+    output_per_mtok: float
+
+
+class ApiKeyStatus(BaseModel):
+    """What the settings page may know about a stored key.
+
+    ⚠️ `preview` is a masked tail, never the key. The plaintext exists in one
+    direction only: into the database, and from there into an API call.
+    """
+
+    configured: bool
+    preview: str = ""
+    model: str
+    models: list[ApiKeyModel] = []
+    #: When the price table was last checked — the costs shown are estimates.
+    pricing_state: str = ""
+
+
+class ApiKeyUpdate(BaseModel):
+    #: None leaves the key untouched, "" removes it, anything else replaces it.
+    key: str | None = None
+    #: None leaves the model untouched, "" resets to the default.
+    model: str | None = None
+
+
 class OptimizationBatchCreate(BaseModel):
     project_id: int | None = None
     # False re-optimizes prompts that already have a version.

@@ -35,10 +35,18 @@ CLAUDE_CLI = ProviderSpec(
     executed_by="runner",
 )
 
+ANTHROPIC_API = ProviderSpec(
+    id="anthropic_api",
+    label="Anthropic API (eigener Key)",
+    description="Messages API mit dem eigenen API-Key des Nutzers, direkt vom Server",
+    executed_by="server",
+)
+
 # Future backends register here; `available=False` keeps them visible in the
 # config endpoint (so the UI can show what is planned) without being selectable.
 _REGISTRY: dict[str, ProviderSpec] = {
     CLAUDE_CLI.id: CLAUDE_CLI,
+    ANTHROPIC_API.id: ANTHROPIC_API,
 }
 
 DEFAULT_PROVIDER = CLAUDE_CLI.id
@@ -60,3 +68,18 @@ def available() -> list[ProviderSpec]:
 def register(spec: ProviderSpec) -> None:
     """Add a provider (used by tests and future backends)."""
     _REGISTRY[spec.id] = spec
+
+
+def runner_ids() -> list[str]:
+    """Providers a claiming runner may execute.
+
+    The claim query filters on this: a job for a server-side provider must
+    never be handed to the Mac runner, which would try to drive the CLI for a
+    job that was queued to run against somebody's API key.
+    """
+    return [spec.id for spec in _REGISTRY.values() if spec.executed_by == "runner"]
+
+
+def server_ids() -> list[str]:
+    """Providers the backend executes itself, in `optimization/server_executor`."""
+    return [spec.id for spec in _REGISTRY.values() if spec.executed_by == "server"]

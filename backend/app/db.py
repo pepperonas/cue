@@ -83,6 +83,8 @@ def _migrate(engine: Engine) -> None:
         "snippet_sync_token": "ALTER TABLE user ADD COLUMN snippet_sync_token VARCHAR",
         "sync_ungrouped": "ALTER TABLE user ADD COLUMN sync_ungrouped BOOLEAN NOT NULL DEFAULT 0",
         "snippet_sync_last": "ALTER TABLE user ADD COLUMN snippet_sync_last TIMESTAMP",
+        "anthropic_key_enc": "ALTER TABLE user ADD COLUMN anthropic_key_enc VARCHAR",
+        "optimize_model": "ALTER TABLE user ADD COLUMN optimize_model VARCHAR",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).

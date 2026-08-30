@@ -459,6 +459,29 @@ export interface OptimizationStats {
   lifetime_repeated: number
 }
 
+/** One model a user can point their own API key at, with its list price. */
+export interface ApiKeyModel {
+  id: string
+  label: string
+  input_per_mtok: number
+  output_per_mtok: number
+}
+
+/**
+ * The caller's own Anthropic key — status only.
+ *
+ * ⚠️ The key itself is never in here. `preview` is a masked tail; the plaintext
+ * travels in one direction only, into the server.
+ */
+export interface ApiKeyStatus {
+  configured: boolean
+  preview: string
+  model: string
+  models: ApiKeyModel[]
+  /** When the price table was last checked — the costs are estimates. */
+  pricing_state: string
+}
+
 export interface Stats {
   range: StatsRange
   prompts: PromptStats

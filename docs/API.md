@@ -149,7 +149,9 @@ Ressource.
 
 | Methode | Pfad | Beschreibung |
 | --- | --- | --- |
-| `GET` | `/optimizations/config` | Ob die Funktion verfügbar ist (owner-only). |
+| `GET` | `/optimizations/config` | Ob die Funktion verfügbar ist. 403 für alle, die weder Besitzer sind noch einen eigenen API-Key hinterlegt haben — genau das blendet die Funktion in der Oberfläche aus. |
+| `GET` | `/optimizations/key` | Status des **eigenen** Anthropic-Keys: ob einer hinterlegt ist, eine maskierte Endung, das gewählte Modell und die Preisliste. Der Key selbst wird nie zurückgegeben. Für jeden freigeschalteten Nutzer erreichbar — das Hinterlegen ist der Weg, die Optimierung überhaupt zu bekommen. |
+| `PUT` | `/optimizations/key` | Eigenen Key setzen (`""` entfernt ihn) und/oder das Modell wählen. Der Key wird vor dem Speichern gegen die API geprüft und verschlüsselt abgelegt. |
 | `POST` | `/optimizations` | Optimierung einreihen. Nur für Prompts in der **Queue**. |
 | `GET` | `/optimizations` | Aktive und vergangene Versuche. |
 | `GET` | `/optimizations/{optimization_id}` | Ein Versuch mit Text, Modell, Dauer, Kosten, Tokens. |

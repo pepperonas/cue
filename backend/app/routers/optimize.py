@@ -16,18 +16,23 @@ from sqlmodel import Session
 
 from ..config import get_settings
 from ..db import get_session
-from ..deps import current_user_id, require_csrf, require_owner, require_runner
+from ..deps import current_user_id, require_csrf, require_optimizer, require_runner
 from ..longpoll import claim_with_wait
-from ..models import OptimizationBatch, PromptOptimization
+from ..models import OptimizationBatch, PromptOptimization, User
 from ..optimization import (
     ExecutionResult,
     OptimizationError,
     PromptOptimizationService,
     providers,
 )
+from ..optimization import pricing
+from .. import secrets_store
 from ..optimization.meta_prompt import META_PROMPT_VERSION
 from .prompts import _read as prompt_read
 from ..schemas import (
+    ApiKeyModel,
+    ApiKeyStatus,
+    ApiKeyUpdate,
     OptimizationBatchCreate,
     OptimizationBatchRead,
     OptimizationClaimRequest,
@@ -71,10 +76,16 @@ def _fail(exc: OptimizationError) -> HTTPException:
 
 
 # ---------------------------------------------------------------- user routes
+#
+# `require_optimizer` guards the two routes that SPEND money (queue one, queue
+# a batch) and the config route, whose 403 is what hides the feature in the UI.
+# Everything else — reading attempts, applying or discarding a finished
+# proposal — is only tenant-scoped: removing your API key must not lock you out
+# of results you already paid for, and deciding on one costs nothing.
 
 
 @router.get("/config", response_model=OptimizationConfigRead)
-def get_config(_owner: int = Depends(require_owner)) -> OptimizationConfigRead:
+def get_config(_owner: int = Depends(require_optimizer)) -> OptimizationConfigRead:
     """Capabilities + limits. A 403 here is what hides the feature in the UI."""
     return OptimizationConfigRead(
         enabled=_settings.optimize_enabled,
@@ -91,11 +102,95 @@ def get_config(_owner: int = Depends(require_owner)) -> OptimizationConfigRead:
     )
 
 
+# ---------------------------------------------------- the user's own API key
+#
+# Reachable by every APPROVED user, deliberately not behind `require_optimizer`:
+# storing a key is exactly how someone earns that permission, so gating it
+# behind itself would leave every new user locked out of the feature forever.
+
+
+@router.get("/key", response_model=ApiKeyStatus)
+def get_api_key(
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+) -> ApiKeyStatus:
+    user = session.get(User, uid)
+    stored = secrets_store.decrypt(user.anthropic_key_enc) if user else None
+    return ApiKeyStatus(
+        configured=bool(stored),
+        # A masked tail, never the key: a settings page that echoes back the
+        # secret it stores turns every screenshot into a leak.
+        preview=secrets_store.preview(stored),
+        model=(user.optimize_model if user else None) or pricing.DEFAULT_MODEL,
+        models=[
+            ApiKeyModel(
+                id=price.id,
+                label=price.label,
+                input_per_mtok=price.input_per_mtok,
+                output_per_mtok=price.output_per_mtok,
+            )
+            for price in pricing.MODELS
+        ],
+        pricing_state=pricing.STATE,
+    )
+
+
+@router.put("/key", response_model=ApiKeyStatus)
+def put_api_key(
+    payload: ApiKeyUpdate,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> ApiKeyStatus:
+    """Store (or replace) the caller's own Anthropic key.
+
+    The key is verified against the API before it is saved. Without that check
+    a typo is only discovered by the first optimization failing, minutes later
+    and with a worse error — and a stored broken key silently switches the user
+    off the working CLI path.
+    """
+    user = session.get(User, uid)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Unknown user")
+
+    if payload.model is not None:
+        if payload.model and not pricing.is_known(payload.model):
+            raise HTTPException(status_code=400, detail="Unbekanntes Modell")
+        user.optimize_model = payload.model or None
+
+    if payload.key is not None:
+        key = payload.key.strip()
+        if key:
+            ok, detail = _verify_key(key)
+            if not ok:
+                raise HTTPException(status_code=400, detail=detail)
+            user.anthropic_key_enc = secrets_store.encrypt(key)
+        else:
+            user.anthropic_key_enc = None
+    session.add(user)
+    session.commit()
+    return get_api_key(session=session, uid=uid)
+
+
+def _verify_key(key: str) -> tuple[bool, str]:
+    """One cheap call that proves the key works, without spending real money."""
+    try:
+        import anthropic
+
+        anthropic.Anthropic(api_key=key, max_retries=0, timeout=15.0).models.list(limit=1)
+    except Exception as exc:  # noqa: BLE001 - every failure reads the same to the user
+        status_code = getattr(exc, "status_code", None)
+        if status_code in (401, 403):
+            return False, "Der Key wurde von der API abgelehnt"
+        return False, f"Key konnte nicht geprüft werden: {str(exc)[:180]}"
+    return True, ""
+
+
 @router.post("", response_model=OptimizationRead, status_code=status.HTTP_201_CREATED)
 def create_optimization(
     payload: OptimizationCreate,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(require_optimizer),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationRead:
     """Queue an optimization (first run or refinement) for one prompt."""
@@ -110,7 +205,7 @@ def create_optimization(
 def list_optimizations(
     prompt_id: int | None = Query(default=None),
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> list[OptimizationRead]:
     """Version history for a prompt, or every currently active job."""
     service = _service(session)
@@ -126,7 +221,7 @@ def list_optimizations(
 def get_optimization(
     optimization_id: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> OptimizationRead:
     job = _service(session).repo.get(optimization_id, uid)
     if job is None:
@@ -138,7 +233,7 @@ def get_optimization(
 def cancel_optimization(
     optimization_id: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationRead:
     try:
@@ -151,7 +246,7 @@ def cancel_optimization(
 def apply_optimization(
     optimization_id: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationDecisionResult:
     """Take the proposal over into the prompt text."""
@@ -162,7 +257,7 @@ def apply_optimization(
 def discard_optimization(
     optimization_id: int,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationDecisionResult:
     """Drop the proposal; the prompt text stays as it is."""
@@ -185,7 +280,7 @@ def _decide(
 def create_batch(
     payload: OptimizationBatchCreate,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(require_optimizer),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationBatchRead:
     """Queue every eligible prompt; the runner works them off one by one."""
@@ -205,7 +300,7 @@ def create_batch(
 @router.get("/batch/active", response_model=OptimizationBatchRead | None)
 def get_active_batch(
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> OptimizationBatchRead | None:
     """Progress of the running batch (null when none is active)."""
     service = _service(session)
@@ -219,7 +314,7 @@ def get_active_batch(
 def get_batch(
     batch_id: str,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
 ) -> OptimizationBatchRead:
     service = _service(session)
     batch = service.repo.get_batch(batch_id, uid)
@@ -232,7 +327,7 @@ def get_batch(
 def cancel_batch(
     batch_id: str,
     session: Session = Depends(get_session),
-    uid: int = Depends(require_owner),
+    uid: int = Depends(current_user_id),
     _csrf: None = Depends(require_csrf),
 ) -> OptimizationBatchRead:
     service = _service(session)

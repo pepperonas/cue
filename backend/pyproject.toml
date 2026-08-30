@@ -11,6 +11,12 @@ dependencies = [
     "itsdangerous>=2.2",
     "python-multipart>=0.0.12",
     "pydantic>=2.9",
+    # Per-user API keys are encrypted at rest — the nightly backup would
+    # otherwise carry other people's Anthropic keys in clear text.
+    "cryptography>=43.0",
+    # Server-side optimizer for users who bring their own key. The owner's
+    # path still goes through the Claude Code CLI on the runner Mac.
+    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]

@@ -28,9 +28,11 @@ from ..models import (
     PromptEventType,
     PromptOptimization,
     PromptStatus,
+    User,
     utcnow,
 )
-from . import providers
+from . import pricing, providers
+from .. import secrets_store
 from .meta_prompt import META_PROMPT_VERSION, build_meta_prompt, clean_result
 from .repository import OptimizationRepository
 
@@ -102,6 +104,33 @@ class PromptOptimizationService:
             raise OptimizationError("Prompt not found", 404)
         return self._queue_for(prompt, uid, provider=provider, batch_id=batch_id)
 
+    def provider_for(self, uid: int) -> str:
+        """Which optimizer this user's work runs through.
+
+        A user who stored their OWN Anthropic key gets the server-side API
+        provider — that is the whole point of storing one: their optimizations
+        must not be paid for by the owner's Claude subscription. Everyone else
+        (in practice the owner) keeps the Claude Code CLI on the runner Mac,
+        which is what has been running all along.
+        """
+        user = self.session.get(User, uid)
+        if user is not None and secrets_store.decrypt(user.anthropic_key_enc):
+            return providers.ANTHROPIC_API.id
+        return self.settings.optimize_provider
+
+    def model_for(self, uid: int, spec: providers.ProviderSpec) -> str:
+        """The model to bill.
+
+        ⚠️ The two paths do NOT share a model name. `OPTIMIZE_MODEL` is a CLI
+        alias ("opus") that the Messages API rejects, so a server job takes the
+        user's chosen model or the priced default — never the CLI setting.
+        """
+        if spec.executed_by == "server":
+            user = self.session.get(User, uid)
+            chosen = (user.optimize_model if user else None) or ""
+            return chosen if pricing.is_known(chosen) else pricing.DEFAULT_MODEL
+        return self.settings.optimize_model or spec.default_model
+
     def _queue_for(
         self,
         prompt: Prompt,
@@ -131,7 +160,7 @@ class PromptOptimizationService:
         if self.repo.active_for_prompt(prompt.id, uid) is not None:
             raise OptimizationError("Für diesen Prompt läuft bereits eine Optimierung", 409)
 
-        spec = providers.get(provider or self.settings.optimize_provider)
+        spec = providers.get(provider or self.provider_for(uid))
         previous = self.repo.latest_successful(prompt.id, uid)
         job = PromptOptimization(
             user_id=uid,
@@ -140,7 +169,7 @@ class PromptOptimizationService:
             version=self.repo.next_version(prompt.id, uid),
             status=OptimizationStatus.queued,
             provider=spec.id,
-            model=self.settings.optimize_model or spec.default_model,
+            model=self.model_for(uid, spec),
             meta_prompt_version=META_PROMPT_VERSION,
             # Bookmarks are the reusable shelf: rewrite them to fit any project
             # instead of only sharpening them for the one they came from.
@@ -203,9 +232,15 @@ class PromptOptimizationService:
         return batch, queued, skipped
 
     # ---- execution handshake ----------------------------------------------
-    def claim(self, runner_id: str) -> ClaimedJob | None:
-        """Hand the next queued job to an executor (atomic, one at a time)."""
-        job = self.repo.claim_next(runner_id)
+    def claim(self, runner_id: str, provider_ids: list[str] | None = None) -> ClaimedJob | None:
+        """Hand the next queued job to an executor (atomic, one at a time).
+
+        The Mac runner asks without an argument and gets only runner-executed
+        work; the in-process worker asks for the server-executed providers.
+        """
+        job = self.repo.claim_next(
+            runner_id, provider_ids if provider_ids is not None else providers.runner_ids()
+        )
         if job is None:
             return None
         log.info(

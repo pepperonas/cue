@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.0] - 2026-08-30
+
+### Added
+- **Eigener Anthropic-API-Key je Nutzer.** Wer einen hinterlegt, kann Prompts
+  optimieren — abgerechnet auf sein eigenes Konto. Der Key wird vor dem
+  Speichern gegen die API geprüft, **verschlüsselt** abgelegt
+  (`app/secrets_store.py`, Fernet mit einem aus `SECRET_KEY` abgeleiteten
+  Schlüssel) und **nie wieder ausgegeben** — die Oberfläche sieht nur die
+  letzten vier Zeichen. Einstellungen → „KI-Optimierung — eigener API-Key",
+  inklusive Modellwahl mit Listenpreisen.
+- **Zwei Ausführungswege, zwei Zahler.** Der Betreiber bleibt unverändert auf
+  der Claude-Code-CLI seines Runner-Macs; wer einen eigenen Key hat, dessen
+  Optimierungen laufen **serverseitig** gegen die Messages API
+  (`optimization/server_executor.py`, ein Job zur Zeit, Worker in der
+  Lifespan). Der Provider wird beim Einreihen aus dem Nutzer abgeleitet, nicht
+  aus einer globalen Einstellung.
+- **Kosten aus der Nutzung berechnet** (`optimization/pricing.py`): die
+  Messages API meldet vollständige Token-Zahlen, aber keinen Preis. Preistabelle
+  zentral, mit Stand-Datum, Cache-Faktoren (Schreiben 1,25×, Lesen 0,1×) und
+  sechs Nachkommastellen — eine Haiku-Optimierung landet bei $0,0008.
+
+### Changed
+- Die Optimierungs-Routen sind nicht mehr pauschal owner-only. **Geld ausgeben**
+  (einreihen, Batch, Config) verlangt Besitzer **oder** eigenen Key; **lesen und
+  entscheiden** ist nur noch mandantengebunden. Wer seinen Key entfernt,
+  verliert damit nicht den Zugriff auf Vorschläge, die er schon bezahlt hat.
+- ⚠️ Der Claim des Mac-Runners ist auf **runner-ausgeführte** Provider
+  eingeschränkt. Ohne das hätte er einen Job, der gegen einen fremden Key
+  laufen soll, mit der CLI ausgeführt — die Arbeit wäre passiert, auf dem
+  falschen Konto.
+
+### Internal
+- Neue Abhängigkeiten `anthropic` (offizielles SDK) und `cryptography`
+  (Verschlüsselung der Keys — die nächtliche Sicherung trägt diese Tabelle
+  sonst im Klartext vom Server).
+- ⚠️ Die beiden Wege teilen **keinen** Modellnamen: `OPTIMIZE_MODEL` ist ein
+  CLI-Alias („opus"), den die Messages API ablehnt. Server-Jobs nehmen das
+  Modell des Nutzers oder den bepreisten Standard.
+
 ## [0.53.0] - 2026-08-30
 
 ### Added

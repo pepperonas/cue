@@ -232,6 +232,29 @@ export function useSendToSession() {
   })
 }
 
+/**
+ * The caller's own Anthropic key.
+ *
+ * Every approved user may read this, key or not — storing one is how somebody
+ * gets the optimization feature in the first place, so it must not sit behind
+ * the permission it grants. Invalidating the optimize config on save is what
+ * makes the ✨ buttons appear without a reload.
+ */
+export function useApiKey() {
+  return useQuery({ queryKey: ['api-key'], queryFn: () => api.apiKey() })
+}
+
+export function useSaveApiKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { key?: string; model?: string }) => api.saveApiKey(patch),
+    onSuccess: (data) => {
+      qc.setQueryData(['api-key'], data)
+      qc.invalidateQueries({ queryKey: ['optimize-config'] })
+    },
+  })
+}
+
 export function useCaptureSettings() {
   return useQuery({ queryKey: ['capture-settings'], queryFn: () => api.getCaptureSettings() })
 }

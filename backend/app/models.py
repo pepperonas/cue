@@ -61,6 +61,14 @@ class User(SQLModel, table=True):
     snippet_sync_token: str | None = Field(default=None, index=True)
     sync_ungrouped: bool = Field(default=False)
     snippet_sync_last: datetime | None = Field(default=None)
+    # The user's OWN Anthropic API key, encrypted (app/secrets_store.py). It is
+    # what lets somebody other than the owner optimize prompts without spending
+    # the owner's budget: with a key the work runs against the Messages API on
+    # the server, without one it runs on the owner's Mac via the Claude CLI.
+    # Never leaves the server — the API only ever returns a masked preview.
+    anthropic_key_enc: str | None = Field(default=None)
+    #: Which model that key pays for. Empty = the default in optimization/pricing.
+    optimize_model: str | None = Field(default=None)
 
 
 class Project(SQLModel, table=True):

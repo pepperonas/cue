@@ -21,6 +21,7 @@ import logging
 from . import events
 from .config import get_settings
 from .optimization import PromptOptimizationService
+from .optimization import server_executor as server_optimizer
 from .db import engine, init_db
 from .routers import (
     admin,
@@ -104,6 +105,10 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
     tasks = [
         asyncio.create_task(_attachment_gc_loop()),
         asyncio.create_task(_run_reaper_loop()),
+        # Executes optimizations for users who brought their own API key. The
+        # owner's jobs are not touched by this — those still go to the Mac
+        # runner, which claims only runner-executed providers.
+        asyncio.create_task(server_optimizer.loop()),
     ]
     try:
         yield
@@ -117,7 +122,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.53.0",
+    version="0.54.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,

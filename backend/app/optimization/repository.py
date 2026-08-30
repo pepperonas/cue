@@ -104,17 +104,37 @@ class OptimizationRepository:
         )
         return list(self.session.exec(stmt).all())
 
-    def claim_next(self, runner_id: str) -> PromptOptimization | None:
-        """Atomically hand the oldest queued job to one runner.
+    def claim_next(
+        self, runner_id: str, provider_ids: list[str] | None = None
+    ) -> PromptOptimization | None:
+        """Atomically hand the oldest queued job to one executor.
 
         Single UPDATE ... RETURNING, exactly like the run engine's claim: two
         runners polling concurrently can never take the same job. Jobs of a
         canceled batch are skipped.
+
+        `provider_ids` scopes the claim to what this executor can actually run.
+        It matters since providers execute in different places: handing an
+        `anthropic_api` job (server-side, someone's own key) to the Mac runner
+        would have it drive the CLI instead — the work would happen, on the
+        wrong account.
         """
+        allowed = list(provider_ids) if provider_ids is not None else None
+        if allowed is not None and not allowed:
+            return None
         now = utcnow()
+        # Bound parameters, not interpolation: the ids come from the registry
+        # today, and a list built into SQL is an injection waiting for the day
+        # they come from somewhere else.
+        provider_clause = ""
+        params: dict = {"runner": runner_id, "now": now}
+        if allowed is not None:
+            names = [f"p{i}" for i in range(len(allowed))]
+            provider_clause = f"AND o.provider IN ({', '.join(':' + n for n in names)})"
+            params.update(dict(zip(names, allowed)))
         row = self.session.exec(
             text(
-                """
+                f"""
                 UPDATE prompt_optimization
                    SET status = 'running', runner_id = :runner, started_at = :now
                  WHERE id = (
@@ -122,11 +142,12 @@ class OptimizationRepository:
                        LEFT JOIN optimization_batch b ON b.id = o.batch_id
                         WHERE o.status = 'queued'
                           AND COALESCE(b.canceled, 0) = 0
+                          {provider_clause}
                         ORDER BY o.created_at, o.id
                         LIMIT 1)
              RETURNING id
                 """
-            ).bindparams(runner=runner_id, now=now)
+            ).bindparams(**params)
         ).first()
         self.session.commit()
         if not row:

@@ -17,6 +17,7 @@ import type {
   Optimization,
   OptimizationBatch,
   OptimizationDecisionResult,
+  ApiKeyStatus,
   OptimizationConfig,
   Priority,
   Project,
@@ -157,6 +158,10 @@ export const api = {
       unassign_project: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
+  // The caller's own Anthropic key. GET returns status only — never the key.
+  apiKey: () => request<ApiKeyStatus>('GET', '/optimizations/key'),
+  saveApiKey: (patch: { key?: string; model?: string }) =>
+    request<ApiKeyStatus>('PUT', '/optimizations/key', patch),
   deletePrompt: (id: number) => request<void>('DELETE', `/prompts/${id}`),
   /**
    * Fire-and-forget delete that survives the page going away.

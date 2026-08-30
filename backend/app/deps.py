@@ -77,6 +77,43 @@ def require_owner(
     return uid
 
 
+def require_optimizer(
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+) -> int:
+    """Who may run prompt optimizations.
+
+    Two ways in, and the difference is who pays:
+
+    * the owner, whose jobs run through the Claude Code CLI on their own Mac
+      and are billed to their Claude account;
+    * anyone who stored their OWN Anthropic API key, whose jobs run server-side
+      against that key.
+
+    Everyone else gets 403 and the UI hides the feature — the same behaviour
+    every non-owner had before per-user keys existed. Deliberately NOT the same
+    gate as `require_owner`: runs and CLI deliveries execute code on the
+    owner's machine and stay owner-only, while an optimization with your own
+    key touches nothing of theirs.
+    """
+    # Deliberately NOT checking `optimize_enabled` here: the route answers that
+    # with 503 ("the feature is off"), which is a different statement from 403
+    # ("you may not"). Checking it in the permission would shadow the more
+    # accurate error — a test caught exactly that.
+    user = session.get(User, uid)
+    owner = _settings.owner_email
+    if user and owner and (user.email or "").strip().lower() == owner:
+        return uid
+    if user and user.anthropic_key_enc:
+        return uid
+    if not owner and _settings.dev_mode:
+        return uid
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Eigener Anthropic-API-Key nötig",
+    )
+
+
 def require_runner(
     authorization: str | None = Header(default=None),
 ) -> None:
