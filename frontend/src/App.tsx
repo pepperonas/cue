@@ -64,7 +64,8 @@ import { SessionsView } from './components/SessionsView'
 import { SnippetsView } from './components/SnippetsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
-import { Login } from './components/Login'
+import { Landing } from './components/Landing'
+import { useRoute } from './state/route'
 import { ProjectChips } from './components/ProjectChips'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
@@ -81,6 +82,7 @@ const StatsView = lazy(withChunkRecovery('stats', () => import('./components/sta
 
 export default function App() {
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
+  const { route, toLanding, toApp } = useRoute()
 
   useEffect(() => {
     api
@@ -94,6 +96,12 @@ export default function App() {
   // polling once there is a session to poll for.
   useLiveSync(me !== 'loading' && !!me?.authenticated && !!me?.approved)
 
+  // The landing page is public and answers first: it is the only address in
+  // this app, and gating it behind the session would make the link unusable
+  // for exactly the people it is written for.
+  if (route === 'landing') {
+    return <Landing signedIn={!!me && me !== 'loading' && !!me.authenticated} onEnterApp={toApp} />
+  }
   if (me === 'loading') {
     return (
       <div className="app">
@@ -103,9 +111,11 @@ export default function App() {
       </div>
     )
   }
-  if (!me || !me.authenticated) return <Login />
+  // A visitor gets the landing page at `/` too — signing in is a call to
+  // action there, not a wall in front of the explanation.
+  if (!me || !me.authenticated) return <Landing onEnterApp={toLanding} />
   if (!me.approved) return <PendingApproval onLogout={() => setMe(null)} />
-  return <Shell onLogout={() => setMe(null)} />
+  return <Shell onLogout={() => setMe(null)} onLanding={toLanding} />
 }
 
 /** Signed in with Google, but the admin hasn't approved the account yet. */
@@ -152,7 +162,7 @@ function PendingApproval({ onLogout }: { onLogout: () => void }) {
   )
 }
 
-function Shell({ onLogout }: { onLogout: () => void }) {
+function Shell({ onLogout, onLanding }: { onLogout: () => void; onLanding: () => void }) {
   const settings = useSettings()
   const toast = useToast()
   const closeTopOverlay = useCloseTopOverlay()
@@ -703,6 +713,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       <TopBar
         view={view}
         onView={setView}
+        onLanding={onLanding}
         onShortcuts={() => setShortcuts(true)}
         canRun={canRun}
         projectLabel={

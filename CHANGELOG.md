@@ -4,6 +4,41 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.55.0] - 2026-08-30
+
+### Added
+- **Landing Page unter `/willkommen`.** Eingeloggte Nutzer landen auf `/`
+  weiterhin **direkt** in der App; Besucher sehen die Landing Page — Hero mit
+  Nutzenversprechen, vier Funktionen, Chips für den Rest, Google-Login als CTA
+  oben und unten. Wer eingeloggt zurückkommt, sieht dieselbe Seite mit
+  „Zur App" statt Anmelden.
+- **Rückweg aus dem Header:** ein „Startseite"-Knopf rechts in der Kopfleiste
+  (44 px, auch auf dem Handy erreichbar) und zusätzlich der Klick auf den
+  Schriftzug — die Konvention des Webs, und sie kostet in einer bei 390 px
+  ohnehin engen Leiste keinen Platz.
+- **Eigene Adresse statt bloßem Zustand** (`lib/route.ts` + `state/route.ts`):
+  teilbarer Link, Browser-Zurück, und ein Reload bleibt auf der Seite. Kein
+  Router-Paket — 50 Zeilen History-API, Regeln framework-frei und mit 6 Tests.
+
+### Changed
+- `components/Login.tsx` ist **entfallen**; die Landing Page trägt jetzt den
+  Anmelde-CTA und die OAuth-Fehlermeldungen (Google leitet Fehler nach `/` mit
+  `?auth_error=` zurück). Die Reihenfolge dreht sich damit bewusst um: bisher
+  stand die Login-Karte oben und die Tour darunter.
+- Die Funktionsliste war veraltet — Priorität, „Getestet", der Statistik-Ausbau
+  und der eigene API-Key fehlten.
+
+### Internal
+- ⚠️ Die Route hängt an `popstate` **neben** dem Overlay-Stack, ohne ihn zu
+  stören: dessen Einträge werden als `pushState(state, '')` **ohne
+  URL-Argument** gepusht und bewegen den Pfad daher nie. Live geprüft: Dialog
+  offen → Zurück schließt den Dialog, Route unverändert.
+- ⚠️ `.google-btn` trägt `width: 100%` aus der alten Login-Karte — im Kopf zog
+  sich der Knopf über 1045 px. Auf die Landing-Kopfleiste begrenzt.
+- ⚠️ Ein `overflow-y: auto` auf `.landing-main` war **wirkungslos**: `body` ist
+  der Scroller dieser App. Entfernt, statt einen inneren Scroller
+  vorzutäuschen.
+
 ## [0.54.1] - 2026-08-30
 
 ### Fixed

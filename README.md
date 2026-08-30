@@ -3,22 +3,22 @@
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.54.1-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1149%20passing-brightgreen.svg)](docs/TESTING.md)
+[![version](https://img.shields.io/badge/version-0.55.0-blue.svg)](CHANGELOG.md)
+[![tests](https://img.shields.io/badge/tests-1155%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-522-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-476-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-482-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-97%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test files](https://img.shields.io/badge/test%20files-62-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-12581-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-63-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-12629-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-42%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-30009-blue.svg)](#)
+[![LOC](https://img.shields.io/badge/LOC-30258-blue.svg)](#)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-9824-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16323-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3862-663399.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16503-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3931-663399.svg)](#)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
 [![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
 [![React components](https://img.shields.io/badge/React%20components-45-61DAFB.svg)](frontend/src/components/)
@@ -124,6 +124,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 - **Zurück-Geste schließt Dialoge** statt die App: jedes Overlay registriert sich in einem History-Stack, verschachtelte Dialoge werden nacheinander abgebaut, und erst der leere Stack verlässt die App. Escape nutzt exakt dieselbe Reihenfolge.
 - **Touch-Drag & Drop**: Karten lassen sich per Long-Press ziehen, ein normaler Wisch scrollt weiterhin (vorher startete jede Fingerbewegung über einer Karte einen Drag). Inklusive Auto-Scroll am Rand, Haptik beim Aufnehmen, sauberem Abbruch per Escape und Tastatur-Bedienung.
 - **KI-Prompt-Optimierung**: ✨-Button auf jeder Karte/Zeile schreibt den Prompt per **Claude Code CLI** um (Meta-Prompt für Struktur, Rollenklarheit, Ausgabeformate). Das **Original bleibt immer erhalten** — die optimierte Fassung liegt daneben, umschaltbar über **Original / Optimierte Version / Unterschiede** mit **GitHub-artigem Diff** (grün/rot, wortgenau). Eine fertige Optimierung ist ein **Vorschlag**: sie **öffnet sich von selbst in der Diff-Ansicht**, unter dem Diff stehen **Übernehmen** und **Verwerfen** — nach dem Übernehmen schließt sich der Dialog und die Karte zeigt sofort den neuen Text. Optimierst du erneut, ohne entschieden zu haben, wird die ältere Fassung als **ersetzt** markiert (nachlesbar, aber nicht mehr übernehmbar) — es ist immer nur ein Vorschlag offen — erst Übernehmen schreibt den Text in den Prompt, Verworfenes bleibt in der Historie nachlesbar. **Bookmarks werden universell optimiert**: projektgebundene Angaben (Pfade, Modul-/Repo-/Projektnamen, Framework) werden zu Platzhaltern, während alles, was dem Autor gehört und überall gleich ist (eigene Links, Konten, Marken- und Produktnamen), unverändert stehen bleibt — das Ergebnis passt so in jedes Projekt. **Erneut optimieren** schickt Original *und* letzte Fassung an Claude und legt eine neue Version an; ältere Versionen bleiben über die Historie (v1, v2, …) abrufbar, inklusive Modell, Dauer, Kosten und Tokens. **„Alle optimieren"** arbeitet alle noch nicht optimierten Prompts **nacheinander** ab (Fortschrittsanzeige „12 / 143", Abbrechen, fehlerhafte werden übersprungen und am Ende gezählt). **Zwei Wege, zwei Zahler:** der Betreiber optimiert über die Claude-Code-CLI auf seinem Mac-Runner (der Server ruft dafür nie eine Shell auf); **jeder andere Nutzer hinterlegt in den Einstellungen seinen eigenen Anthropic-API-Key** und optimiert damit auf eigene Rechnung — die Jobs laufen dann serverseitig gegen die Messages API. Ohne Key bleibt die Funktion ausgeblendet. Der Key wird vor dem Speichern geprüft, verschlüsselt abgelegt und nie wieder ausgegeben; die Oberfläche zeigt nur die letzten vier Zeichen. Modellwahl inklusive Listenpreisen. Provider-Architektur, sodass später OpenAI/Gemini/Ollama ohne Änderung am Rest ergänzt werden können. **Welches Modell schreibt, legt `OPTIMIZE_MODEL` fest** (Standard `opus`). Bleibt die Variable leer, wird gar kein `--model` übergeben und es rechnet das, worauf die Claude-Code-CLI auf dem Runner-Mac gerade eingestellt ist — ein `/model` dort ändert dann still mit, womit deine Prompts umgeschrieben werden. Die Historie hält pro Versuch fest, welches Modell **tatsächlich** geantwortet hat (ein Alias wie `opus` löst sich erst in der CLI zu einem konkreten Namen auf).
+- **Landing Page** unter `/willkommen`: erklärt die App und ist teilbar. Eingeloggt landest du auf `/` **direkt** in der App — ohne Zwischenschritt; Besucher sehen die Landing Page mit Google-Login als CTA. Zurück geht es jederzeit über den **„Startseite"-Knopf** in der Kopfleiste (oder den Klick auf den Schriftzug); wer eingeloggt zurückkommt, sieht dieselbe Seite mit „Zur App". Kein Router-Paket — 50 Zeilen History-API, Theme und Komponenten kommen aus der App.
 - **Statistiken**: eigener Tab mit Analytics-Dashboard — KPI-Kacheln mit Sparkline und Vergleich zur Vorperiode (erstellt / erledigt / bearbeitet / gelöscht / CLI-Prompts / Serie / Durchlaufzeit / Backlog) und Sektionen für **Prompts** (Zeitverlauf, Statusverteilung, Längen), **Nutzung** (Aktivitätskalender, Wochentag×Stunde-Heatmap, Wochentags-Radar, Tageszeiten, Streaks), **Projekte** (Top-Listen, Treemap, zuletzt verwendet), **Tags** (Top, Wolke, Vokabular-Wachstum) **KI-Runs** (Kostenverlauf, Erfolgsquote, Laufzeit) und **Prompt-Optimierung** (wie viele Prompts die KI umgeschrieben hat, Kosten gesamt / je Prompt / je Versuch, Einzelwerte je Prompt, Erfolgs- und Übernahmequote, Kosten je Modell, Median-Längenfaktor). ⚠️ Auf dem CLI-Weg sind die Kosten die von der **Claude-CLI gemeldeten** Werte, keine Hochrechnung aus Tokenpreisen — die gespeicherten Input-Tokens enthalten keine Cache-Eingaben (live: 68 Tokens für 14 125 Zeichen), eine Preis-mal-Tokens-Rechnung wäre schlicht falsch. Versuche ohne Kostenmeldung werden als „nicht erfasst" ausgewiesen statt als 0 mitgemittelt. Auf dem **API-Weg** ist es umgekehrt: dort meldet die API vollständige Token-Zahlen und gar keinen Preis, also wird aus der Preistabelle gerechnet — eine Schätzung mit Stand-Datum. Zeitraum umschaltbar von **Heute bis Gesamt** inkl. **benutzerdefiniertem** Bereich; Tages-/Stundenraster in der **Zeitzone des Browsers**. Charts mit Recharts, nur in diesem Tab nachgeladen.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
 - **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** (oder `e`, oder „Bearbeiten“) schaltet **denselben Dialog** ins Formular um, statt einen zweiten zu öffnen: Kopf, Felder und Aktionszeile blenden versetzt um, das Formular steigt von unten, die zurückkehrende Ansicht senkt sich von oben. `Cmd/Ctrl+Enter` speichert — egal, wo der Fokus liegt — und der Dialog bleibt offen und zeigt das Ergebnis. Escape verlässt erst das Formular, beim zweiten Druck den Dialog.
@@ -201,9 +202,9 @@ cd frontend && pnpm typecheck
 | --- | --- | --: | --: | --- |
 | Backend | `backend/tests/` | 522 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 476 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 482 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1149** | | |
+| **Gesamt** | | **1155** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

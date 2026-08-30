@@ -2297,6 +2297,76 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
   overflow-y: auto;
 }
 .login-wrap > .login-card { margin-top: max(6vh, 24px); }
+/* ── Landing page ─────────────────────────────────────────────────────
+   The public page. It borrows the app's own tokens and components (`.topbar`,
+   `.btn`, `.chip`, `--md-*`) rather than bringing a second look — the header
+   below IS `.topbar`, only without the tab row, so light and dark come for
+   free with everything else. */
+.landing-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.landing-topbar {
+  /* The app's header carries a tab row; this one carries one button, so it
+     needs no scroll container and no spacer gymnastics. */
+  gap: var(--gap-2);
+}
+/* `.google-btn` carries `width: 100%` from the old login card, where filling
+   the card was the point. In a header it is not — it stretched across the
+   whole bar (measured 1045 px). */
+.landing-topbar .btn {
+  width: auto;
+  flex: none;
+}
+.landing-main {
+  /* Grows so the footer sits at the bottom on a short page. Deliberately NO
+     `overflow-y: auto`: `body` is this app's scroller (html and body are
+     `height: 100%`), so an inner scroll container here never scrolls — it just
+     reads like one to the next person. Measured: scrollHeight == clientHeight
+     on the element, while body scrolls 2757 px. */
+  flex: 1 1 auto;
+  padding: 0 var(--gap-4);
+}
+.landing-hero {
+  width: min(720px, 100%);
+  margin: max(6vh, 32px) auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-3);
+  text-align: center;
+}
+.landing-hero h1 {
+  font: var(--headline-l);
+  margin: 0;
+  /* Balanced so the headline does not leave one word alone on a second line. */
+  text-wrap: balance;
+}
+.landing-lede {
+  margin: 0;
+  max-width: 58ch;
+  line-height: 1.6;
+  color: var(--md-on-surface-variant);
+}
+.landing-error {
+  margin: 0;
+  color: var(--md-error);
+}
+.landing-cta {
+  display: flex;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--gap-2);
+}
+.landing-closing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-3);
+}
+
 .landing {
   width: min(860px, 100%);
   margin: 56px auto 40px;

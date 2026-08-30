@@ -30,12 +30,15 @@ const TABS: { key: View; icon: string; label: string }[] = [
 export function TopBar({
   view,
   onView,
+  onLanding,
   onShortcuts,
   canRun = false,
   projectLabel = null,
 }: {
   view: View
   onView: (v: View) => void
+  /** Back to the public landing page. */
+  onLanding: () => void
   onShortcuts: () => void
   canRun?: boolean
   // Currently selected project (board view): shown next to the brand.
@@ -47,10 +50,15 @@ export function TopBar({
   return (
     <header className="topbar">
       <div className="brand">
+        {/* Clicking the wordmark goes to the landing page — the web's own
+            convention, and it costs no room in a header that is already tight
+            at 390 px. It used to reload the page; Cmd/Ctrl+R still does that,
+            and the same "way back" also sits as an icon button on the right so
+            it is reachable without knowing the convention. */}
         <button
           className="brand-btn"
-          title="Neu laden"
-          onClick={() => window.location.reload()}
+          title="Zur Startseite"
+          onClick={onLanding}
         >
           <img className="logo logo-img" src="/favicon.svg" alt="" width={34} height={34} />
           <span className="brand-name">cue</span>
@@ -105,6 +113,7 @@ export function TopBar({
           })
         }}
       />
+      <IconButton icon="home" label="Startseite" onClick={onLanding} />
       <IconButton icon="keyboard" label="Shortcuts (?)" className="hide-mobile" onClick={onShortcuts} />
       <IconButton icon="settings" label="Einstellungen" onClick={() => onView('settings')} />
     </header>
