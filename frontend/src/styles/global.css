@@ -1835,6 +1835,14 @@ kbd {
   .list-group-head {
     min-height: 44px;
   }
+  /* ⚠️ Ausnahme: die Chips der Landing Page sind Etiketten, keine
+     Bedienelemente (`pointer-events: none`). Ein Mindest-Trefferziel für etwas,
+     das niemand antippen kann, kostet nur Platz — gemessen zwölf Stück à 44 px
+     in einer 366 px breiten Spalte, also 528 px Scrollweg für eine
+     Aufzählung. */
+  .landing-chip {
+    min-height: 0;
+  }
   /* The pill was 46 px tall but only its 26 px input took the tap; the padding
      around it did nothing. Moving the height onto the input makes the whole
      pill the target. */
@@ -4139,5 +4147,87 @@ img.logo-xl { border-radius: 18px; }
   /* Auf dem Telefon zählt der Satz, nicht die Knopfreihe daneben. */
   .demo-banner .grow {
     display: none;
+  }
+}
+
+/* ── Landing Page auf dem Telefon ─────────────────────────────────────
+   Gemessen an der ausgelieferten Seite bei 320, 360 und 390 px. Die vier
+   Befunde, die diesen Block begründen, stehen jeweils an ihrer Regel. */
+@media (max-width: 640px) {
+  /* ⚠️ Der Kopf trug zwei CTA-Knöpfe nebeneinander und bricht nicht um —
+     gemessen 96 px (390) bis 166 px (320) horizontaler Überlauf, also eine
+     Seite, die sich seitwärts schieben lässt. Dieselben Knöpfe stehen direkt
+     darunter im Hero und noch einmal am Seitenende; im Kopf bleiben Marke und
+     Theme-Schalter. */
+  .landing-topbar-cta {
+    display: none;
+  }
+
+  .landing-main {
+    padding: 0 var(--gap-3);
+  }
+
+  /* Der Hero füllte anderthalb Bildschirme, bevor die erste Aussage über die
+     App kam: 84-px-Logo, dreizeilige Überschrift, sechszeiliger Vorspann. */
+  .landing-hero {
+    margin-top: 20px;
+    gap: var(--gap-2);
+  }
+  .landing-hero .logo-xl {
+    width: 56px;
+    height: 56px;
+  }
+  .landing-hero h1 {
+    font: var(--headline-m);
+    /* Deutsche Komposita („Claude-Code-Prompts") brechen sonst an der falschen
+       Stelle oder gar nicht. */
+    hyphens: auto;
+  }
+  .landing-lede {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  /* Volle Breite statt zweier halber Zeilen — auf 358 px ist nebeneinander
+     ohnehin nicht drin. */
+  .landing-cta,
+  .landing-closing {
+    width: 100%;
+  }
+  .landing-cta .btn,
+  .landing-closing .btn {
+    width: 100%;
+  }
+
+  .landing {
+    gap: 28px;
+    margin: 32px auto 24px;
+  }
+  .landing-feature {
+    gap: 12px;
+  }
+  .landing-feature-head {
+    gap: 10px;
+  }
+  .landing-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* ⚠️ Aufnahmen eines Desktop-Fensters, auf 358 px zusammengeschoben: der
+     Inhalt ist nicht mehr zu entziffern, kostet aber je 230 px Scrollweg —
+     zusammen knapp ein Bildschirm mal fünf. Die Handy-Aufnahme bleibt, und
+     die Demo ist einen Fingertipp entfernt: dort sieht man das Echte. */
+  .landing-shot[data-wide='true'] {
+    display: none;
+  }
+
+  /* Zwölf Chips standen einzeln untereinander — 616 px hoch. Kleiner gesetzt
+     passen zwei kurze nebeneinander. */
+  .landing-more {
+    gap: 6px;
+  }
+  .landing-chip {
+    font-size: 0.76rem;
+    padding: 5px 9px;
   }
 }

@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.1] - 2026-09-01
+
+### Fixed
+- ⚠️ **Die Landing Page ließ sich auf dem Telefon seitwärts schieben** — gemessen
+  96 px Überlauf bei 390, 126 bei 360 und 166 bei 320 px. Ursache: die Kopfzeile
+  trug seit 0.61.0 zwei CTA-Knöpfe nebeneinander und bricht nicht um. Unter
+  640 px zeigt sie jetzt nur noch Marke und Theme-Schalter; dieselben Knöpfe
+  stehen unmittelbar darunter im Hero und noch einmal am Seitenende.
+
+### Changed
+- **Die Landing Page ist auf dem Telefon rund ein Viertel kürzer** (4758 → 3571 px
+  bei 390 px Breite), ohne dass eine Aussage entfällt:
+  - Der Hero füllte anderthalb Bildschirme, bevor die erste Aussage über die App
+    kam. Logo 84 → 56 px, Überschrift 32 → 24 px mit Silbentrennung (deutsche
+    Komposita brachen sonst falsch), engere Abstände.
+  - ⚠️ **Die Desktop-Screenshots sind auf dem Telefon ausgeblendet.** Auf 358 px
+    zusammengeschoben ist ein Desktop-Board nicht mehr zu entziffern, kostet aber
+    je 230 px Scrollweg. Die Handy-Aufnahme bleibt — und die Demo ist einen
+    Fingertipp entfernt, dort sieht man das Echte. Messbarer Nebeneffekt: **183
+    statt rund 1200 kB** Bilddaten auf einer Mobilverbindung.
+  - ⚠️ **Die zwölf Chips waren 44 px hoch, obwohl sie `pointer-events: none`
+    tragen** — die Touch-Ziel-Regel griff auf Etiketten, die niemand antippen
+    kann, und kostete 528 px Scrollweg für eine Aufzählung. Mit der Ausnahme und
+    kürzeren Beschriftungen: 616 → 330 px.
+- Chip-Beschriftungen gekürzt (auch am Desktop lesbarer): „CLI-Prompts
+  mitschreiben", „In laufende Sessions tippen", „Kopieren & Duplizieren",
+  „Import & Export", „Material-You-Farben", „Hell & Dunkel".
+
 ## [0.61.0] - 2026-09-01
 
 ### Added

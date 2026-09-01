@@ -31,26 +31,26 @@ const FEATURES: {
   icon: string
   title: string
   text: string
-  shot?: { src: string; alt: string }
+  shot?: { src: string; alt: string; wide?: boolean }
 }[] = [
   {
     icon: 'view_kanban',
     title: 'Prompt-Queue als Kanban-Board',
     text: 'Geplante Claude-Code-Prompts erfassen, nach Projekt gruppieren und per Drag & Drop durch Queued → Running → Done ziehen. Dringendes steht in der Queue oben, Erledigtes und schon Getestetes klappt weg, und ein Klick kopiert den Prompt in die CLI. Die Demo unten ist genau dieses Board.',
-    shot: { src: '/landing/board-demo.png', alt: 'cue-Board mit Beispiel-Prompts in drei Spalten' },
+    shot: { src: '/landing/board-demo.png', wide: true, alt: 'cue-Board mit Beispiel-Prompts in drei Spalten' },
   },
   {
     icon: 'play_circle',
     title: 'Runs: Prompts headless ausführen',
     text: 'Gespeicherte Prompts laufen über einen Runner direkt durch die Claude-Code-CLI — einzeln oder als Playbook in einer Session, bis zu drei parallel. Mit Live-Log, Kosten, Cancel und automatischem Verschieben nach Done.',
-    shot: { src: '/landing/runs-demo.png', alt: 'Runs-Ansicht mit laufendem und abgeschlossenem Run' },
+    shot: { src: '/landing/runs-demo.png', wide: true, alt: 'Runs-Ansicht mit laufendem und abgeschlossenem Run' },
   },
   {
     icon: 'auto_awesome',
     title: 'Prompts von der KI umschreiben lassen',
     text: 'Ein Klick schreibt einen Prompt schärfer — samt Titel und Schlagworten. Das Original bleibt immer erhalten, das Ergebnis ist ein Vorschlag mit Diff, den du übernimmst oder verwirfst; ein leerer Vorschlag löscht nie etwas. Bookmarks werden zusätzlich vom Projekt gelöst, damit sie überall passen. Mit eigenem Anthropic-API-Key läuft das auf deine Rechnung.',
     shot: {
-      src: '/landing/optimize-demo.png',
+      src: '/landing/optimize-demo.png', wide: true,
       alt: 'Detail-Dialog mit dem Unterschied zwischen Original und optimierter Fassung, darunter Übernehmen und Verwerfen',
     },
   },
@@ -58,7 +58,7 @@ const FEATURES: {
     icon: 'data_object',
     title: 'Snippet-Werkbank für Inspector Rust',
     text: 'IR-Backup importieren, Snippets gruppieren, versionieren und bearbeiten, wieder als IR-Backup exportieren — verlustfreier Roundtrip inklusive leerer Gruppen. Wahlweise synchronisiert Inspector Rust selbst, dann ist cue die Stelle, an der die Snippets sortiert werden.',
-    shot: { src: '/landing/snippets-demo.png', alt: 'Snippet-Bibliothek mit Gruppen und Versionsnummern' },
+    shot: { src: '/landing/snippets-demo.png', wide: true, alt: 'Snippet-Bibliothek mit Gruppen und Versionsnummern' },
   },
   {
     icon: 'sell',
@@ -84,17 +84,17 @@ const FEATURES: {
 ]
 
 const MORE: { icon: string; label: string }[] = [
-  { icon: 'history', label: 'CLI-Prompt-Capture mit Verlauf' },
-  { icon: 'send', label: 'Prompts in laufende Sessions tippen' },
+  { icon: 'history', label: 'CLI-Prompts mitschreiben' },
+  { icon: 'send', label: 'In laufende Sessions tippen' },
   { icon: 'merge', label: 'Prompts zusammenführen' },
-  { icon: 'content_copy', label: '1-Klick-Copy & Duplizieren' },
+  { icon: 'content_copy', label: 'Kopieren & Duplizieren' },
   { icon: 'mic', label: 'Diktat statt tippen' },
   { icon: 'image', label: 'Screenshots an Prompts' },
   { icon: 'undo', label: 'Löschen mit Undo' },
-  { icon: 'upload_file', label: 'Import & Export (JSON/ZIP/IR)' },
-  { icon: 'install_mobile', label: 'Installierbare PWA' },
-  { icon: 'palette', label: 'Material You Dynamic Color' },
-  { icon: 'dark_mode', label: 'Hell/Dunkel mit Circular Reveal' },
+  { icon: 'upload_file', label: 'Import & Export' },
+  { icon: 'install_mobile', label: 'Als PWA installierbar' },
+  { icon: 'palette', label: 'Material-You-Farben' },
+  { icon: 'dark_mode', label: 'Hell & Dunkel' },
   { icon: 'keyboard', label: 'Tastatur-Shortcuts' },
 ]
 
@@ -184,7 +184,11 @@ export function Landing({
             })
           }}
         />
-        {cta}
+        {/* ⚠️ Auf dem Telefon per CSS ausgeblendet: zwei Knöpfe passen dort
+            nicht neben Logo und Theme-Schalter — gemessen liefen sie 96 bis
+            166 px über den rechten Rand hinaus. Dieselben Knöpfe stehen
+            unmittelbar darunter im Hero und noch einmal am Seitenende. */}
+        <div className="landing-topbar-cta">{cta}</div>
       </header>
 
       <main className="landing-main">
@@ -242,6 +246,11 @@ export function Landing({
               {f.shot && (
                 <img
                   className="landing-shot"
+                  // Aufnahmen eines Desktop-Fensters. Auf einem Telefon sind
+                  // sie auf 358 px zusammengeschoben nicht mehr zu entziffern
+                  // und kosten je 230 px Scrollweg — dort werden sie
+                  // ausgeblendet. Die Handy-Aufnahme bleibt.
+                  data-wide={f.shot.wide ? 'true' : undefined}
                   src={f.shot.src}
                   alt={f.shot.alt}
                   loading="lazy"
