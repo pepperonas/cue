@@ -32,6 +32,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   die Frontend-Stage, aus demselben Grund wie `contracts/`: die Dateien
   gehören keiner Seite allein.
 
+### Fixed
+- ⚠️ **Der Image-Build benutzte seit dem 14. Juli eine veraltete
+  Vite-Konfiguration.** Ein kompiliertes `vite.config.js` (Rest eines alten
+  `tsc -b`, lokal längst behoben) lag noch auf dem Server — und weil der Deploy
+  bewusst **ohne `rsync --delete`** läuft, damit die `.env` überlebt,
+  verschwand es dort nie. Vite lädt `.js` **vor** `.ts`, also wurde jede
+  Änderung an der echten Konfiguration im Docker-Build still ignoriert. Der
+  Fehler fiel nur auf, weil die Version im ausgelieferten Bündel fehlte:
+  gemessen stand dort noch der Platzhalter `__APP_VERSION__`. Inhaltlich waren
+  die beiden Fassungen bis auf die heutigen Zusätze identisch, der Schaden also
+  gering — die Falle nicht. Jetzt sperrt die `.dockerignore` solche Reste aus
+  dem Build-Kontext aus, und `ops/deploy.sh` löscht sie vor dem Bauen.
+- ⚠️ Aus demselben Anlass: **`globIgnores` schließt den Changelog-Chunk auf
+  macOS aus und auf Linux nicht** — die Glob-Auflösung hängt an der
+  Groß-/Kleinschreibung des Dateisystems, und es gibt zwei Chunks, die sich nur
+  darin unterscheiden. Ersetzt durch eine `manifestTransforms`-Filterfunktion,
+  die auf beiden Systemen dasselbe tut.
+
 ### Internal
 - **Vier Tests erzwingen die Changelog-Regel**, alle mutationsgeprüft:
   Eintrag für die ausgelieferte Version vorhanden · Eintrag hat auch einen

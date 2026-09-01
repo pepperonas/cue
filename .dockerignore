@@ -9,5 +9,20 @@
 .git
 .env
 *.md
+# ⚠️ Ausnahme: CHANGELOG.md wird beim Bauen des Frontends eingebettet und in
+# „Über cue" angezeigt. Ohne diese Zeile schlägt der Image-Build fehl
+# („/CHANGELOG.md: not found") — die übrigen Markdown-Dateien bleiben draußen,
+# sie haben im Image nichts zu suchen.
+!CHANGELOG.md
 !backend/requirements.txt
 frontend/.vite
+# ⚠️ Kompilierte Reste der Konfiguration dürfen NIE in den Build-Kontext.
+# `tsc -b` legte früher eine `vite.config.js` neben die `.ts` (behoben durch
+# einen outDir in tsconfig.node.json) — aber eine solche Datei lag noch auf dem
+# Server, und weil der Deploy bewusst OHNE `rsync --delete` läuft, blieb sie
+# dort liegen. Vite lädt `.js` VOR `.ts`: der Image-Build hat monatelang die
+# Konfiguration vom 14. Juli benutzt und jede Änderung still ignoriert.
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/vitest.config.js
+frontend/vitest.config.d.ts

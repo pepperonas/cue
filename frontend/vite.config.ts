@@ -38,11 +38,25 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Landing screenshots are only shown pre-login — don't bloat the PWA cache.
-        // Dasselbe gilt für den Changelog: eigener Chunk (~36 kB gzip), der nur
-        // geladen wird, wenn jemand ihn in „Über cue" aufklappt. Ohne diese
-        // Zeile zöge ihn der Service Worker trotz des dynamischen Imports bei
-        // jedem Erstbesuch mit — gemessen: Precache 1131 → 1221 KiB.
-        globIgnores: ['**/landing/**', '**/og.png', '**/CHANGELOG-*.js'],
+        globIgnores: ['**/landing/**', '**/og.png'],
+        // Der Changelog ist ein eigener Chunk (~36 kB gzip), der nur geladen
+        // wird, wenn jemand ihn in „Über cue" aufklappt — ohne diese Regel zöge
+        // ihn der Service Worker trotz des dynamischen Imports bei jedem
+        // Erstbesuch mit (gemessen: Precache 1131 → 1221 KiB).
+        //
+        // ⚠️ Hier NICHT über `globIgnores`: `**/CHANGELOG-*.js` schloss den
+        // Chunk auf macOS aus und auf dem Linux-Build-Host NICHT — die
+        // Glob-Auflösung hängt an der Groß-/Kleinschreibung des Dateisystems,
+        // und es gibt zwei Chunks, die sich nur darin unterscheiden
+        // (`CHANGELOG-*.js` = die Daten, `changelog-*.js` = der Parser). Lokal
+        // grün, im Image drin — genau die Sorte Unterschied, die man erst in
+        // Produktion sieht. Eine Filterfunktion ist auf beiden Systemen dasselbe.
+        manifestTransforms: [
+          (entries) => ({
+            manifest: entries.filter((e) => !/changelog-[^/]*\.js$/i.test(e.url)),
+            warnings: [],
+          }),
+        ],
       },
     }),
   ],

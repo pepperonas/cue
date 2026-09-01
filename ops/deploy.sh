@@ -25,6 +25,21 @@ set -eu
 
 cd "${CUE_DIR:-/opt/cue}"
 
+# ⚠️ Kompilierte Konfigurationsreste erschlagen die echte Konfiguration:
+# Vite lädt `vite.config.js` VOR `vite.config.ts`. Eine solche Datei lag hier
+# monatelang aus einem alten `tsc -b` herum, und da der rsync bewusst ohne
+# `--delete` läuft (die .env liegt nur auf dem Server), verschwand sie nie —
+# der Image-Build benutzte still die Konfiguration vom 14. Juli. Die
+# .dockerignore hält sie inzwischen aus dem Kontext; dieser Hinweis nennt sie
+# trotzdem, damit niemand ihr Weiterleben für harmlos hält.
+for stale in frontend/vite.config.js frontend/vite.config.d.ts \
+             frontend/vitest.config.js frontend/vitest.config.d.ts; do
+    if [ -f "$stale" ]; then
+        echo "==> Entferne kompilierten Konfigurationsrest: $stale"
+        rm -f "$stale"
+    fi
+done
+
 echo "==> Bauen (die laufende Instanz bleibt unberührt)"
 docker compose build
 
