@@ -182,7 +182,12 @@ def test_changelog_versions_are_unique_and_ordered_newest_first():
     )
 
 
-@pytest.mark.parametrize("marker", ["badges:dynamic", "tests:dynamic"])
+#: Every block `update-badges.mjs` writes. Kept in one place so the two tests
+#: below cannot disagree about what counts as generated.
+GENERATED_BLOCKS = ["hero:dynamic", "badges:dynamic", "stack:dynamic", "tests:dynamic"]
+
+
+@pytest.mark.parametrize("marker", GENERATED_BLOCKS)
 def test_readme_generated_blocks_have_their_markers(marker: str):
     """The generator throws when a marker is gone rather than appending a second
     copy — so a missing marker means the numbers silently stop updating.
@@ -204,7 +209,18 @@ def test_readme_does_not_restate_the_version_by_hand():
     """The version lives in one place. A second, hand-typed copy is the drift."""
     version = app_version()
     text = README.read_text(encoding="utf-8")
-    outside_badges = re.sub(r"<!-- badges:dynamic -->.*?<!-- /badges:dynamic -->", "", text, flags=re.S)
+    # ⚠️ Strip EVERY generated block, not one named one. The version moved into
+    # the new hero block and this test failed on a value it should never have
+    # been looking at — a list of blocks that has to be extended by hand is the
+    # same rot the test exists to catch.
+    outside_badges = text
+    for block in GENERATED_BLOCKS:
+        outside_badges = re.sub(
+            rf"<!-- {re.escape(block)} -->.*?<!-- /{re.escape(block)} -->",
+            "",
+            outside_badges,
+            flags=re.S,
+        )
     assert version not in outside_badges, (
         f"README.md repeats the version {version} outside the generated badge block"
     )

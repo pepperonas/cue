@@ -165,3 +165,31 @@ describe('metaChanges', () => {
     expect(metaChanges(undefined)).toEqual([])
   })
 })
+
+describe('metaChanges — history from before the feature existed', () => {
+  it('proposes nothing for an attempt that predates title/tag rewriting', () => {
+    // Rows written before 0.58.0 have NULL for both proposals (the migration
+    // adds the columns empty). They must read as "this attempt suggested
+    // nothing", not as "clear the title".
+    const old = {
+      original_title: '',
+      original_tags: '',
+      optimized_title: null,
+      optimized_tags: null,
+    } as Optimization
+    expect(metaChanges(old)).toEqual([])
+  })
+
+  it('does not crash on a payload that lacks the fields entirely', () => {
+    // A service worker can hand back a response cached before the fields
+    // existed; `undefined` must behave like "nothing proposed".
+    expect(metaChanges({} as Optimization)).toEqual([])
+  })
+
+  it('still reports a proposal when only the snapshot is missing', () => {
+    const attempt = { optimized_title: 'Neu' } as Optimization
+    expect(metaChanges(attempt)).toEqual([
+      { key: 'title', label: 'Titel', from: '', to: 'Neu' },
+    ])
+  })
+})

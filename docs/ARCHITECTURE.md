@@ -312,6 +312,19 @@ tmux-Pane). Damit kann cue einen Prompt in eine **laufende** Session tippen —
 über AppleScript bzw. `tmux paste-buffer`, beides mit *bracketed paste*, damit
 mehrzeilige Prompts als Text ankommen und nicht als Kommandos.
 
+## Was das README über sich selbst weiß
+
+Der Badge-Bereich ist **generiert, nicht gepflegt**: `scripts/update-badges.mjs`
+misst nach jedem `npm test` das Repository und schreibt vier Blöcke neu — den
+Hero (Version, Codegröße), die Badge-Wand, den Tech-Stack und die Testtabelle.
+
+Die Trennung ist dieselbe wie im Frontend: die **Regeln** (jeder reguläre
+Ausdruck über eine Werkzeugausgabe, jede Ableitung aus einem Manifest) liegen in
+`scripts/badges-lib.mjs` und sind einzeln getestet; das Skript daneben ist nur
+noch Holen und Schreiben. Der Grund ist der Fehlermodus: ein Muster, das
+lautlos nicht mehr greift, macht aus jedem Badge eine selbstbewusste Lüge — und
+Badges sind das Erste, was jemand liest.
+
 ## Weiterlesen
 
 - [`CONFIGURATION.md`](CONFIGURATION.md) — jede Umgebungsvariable

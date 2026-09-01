@@ -7,18 +7,23 @@ export async function copyText(text: string): Promise<boolean> {
   } catch {
     // fall through to legacy path
   }
+  const ta = document.createElement('textarea')
   try {
-    const ta = document.createElement('textarea')
     ta.value = text
     ta.style.position = 'fixed'
     ta.style.opacity = '0'
     document.body.appendChild(ta)
     ta.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(ta)
-    return ok
+    return document.execCommand('copy')
   } catch {
     return false
+  } finally {
+    // ⚠️ `finally`, not a line after the copy: `execCommand` THROWS in a
+    // sandboxed iframe (no allow-clipboard-write) rather than returning false,
+    // and the old code skipped the removal on that path — every failed copy
+    // left an invisible textarea on the page for good. Found by writing the
+    // test for the throwing path.
+    ta.remove()
   }
 }
 

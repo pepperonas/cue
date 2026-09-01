@@ -40,16 +40,29 @@ import {
   badge,
   countCodeLines,
   countEndpoints,
+  countHooks,
+  countMigrations,
+  countProviders,
+  countReleases,
+  countSchemas,
+  countSettings,
   countTables,
   covColor,
+  formatNumber,
+  majorOf,
   isTestFile,
   languageOf,
   parseNodeTestCount,
   parsePytestCount,
   parsePytestCoverage,
+  parseLatestReleaseDate,
+  parseNpmDependency,
+  parsePyDependency,
+  parseRequiresPython,
   parseVersion,
   parseVitestCoverage,
   parseVitestList,
+  relativeLinkTargets,
   replaceMarkedBlock,
 } from './badges-lib.mjs'
 
@@ -123,6 +136,27 @@ function countFiles(dir, predicate) {
   return n
 }
 
+function frontendSource() {
+  let src = ''
+  walk(join(ROOT, 'frontend/src'), (path, name) => {
+    if ((name.endsWith('.ts') || name.endsWith('.tsx')) && !isTestFile(name)) {
+      src += `${readFileSync(path, 'utf8')}\n`
+    }
+  })
+  return src
+}
+
+/** Every source file counted for LOC — the file-level companion to that number. */
+function countSourceFiles() {
+  let n = 0
+  for (const root of SOURCE_ROOTS) {
+    walk(join(ROOT, root), (_path, name) => {
+      if (SOURCE_EXTS.has(extname(name)) && !isTestFile(name)) n += 1
+    })
+  }
+  return n
+}
+
 function backendSource() {
   let src = ''
   walk(join(ROOT, 'backend/app'), (path, name) => {
@@ -190,33 +224,122 @@ const docPages =
   readdirSync(ROOT).filter((n) => n.endsWith('.md')).length
 const testRatio = Math.round((tests.lines / loc.total) * 100)
 
+// Weitere Kennzahlen — jede aus einer echten Quelle, keine getippt.
+const libModules = countFiles('frontend/src/lib', (n) => n.endsWith('.ts') && !isTestFile(n))
+const routers = countFiles('backend/app/routers', (n) => n.endsWith('.py') && n !== '__init__.py')
+const migrations = countMigrations(read('backend/app/db.py'))
+const settingsCount = countSettings(read('backend/app/config.py'))
+const schemas = countSchemas(read('backend/app/schemas.py'))
+const providerCount = countProviders(read('backend/app/optimization/providers.py'))
+const hooks = countHooks(frontendSource())
+const sourceFiles = countSourceFiles()
+const changelog = read('CHANGELOG.md')
+const releases = countReleases(changelog)
+const released = parseLatestReleaseDate(changelog)
+
+// Versionen der Abhängigkeiten: Diese Badges standen bis 0.59.0 als getippte
+// Literale im README und wären beim nächsten Upgrade still falsch geworden.
+const pyproject = read('backend/pyproject.toml')
+const fePkg = read('frontend/package.json')
+const py = (name) => parsePyDependency(pyproject, name) ?? '?'
+const npm = (name) => parseNpmDependency(fePkg, name) ?? '?'
+const npmMajor = (name) => majorOf(parseNpmDependency(fePkg, name)) ?? '?'
+const pythonVersion = parseRequiresPython(pyproject)
+
+// ---- hero ----
+// Version and size, big, above everything else: the two things a reader wants
+// first. `for-the-badge` is the only style shields.io renders large enough to
+// carry that on its own.
+const HERO = { style: 'for-the-badge' }
+const heroBlock = [
+  badge('version', `v${version}`, '7c5cff', 'CHANGELOG.md', { ...HERO, labelColor: '1a1c22' }),
+  badge('lines of code', formatNumber(loc.total), '0A9EDC', '#', {
+    ...HERO,
+    labelColor: '1a1c22',
+  }),
+].join('\n')
+
 // ---- badge wall ----
 const badgesBlock = [
+  // Tests
   [
-    badge('version', version, 'blue', 'CHANGELOG.md'),
     badge('tests', `${totalTests} passing`, 'brightgreen', 'docs/TESTING.md'),
     badge('backend tests', String(backendTests), 'brightgreen', 'backend/tests/'),
     badge('runner tests', String(runnerTests), 'brightgreen', 'cue-runner/tests/'),
     badge('frontend tests', String(frontendTests), 'brightgreen', 'frontend/src/lib/'),
     badge('script tests', String(scriptTests), 'brightgreen', 'scripts/tests/'),
+    badge('test files', String(tests.files), '0A9EDC', 'docs/TESTING.md'),
   ].join('\n'),
+  // Coverage and test weight
   [
     badge('coverage backend', `${backendCov}%`, covColor(backendCov), 'backend/tests/'),
     badge('coverage runner', `${runnerCov}%`, covColor(runnerCov), 'cue-runner/tests/'),
     badge('coverage frontend-lib', `${frontendCov}%`, covColor(frontendCov), 'frontend/src/lib/'),
-    badge('test files', String(tests.files), '0A9EDC', 'docs/TESTING.md'),
-    badge('test LOC', String(tests.lines), '0A9EDC', 'docs/TESTING.md'),
+    badge('test LOC', formatNumber(tests.lines), '0A9EDC', 'docs/TESTING.md'),
     badge('test:code ratio', `${testRatio}%`, '0A9EDC', 'docs/TESTING.md'),
+    badge('guards', 'mutation-checked', 'brightgreen', 'docs/TESTING.md'),
+  ].join('\n'),
+  // Code
+  [
+    badge('Python LOC', formatNumber(loc.python), '3776AB'),
+    badge('TypeScript LOC', formatNumber(loc.typescript), '3178C6'),
+    badge('CSS LOC', formatNumber(loc.css), '663399'),
+    badge('source files', String(sourceFiles), 'blue'),
+    badge('pure lib modules', String(libModules), '3178C6', 'frontend/src/lib/'),
+    badge('React components', String(components), '61DAFB', 'frontend/src/components/'),
+    badge('React hooks', String(hooks), '61DAFB', 'frontend/src/state/'),
+  ].join('\n'),
+  // Backend shape
+  [
+    badge('API endpoints', String(endpoints), '8A2BE2', 'docs/API.md'),
+    badge('routers', String(routers), '8A2BE2', 'backend/app/routers/'),
+    badge('DB tables', String(tables), '003B57', 'docs/ARCHITECTURE.md'),
+    badge('migrations', String(migrations), '003B57', 'backend/app/db.py'),
+    badge('schemas', String(schemas), '009688', 'backend/app/schemas.py'),
+    badge('env settings', String(settingsCount), '4c1', 'docs/CONFIGURATION.md'),
+    badge('optimizer providers', String(providerCount), 'D97757', 'docs/ARCHITECTURE.md'),
+  ].join('\n'),
+  // Project
+  [
+    badge('releases', String(releases), 'blue', 'CHANGELOG.md'),
+    badge('last release', released, 'blue', 'CHANGELOG.md'),
+    badge('docs pages', String(docPages), '4c1', 'docs/'),
+    badge('docs', 'test-pinned', '4c1', 'docs/'),
+    badge('license', 'MIT', 'green', 'LICENSE'),
+    badge('self-hosted', 'cue.celox.io', '1a1c22', 'https://cue.celox.io'),
+  ].join('\n'),
+].join('\n')
+
+// ---- tech stack (versions read from the manifests, never typed) ----
+const stackBlock = [
+  [
+    badge('Python', pythonVersion, '3776AB', 'https://www.python.org/', 'python'),
+    badge('FastAPI', py('fastapi'), '009688', 'https://fastapi.tiangolo.com/', 'fastapi'),
+    badge('SQLModel', py('sqlmodel'), '003B57', 'https://sqlmodel.tiangolo.com/', 'sqlite'),
+    badge('Pydantic', py('pydantic'), 'E92063', 'https://docs.pydantic.dev/', 'pydantic'),
+    badge('uvicorn', py('uvicorn'), '2f9e44', 'https://www.uvicorn.org/'),
+    badge('pytest', py('pytest'), '0A9EDC', 'https://docs.pytest.org/', 'pytest'),
+    badge('uv', 'managed', 'DE5FE9', 'https://docs.astral.sh/uv/', 'astral'),
   ].join('\n'),
   [
-    badge('LOC', String(loc.total), 'blue'),
-    badge('Python LOC', String(loc.python), '3776AB'),
-    badge('TypeScript LOC', String(loc.typescript), '3178C6'),
-    badge('CSS LOC', String(loc.css), '663399'),
-    badge('API endpoints', String(endpoints), '8A2BE2', 'docs/API.md'),
-    badge('DB tables', String(tables), '003B57', 'docs/ARCHITECTURE.md'),
-    badge('React components', String(components), '61DAFB', 'frontend/src/components/'),
-    badge('docs pages', String(docPages), '4c1', 'docs/'),
+    badge('React', npmMajor('react'), '61DAFB', 'https://react.dev/', 'react'),
+    badge('TypeScript', npm('typescript'), '3178C6', 'https://www.typescriptlang.org/', 'typescript'),
+    badge('Vite', npmMajor('vite'), '646CFF', 'https://vitejs.dev/', 'vite'),
+    badge('Vitest', npmMajor('vitest'), '6E9F18', 'https://vitest.dev/', 'vitest'),
+    badge('TanStack Query', npmMajor('@tanstack/react-query'), 'FF4154', 'https://tanstack.com/query', 'reactquery'),
+    badge('dnd-kit', npm('@dnd-kit/core'), '6332F6', 'https://dndkit.com/'),
+    badge('Motion', npmMajor('motion'), 'FFF42B', 'https://motion.dev/', 'framer'),
+    badge('ESLint', npmMajor('eslint'), '4B32C3', 'frontend/eslint.config.js', 'eslint'),
+  ].join('\n'),
+  [
+    badge('Anthropic SDK', py('anthropic'), 'D97757', 'docs/ARCHITECTURE.md', 'anthropic'),
+    badge('cryptography', py('cryptography'), '4c1', 'SECURITY.md'),
+    badge('argon2-cffi', py('argon2-cffi'), '4c1', 'SECURITY.md'),
+    badge('SQLite', 'WAL', '003B57', 'docs/ARCHITECTURE.md', 'sqlite'),
+    badge('Docker', 'ready', '2496ED', './Dockerfile', 'docker'),
+    badge('PWA', 'installable', '5A0FC8', 'https://web.dev/progressive-web-apps/', 'pwa'),
+    badge('Material 3', 'Expressive', '6750A4', 'https://m3.material.io/', 'materialdesign'),
+    badge('Auth', 'Google OAuth 2.0', '4285F4', 'https://developers.google.com/identity/protocols/oauth2', 'google'),
   ].join('\n'),
 ].join('\n')
 
@@ -239,9 +362,23 @@ const testsBlock = [
 ].join('\n')
 
 // ---- write ----
+// Every link this file emits has to resolve BEFORE the README is written. The
+// backend suite checks the same thing, but that suite is what the generator
+// runs to measure coverage — a broken badge link would wedge it (see
+// `relativeLinkTargets`).
+for (const block of [heroBlock, badgesBlock, stackBlock]) {
+  for (const target of relativeLinkTargets(block)) {
+    if (!existsSync(join(ROOT, target))) {
+      throw new Error(`badge links to a missing file: ${target}`)
+    }
+  }
+}
+
 const readmePath = join(ROOT, 'README.md')
 const before = readFileSync(readmePath, 'utf8')
-let after = replaceMarkedBlock(before, 'badges:dynamic', badgesBlock)
+let after = replaceMarkedBlock(before, 'hero:dynamic', heroBlock)
+after = replaceMarkedBlock(after, 'badges:dynamic', badgesBlock)
+after = replaceMarkedBlock(after, 'stack:dynamic', stackBlock)
 after = replaceMarkedBlock(after, 'tests:dynamic', testsBlock)
 
 const summary =

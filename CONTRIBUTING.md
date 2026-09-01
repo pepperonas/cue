@@ -25,11 +25,13 @@ erreichbaren Host** — es schaltet vier Produktionsschutzmaßnahmen ab
 ## Ein Beitrag ist erst fertig, wenn das alles stimmt
 
 ```bash
-npm test          # vier Suiten + Lint, danach die Badges (posttest)
+npm test          # Lint + Typecheck + vier Suiten, danach die Badges (posttest)
 cd frontend && pnpm typecheck && pnpm build
 ```
 
-1. **Tests grün** — alle vier Suiten.
+1. **Tests grün** — alle vier Suiten. ⚠️ `npm test` enthält seit 0.59.0 auch
+   `tsc -b`: vitest transpiliert nur und prüft keine Typen, ein Test mit
+   falscher Aufrufsignatur lief sonst grün durch.
 2. **Jede neue Zusicherung einmal rot gesehen.** Siehe unten.
 3. **Doku mitgeführt** — CHANGELOG-Eintrag, und bei neuen Einstellungen oder
    Endpunkten auch `docs/`. Sonst schlägt `test_docs.py` fehl.
@@ -77,6 +79,18 @@ formuliert. Driften sie, wird ein Drag gespeichert und tut trotzdem nichts.
 prüfen. Eine neue Regel darf **nur gespeicherte Felder** verwenden, und der
 Nutzer muss sie **überstimmen können** — sonst wird das Ziehen in dem betroffenen
 Block zu einem garantierten Nichts.
+
+### Keine Zahl im README wird von Hand gepflegt
+
+Alles im Badge-Bereich — Version, Codegröße, Tests, Coverage, Endpunkte,
+Tabellen **und die Versionen des Tech-Stacks** — kommt aus
+`scripts/update-badges.mjs` und wird nach jedem `npm test` neu geschrieben. Wer
+eine Zahl ins README tippt, tippt eine Zahl, die veraltet.
+
+Ein neues Badge heißt also: eine Ableitung in `scripts/badges-lib.mjs`, ein Test
+dafür in `scripts/tests/`, ein Aufruf in `update-badges.mjs`. ⚠️ Relative Links
+in Badges prüft der Generator selbst, bevor er schreibt — ein kaputter Link legte
+ihn sonst lahm, weil er die Suite laufen lässt, die genau diese Links prüft.
 
 ### Denormalisierte Spalten haben genau einen Schreiber
 

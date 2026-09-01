@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LONG_PRESS_MS, LONG_PRESS_SLOP_PX, createLongPress } from './long-press'
 
 /** Ein Zeitgeber, den der Test von Hand vorstellt — kein `setTimeout` nötig. */
@@ -142,5 +142,51 @@ describe('createLongPress', () => {
     h.tick()
     h.press.move({ x: 500, y: 500 })
     expect(h.press.end()).toBe(true)
+  })
+})
+
+describe('the default timer path', () => {
+  // ⚠️ Every test above injects a fake scheduler, so the DEFAULT one — the code
+  // that actually runs in a browser — had never executed once. Coverage showed
+  // it as the one uncovered function in the module.
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('fires after LONG_PRESS_MS of real (faked) time', () => {
+    vi.useFakeTimers()
+    const onLongPress = vi.fn()
+    const press = createLongPress({ onLongPress })
+
+    press.start({ x: 0, y: 0 })
+    vi.advanceTimersByTime(LONG_PRESS_MS - 1)
+    expect(onLongPress).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(onLongPress).toHaveBeenCalledTimes(1)
+    expect(press.end()).toBe(true)
+  })
+
+  it('really clears the timer on release, not just its own flag', () => {
+    // Without a working default `unschedule` the callback would still arrive
+    // long after the finger left — the failure mode is invisible to a test that
+    // injects its own scheduler.
+    vi.useFakeTimers()
+    const onLongPress = vi.fn()
+    const press = createLongPress({ onLongPress })
+
+    press.start({ x: 0, y: 0 })
+    press.end()
+    vi.advanceTimersByTime(LONG_PRESS_MS * 5)
+    expect(onLongPress).not.toHaveBeenCalled()
+  })
+
+  it('honours a custom delay', () => {
+    vi.useFakeTimers()
+    const onLongPress = vi.fn()
+    const press = createLongPress({ onLongPress, delayMs: 50 })
+    press.start({ x: 0, y: 0 })
+    vi.advanceTimersByTime(50)
+    expect(onLongPress).toHaveBeenCalledTimes(1)
   })
 })

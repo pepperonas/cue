@@ -97,3 +97,17 @@ describe('BackStack', () => {
     expect(isOverlayState('x')).toBe(false)
   })
 })
+
+describe('clear', () => {
+  it('empties the stack so nothing can be closed afterwards', () => {
+    // The reset hatch for tests and for a hard navigation; a leftover entry
+    // would make the next Escape close an overlay that is no longer on screen.
+    const stack = new BackStack()
+    stack.push('a', () => {})
+    stack.push('b', () => {})
+    stack.clear()
+    expect(stack.closeTop()).toBe(false)
+    // And the ids are free again — a cleared stack is empty, not merely muted.
+    expect(stack.push('a', () => {})).toEqual({ type: 'push' })
+  })
+})

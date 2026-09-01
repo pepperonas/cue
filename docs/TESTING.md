@@ -5,13 +5,16 @@ Vier Suiten, alle deterministisch und offline lauffähig. Externe Abhängigkeite
 Netz, und keiner braucht eine laufende Instanz.
 
 ```bash
-npm test          # alle vier Suiten, danach die README-Badges (posttest-Hook)
+npm test          # Lint, Typecheck, alle vier Suiten, danach die Badges (posttest)
 
 npm run test:backend     # cd backend    && uv run pytest -q
 npm run test:runner      # cd cue-runner && .venv/bin/python -m pytest -q
 npm run test:frontend    # cd frontend   && pnpm vitest run
 npm run test:scripts     # node --test scripts/tests/
 npm run lint             # eslint (Fehler blockieren, Warnungen sind ein geprüfter Rückstand)
+npm run typecheck        # tsc -b — ⚠️ vitest transpiliert nur, es prüft KEINE Typen:
+                         #   ein Testaufruf mit falscher Signatur läuft grün durch
+                         #   und fällt erst beim Build auf (genau so passiert)
 
 # einzelner Test
 cd backend  && uv run pytest tests/test_tenancy.py::test_every_route_is_scoped
@@ -29,6 +32,22 @@ generiert, nicht getippt.
 | `cue-runner/tests/` | Orchestrierung | Falsche Subprozesse, `httpx.MockTransport`, eine programmierbare `FakeApi`. Kein echter `claude`-Aufruf. |
 | `frontend/src/lib/` | reine Module | Nur `lib/`. Komponenten sind **absichtlich** ungetestet. |
 | `scripts/tests/` | Werkzeug | Die Parser des Badge-Generators — `node --test`, ohne Abhängigkeiten. |
+
+### Warum die Badge-Parser eine eigene Suite haben
+
+Weil ihr Fehlermodus lautlos ist. Ein Werkzeug ändert sein Ausgabeformat, ein
+regulärer Ausdruck greift nicht mehr — und das Badge zeigt eine alte oder
+erfundene Zahl, die niemand nachprüft. Genau darum wirft jeder Parser mit dem
+Ende der Ausgabe im Text, statt eine plausible Null zu liefern.
+
+Seit 0.59.0 lesen diese Parser auch die **Versionen des Tech-Stacks** aus
+`pyproject.toml` und `package.json`. Vorher standen sie als Literale im README
+(„React 18", „FastAPI 0.115") und wären beim nächsten Upgrade still falsch
+geworden. Die Regeln dahinter sind kleiner, als sie klingen, und trotzdem voller
+Randfälle: eine Obergrenze im Versionsbereich, ein `[standard]`-Extra, ein Name,
+der das Ende eines anderen ist, ein Specifier ganz ohne Version
+(`workspace:*`) — jeder davon hat einen Test, und zwei davon haben beim
+Schreiben einen echten Fehler gefunden.
 
 ### Warum die Frontend-Coverage auf `src/lib` begrenzt ist
 
@@ -133,6 +152,22 @@ Beispiele dafür, wie unauffällig eine wirkungslose Zusicherung aussieht:
   Claim-Abfrage *überhaupt nichts* zurückgab — also auch bei kaputter Übernahme.
   Neu werden **beide** Jobs eingereiht, und der Test verlangt, dass genau der des
   Betreibers ankommt.
+
+## Ein Test, der einen Pfad zum ersten Mal betritt
+
+Coverage ist kein Ziel, aber sie **zeigt Stellen, an denen noch nie jemand
+war** — und das ist etwas anderes als eine unwichtige Zeile:
+
+- Der **Standard-Zeitgeber** von `long-press.ts` war nie ausgeführt worden: alle
+  Tests spritzten einen eigenen ein, also lief genau die Variante ungeprüft, die
+  im Browser arbeitet.
+- Der **werfende** Zweig von `copyText`: ein sandboxed iframe ohne
+  `allow-clipboard-write` lässt `execCommand` *werfen* statt `false` liefern.
+  Der Test dafür fand einen echten Fehler — das Hilfs-Textfeld blieb dann für
+  immer im DOM stehen, bei jedem gescheiterten Kopierversuch eines mehr.
+
+Beide sind Beispiele derselben Sache: der Erfolgsfall war getestet, der
+Ausnahmefall nur gedacht.
 
 ## Konventionen
 

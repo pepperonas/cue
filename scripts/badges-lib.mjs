@@ -114,6 +114,111 @@ export function countTables(modelsPy) {
   return (modelsPy.match(/table=True/g) ?? []).length
 }
 
+// ---- dependency and project metadata ---------------------------------------
+//
+// These exist so the tech-stack badges stop being hand-typed. A badge that says
+// "React 18" while package.json says 19 is not a small error: it is the README
+// lying about the thing it exists to describe, and nobody notices because
+// nobody re-reads a badge they wrote themselves.
+
+/**
+ * `requires-python = ">=3.12"` → "3.12".
+ *
+ * ⚠️ The closing quote is deliberately NOT required after the version: a real
+ * specifier may carry an upper bound (`">=3.11,<4.0"`), and demanding the quote
+ * made this throw on a perfectly valid file. Found by its own test.
+ */
+export function parseRequiresPython(pyproject) {
+  const m = pyproject.match(/requires-python\s*=\s*["'][^\d]*([\d.]+)/)
+  if (!m) fail('pyproject requires-python', pyproject)
+  return m[1]
+}
+
+/**
+ * The floor of a Python dependency: `fastapi>=0.115` → "0.115".
+ *
+ * Returns null for a package that is not listed — the caller decides whether a
+ * missing dependency is a badge that disappears or an error.
+ */
+export function parsePyDependency(pyproject, name) {
+  const re = new RegExp(`["']${name}(?:\\[[^\\]]*\\])?\\s*>=\\s*([\\d.]+)`, 'i')
+  return pyproject.match(re)?.[1] ?? null
+}
+
+/**
+ * A npm dependency's version, range markers stripped: `^18.3.1` → "18.3.1".
+ *
+ * Looks in dependencies AND devDependencies, because "which Vitest is this"
+ * is exactly as interesting as "which React is this".
+ */
+export function parseNpmDependency(packageJsonText, name) {
+  let pkg
+  try {
+    pkg = JSON.parse(packageJsonText)
+  } catch {
+    fail('package.json (not valid JSON)', packageJsonText)
+  }
+  const raw = pkg.dependencies?.[name] ?? pkg.devDependencies?.[name] ?? null
+  if (raw === null) return null
+  const m = String(raw).match(/(\d+(?:\.\d+)*)/)
+  return m ? m[1] : null
+}
+
+/** Major version only — "18.3.1" → "18". Badges read better short. */
+export function majorOf(version) {
+  return version === null ? null : String(version).split('.')[0]
+}
+
+/** Idempotent `ALTER TABLE` statements in db.py — the schema's migration count. */
+export function countMigrations(dbPy) {
+  return (dbPy.match(/ALTER TABLE \w+ ADD COLUMN/g) ?? []).length
+}
+
+/**
+ * Environment settings read in config.py.
+ *
+ * ⚠️ The newline matters: black wraps long calls, so `os.environ.get(` and the
+ * name can sit on different lines — a single-line pattern under-reports and the
+ * badge quietly shrinks (the same trap `test_docs.py` documents).
+ */
+export function countSettings(configPy) {
+  return new Set(
+    [...configPy.matchAll(/\.get\(\s*\n?\s*["']([A-Z_][A-Z0-9_]*)["']/g)].map((m) => m[1]),
+  ).size
+}
+
+/** Pydantic request/response models. */
+export function countSchemas(schemasPy) {
+  return (schemasPy.match(/^class \w+\(BaseModel\)/gm) ?? []).length
+}
+
+/** Exported React hooks (`export function useX`). */
+export function countHooks(source) {
+  return (source.match(/export function use[A-Z]\w*/g) ?? []).length
+}
+
+/** Registered optimizer providers. */
+export function countProviders(providersPy) {
+  return (providersPy.match(/^\w+ = ProviderSpec\(/gm) ?? []).length
+}
+
+/** Every released version heading in the changelog. */
+export function countReleases(changelog) {
+  return (changelog.match(/^## \[\d+\.\d+\.\d+\]/gm) ?? []).length
+}
+
+/** Date of the newest release heading: "## [0.58.0] - 2026-09-01" → "2026-09-01". */
+export function parseLatestReleaseDate(changelog) {
+  const m = changelog.match(/^## \[\d+\.\d+\.\d+\]\s*-\s*(\d{4}-\d{2}-\d{2})/m)
+  if (!m) fail('CHANGELOG release date', changelog)
+  return m[1]
+}
+
+/** Thousands separators — a five-digit badge is hard to read without them. */
+export function formatNumber(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 // ---- badge rendering -------------------------------------------------------
 
 /**
@@ -126,17 +231,50 @@ export function shieldEscape(text) {
   return String(text).replace(/-/g, '--')
 }
 
-export function badge(label, value, color, link = '#', logo) {
+/**
+ * One shields.io badge as a linked Markdown image.
+ *
+ * `opts` accepts a bare string as a shorthand for `{ logo }` — that is the
+ * common case and reads better at the call site than an object of one key.
+ */
+export function badge(label, value, color, link = '#', opts = {}) {
+  const { logo, style, labelColor } = typeof opts === 'string' ? { logo: opts } : opts
   const path =
     `${encodeURIComponent(shieldEscape(label))}` +
     `-${encodeURIComponent(shieldEscape(value))}-${color}.svg`
-  const query = logo ? `?logo=${encodeURIComponent(logo)}&logoColor=white` : ''
-  return `[![${label}](https://img.shields.io/badge/${path}${query})](${link})`
+  const query = new URLSearchParams()
+  if (logo) {
+    query.set('logo', logo)
+    query.set('logoColor', 'white')
+  }
+  if (style) query.set('style', style)
+  if (labelColor) query.set('labelColor', labelColor)
+  const qs = query.toString()
+  return `[![${label}](https://img.shields.io/badge/${path}${qs ? `?${qs}` : ''})](${link})`
 }
 
 /** Traffic light for a percentage. */
 export function covColor(pct) {
   return pct >= 90 ? 'brightgreen' : pct >= 75 ? 'green' : 'yellow'
+}
+
+/**
+ * Relative link targets in a Markdown fragment — the ones a repo can verify.
+ *
+ * ⚠️ This exists because of a deadlock I walked into: `update-badges.mjs` runs
+ * the backend suite to measure coverage, and that suite contains a test which
+ * checks every link in the README. A badge written with a broken relative link
+ * therefore makes the generator unable to run — it cannot rewrite the README
+ * because the tests it runs first fail on the README it has not written yet.
+ * Checking here means the mistake is caught where it is made, with the offending
+ * target named, instead of two minutes later in an unrelated-looking failure.
+ */
+export function relativeLinkTargets(markdown) {
+  return [...markdown.matchAll(/\]\(([^)]+)\)/g)]
+    .map((m) => m[1])
+    .filter((t) => !/^(https?:\/\/|#|mailto:)/.test(t))
+    .map((t) => t.split('#')[0])
+    .filter(Boolean)
 }
 
 // ---- marker blocks ---------------------------------------------------------

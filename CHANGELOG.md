@@ -4,6 +4,55 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.0] - 2026-09-01
+
+### Added
+- **Version und Codegröße stehen jetzt oben, groß, über allem anderen** (eigener
+  `hero:dynamic`-Block, `for-the-badge`-Stil).
+- **67 Badges statt 20** — Tests je Suite, Coverage, Testgewicht, Codegröße je
+  Sprache, Quelldateien, reine Module, Komponenten, Hooks, Endpunkte, Router,
+  Tabellen, Migrationen, Schemas, Einstellungen, Optimierer-Provider, Releases,
+  Datum des letzten Release, Doku-Seiten, Lizenz.
+- **Der Tech-Stack liest seine Versionen aus den Manifesten.** „React 18",
+  „FastAPI 0.115", „pytest 9" und ein Dutzend weitere standen als getippte
+  Literale im README und wären beim nächsten Upgrade still falsch geworden —
+  niemand liest ein Badge nach, das er selbst geschrieben hat. Sie kommen jetzt
+  aus `pyproject.toml` und `package.json`.
+- Damit gibt es **keinen Wert mehr im Badge-Bereich, den jemand von Hand
+  nachziehen müsste**; `npm test` schreibt alles neu.
+
+### Fixed
+- ⚠️ **Ein echter Fehler, gefunden beim Testschreiben:** wirft `execCommand` —
+  was ein sandboxed iframe ohne `allow-clipboard-write` tut, statt `false` zu
+  liefern —, entfernte `copyText` das Hilfs-Textfeld nicht mehr. **Jeder
+  gescheiterte Kopierversuch ließ eines unsichtbar auf der Seite zurück.** Die
+  Aufräumung steht jetzt in einem `finally`.
+- ⚠️ `parseRequiresPython` scheiterte an einer gültigen Obergrenze
+  (`">=3.11,<4.0"`) — das schließende Anführungszeichen war zu streng verlangt.
+  Der eigene Test fand es.
+
+### Internal
+- **36 neue Skript-Tests** (26 → 62) für jeden neuen Parser, alle 14 neuen
+  Zusicherungen einzeln mutationsgeprüft.
+- ⚠️ Eine davon war **grün-blind**: „findet kein Paket, dessen Name nur gleich
+  ANFÄNGT" deckt die Namensgrenze nicht ab — der unterscheidende Fall ist ein
+  Name, der das **Ende** eines anderen ist (`dantic` in `pydantic>=2.9`).
+- Neue Tests für Pfade, die noch nie gelaufen waren: der **Standard-Zeitgeber**
+  des Long-Press (bis dahin spritzten alle Tests einen eigenen ein — die
+  Produktionsvariante war unerprobt), die werfenden Zweige von `copyText` und
+  `vibrate`, ein `navigator` ohne Plattformangabe, `BackStack.clear`, und
+  Optimierungs-Historie aus der Zeit vor Titel/Tags.
+- **Der Generator prüft seine eigenen Links, bevor er schreibt.** Ein Badge mit
+  kaputtem relativem Link legte ihn lahm: er lässt die Backend-Suite laufen, um
+  Coverage zu messen, und die prüft die README-Links — er konnte die Datei also
+  nicht reparieren, deren Zustand ihn blockierte.
+- `test_docs.py` streift jetzt **jeden** generierten Block statt eines
+  namentlich genannten; eine von Hand zu pflegende Liste wäre genau die Sorte
+  Drift, gegen die der Test existiert.
+- ⚠️ **`npm test` prüft jetzt auch Typen.** vitest transpiliert nur — ein Test
+  mit falscher Aufrufsignatur lief grün durch und fiel erst beim Build auf.
+  Genau so passiert, beim Schreiben der Tests dieser Runde.
+
 ## [0.58.0] - 2026-09-01
 
 ### Added

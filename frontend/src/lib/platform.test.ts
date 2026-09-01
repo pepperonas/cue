@@ -43,3 +43,27 @@ describe('detectMac reading the browser itself', () => {
     expect(detectMac()).toBe(false)
   })
 })
+
+describe('detectMac — when the browser says nothing', () => {
+  it('is false for a navigator that offers neither field', () => {
+    // Reading `undefined` here and calling `.test()` on it would throw during
+    // module init, i.e. a blank page — the guard matters more than its answer.
+    vi.stubGlobal('navigator', {})
+    expect(detectMac()).toBe(false)
+  })
+
+  it('prefers userAgentData over the deprecated platform string', () => {
+    // navigator.platform is frozen/lied about by several browsers; the modern
+    // source wins where both exist.
+    vi.stubGlobal('navigator', {
+      userAgentData: { platform: 'macOS' },
+      platform: 'Win32',
+    })
+    expect(detectMac()).toBe(true)
+  })
+
+  it('falls back to platform when userAgentData carries nothing', () => {
+    vi.stubGlobal('navigator', { userAgentData: {}, platform: 'MacIntel' })
+    expect(detectMac()).toBe(true)
+  })
+})

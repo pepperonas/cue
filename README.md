@@ -2,63 +2,87 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
+<!-- hero:dynamic -->
+[![version](https://img.shields.io/badge/version-v0.59.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-30%20783-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+<!-- /hero:dynamic -->
+
 <!-- badges:dynamic -->
-[![version](https://img.shields.io/badge/version-0.58.0-blue.svg)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-1200%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-543-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-1253%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-545-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-506-brightgreen.svg)](frontend/src/lib/)
-[![script tests](https://img.shields.io/badge/script%20tests-26-brightgreen.svg)](scripts/tests/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-521-brightgreen.svg)](frontend/src/lib/)
+[![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
+[![test files](https://img.shields.io/badge/test%20files-64-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-97%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test files](https://img.shields.io/badge/test%20files-64-0A9EDC.svg)](docs/TESTING.md)
-[![test LOC](https://img.shields.io/badge/test%20LOC-13083-0A9EDC.svg)](docs/TESTING.md)
-[![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-43%25-0A9EDC.svg)](docs/TESTING.md)
-[![LOC](https://img.shields.io/badge/LOC-30778-blue.svg)](#)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-10028-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16770-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3980-663399.svg)](#)
-[![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
-[![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-13%20471-0A9EDC.svg)](docs/TESTING.md)
+[![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
+[![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-10%20028-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-16%20775-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-3%20980-663399.svg)](#)
+[![source files](https://img.shields.io/badge/source%20files-148-blue.svg)](#)
+[![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-32-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-46-61DAFB.svg)](frontend/src/components/)
+[![React hooks](https://img.shields.io/badge/React%20hooks-80-61DAFB.svg)](frontend/src/state/)
+[![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
+[![routers](https://img.shields.io/badge/routers-14-8A2BE2.svg)](backend/app/routers/)
+[![DB tables](https://img.shields.io/badge/DB%20tables-18-003B57.svg)](docs/ARCHITECTURE.md)
+[![migrations](https://img.shields.io/badge/migrations-37-003B57.svg)](backend/app/db.py)
+[![schemas](https://img.shields.io/badge/schemas-83-009688.svg)](backend/app/schemas.py)
+[![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
+[![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
+[![releases](https://img.shields.io/badge/releases-73-blue.svg)](CHANGELOG.md)
+[![last release](https://img.shields.io/badge/last%20release-2026--09--01-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
+[![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![self-hosted](https://img.shields.io/badge/self--hosted-cue.celox.io-1a1c22.svg)](https://cue.celox.io)
 <!-- /badges:dynamic -->
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<!-- stack:dynamic -->
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLModel](https://img.shields.io/badge/SQLModel-0.0.22-003B57.svg?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-2.9-E92063.svg?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![uvicorn](https://img.shields.io/badge/uvicorn-0.32-2f9e44.svg)](https://www.uvicorn.org/)
+[![pytest](https://img.shields.io/badge/pytest-8.3-0A9EDC.svg?logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![uv](https://img.shields.io/badge/uv-managed-DE5FE9.svg?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6.2-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-2-6E9F18.svg?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154.svg?logo=reactquery&logoColor=white)](https://tanstack.com/query)
+[![dnd-kit](https://img.shields.io/badge/dnd--kit-6.1.0-6332F6.svg)](https://dndkit.com/)
+[![Motion](https://img.shields.io/badge/Motion-11-FFF42B.svg?logo=framer&logoColor=white)](https://motion.dev/)
+[![ESLint](https://img.shields.io/badge/ESLint-10-4B32C3.svg?logo=eslint&logoColor=white)](frontend/eslint.config.js)
+[![Anthropic SDK](https://img.shields.io/badge/Anthropic%20SDK-0.40-D97757.svg?logo=anthropic&logoColor=white)](docs/ARCHITECTURE.md)
+[![cryptography](https://img.shields.io/badge/cryptography-43.0-4c1.svg)](SECURITY.md)
+[![argon2-cffi](https://img.shields.io/badge/argon2--cffi-23.1-4c1.svg)](SECURITY.md)
+[![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57.svg?logo=sqlite&logoColor=white)](docs/ARCHITECTURE.md)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker&logoColor=white)](./Dockerfile)
+[![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8.svg?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
+[![Material 3](https://img.shields.io/badge/Material%203-Expressive-6750A4.svg?logo=materialdesign&logoColor=white)](https://m3.material.io/)
+[![Auth](https://img.shields.io/badge/Auth-Google%20OAuth%202.0-4285F4.svg?logo=google&logoColor=white)](https://developers.google.com/identity/protocols/oauth2)
+<!-- /stack:dynamic -->
+
 [![SemVer](https://img.shields.io/badge/semver-2.0.0-brightgreen.svg)](https://semver.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/)
 [![Keep a Changelog](https://img.shields.io/badge/Keep%20a%20Changelog-1.1.0-E05735?logo=keepachangelog&logoColor=white)](CHANGELOG.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Security policy](https://img.shields.io/badge/security-policy-important.svg)](SECURITY.md)
-[![Docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
-[![Made with](https://img.shields.io/badge/made%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
-
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![SQLModel](https://img.shields.io/badge/SQLModel-SQLite%20WAL-003B57?logo=sqlite&logoColor=white)](https://sqlmodel.tiangolo.com/)
-[![pytest](https://img.shields.io/badge/pytest-9-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Vitest](https://img.shields.io/badge/Vitest-2-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
-[![ESLint](https://img.shields.io/badge/ESLint-flat%20config-4B32C3?logo=eslint&logoColor=white)](frontend/eslint.config.js)
-[![TS strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](frontend/tsconfig.json)
-[![uv](https://img.shields.io/badge/uv-managed-DE5FE9?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
-[![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-
-[![TanStack Query](https://img.shields.io/badge/TanStack%20Query-5-FF4154?logo=reactquery&logoColor=white)](https://tanstack.com/query)
-[![dnd-kit](https://img.shields.io/badge/dnd--kit-drag%20%26%20drop-6332F6)](https://dndkit.com/)
-[![Motion](https://img.shields.io/badge/Motion-springs-FFF42B?logo=framer&logoColor=black)](https://motion.dev/)
-[![Material 3](https://img.shields.io/badge/Material%203-Expressive-6750A4?logo=materialdesign&logoColor=white)](https://m3.material.io/)
-[![Google OAuth](https://img.shields.io/badge/Auth-Google%20OAuth%202.0-4285F4?logo=google&logoColor=white)](https://developers.google.com/identity/protocols/oauth2)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
-[![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
-[![Self-hosted](https://img.shields.io/badge/Self--hosted-cue.celox.io-1a1c22)](https://cue.celox.io)
-[![SQLite WAL](https://img.shields.io/badge/SQLite-WAL%20%2B%20single%20file-003B57?logo=sqlite&logoColor=white)](docs/ARCHITECTURE.md)
 [![Multi-tenant](https://img.shields.io/badge/multi--tenant-404%20not%20403-1a1c22)](docs/API.md)
 [![Offline tests](https://img.shields.io/badge/tests-offline%20%26%20deterministic-brightgreen.svg)](docs/TESTING.md)
-[![Mutation-checked](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
+[![TS strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](frontend/tsconfig.json)
+[![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Made with](https://img.shields.io/badge/made%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
+
+> Alle Zahlen in den Badges oben werden von `scripts/update-badges.mjs` aus dem
+> Repository berechnet und nach jedem `npm test` neu geschrieben — auch die
+> Versionen im Tech-Stack (aus `pyproject.toml` und `package.json`). Es gibt
+> keinen Wert, den jemand von Hand nachziehen müsste.
 
 `cue` (≈ *queue*, „Stichwort zum Handeln") ist eine durchdachte Prompt-/Todo-Queue:
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
@@ -200,11 +224,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 543 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 545 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 506 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
-| Skripte | `scripts/tests/` | 26 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1200** | | |
+| Frontend | `frontend/src/lib/` | 521 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
+| **Gesamt** | | **1253** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
