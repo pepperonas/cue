@@ -7,6 +7,7 @@ import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { Confirm } from './Confirm'
+import { AboutSection } from './AboutSection'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
   { key: 'light', icon: 'light_mode', label: 'Hell' },
@@ -465,6 +466,10 @@ export function SettingsView({
           Abmelden
         </Button>
       </div>
+
+      {/* Letzter Abschnitt: „Über cue" beschreibt die App als Ganzes und
+          gehört damit hinter alles, was man an ihr einstellt. */}
+      <AboutSection />
     </div>
   )
 }

@@ -4000,3 +4000,108 @@ img.logo-xl { border-radius: 18px; }
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* ── Über cue ─────────────────────────────────────────────────────────
+   Letzter Abschnitt der Einstellungen. Bewusst dieselben Bausteine wie die
+   übrigen Abschnitte (.section/.row/.muted) — der Bereich soll sich nicht
+   als Fremdkörper lesen. */
+.footer-version {
+  /* Die Version ist eine Fußnote in der Fußzeile, nicht ihr Inhalt. */
+  opacity: 0.7;
+}
+.about-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px var(--gap-3);
+  margin: 0 0 var(--gap-3);
+  align-items: baseline;
+}
+.about-facts dt {
+  color: var(--md-on-surface-variant);
+  font-size: 0.82rem;
+}
+.about-facts dd {
+  margin: 0;
+}
+.about-facts code {
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.about-note {
+  margin: 0 0 var(--gap-2);
+  font-size: 0.86rem;
+  max-width: 60ch;
+}
+.about-actions {
+  flex-wrap: wrap;
+  gap: var(--gap-2);
+  margin-bottom: var(--gap-3);
+}
+.about-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--shape-full);
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  /* Aufklapper, kein Knopf mit Aktion — daher ohne Fläche, bis er berührt wird. */
+  min-height: 44px;
+}
+.about-toggle:hover {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+}
+.about-changelog {
+  margin-top: var(--gap-2);
+  /* 74 Versionen sind zu viel für die Seite: der Verlauf scrollt in sich,
+     damit „Über cue" nicht die ganzen Einstellungen in die Länge zieht. */
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--gap-2);
+  border-left: 2px solid var(--md-outline-variant, var(--md-outline));
+  padding-left: var(--gap-3);
+}
+.about-release {
+  margin: 0 0 var(--gap-3);
+}
+.about-release h4 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 4px;
+  font: var(--title-s);
+}
+.about-version::before {
+  content: 'v';
+  opacity: 0.6;
+}
+.about-date {
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+.about-current {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--shape-full);
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  color: var(--ok);
+  font-weight: 600;
+}
+.about-kind {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-on-surface-variant);
+  margin-top: 6px;
+}
+.about-group ul {
+  margin: 2px 0 0;
+  padding-left: 1.1rem;
+}
+.about-group li {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  /* Changelog-Einträge enthalten Pfade und lange Bezeichner. */
+  overflow-wrap: anywhere;
+}

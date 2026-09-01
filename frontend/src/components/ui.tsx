@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
+import { APP_VERSION } from '../lib/version'
 import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 
@@ -70,5 +71,12 @@ export function Switch({
 }
 
 export function Footer() {
-  return <footer className="footer">© 2026 Martin Pfeffer | celox.io</footer>
+  // Die Version steht hier bewusst als Teil derselben Zeile und nicht als
+  // eigenes Element: der Footer ist eine ruhige Zeile, und eine zweite Zeile
+  // nur für eine Zahl wäre lauter als die Information wert ist.
+  return (
+    <footer className="footer">
+      © 2026 Martin Pfeffer | celox.io <span className="footer-version">· v{APP_VERSION}</span>
+    </footer>
+  )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderMarkdown } from './markdown'
+import { renderInlineMarkdown, renderMarkdown } from './markdown'
 
 /**
  * The renderer's output goes straight into `dangerouslySetInnerHTML` with no
@@ -151,5 +151,52 @@ describe('renderMarkdown survives malformed input', () => {
     expect(html).not.toContain('<h1>')
     expect(html).not.toContain('<strong>')
     expect(html).not.toContain('<li>')
+  })
+})
+
+describe('renderInlineMarkdown', () => {
+  const parse = (html: string) => {
+    const host = document.createElement('div')
+    host.innerHTML = html
+    return host
+  }
+
+  it('renders the subset a changelog entry needs', () => {
+    const html = renderInlineMarkdown('**fett**, *kursiv* und `code`')
+    const host = parse(html)
+    expect(host.querySelector('strong')?.textContent).toBe('fett')
+    expect(host.querySelector('em')?.textContent).toBe('kursiv')
+    expect(host.querySelector('code')?.textContent).toBe('code')
+  })
+
+  it('creates no element outside that subset and NO attribute at all', () => {
+    // Dieselbe Zusicherung wie für den Block-Renderer, und aus demselben Grund:
+    // ohne Attribute kann kein Handler und kein javascript:-Ziel entstehen.
+    const evil = '<img src=x onerror=alert(1)> [x](javascript:alert(1)) <script>alert(1)</script>'
+    const host = parse(renderInlineMarkdown(evil))
+    const allowed = new Set(['STRONG', 'EM', 'CODE'])
+    for (const el of host.querySelectorAll('*')) {
+      expect(allowed.has(el.tagName)).toBe(true)
+      expect(el.attributes.length).toBe(0)
+    }
+  })
+
+  it('keeps the payload readable instead of swallowing it', () => {
+    // ⚠️ Gegen das DOM prüfen, nicht gegen den String: maskierter, inerter Text
+    // enthält legitim `onerror=`.
+    const host = parse(renderInlineMarkdown('<script>alert(1)</script>'))
+    expect(host.textContent).toContain('alert(1)')
+  })
+
+  it('produces no block structure', () => {
+    // Der ganze Zweck: ein Punkt in einer Liste darf keine Überschrift und
+    // keinen Absatz erzeugen.
+    const host = parse(renderInlineMarkdown('# keine Überschrift\n- kein Listenpunkt'))
+    expect(host.querySelector('h1, h2, h3, p, ul, li')).toBeNull()
+  })
+
+  it('survives empty and undefined input', () => {
+    expect(renderInlineMarkdown('')).toBe('')
+    expect(renderInlineMarkdown(undefined as unknown as string)).toBe('')
   })
 })

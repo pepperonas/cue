@@ -1,11 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { APP_VERSION, REPO_ROOT } from './app-version.mjs'
+
+// Die Version wird beim Bauen aus backend/app/main.py gelesen (siehe
+// app-version.mjs). ⚠️ Docker: die Frontend-Stage bekommt nur `frontend/`, die
+// Datei wird daher im Dockerfile ausdrücklich hineinkopiert — gleicher Grund
+// und gleiche Form wie bei `contracts/`.
 
 // FastAPI dev server runs on :8000; proxy /api there during dev. Override with
 // CUE_API_TARGET when that port is already taken by something else.
 const apiTarget = process.env.CUE_API_TARGET || 'http://127.0.0.1:8000'
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [
     react(),
     VitePWA({
@@ -29,12 +38,19 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Landing screenshots are only shown pre-login — don't bloat the PWA cache.
-        globIgnores: ['**/landing/**', '**/og.png'],
+        // Dasselbe gilt für den Changelog: eigener Chunk (~36 kB gzip), der nur
+        // geladen wird, wenn jemand ihn in „Über cue" aufklappt. Ohne diese
+        // Zeile zöge ihn der Service Worker trotz des dynamischen Imports bei
+        // jedem Erstbesuch mit — gemessen: Precache 1131 → 1221 KiB.
+        globIgnores: ['**/landing/**', '**/og.png', '**/CHANGELOG-*.js'],
       },
     }),
   ],
   server: {
     port: 5173,
+    // CHANGELOG.md is imported raw from the repo root (see lib/changelog.ts);
+    // without this the dev server refuses to serve a file above `frontend/`.
+    fs: { allow: [REPO_ROOT] },
     proxy: {
       '/api': { target: apiTarget, changeOrigin: false },
     },

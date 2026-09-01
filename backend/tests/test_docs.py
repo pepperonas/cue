@@ -58,6 +58,18 @@ def mentions(text: str, name: str) -> bool:
     return re.search(rf"\b{re.escape(name)}\b", text) is not None
 
 
+def _without_comments(src: str) -> str:
+    """Quelltext ohne Kommentare.
+
+    ⚠️ Hausregel, hier prompt selbst verletzt: eine Textprüfung auf Code muss
+    kommentarfrei laufen. Ein Doc-Kommentar darf eine Versionsnummer als
+    BEISPIEL nennen (`z. B. \`0.60.0\``) — das ist keine zweite Quelle, und der
+    erste Anlauf dieses Tests hat genau daran fälschlich angeschlagen.
+    """
+    src = re.sub(r"/\*[\s\S]*?\*/", "", src)
+    return re.sub(r"(?m)//.*$", "", src)
+
+
 def routes_in_code() -> set[tuple[str, str]]:
     """(METHOD, full path) for every route decorator in the backend."""
     found: set[tuple[str, str]] = set()
@@ -170,6 +182,47 @@ def test_current_version_has_a_changelog_entry():
     text = CHANGELOG.read_text(encoding="utf-8")
     assert f"## [{version}]" in text, (
         f"CHANGELOG.md has no entry for the shipped version {version}"
+    )
+
+
+def test_the_shipped_version_has_a_changelog_body_not_just_a_heading():
+    """Eine Überschrift ohne Inhalt erfüllt den Buchstaben und nicht den Zweck.
+
+    Die App zeigt denselben Abschnitt unter „Über cue" an; eine leere Version
+    wäre dort eine leere Zeile. Das Frontend prüft dasselbe noch einmal von
+    seiner Seite (`changelog.contract.test.ts`) — beide zusammen sind der
+    Mechanismus, der eine Änderung ohne Changelog-Eintrag rot macht.
+    """
+    version = app_version()
+    text = CHANGELOG.read_text(encoding="utf-8")
+    section = text.split(f"## [{version}]", 1)[1].split("\n## [", 1)[0]
+    assert re.search(r"^### ", section, re.M), (
+        f"CHANGELOG.md hat für v{version} eine Überschrift, aber keine Gruppe"
+    )
+    assert re.search(r"^\s*[-*] ", section, re.M), (
+        f"CHANGELOG.md hat für v{version} keine einzige Änderung notiert"
+    )
+
+
+def test_the_frontend_does_not_hardcode_a_version():
+    """Die Versionsnummer hat EINE Quelle: backend/app/main.py.
+
+    Das Frontend bekommt sie beim Bauen über `__APP_VERSION__` (siehe
+    frontend/app-version.mjs). Ein Literal im Frontend wäre eine zweite Quelle,
+    und die zweite Quelle ist immer die, die veraltet.
+    """
+    version = app_version()
+    src = ROOT / "frontend" / "src"
+    offenders = [
+        str(f.relative_to(ROOT))
+        for f in src.rglob("*.ts*")
+        if not f.name.endswith(".test.ts")
+        and not f.name.endswith(".test.tsx")
+        and version in _without_comments(f.read_text(encoding="utf-8"))
+    ]
+    assert not offenders, (
+        f"Diese Dateien nennen die Version {version} wörtlich: {offenders}. "
+        "Sie gehört über APP_VERSION aus lib/version.ts gelesen."
     )
 
 

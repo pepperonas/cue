@@ -80,6 +80,34 @@ prüfen. Eine neue Regel darf **nur gespeicherte Felder** verwenden, und der
 Nutzer muss sie **überstimmen können** — sonst wird das Ziehen in dem betroffenen
 Block zu einem garantierten Nichts.
 
+### Jede Änderung steht im Changelog — und das wird erzwungen
+
+`CHANGELOG.md` im Wurzelverzeichnis ist die einzige Fassung: nach [Keep a
+Changelog](https://keepachangelog.com/de/1.1.0/), neueste Version zuerst, je
+Version mit Datum und nach Änderungsart gruppiert (`Added`, `Changed`, `Fixed`,
+`Documentation`, `Internal`). Die App zeigt genau diese Datei unter
+**Einstellungen → Über cue** an; es gibt keine zweite, gepflegte Liste.
+
+Vier Tests halten das zusammen, und sie werden bei jedem `npm test` rot:
+
+| Test | verhindert |
+| --- | --- |
+| `test_current_version_has_a_changelog_entry` | Version angehoben, Eintrag vergessen |
+| `test_the_shipped_version_has_a_changelog_body_not_just_a_heading` | Überschrift ohne Inhalt |
+| `test_changelog_versions_are_unique_and_ordered_newest_first` | Doppelte oder falsch einsortierte Version |
+| `changelog.contract.test.ts` | Ein Changelog, den die App nicht anzeigen kann |
+
+Dazu kommt die Versionsregel selbst: **SemVer**, und die Nummer steht **nur** in
+`backend/app/main.py`. Badge, Footer und „Über cue" lesen sie von dort
+(`frontend/app-version.mjs` beim Bauen), `test_the_frontend_does_not_hardcode_a_version`
+verbietet eine zweite Fassung. Welcher Teil steigt:
+
+- **MAJOR** — eine Änderung, nach der ein bestehender Aufruf oder ein
+  gespeicherter Zustand nicht mehr funktioniert.
+- **MINOR** — neue Funktion, alles Bisherige bleibt gültig.
+- **PATCH** — Fehlerbehebung, Doku, Aufräumen; von außen ändert sich nichts
+  außer dem, was kaputt war.
+
 ### Keine Zahl im README wird von Hand gepflegt
 
 Alles im Badge-Bereich — Version, Codegröße, Tests, Coverage, Endpunkte,

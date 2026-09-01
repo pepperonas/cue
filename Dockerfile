@@ -12,6 +12,17 @@ COPY frontend/ ./
 # runs `tsc -b`, which type-checks the test that reads it, so the build needs
 # it at the path the import resolves to: /fe/src/lib/../../../contracts.
 COPY contracts/ /contracts/
+# Zwei weitere Dateien liegen ausserhalb von frontend/ und werden beim Bauen
+# gebraucht — beide aus demselben Grund wie contracts/: sie gehoeren keiner
+# Seite allein.
+#   · backend/app/main.py  — die EINZIGE Quelle der Versionsnummer, die
+#     vite.config.ts liest (app-version.mjs). Fehlt sie, bricht der Build ab,
+#     statt eine erfundene Version auszuliefern.
+#   · CHANGELOG.md         — wird als eigener Chunk eingebettet und in
+#     „Ueber cue" angezeigt; es gibt bewusst keine zweite Fassung davon.
+COPY backend/app/main.py /backend/app/main.py
+COPY CHANGELOG.md /CHANGELOG.md
+COPY scripts/ /scripts/
 RUN pnpm build
 
 # ---- Stage 2: python runtime ----

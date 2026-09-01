@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.0] - 2026-09-01
+
+### Added
+- **„Über cue" als letzter Abschnitt der Einstellungen** — Version, Entwickler,
+  Spenden-Knopf, „Auf Google Maps bewerten" und ein aufklappbarer Changelog.
+  cue hat keinen „System"-Bereich; die Einstellungen sind die Stelle, an der
+  schon alles steht, was die App als Ganzes betrifft.
+- **Version im Footer** (`© 2026 Martin Pfeffer | celox.io · v0.60.0`) —
+  dezent in derselben Zeile, nicht als zweite.
+- **Der Changelog in der App ist die Datei `CHANGELOG.md` selbst**, beim Bauen
+  eingebettet und geparst; es gibt bewusst keine zweite, von Hand gepflegte
+  Fassung. Gleiches Vorgehen wie im About-Bildschirm von BeatByte.
+- `renderInlineMarkdown` im geprüften Markdown-Renderer: die Changelog-Punkte
+  nutzen durchgehend `**fett**` und `` `code` `` — roh dargestellt stünden dort
+  Sternchen, und der Block-Renderer machte aus einem Listenpunkt je nach
+  Anfangszeichen eine Überschrift.
+
+### Changed
+- Die Versionsnummer hat weiterhin **eine** Quelle (`backend/app/main.py`); das
+  Frontend bekommt sie beim Bauen über `__APP_VERSION__`
+  (`frontend/app-version.mjs`), nicht über eine Kopie in einem Manifest.
+  ⚠️ Die Ableitung liegt in einem eigenen Modul, weil `vite.config.ts` und
+  `vitest.config.ts` getrennte Dateien sind und die zweite **nichts** von der
+  ersten erbt — zwei Ableitungen wären zwei Stellen, die auseinanderlaufen.
+- Der Dockerfile reicht `backend/app/main.py`, `CHANGELOG.md` und `scripts/` in
+  die Frontend-Stage, aus demselben Grund wie `contracts/`: die Dateien
+  gehören keiner Seite allein.
+
+### Internal
+- **Vier Tests erzwingen die Changelog-Regel**, alle mutationsgeprüft:
+  Eintrag für die ausgelieferte Version vorhanden · Eintrag hat auch einen
+  Inhalt, nicht nur eine Überschrift · Versionen eindeutig und neueste zuerst ·
+  der Parser der App versteht die echte Datei
+  (`changelog.contract.test.ts`). Dazu verbietet
+  `test_the_frontend_does_not_hardcode_a_version` eine zweite Versionsangabe im
+  Frontend. Die Regel steht in `CONTRIBUTING.md`.
+- ⚠️ Der Changelog-Chunk ist vom PWA-Precache **ausgenommen**. Der dynamische
+  Import allein genügte nicht: der Service Worker zog die 36 kB (gzip) trotzdem
+  bei jedem Erstbesuch mit — gemessen 1131 → 1221 KiB, mit `globIgnores` wieder
+  1136 KiB. Dieselbe Entscheidung wie bei den Landing-Screenshots.
+
 ## [0.59.1] - 2026-09-01
 
 ### Added
