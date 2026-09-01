@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { api } from './lib/api'
+import { api, enableDemo } from './lib/api'
 import { detailAction } from './lib/detail-keys'
 import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
@@ -65,6 +65,7 @@ import { SnippetsView } from './components/SnippetsView'
 import { DetailSheet } from './components/DetailSheet'
 import { ListView } from './components/ListView'
 import { Landing } from './components/Landing'
+import { DemoBanner } from './components/DemoBanner'
 import { useRoute } from './state/route'
 import { ProjectChips } from './components/ProjectChips'
 import { ProjectsView } from './components/ProjectsView'
@@ -82,25 +83,53 @@ const StatsView = lazy(withChunkRecovery('stats', () => import('./components/sta
 
 export default function App() {
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
-  const { route, toLanding, toApp } = useRoute()
+  const { route, toLanding, toDemo, toApp } = useRoute()
 
+  // ⚠️ VOR dem ersten `api.me()`: der Demo-Modus wird an genau einer Naht
+  // eingeschaltet (`lib/api.ts`), und die allererste Anfrage der App ist
+  // `/auth/me`. Erst im Effekt umzuschalten hieße, dass diese eine Anfrage
+  // noch an den echten Server ginge — und der antwortet einem Besucher mit
+  // „nicht angemeldet".
+  if (route === 'demo') enableDemo()
+
+  // ⚠️ Abhängig von der ROUTE, nicht nur vom Start: wer die Demo von der
+  // Landing Page aus öffnet, hat diese Abfrage längst hinter sich — sie lief
+  // gegen den echten Server und ergab „nicht angemeldet". Ohne das erneute
+  // Holen zeigte `/demo` deshalb wieder die Landing Page statt des Boards.
   useEffect(() => {
+    let aktuell = true
+    setMe('loading')
     api
       .me()
-      .then((m) => setMe(m))
-      .catch(() => setMe(null))
-  }, [])
+      .then((m) => aktuell && setMe(m))
+      .catch(() => aktuell && setMe(null))
+    return () => {
+      aktuell = false
+    }
+  }, [route])
 
   // Keeps this device in step with every other one on the account. Mounted
   // above the auth branches so it survives every view switch; it only starts
   // polling once there is a session to poll for.
-  useLiveSync(me !== 'loading' && !!me?.authenticated && !!me?.approved)
+  // ⚠️ In der Demo NICHT: die Schleife hält eine Anfrage offen, bis sich etwas
+  // ändert — der Server antwortet dafür bis zu 25 s lang nicht. Die Demo
+  // antwortet sofort „nichts geändert", und die Schleife fragte daraufhin
+  // ununterbrochen nach und legte die Seite lahm (live gesehen: der Browser
+  // reagierte nicht mehr). Zu synchronisieren gibt es hier ohnehin nichts —
+  // es gibt kein zweites Gerät und keinen Server.
+  useLiveSync(me !== 'loading' && !!me?.authenticated && !!me?.approved && route !== 'demo')
 
   // The landing page is public and answers first: it is the only address in
   // this app, and gating it behind the session would make the link unusable
   // for exactly the people it is written for.
   if (route === 'landing') {
-    return <Landing signedIn={!!me && me !== 'loading' && !!me.authenticated} onEnterApp={toApp} />
+    return (
+      <Landing
+        signedIn={!!me && me !== 'loading' && !!me.authenticated}
+        onEnterApp={toApp}
+        onDemo={toDemo}
+      />
+    )
   }
   if (me === 'loading') {
     return (
@@ -113,9 +142,9 @@ export default function App() {
   }
   // A visitor gets the landing page at `/` too — signing in is a call to
   // action there, not a wall in front of the explanation.
-  if (!me || !me.authenticated) return <Landing onEnterApp={toLanding} />
+  if (!me || !me.authenticated) return <Landing onEnterApp={toLanding} onDemo={toDemo} />
   if (!me.approved) return <PendingApproval onLogout={() => setMe(null)} />
-  return <Shell onLogout={() => setMe(null)} onLanding={toLanding} />
+  return <Shell onLogout={() => setMe(null)} onLanding={toLanding} demo={route === 'demo'} />
 }
 
 /** Signed in with Google, but the admin hasn't approved the account yet. */
@@ -162,7 +191,16 @@ function PendingApproval({ onLogout }: { onLogout: () => void }) {
   )
 }
 
-function Shell({ onLogout, onLanding }: { onLogout: () => void; onLanding: () => void }) {
+function Shell({
+  onLogout,
+  onLanding,
+  demo = false,
+}: {
+  onLogout: () => void
+  onLanding: () => void
+  /** Läuft die App auf erfundenen Daten? Setzt nur den Hinweisstreifen. */
+  demo?: boolean
+}) {
   const settings = useSettings()
   const toast = useToast()
   const closeTopOverlay = useCloseTopOverlay()
@@ -710,6 +748,7 @@ function Shell({ onLogout, onLanding }: { onLogout: () => void; onLanding: () =>
 
   return (
     <div className="app">
+      {demo && <DemoBanner />}
       <TopBar
         view={view}
         onView={setView}

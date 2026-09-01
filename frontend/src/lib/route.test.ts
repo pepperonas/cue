@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { LANDING_PATH, pushRoute, routeFrom } from './route'
+import { DEMO_PATH, LANDING_PATH, pushRoute, routeFrom } from './route'
 
 describe('routeFrom', () => {
   it('recognises the landing page', () => {
@@ -50,5 +50,29 @@ describe('pushRoute', () => {
     expect(pushRoute(LANDING_PATH, history, '/willkommen/')).toBe(false)
     expect(pushRoute(LANDING_PATH, history, '/Willkommen')).toBe(false)
     expect(history.pushState).not.toHaveBeenCalled()
+  })
+})
+
+describe('the demo route', () => {
+  it('is its own address', () => {
+    // Teilbar und nachladbar: wer den Link bekommt, landet in der Demo und
+    // nicht auf einer Anmeldeseite.
+    expect(routeFrom(DEMO_PATH)).toBe('demo')
+    expect(DEMO_PATH).toBe('/demo')
+  })
+
+  it('tolerates the same shapes as the landing page', () => {
+    expect(routeFrom('/demo/')).toBe('demo')
+    expect(routeFrom('/Demo')).toBe('demo')
+  })
+
+  it('does not swallow neighbouring paths', () => {
+    expect(routeFrom('/demonstration')).toBe('app')
+    expect(routeFrom('/x/demo')).toBe('app')
+  })
+
+  it('is a third route, not a second landing page', () => {
+    // Sonst bekäme der Besucher die Erklärseite statt der Demo.
+    expect(routeFrom(DEMO_PATH)).not.toBe(routeFrom(LANDING_PATH))
   })
 })

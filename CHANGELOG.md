@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.0] - 2026-09-01
+
+### Added
+- **Demo unter `/demo`** — die **echte** App auf erfundenen Daten im Speicher,
+  ohne Anmeldung. Board, Liste und Detail sind vollständig bedienbar (anlegen,
+  ziehen, bearbeiten, Tags, Priorität, Zusammenführen); Runs, Statistiken,
+  Snippets und Verlauf zeigen vorbereitete Daten. Ein Streifen oben sagt, dass
+  nichts gespeichert wird. Ein Besucher kann cue sonst nicht ausprobieren — die
+  App ist mandantenfähig und ein neues Konto wartet auf Freischaltung.
+- ⚠️ **Alles, was Geld kostet oder eine fremde Maschine anfasst**, sagt in der
+  Demo ab: KI-Optimierung starten, Runs starten, in eine CLI-Sitzung tippen.
+  Eine erfundene KI-Antwort wäre schlimmer als keine — sie sähe aus wie ein
+  Ergebnis und wäre keines. Der vorbereitete Vorschlag darf man dagegen
+  übernehmen oder verwerfen; das kostet nichts und ist der interessante Teil.
+- **Landing Page ausgebaut**: acht Karten statt vier (neu: Ordnung/Tags,
+  Live-Sync und Mobil, Auswertung, Mandantenfähigkeit) und zwölf statt acht
+  Chips; die vier bestehenden auf den aktuellen Stand gebracht. „Demo öffnen"
+  steht gleichberechtigt neben der Anmeldung — ohne diesen Weg bliebe die Seite
+  eine Behauptung.
+
+### Fixed
+- ⚠️ **Der Wechsel in die Demo holte die Sitzung nicht neu.** Wer sie von der
+  Landing Page aus öffnete, hatte `/auth/me` längst gegen den echten Server
+  laufen lassen („nicht angemeldet") — `/demo` zeigte deshalb wieder die
+  Landing Page statt des Boards. Die Abfrage hängt jetzt an der Route.
+- ⚠️ **Der Live-Sync legte die Demo lahm.** Die Schleife hält eine Anfrage
+  offen, bis sich etwas ändert; der Server antwortet dafür bis zu 25 s nicht.
+  Die Demo antwortete sofort „nichts geändert", woraufhin die Schleife
+  ununterbrochen nachfragte und der Browser nicht mehr reagierte (live
+  gesehen). In der Demo läuft sie gar nicht — es gibt kein zweites Gerät.
+- ⚠️ **Ein Anlegen erzeugte zwei Karten.** Der Demo-Router gab sein internes
+  Array zurück; die App aktualisiert optimistisch und schrieb damit in denselben
+  Speicher, sodass der Prompt zweimal in der Liste stand (samt React-Warnung
+  über doppelte Keys). Es werden jetzt ausschließlich Kopien herausgegeben.
+
+### Internal
+- `lib/demo.ts` (Daten + Router, rein und getestet) hängt an **einer** Naht in
+  `lib/api.ts`. Darüber läuft die echte Oberfläche — die Demo zeigt damit
+  immer, was die App heute tut, statt eines zweiten Nachbaus, der veraltet.
+- **34 neue Tests** für den Demo-Router, acht Mutationsproben. ⚠️ Drei davon
+  waren zunächst wirkungslos: „sagt ab" hielt auch ohne die Wache (die Pfade
+  fielen in die Auffang-Absage), „landet oben" wurde von einem nicht gesetzten
+  `sort_order` zufällig erfüllt, und „Prompts überleben das Projekt" galt auch,
+  wenn man sie mitlöschte. Alle drei prüfen jetzt die unterscheidende Tatsache.
+
 ## [0.60.0] - 2026-09-01
 
 ### Added

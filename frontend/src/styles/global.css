@@ -4105,3 +4105,39 @@ img.logo-xl { border-radius: 18px; }
   /* Changelog-Einträge enthalten Pfade und lange Bezeichner. */
   overflow-wrap: anywhere;
 }
+
+/* ── Demo-Streifen ────────────────────────────────────────────────────
+   Steht über der echten Oberfläche und sagt, dass die Daten erfunden sind.
+   Bewusst kein `position: fixed`: er soll mit wegscrollen, nicht dauerhaft
+   Platz kosten — der Hinweis muss beim Ankommen gelesen werden, nicht die
+   ganze Sitzung lang im Weg stehen. */
+.demo-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap-2);
+  padding: 10px var(--gap-4);
+  background: color-mix(in srgb, var(--md-primary) 14%, var(--md-surface-container-high));
+  color: var(--md-on-surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--md-primary) 35%, transparent);
+  font-size: 0.86rem;
+}
+.demo-banner .material-symbols-rounded {
+  color: var(--md-primary);
+}
+.demo-banner-text {
+  min-width: 0;
+}
+.demo-banner .btn {
+  min-height: 36px;
+  padding: 6px 14px;
+}
+@media (max-width: 640px) {
+  .demo-banner {
+    padding: 10px var(--gap-3);
+  }
+  /* Auf dem Telefon zählt der Satz, nicht die Knopfreihe daneben. */
+  .demo-banner .grow {
+    display: none;
+  }
+}

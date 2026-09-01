@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { LANDING_PATH, pushRoute, routeFrom, type Route } from '../lib/route'
+import { DEMO_PATH, LANDING_PATH, pushRoute, routeFrom, type Route } from '../lib/route'
 
 /**
  * The current route, and a way to change it — the React half of `lib/route.ts`.
@@ -15,6 +15,7 @@ import { LANDING_PATH, pushRoute, routeFrom, type Route } from '../lib/route'
 export function useRoute(): {
   route: Route
   toLanding: () => void
+  toDemo: () => void
   toApp: () => void
 } {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -39,6 +40,7 @@ export function useRoute(): {
   return {
     route: routeFrom(path),
     toLanding: useCallback(() => go(LANDING_PATH), [go]),
+    toDemo: useCallback(() => go(DEMO_PATH), [go]),
     toApp: useCallback(() => go('/'), [go]),
   }
 }

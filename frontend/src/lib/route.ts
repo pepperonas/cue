@@ -18,7 +18,10 @@
 /** Address of the landing page. German, like every other user-facing string. */
 export const LANDING_PATH = '/willkommen'
 
-export type Route = 'landing' | 'app'
+/** Adresse der Demo — die echte App auf erfundenen Daten, ohne Anmeldung. */
+export const DEMO_PATH = '/demo'
+
+export type Route = 'landing' | 'demo' | 'app'
 
 /**
  * Which route a path names.
@@ -29,7 +32,10 @@ export type Route = 'landing' | 'app'
  * path there is.
  */
 export function routeFrom(pathname: string): Route {
-  return normalize(pathname) === LANDING_PATH ? 'landing' : 'app'
+  const path = normalize(pathname)
+  if (path === LANDING_PATH) return 'landing'
+  if (path === DEMO_PATH) return 'demo'
+  return 'app'
 }
 
 /**

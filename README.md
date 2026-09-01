@@ -6,7 +6,7 @@
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
-### ▶︎ [Live nutzen: **cue.celox.io**](https://cue.celox.io)
+### ▶︎ [Live nutzen: **cue.celox.io**](https://cue.celox.io) · [Demo ohne Anmeldung](https://cue.celox.io/demo)
 
 <sub>Anmeldung über Google. Neue Konten schaltet der Admin frei — bis dahin siehst du einen Wartehinweis statt eines leeren Boards.</sub>
 
@@ -24,31 +24,31 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.60.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-31%20147-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.61.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-31%20938-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1277%20passing-brightgreen.svg)](docs/TESTING.md)
+[![tests](https://img.shields.io/badge/tests-1315%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-547-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-125-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-543-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-581-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
-[![test files](https://img.shields.io/badge/test%20files-66-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-67-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-97%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
-[![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-13%20689-0A9EDC.svg)](docs/TESTING.md)
+[![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
+[![test LOC](https://img.shields.io/badge/test%20LOC-13%20937-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-10%20028-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20035-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20084-663399.svg)](#)
-[![source files](https://img.shields.io/badge/source%20files-151-blue.svg)](#)
-[![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-34-3178C6.svg)](frontend/src/lib/)
-[![React components](https://img.shields.io/badge/React%20components-47-61DAFB.svg)](frontend/src/components/)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20791-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20119-663399.svg)](#)
+[![source files](https://img.shields.io/badge/source%20files-153-blue.svg)](#)
+[![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-35-3178C6.svg)](frontend/src/lib/)
+[![React components](https://img.shields.io/badge/React%20components-48-61DAFB.svg)](frontend/src/components/)
 [![React hooks](https://img.shields.io/badge/React%20hooks-80-61DAFB.svg)](frontend/src/state/)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-92-8A2BE2.svg)](docs/API.md)
 [![routers](https://img.shields.io/badge/routers-14-8A2BE2.svg)](backend/app/routers/)
@@ -57,7 +57,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-83-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-75-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-76-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--09--01-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
@@ -117,6 +117,7 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 | | |
 | --- | --- |
 | **App** | **<https://cue.celox.io>** |
+| **Demo** | **<https://cue.celox.io/demo>** — die echte App auf erfundenen Daten, ohne Anmeldung. Board, Liste und Detail sind bedienbar; nichts wird gespeichert, ein Neuladen setzt zurück. Was Geld kostet oder eine Maschine anfasst (KI-Optimierung, Runs), sagt dort ab. |
 | **Anmeldung** | Google OAuth — ein Konto wird nach der ersten Anmeldung vom Admin freigeschaltet |
 | **Installation** | Als PWA installierbar (Browser-Menü → „Zum Startbildschirm"/„Installieren") |
 | **Betrieb** | Selbst gehostet auf einem eigenen VPS, EU. Kein Analytics, keine Tracker, kein Drittanbieter außer Google-Login und — nur wenn du sie auslöst — Anthropic für die KI-Optimierung. |
@@ -262,9 +263,9 @@ cd frontend && pnpm typecheck
 | --- | --- | --: | --: | --- |
 | Backend | `backend/tests/` | 547 | 97 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 125 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 543 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 581 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1277** | | |
+| **Gesamt** | | **1315** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

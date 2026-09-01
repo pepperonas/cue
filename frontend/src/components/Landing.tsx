@@ -36,7 +36,7 @@ const FEATURES: {
   {
     icon: 'view_kanban',
     title: 'Prompt-Queue als Kanban-Board',
-    text: 'Geplante Claude-Code-Prompts erfassen, nach Projekt gruppieren und per Drag & Drop durch Queued → Running → Done ziehen. Mit Priorität (Hohes zuerst in der Queue), Tags aus dem Titel, Bookmarks, Blocked-Status, „Getestet“-Haken und 1-Klick-Copy in die CLI.',
+    text: 'Geplante Claude-Code-Prompts erfassen, nach Projekt gruppieren und per Drag & Drop durch Queued → Running → Done ziehen. Dringendes steht in der Queue oben, Erledigtes und schon Getestetes klappt weg, und ein Klick kopiert den Prompt in die CLI. Die Demo unten ist genau dieses Board.',
     shot: { src: '/landing/board-demo.png', alt: 'cue-Board mit Beispiel-Prompts in drei Spalten' },
   },
   {
@@ -48,7 +48,7 @@ const FEATURES: {
   {
     icon: 'auto_awesome',
     title: 'Prompts von der KI umschreiben lassen',
-    text: 'Ein Klick schreibt einen Prompt schärfer — das Original bleibt immer erhalten, das Ergebnis ist ein Vorschlag mit Diff, den du übernimmst oder verwirfst. Mit eigenem Anthropic-API-Key läuft das auf deine Rechnung; die Statistiken zeigen Kosten gesamt, je Prompt und je Modell.',
+    text: 'Ein Klick schreibt einen Prompt schärfer — samt Titel und Schlagworten. Das Original bleibt immer erhalten, das Ergebnis ist ein Vorschlag mit Diff, den du übernimmst oder verwirfst; ein leerer Vorschlag löscht nie etwas. Bookmarks werden zusätzlich vom Projekt gelöst, damit sie überall passen. Mit eigenem Anthropic-API-Key läuft das auf deine Rechnung.',
     shot: {
       src: '/landing/optimize-demo.png',
       alt: 'Detail-Dialog mit dem Unterschied zwischen Original und optimierter Fassung, darunter Übernehmen und Verwerfen',
@@ -57,20 +57,45 @@ const FEATURES: {
   {
     icon: 'data_object',
     title: 'Snippet-Werkbank für Inspector Rust',
-    text: 'IR-Backup importieren, Snippets gruppieren, versionieren und bearbeiten, wieder als IR-Backup exportieren — verlustfreier Roundtrip inklusive leerer Gruppen.',
+    text: 'IR-Backup importieren, Snippets gruppieren, versionieren und bearbeiten, wieder als IR-Backup exportieren — verlustfreier Roundtrip inklusive leerer Gruppen. Wahlweise synchronisiert Inspector Rust selbst, dann ist cue die Stelle, an der die Snippets sortiert werden.',
     shot: { src: '/landing/snippets-demo.png', alt: 'Snippet-Bibliothek mit Gruppen und Versionsnummern' },
+  },
+  {
+    icon: 'sell',
+    title: 'Ordnung, die sich selbst macht',
+    text: 'Tags entstehen aus dem Titel — „doku updaten“ trägt `documentation` ein —, das Feld schlägt aus dem eigenen Vokabular vor, und der Titel vervollständigt sich Wort für Wort aus deinen bisherigen. Umbenennen wirkt überall, Löschen zeigt vorher, wen es trifft. Dazu Priorität, Blockiert, „Getestet“ und „Genau testen“ direkt an der Karte.',
+  },
+  {
+    icon: 'devices',
+    title: 'Auf allen Geräten derselbe Stand',
+    text: 'Was auf dem Telefon entsteht, steht ohne Neuladen am Rechner — jeder Browser hält dafür genau eine Anfrage offen, die antwortet, sobald sich etwas ändert (gemessen: 0,18 s), und bis dahin nichts kostet. Auf dem Handy werden aus den Spalten einklappbare Bereiche, Dialoge zu Bottom-Sheets, und die Tastatur verdeckt keine Knöpfe mehr.',
+    shot: { src: '/landing/mobile-demo.png', alt: 'cue auf einem Smartphone mit eingeklappten Statusbereichen' },
+  },
+  {
+    icon: 'insights',
+    title: 'Auswertung über Arbeit und Kosten',
+    text: 'Ein eigener Tab zeigt, was entstand, was fertig wurde und was es gekostet hat: Zeitverlauf, Aktivitätskalender, Wochentag×Stunde, Projekte, Tags — und für die KI-Optimierung Kosten gesamt, je Prompt, je Versuch und je Modell. Zeitraum von Heute bis Gesamt, gerechnet in deiner Zeitzone.',
+  },
+  {
+    icon: 'lock',
+    title: 'Mandantenfähig, selbst gehostet, ohne Tracker',
+    text: 'Anmeldung über Google, jedes Konto sieht ausschließlich seine eigenen Daten — durchgesetzt von einem Test, der über jede Route der App läuft. Betrieben auf einem eigenen Server in der EU, ohne Analytics und ohne Drittanbieter außer dem Login und, nur wenn du sie auslöst, Anthropic. Ein hinterlegter API-Key liegt verschlüsselt und wird nie wieder ausgegeben.',
   },
 ]
 
 const MORE: { icon: string; label: string }[] = [
   { icon: 'history', label: 'CLI-Prompt-Capture mit Verlauf' },
   { icon: 'send', label: 'Prompts in laufende Sessions tippen' },
-  { icon: 'insights', label: 'Statistiken über Arbeit und Kosten' },
   { icon: 'merge', label: 'Prompts zusammenführen' },
+  { icon: 'content_copy', label: '1-Klick-Copy & Duplizieren' },
+  { icon: 'mic', label: 'Diktat statt tippen' },
+  { icon: 'image', label: 'Screenshots an Prompts' },
+  { icon: 'undo', label: 'Löschen mit Undo' },
   { icon: 'upload_file', label: 'Import & Export (JSON/ZIP/IR)' },
   { icon: 'install_mobile', label: 'Installierbare PWA' },
   { icon: 'palette', label: 'Material You Dynamic Color' },
-  { icon: 'lock', label: 'Multi-Tenant mit Google-Login' },
+  { icon: 'dark_mode', label: 'Hell/Dunkel mit Circular Reveal' },
+  { icon: 'keyboard', label: 'Tastatur-Shortcuts' },
 ]
 
 function GoogleMark() {
@@ -99,17 +124,20 @@ function GoogleMark() {
 export function Landing({
   signedIn = false,
   onEnterApp,
+  onDemo,
 }: {
   /** A signed-in visitor came back from the app — offer the way in, not a login. */
   signedIn?: boolean
   onEnterApp: () => void
+  /** Öffnet die Demo — die echte App auf erfundenen Daten, ohne Anmeldung. */
+  onDemo: () => void
 }) {
   const s = useSettings()
   const params = new URLSearchParams(window.location.search)
   const errKey = params.get('auth_error')
   const error = errKey ? AUTH_ERRORS[errKey] ?? 'Anmeldung fehlgeschlagen.' : ''
 
-  const cta = signedIn ? (
+  const signIn = signedIn ? (
     <button className="btn btn--filled" onClick={onEnterApp}>
       <Icon name="arrow_forward" /> Zur App
     </button>
@@ -118,6 +146,18 @@ export function Landing({
       <GoogleMark />
       Mit Google anmelden
     </a>
+  )
+
+  // Die Demo steht gleichberechtigt neben der Anmeldung: ein Besucher kann cue
+  // nicht ausprobieren, ohne freigeschaltet zu werden — ohne diesen Weg bliebe
+  // die Seite eine Behauptung.
+  const cta = (
+    <>
+      {signIn}
+      <button className="btn btn--outlined" onClick={onDemo}>
+        <Icon name="play_circle" /> Demo öffnen
+      </button>
+    </>
   )
 
   return (

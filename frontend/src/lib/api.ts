@@ -36,6 +36,7 @@ import type {
   TagUsage,
 } from './types'
 import type { ChangeFeed } from './live-sync'
+import { handleDemoRequest, seedDemo, type DemoState } from './demo'
 
 function csrfToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)cue_csrf=([^;]+)/)
@@ -61,12 +62,40 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Demo-Zustand, solange die App im Demo-Modus läuft.
+ *
+ * Die eine Naht, an der die Demo hängt: ist er gesetzt, beantwortet
+ * `lib/demo.ts` die Anfragen im Speicher, statt sie an den Server zu schicken.
+ * Die Oberfläche darüber ist die echte — deshalb zeigt die Demo immer, was die
+ * App heute tut, und nicht das, was bei ihrer letzten Pflege galt.
+ */
+let demoState: DemoState | null = null
+
+export function enableDemo(): void {
+  if (!demoState) demoState = seedDemo()
+}
+
+export function isDemo(): boolean {
+  return demoState !== null
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  if (demoState) {
+    try {
+      return handleDemoRequest(demoState, method, path, body as never) as T
+    } catch (err) {
+      // Als ApiError weiterreichen, damit die App eine Absage genauso anzeigt
+      // wie jeden anderen Server-Fehler — kein zweiter Fehlerpfad.
+      throw new ApiError(400, err instanceof Error ? err.message : 'In der Demo nicht verfügbar')
+    }
+  }
+
   const headers: Record<string, string> = {}
   const opts: RequestInit = { method, credentials: 'same-origin', headers, signal }
 
