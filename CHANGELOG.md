@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.1] - 2026-09-01
+
+### Added
+- **Wo die App live läuft, steht jetzt überall dort, wo jemand danach sucht:** in
+  der GitHub-Beschreibung, im Homepage-Feld des Repos, als erster Link unter dem
+  Titel des README und als eigener Abschnitt „Live" mit Anmeldeweg, Installation
+  und Betriebsangaben.
+- **Thumbnail** ganz oben im README (das Board), zentriert über Titel, Live-Link
+  und den beiden Hero-Badges.
+- **Spenden per PayPal** und **celox.io auf Google Maps bewerten** — als Knöpfe
+  im Kopf und als eigener Abschnitt „Unterstützen" am Ende. Beides in derselben
+  Form wie in Inspector Rust, zauberkoch und BeatByte, mit denselben Zielen
+  (`martin.pfeffer@celox.io` bzw. `g.page/r/CXgdRV3QysvxEBM/review`) — nichts
+  davon erfunden, alles aus den bestehenden Projekten übernommen.
+- Repo-Themen gesetzt (claude-code, prompt-management, kanban, fastapi, react,
+  typescript, pwa, self-hosted, sqlite, material-design-3).
+
+### Fixed
+- ⚠️ **`CLAUDE.md` behauptete, das Repository sei privat — es ist öffentlich**
+  (mit `gh repo view` geprüft). Die Beschreibung auf GitHub nannte cue außerdem
+  noch „single-user", was seit 0.16.0 falsch ist. Beides korrigiert; ein
+  Musterscan über den getrackten Baum fand erwartungsgemäß keine Geheimnisse
+  (die `sk-ant-*`-Treffer sind offensichtliche Test-Attrappen).
+
 ## [0.59.0] - 2026-09-01
 
 ### Added

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `cue` — a multi-tenant prompt-/todo-queue web app for managing Claude-Code-CLI prompts.
 Capture prompts, group by project, work them through a status workflow (Queued →
 Running → Done, plus Failed/Archived), and copy them into the CLI with one click.
-Deployed at `https://cue.celox.io` behind a reverse proxy. Repo: `pepperonas/cue` (private).
+Deployed at `https://cue.celox.io` behind a reverse proxy. Repo: `pepperonas/cue` — ⚠️ **PUBLIC** (this line said "private" until 0.59.1 and was simply wrong; checked with `gh repo view`). Nothing sensitive lives in the tree — every secret is in the `.env` on the VPS and on the runner Mac — but treat anything committed here as readable by anyone.
 
 Hard constraints: **multi-tenant** — sign in with **Google OAuth**, each user owns their own
 projects/prompts (`User` table + `user_id` FK on every owned row), access gated by an

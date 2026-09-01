@@ -1,11 +1,34 @@
+<div align="center">
+
+<img src="docs/screenshots/board-dark.png" alt="cue — Kanban-Board mit Prompt-Queue, Projektfiltern und Statusspalten" width="820" />
+
 # cue
 
 **Prompt-Queue für Claude-Code-Sessions** — multi-tenant (Google-Login), Material Design 3 Expressive.
 
+### ▶︎ [Live nutzen: **cue.celox.io**](https://cue.celox.io)
+
+<sub>Anmeldung über Google. Neue Konten schaltet der Admin frei — bis dahin siehst du einen Wartehinweis statt eines leeren Boards.</sub>
+
+<p>
+  <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">
+    <img src="https://img.shields.io/badge/%E2%98%95_Kaffeekasse-Spenden_via_PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" height="46" alt="Spenden via PayPal" />
+  </a>
+  <a href="https://g.page/r/CXgdRV3QysvxEBM/review">
+    <img src="https://img.shields.io/badge/%E2%AD%90_celox.io_bewerten-auf_Google_Maps-4285F4?style=for-the-badge&logo=googlemaps&logoColor=white" height="46" alt="celox.io auf Google Maps bewerten" />
+  </a>
+</p>
+
+<em>Kostenlos, quelloffen, ohne Tracking — eine Person, viele Abende. Wenn cue dir eine
+Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über einen
+<a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
+
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.59.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-v0.59.1-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
 [![lines of code](https://img.shields.io/badge/lines%20of%20code-30%20783-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
+
+</div>
 
 <!-- badges:dynamic -->
 [![tests](https://img.shields.io/badge/tests-1253%20passing-brightgreen.svg)](docs/TESTING.md)
@@ -34,7 +57,7 @@
 [![schemas](https://img.shields.io/badge/schemas-83-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-73-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-74-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--09--01-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
@@ -88,6 +111,18 @@
 geplante Claude-Code-Prompts erfassen, nach Projekt/Repo gruppieren, über einen
 Status-Workflow (Queued → Running → Done) abarbeiten und mit einem Klick in die
 Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
+
+## Live
+
+| | |
+| --- | --- |
+| **App** | **<https://cue.celox.io>** |
+| **Anmeldung** | Google OAuth — ein Konto wird nach der ersten Anmeldung vom Admin freigeschaltet |
+| **Installation** | Als PWA installierbar (Browser-Menü → „Zum Startbildschirm"/„Installieren") |
+| **Betrieb** | Selbst gehostet auf einem eigenen VPS, EU. Kein Analytics, keine Tracker, kein Drittanbieter außer Google-Login und — nur wenn du sie auslöst — Anthropic für die KI-Optimierung. |
+
+Wer lieber selbst hostet: die komplette Anleitung steht unter
+[Deployment](#deployment-vps-cuecelox-io) und in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
 ## Dokumentation
 
@@ -389,6 +424,18 @@ Das Projekt folgt [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH
 Die aktuelle Version steht im Badge oben (Quelle: `backend/app/main.py`) — hier bewusst
 nicht wiederholt, damit sie nicht auseinanderlaufen kann. Änderungen sind im
 [CHANGELOG](CHANGELOG.md) dokumentiert.
+
+## Unterstützen
+
+cue ist kostenlos, quelloffen und werbefrei — und wird von einer Person gebaut und
+betrieben. Wenn es dir etwas wert ist:
+
+<a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR"><img src="https://img.shields.io/badge/Spenden-PayPal-00457C?logo=paypal&logoColor=white&style=for-the-badge" alt="Spenden via PayPal"/></a>
+<a href="https://g.page/r/CXgdRV3QysvxEBM/review"><img src="https://img.shields.io/badge/celox.io%20bewerten-Google%20Maps%20%E2%AD%90-4285F4?logo=googlemaps&logoColor=white&style=for-the-badge" alt="celox.io auf Google Maps bewerten"/></a>
+
+- ☕ **Spenden** über PayPal: [martin.pfeffer@celox.io](https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR)
+- ⭐ **Arbeit bewerten** auf Google Maps: [g.page/r/CXgdRV3QysvxEBM/review](https://g.page/r/CXgdRV3QysvxEBM/review)
+- 🌟 Repo mit einem Stern versehen, Issues melden, PRs schicken — genauso willkommen.
 
 ## Lizenz
 
