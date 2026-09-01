@@ -62,3 +62,26 @@ export function nextPriority(current: Priority): Priority {
   if (current === 'high') return 'low'
   return 'normal'
 }
+
+/** Wie ein Druck auf den Prioritäts-Knopf gemeint war. */
+export type PressKind = 'tap' | 'hold'
+
+/**
+ * Welche Priorität ein Druck erzeugt — oder `null`, wenn nichts zu schreiben
+ * ist.
+ *
+ * Tippen läuft den Zyklus weiter, **Halten führt immer nach `normal`** und
+ * niemals irgendwo anders hin: der Zyklus ist bequem, aber wer von „hoch"
+ * zurück auf den Standard will, klickt sonst durch „gering" hindurch. Ein
+ * Halten ist deshalb kein vierter Zustand, sondern der kurze Weg zurück.
+ *
+ * Auf einem Prompt, der schon `normal` ist, gibt es dafür nichts zu tun —
+ * `null` verhindert einen Schreibvorgang, der nichts ändert. Der Klick danach
+ * wird trotzdem geschluckt (siehe `state/long-press.ts`): sonst hätte ein
+ * Halten auf „mittel" den Prompt auf „hoch" gesetzt, also genau das Gegenteil
+ * dessen, wofür die Geste da ist.
+ */
+export function priorityAfterPress(current: Priority, kind: PressKind): Priority | null {
+  if (kind === 'tap') return nextPriority(current)
+  return current === 'normal' ? null : 'normal'
+}

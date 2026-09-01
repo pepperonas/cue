@@ -136,8 +136,11 @@ Die Trennung ist die Testpolitik: **wenn testenswerte Logik in einem Hook oder
 einer Komponente feststeckt, wird sie herausgezogen**, statt einen Renderer zu
 testen. `lib/live-sync.ts` exportiert die komplette Polling-Schleife
 framework-frei, `lib/tag-keys.ts` die Tastentabelle des Tag-Feldes,
-`lib/detail-keys.ts` die des Detail-Dialogs — die zugehörigen Hooks sind danach
-nur noch Verdrahtung.
+`lib/detail-keys.ts` die des Detail-Dialogs, `lib/long-press.ts` die Buchführung
+eines langen Drucks — die zugehörigen Hooks sind danach nur noch Verdrahtung.
+Am Long-Press sieht man, warum: riskant daran ist nicht das Rendern, sondern
+**genau einmal auslösen und den folgenden Klick schlucken** — sonst tut eine
+Geste zwei Dinge.
 
 **Eine einzige Adresse.** Es gibt kein Router-Paket und das ist keins im
 Werden: jede Ansicht der App ist ein Zustandswert in `App.tsx`, die URL bleibt

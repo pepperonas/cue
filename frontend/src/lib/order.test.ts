@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { columnComparator, nextPriority } from './order'
+import { columnComparator, nextPriority, priorityAfterPress } from './order'
 import type { Prompt, Status } from './types'
 
 function p(id: number, over: Partial<Prompt> = {}): Prompt {
@@ -167,5 +167,37 @@ describe('nextPriority', () => {
     }
     expect(seen).toEqual(new Set(['high', 'low', 'normal']))
     expect(level).toBe('normal')
+  })
+})
+
+describe('priorityAfterPress', () => {
+  it('taps walk the cycle, exactly as before', () => {
+    expect(priorityAfterPress('normal', 'tap')).toBe('high')
+    expect(priorityAfterPress('high', 'tap')).toBe('low')
+    expect(priorityAfterPress('low', 'tap')).toBe('normal')
+  })
+
+  it('a hold always lands on normal — from anywhere, in one gesture', () => {
+    // Das ist der ganze Zweck: der Zyklus führt von „hoch" über „gering"
+    // zurück, also über einen Zustand, den niemand meint.
+    expect(priorityAfterPress('high', 'hold')).toBe('normal')
+    expect(priorityAfterPress('low', 'hold')).toBe('normal')
+  })
+
+  it('writes nothing when the prompt is already normal', () => {
+    // Kein Schreibvorgang, der nichts ändert — und vor allem kein Rückfall auf
+    // den Zyklus, der aus dem Halten ein „hoch" machen würde.
+    expect(priorityAfterPress('normal', 'hold')).toBeNull()
+  })
+
+  it('from HIGH the two gestures disagree — the case the feature exists for', () => {
+    // ⚠️ Nur „hoch" unterscheidet sie: aus „gering" führt auch der Zyklus nach
+    // „normal", und aus „mittel" schreibt das Halten gar nichts. Ein Test über
+    // alle drei Stufen wäre in zwei Dritteln der Fälle keine Aussage — und die
+    // erste Fassung dieses Tests fiel genau darüber (behauptet: „nie das
+    // Zyklus-Ergebnis"; wahr nur hier).
+    expect(priorityAfterPress('high', 'tap')).toBe('low')
+    expect(priorityAfterPress('high', 'hold')).toBe('normal')
+    expect(priorityAfterPress('high', 'hold')).not.toBe(nextPriority('high'))
   })
 })

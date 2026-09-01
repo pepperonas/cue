@@ -2047,6 +2047,14 @@ html.theme-transition::view-transition-old(root) { z-index: 1; }
    `--warn` rather than a bare hex: measured on the real card background,
    5.71:1 light and 7.80:1 dark. A fixed amber cannot do both — the light
    theme's version has to be darkened, which is exactly why this is a token. */
+/* Halten setzt zurück auf „mittel" — dafür darf der lange Druck weder die
+   Glyphe markieren noch iOS' Auswahl-Callout auslösen. Das Icon IST Text
+   (Material-Symbols-Ligatur), also greift die Textauswahl hier wirklich. */
+.prio-btn {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 .prio-btn[data-prio='high'] {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);

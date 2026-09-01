@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.0] - 2026-09-01
+
+### Added
+- **Langer Druck auf den Prioritäts-Knopf setzt zurück auf „mittel".** Der
+  Zyklus ist bequem, taugt aber schlecht zum Zurücknehmen: von „hoch" auf den
+  Standard führt er durch „gering" hindurch, also über einen Zustand, den
+  niemand meint. Halten ist deshalb kein vierter Zustand, sondern der kurze Weg
+  zurück — 500 ms, der Plattformwert, den die Finger schon gelernt haben.
+- Der Knopf **sagt es selbst**: „Priorität: Hoch — klicken für Gering · lange
+  drücken für Mittel". ⚠️ Nur dort, wo das Halten etwas **anderes** tut als der
+  Klick — auf „gering" führen beide nach „mittel", und der Hinweis hätte
+  dasselbe zweimal gesagt (im Browser gesehen, nicht gemutmaßt).
+- Auf einem Prompt, der schon „mittel" ist, wird **nichts geschrieben** — der
+  Klick danach aber trotzdem geschluckt. Ohne das hätte ausgerechnet die Geste
+  „zurück auf Standard" den Prompt auf „hoch" gesetzt.
+
+### Internal
+- Neues reines Modul `frontend/src/lib/long-press.ts` (Auslöse-Regeln,
+  Slop-Toleranz, Buchführung) plus `state/long-press.ts` als React-Verdrahtung —
+  derselbe Schnitt wie `live-sync` und `route`. **12 neue Tests**, alle sechs
+  neuen Zusicherungen einzeln mutationsgeprüft.
+- `priorityAfterPress(current, kind)` in `lib/order.ts` ist die eine Quelle für
+  Aktion **und** Beschriftung; ein Halten kann damit nicht versehentlich wieder
+  im Zyklus landen.
+- ⚠️ `.prio-btn` unterbindet Textauswahl und iOS-Callout: die Glyphe **ist**
+  Text (Material-Symbols-Ligatur), ein langer Druck hätte sie markiert.
+
+### Fixed
+- ⚠️ Ein eigener Test war eine **falsche Behauptung**, nicht ein Fehler im Code:
+  „ein Halten liefert nie das Zyklus-Ergebnis" stimmt nur von „hoch" aus — von
+  „gering" führen beide Gesten legitim nach „mittel". Der Test prüft jetzt den
+  einen Fall, in dem sie sich unterscheiden.
+
 ## [0.56.1] - 2026-08-30
 
 ### Documentation
