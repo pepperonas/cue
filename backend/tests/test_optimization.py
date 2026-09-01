@@ -11,7 +11,13 @@ import pytest
 from conftest import RUNNER_HDR
 from conftest import auth as _auth
 
-from app.optimization.meta_prompt import build_meta_prompt, clean_result
+from app.optimization.meta_prompt import (
+    MAX_TAGS,
+    MAX_TITLE_CHARS,
+    build_meta_prompt,
+    clean_result,
+    parse_result,
+)
 
 
 def _mk(client, headers, body="Schreibe mir was zu Datenbanken", **extra):
@@ -988,3 +994,181 @@ def test_the_stamp_survives_a_later_discarded_attempt(client):
     assert client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()[
         "optimization_applied_at"
     ] == stamp
+
+
+# ------------------------------------------- title and tags travel with the body
+
+
+def _structured(body="Neuer Text", title="Neuer Titel", tags="bugfix, gui"):
+    """An answer in the format the meta prompt asks for."""
+    return (
+        f"--- TITEL ---\n{title}\n--- TAGS ---\n{tags}\n"
+        f"--- PROMPT ---\n{body}\n--- ENDE ---"
+    )
+
+
+def test_an_answer_without_the_format_is_still_a_valid_optimization():
+    """THE safety property of the parser.
+
+    Every answer looked like this before the format existed, and a weaker model
+    still answers this way. Such a run produced a perfectly good rewrite —
+    refusing it over missing packaging would throw away a paid call.
+    """
+    parsed = parse_result("Einfach nur der umgeschriebene Prompt")
+    assert parsed.body == "Einfach nur der umgeschriebene Prompt"
+    assert parsed.title is None
+    assert parsed.tags is None
+
+
+def test_the_body_is_never_the_marker_block():
+    parsed = parse_result(_structured())
+    assert parsed.body == "Neuer Text"
+    assert parsed.title == "Neuer Titel"
+    assert parsed.tags == "bugfix, gui"
+
+
+def test_a_missing_tag_block_costs_only_the_tags():
+    parsed = parse_result("--- TITEL ---\nNur ein Titel\n--- PROMPT ---\nText\n--- ENDE ---")
+    assert parsed.body == "Text"
+    assert parsed.title == "Nur ein Titel"
+    assert parsed.tags is None
+
+
+def test_an_end_marker_inside_the_prompt_survives():
+    # The user's own text may contain anything; only a marker at the very end is
+    # packaging.
+    body = "Schritt 1\n--- ENDE ---\nSchritt 2"
+    parsed = parse_result(f"--- PROMPT ---\n{body}\n--- ENDE ---")
+    assert parsed.body == body
+
+
+def test_decorated_titles_are_undecorated():
+    parsed = parse_result('--- TITEL ---\n# "Ein Titel"\n--- PROMPT ---\nX\n--- ENDE ---')
+    assert parsed.title == "Ein Titel"
+
+
+def test_a_title_paragraph_is_cut_to_a_title():
+    long = "W" * (MAX_TITLE_CHARS + 40)
+    parsed = parse_result(f"--- TITEL ---\n{long}\nzweite Zeile\n--- PROMPT ---\nX\n--- ENDE ---")
+    assert parsed.title is not None
+    assert len(parsed.title) == MAX_TITLE_CHARS
+
+
+def test_tags_are_capped_and_deduplicated():
+    # Asking for at most four is not enforcing it.
+    parsed = parse_result(
+        "--- TITEL ---\nT\n--- TAGS ---\ngui, GUI, bugfix, docs, extra, noch-eins\n"
+        "--- PROMPT ---\nX\n--- ENDE ---"
+    )
+    assert parsed.tags is not None
+    assert len(parsed.tags.split(",")) == MAX_TAGS
+    assert parsed.tags.lower().count("gui") == 1
+
+
+def test_the_meta_prompt_carries_title_tags_and_the_accounts_vocabulary():
+    built = build_meta_prompt(
+        "Mach X", title="Alter Titel", tags="gui", vocabulary=["gui", "bugfix"]
+    )
+    assert "Alter Titel" in built
+    assert "--- TITEL ---" in built and "--- TAGS ---" in built
+    assert "bugfix" in built
+
+
+def test_the_meta_prompt_says_nothing_about_a_title_there_is_none():
+    # An empty "Bisheriger Titel:" line is an invitation to invent one.
+    built = build_meta_prompt("Mach X")
+    assert "Bisheriger Titel" not in built
+    assert "Bereits verwendete Schlagworte" not in built
+
+
+def test_optimizing_proposes_a_title_and_tags(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext", title="Alter Titel", tags="gui")
+    job = _finish(client, headers, prompt["id"], text=_structured())
+
+    assert job["optimized_text"] == "Neuer Text"
+    assert job["optimized_title"] == "Neuer Titel"
+    assert job["optimized_tags"] == "bugfix, gui"
+    # The snapshots say what it was — the history stays readable later.
+    assert job["original_title"] == "Alter Titel"
+    assert job["original_tags"] == "gui"
+
+
+def test_applying_takes_over_title_and_tags(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext", title="Alter Titel", tags="gui")
+    job = _finish(client, headers, prompt["id"], text=_structured())
+
+    payload = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers).json()
+    assert payload["prompt"]["title"] == "Neuer Titel"
+    assert payload["prompt"]["tags"] == "bugfix, gui"
+
+    stored = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert stored["title"] == "Neuer Titel"
+    assert stored["tags"] == "bugfix, gui"
+
+
+def test_applied_tags_go_through_the_tag_vocabulary(client):
+    """Not just the comma cache — `Prompt.tags` is only a cache over the links.
+
+    Writing it directly would leave the tag table without the new entries, and
+    the Tags tab would not know they exist.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext")
+    job = _finish(client, headers, prompt["id"], text=_structured(tags="frischestag"))
+    client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
+
+    names = [t["name"] for t in client.get("/api/tags", headers=headers).json()["items"]]
+    assert "frischestag" in names
+
+
+def test_a_proposal_without_tags_does_not_clear_the_existing_ones(client):
+    """"Nothing proposed" and "remove everything" look the same in the result —
+    and only one of the two readings is lossless."""
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext", title="Mein Titel", tags="gui, bugfix")
+    job = _finish(client, headers, prompt["id"], text="Nur Text, kein Format")
+    client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
+
+    stored = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert stored["tags"] == "gui, bugfix"
+    # Same for the title — and the body DID change, so this is not a test of a
+    # no-op apply.
+    assert stored["title"] == "Mein Titel"
+    assert stored["body"] == "Nur Text, kein Format"
+
+
+def test_discarding_leaves_title_and_tags_alone(client):
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers, "Originaltext", title="Alter Titel", tags="gui")
+    job = _finish(client, headers, prompt["id"], text=_structured())
+    client.post(f"/api/optimizations/{job['id']}/discard", headers=headers)
+
+    stored = client.get(f"/api/prompts/{prompt['id']}", headers=headers).json()
+    assert stored["title"] == "Alter Titel"
+    assert stored["tags"] == "gui"
+
+
+def test_the_claimed_job_carries_the_accounts_own_tags(client):
+    """The vocabulary has to reach the model, not just exist.
+
+    ⚠️ Found by mutation: cutting `vocabulary=` out of the service left every
+    test green, because the only vocabulary test called `build_meta_prompt`
+    directly. The discriminating fact is a tag that lives on a DIFFERENT prompt
+    — it can only appear here if the service really read the account's tags.
+    """
+    csrf = _auth(client)
+    headers = {"X-CSRF-Token": csrf}
+    _mk(client, headers, "Ein anderer Prompt", tags="einmaligestag")
+    target = _mk(client, headers, "Zu optimieren")
+
+    client.post("/api/optimizations", json={"prompt_id": target["id"]}, headers=headers)
+    job = _claim(client)
+    assert job is not None
+    assert "einmaligestag" in job["prompt"]

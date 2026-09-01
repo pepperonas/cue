@@ -285,6 +285,14 @@ class PromptOptimization(SQLModel, table=True):
     original_text: str = Field(default="")
     previous_text: str | None = Field(default=None)
     optimized_text: str | None = Field(default=None)
+    # Title and tags travel with the body: a rewritten prompt whose title still
+    # describes the old wording is only half rewritten. Snapshots of what they
+    # were, and the proposal for what they should become — both per attempt,
+    # because the history has to stay readable after the prompt moved on.
+    original_title: str = Field(default="")
+    original_tags: str = Field(default="")
+    optimized_title: str | None = Field(default=None)
+    optimized_tags: str | None = Field(default=None)
 
     # Telemetry / audit trail.
     exit_code: int | None = Field(default=None)

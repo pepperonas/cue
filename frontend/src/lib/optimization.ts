@@ -65,3 +65,37 @@ export function pendingProposal(
   if (!prompt.optimized) return null
   return versions.find((row) => row.decision === 'pending') ?? null
 }
+
+/** One side-by-side change an optimization proposes beside the body. */
+export interface MetaChange {
+  key: 'title' | 'tags'
+  label: string
+  from: string
+  to: string
+}
+
+/**
+ * Title and tag changes an attempt proposes — for the review.
+ *
+ * ⚠️ This mirrors the APPLY rule on the server, and it has to: a change shown
+ * here but not written would be a lie, and one written but not shown would be
+ * a silent edit of something the user chose by hand. The server applies a
+ * proposal when it is non-empty; an identical value is left out here only
+ * because applying it changes nothing there is to see.
+ *
+ * An EMPTY proposal is not a change — "the model proposed nothing" and "remove
+ * everything" look the same on the wire, and only one of those readings is
+ * lossless (the server takes the same view).
+ */
+export function metaChanges(attempt: Optimization | undefined): MetaChange[] {
+  if (!attempt) return []
+  const out: MetaChange[] = []
+  const push = (key: MetaChange['key'], label: string, from: string, to: string | null) => {
+    const next = (to ?? '').trim()
+    if (!next || next === (from ?? '').trim()) return
+    out.push({ key, label, from: (from ?? '').trim(), to: next })
+  }
+  push('title', 'Titel', attempt.original_title, attempt.optimized_title)
+  push('tags', 'Tags', attempt.original_tags, attempt.optimized_tags)
+  return out
+}

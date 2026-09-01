@@ -11,11 +11,12 @@
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { springs } from '../../lib/motion'
-import { isOptimizable, succeededVersions } from '../../lib/optimization'
+import { isOptimizable, metaChanges, succeededVersions } from '../../lib/optimization'
 import { useOptimizationHistory } from '../../state/queries'
 import type { Optimization, Prompt } from '../../lib/types'
 import { Icon } from '../ui'
 import { DiffView } from './DiffView'
+import { MetaChanges } from './MetaChanges'
 
 export type PromptVariant = 'original' | 'optimized' | 'diff'
 
@@ -164,6 +165,10 @@ export function OptimizationPanel({
               asked for, and it made the diff measure as zero-height in the
               commit the history arrives in — which is exactly the commit the
               sheet uses to scroll the review into view. */}
+          {/* Above the diff and in EVERY view: „Übernehmen" writes these too,
+              so they must not be hidden behind a tab the user did not open. */}
+          <MetaChanges changes={metaChanges(shown)} />
+
           {view === 'diff' && shown && (
             <DiffView original={shown.original_text} optimized={shown.optimized_text ?? ''} />
           )}

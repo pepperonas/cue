@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pendingProposal, succeededVersions } from './optimization'
+import { metaChanges, pendingProposal, succeededVersions } from './optimization'
 import type { Optimization } from './types'
 
 function version(
@@ -115,5 +115,53 @@ describe('succeededVersions feeding pendingProposal', () => {
     const history = [version(3, 'pending', 'failed'), version(2, 'pending'), version(1, 'applied')]
     const found = pendingProposal({ optimized: true }, succeededVersions(history))
     expect(found?.version).toBe(2)
+  })
+})
+
+describe('metaChanges', () => {
+  const attempt = (over: Partial<Optimization>): Optimization =>
+    ({
+      original_title: '',
+      original_tags: '',
+      optimized_title: null,
+      optimized_tags: null,
+      ...over,
+    }) as Optimization
+
+  it('reports a new title and new tags', () => {
+    const out = metaChanges(
+      attempt({
+        original_title: 'Alt',
+        optimized_title: 'Neu',
+        original_tags: 'gui',
+        optimized_tags: 'bugfix, gui',
+      }),
+    )
+    expect(out.map((c) => c.key)).toEqual(['title', 'tags'])
+    expect(out[0]).toMatchObject({ from: 'Alt', to: 'Neu' })
+  })
+
+  it('says nothing when the model proposed nothing', () => {
+    // ⚠️ Mirrors the server: an empty proposal is not "remove everything".
+    // Showing "Tags: gui → —" would announce a deletion that never happens.
+    expect(metaChanges(attempt({ original_tags: 'gui', optimized_tags: null }))).toEqual([])
+    expect(metaChanges(attempt({ original_tags: 'gui', optimized_tags: '' }))).toEqual([])
+  })
+
+  it('says nothing when the proposal is the value that is already there', () => {
+    expect(
+      metaChanges(attempt({ original_title: 'Gleich', optimized_title: '  Gleich  ' })),
+    ).toEqual([])
+  })
+
+  it('shows a first-ever title as coming from nothing', () => {
+    const out = metaChanges(attempt({ original_title: '', optimized_title: 'Erster' }))
+    expect(out).toHaveLength(1)
+    expect(out[0].from).toBe('')
+  })
+
+  it('survives having no attempt at all', () => {
+    // The panel renders before the history has arrived.
+    expect(metaChanges(undefined)).toEqual([])
   })
 })

@@ -646,6 +646,10 @@ class OptimizationRead(BaseModel):
     original_text: str
     previous_text: str | None
     optimized_text: str | None
+    original_title: str
+    original_tags: str
+    optimized_title: str | None
+    optimized_tags: str | None
     exit_code: int | None
     duration_ms: int | None
     cost_usd: float | None

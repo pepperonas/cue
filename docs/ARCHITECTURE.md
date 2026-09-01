@@ -270,6 +270,24 @@ Usage, kein Preis. Beide Zahlen landen in derselben Spalte
 als **Schätzung** aus, wo der gerechnete Weg beteiligt war, und nennt den Stand
 der Preistabelle (`pricing.STATE`) dazu.
 
+**Umgeschrieben wird der ganze Prompt, nicht nur sein Text.** Titel und
+Schlagworte reisen als eigene Vorschläge mit (`optimized_title`,
+`optimized_tags` auf der Versuchszeile, daneben die Momentaufnahmen
+`original_title`/`original_tags`); die Schlagworte des Kontos gehen als
+Vokabular in die Anfrage, damit das vorhandene Schema fortgeschrieben statt
+durch Synonyme ergänzt wird.
+
+⚠️ Zwei Regeln tragen das:
+
+1. **Der Körper überlebt jede Antwortform.** Fehlt die Formatmarke, ist der
+   ganze Text der Körper und es wird nichts vorgeschlagen — eine Antwort im
+   alten Stil ist eine gute Optimierung und darf nicht an ihrer Verpackung
+   scheitern.
+2. **Ein leerer Vorschlag löscht nichts.** „Nichts vorgeschlagen" und „alles
+   entfernen" sehen im Ergebnis gleich aus; nur eine der Lesarten ist
+   verlustfrei. Server und Anzeige folgen hier derselben Regel, sonst zeigte
+   die Oberfläche eine Änderung an, die nie geschrieben wird.
+
 **Der Key liegt verschlüsselt** (`app/secrets_store.py`, Fernet, Schlüssel aus
 `SECRET_KEY` abgeleitet) und verlässt den Server nie wieder — die API liefert nur
 eine Vorschau der letzten vier Zeichen. Details in

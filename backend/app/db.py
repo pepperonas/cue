@@ -97,6 +97,13 @@ def _migrate(engine: Engine) -> None:
         "universal": "ALTER TABLE prompt_optimization ADD COLUMN universal BOOLEAN NOT NULL DEFAULT 0",
         "decision": "ALTER TABLE prompt_optimization ADD COLUMN decision VARCHAR NOT NULL DEFAULT 'pending'",
         "decided_at": "ALTER TABLE prompt_optimization ADD COLUMN decided_at TIMESTAMP",
+        # Title and tags are rewritten along with the body (v0.58.0). Existing
+        # rows keep empty strings / NULL, which reads exactly as "this attempt
+        # proposed nothing for them" — no history entry changes meaning.
+        "original_title": "ALTER TABLE prompt_optimization ADD COLUMN original_title VARCHAR NOT NULL DEFAULT ''",
+        "original_tags": "ALTER TABLE prompt_optimization ADD COLUMN original_tags VARCHAR NOT NULL DEFAULT ''",
+        "optimized_title": "ALTER TABLE prompt_optimization ADD COLUMN optimized_title VARCHAR",
+        "optimized_tags": "ALTER TABLE prompt_optimization ADD COLUMN optimized_tags VARCHAR",
     }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",

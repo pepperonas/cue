@@ -523,6 +523,12 @@ export interface Optimization {
   original_text: string
   previous_text: string | null
   optimized_text: string | null
+  /** What title and tags were when this attempt was queued. */
+  original_title: string
+  original_tags: string
+  /** What the model proposed for them — null when it proposed nothing. */
+  optimized_title: string | null
+  optimized_tags: string | null
   exit_code: number | null
   duration_ms: number | null
   cost_usd: number | null

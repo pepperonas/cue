@@ -3958,3 +3958,45 @@ img.logo-xl { border-radius: 18px; }
 .chip[data-active='true'] .chip-count {
   background: color-mix(in srgb, currentColor 22%, transparent);
 }
+
+/* Titel- und Tag-Änderungen eines Vorschlags — eine Zeile je Feld, direkt über
+   dem Diff. Kein zweites Diff: bei sechs Wörtern liest sich „alt → neu"
+   schneller als eine wortweise Einfärbung. */
+.opt-meta-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: var(--gap-2) 0;
+}
+.opt-meta-change {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--shape-md);
+  background: var(--md-surface-container-high);
+  font-size: 0.86rem;
+}
+.opt-meta-change .material-symbols-rounded {
+  font-size: 16px;
+  color: var(--md-on-surface-variant);
+}
+.opt-meta-label {
+  font-weight: 600;
+  color: var(--md-on-surface-variant);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.opt-meta-from {
+  color: var(--md-on-surface-variant);
+  text-decoration: line-through;
+  /* Ein langer alter Titel darf die neue Fassung nicht aus der Zeile drängen. */
+  overflow-wrap: anywhere;
+}
+.opt-meta-to {
+  color: var(--ok);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

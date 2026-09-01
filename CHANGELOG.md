@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.58.0] - 2026-09-01
+
+### Added
+- **Die KI schreibt jetzt auch Titel und Schlagworte um.** Ein umgeschriebener
+  Prompt, dessen Titel noch die alte Formulierung beschreibt, ist nur halb
+  umgeschrieben. Beides reist als eigener Vorschlag mit, wird **vor** der
+  Entscheidung als „alt → neu" angezeigt und erst mit „Übernehmen" geschrieben.
+- **Die Schlagworte des Kontos gehen als Vokabular mit in die Anfrage.** Das ist
+  der Unterschied zwischen „Schlagworte vorschlagen" und „das vorhandene Schema
+  weiterführen": ohne die Liste erfindet ein Modell `bug-fixing` neben dem
+  `bugfix`, das seit Monaten in Gebrauch ist.
+- Bookmarks lösen auch ihren **Titel** vom Projekt — er benennt die Aufgabe,
+  nicht das Repository.
+
+### Changed
+- Meta-Prompt auf **Version 4** (strukturierte Antwort mit `--- TITEL ---`,
+  `--- TAGS ---`, `--- PROMPT ---`). Jede Historienzeile hält fest, mit welcher
+  Fassung sie entstanden ist — alte Einträge ändern ihre Bedeutung nicht.
+- `prompt_optimization` bekommt vier additive Spalten: die Momentaufnahmen
+  `original_title`/`original_tags` und die Vorschläge
+  `optimized_title`/`optimized_tags`. Bestandszeilen bleiben leer, was genau
+  „dieser Versuch hat dafür nichts vorgeschlagen" heißt.
+
+### Internal
+- ⚠️ **Der Körper muss jede Antwortform überleben.** Ein Modell, das das Format
+  ignoriert und einfach den umgeschriebenen Prompt liefert — so sah **jede**
+  Antwort vor v4 aus —, hat eine gute Optimierung produziert; sie wegen
+  fehlender Verpackung zu verwerfen hieße, einen bezahlten Aufruf wegzuwerfen.
+  Ohne `--- PROMPT ---` ist der ganze Text der Körper, und es wird nichts
+  vorgeschlagen.
+- ⚠️ Ein **leerer** Vorschlag löscht nichts: „das Modell hat nichts
+  vorgeschlagen" und „alle Schlagworte sollen weg" sehen im Ergebnis gleich
+  aus, und nur eine der beiden Lesarten ist verlustfrei. Server und Anzeige
+  folgen derselben Regel.
+- Schlagworte werden über den **`TagService`** geschrieben, nicht in den
+  Komma-Cache — sonst kennt die Tags-Verwaltung die neuen Einträge nicht.
+- Titel und Tag-Zahl werden **geklemmt**, nicht geglaubt: um höchstens vier
+  Schlagworte zu bitten ist nicht dasselbe, wie sie zu erzwingen.
+
+### Fixed
+- ⚠️ **Eine Mutationsprobe fand eine echte Lücke:** das Vokabular aus dem
+  Service zu entfernen ließ alle Tests grün, weil der einzige Vokabular-Test
+  `build_meta_prompt` direkt aufrief. Der unterscheidende Fall ist ein
+  Schlagwort, das an einem **anderen** Prompt hängt — es kann nur auftauchen,
+  wenn der Service die Schlagworte des Kontos wirklich liest.
+
 ## [0.57.0] - 2026-09-01
 
 ### Added

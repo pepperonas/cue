@@ -18,6 +18,7 @@ from datetime import timedelta
 from sqlmodel import Session, select
 
 from ..config import Settings, get_settings
+from ..tags import TagService
 from .. import events
 from ..models import (
     OPTIMIZATION_TERMINAL,
@@ -33,7 +34,7 @@ from ..models import (
 )
 from . import pricing, providers
 from .. import secrets_store
-from .meta_prompt import META_PROMPT_VERSION, build_meta_prompt, clean_result
+from .meta_prompt import META_PROMPT_VERSION, build_meta_prompt, parse_result
 from .repository import OptimizationRepository
 
 log = logging.getLogger("cue.optimization")
@@ -176,6 +177,10 @@ class PromptOptimizationService:
             universal=bool(prompt.bookmarked),
             original_text=body,
             previous_text=previous.optimized_text if previous else None,
+            # Momentaufnahmen wie der Text: die Historie muss auch dann noch
+            # lesbar sein, wenn Titel und Schlagworte laengst andere sind.
+            original_title=prompt.title or "",
+            original_tags=prompt.tags or "",
         )
         job = self.repo.add(job)
         log.info(
@@ -251,7 +256,12 @@ class PromptOptimizationService:
             provider=job.provider,
             model=job.model,
             prompt=build_meta_prompt(
-                job.original_text, job.previous_text, universal=job.universal
+                job.original_text,
+                job.previous_text,
+                universal=job.universal,
+                title=job.original_title,
+                tags=job.original_tags,
+                vocabulary=self._vocabulary(job.user_id),
             ),
             timeout_s=self.settings.optimize_timeout,
             max_chars=self.settings.optimize_max_chars,
@@ -270,7 +280,11 @@ class PromptOptimizationService:
             return job
 
         now = utcnow()
-        text = clean_result(result.optimized_text or "")
+        # Nur der KOERPER landet in `optimized_text` - Diff, Uebernehmen und
+        # Historie sehen damit exakt das, was sie vorher gesehen haben; Titel
+        # und Schlagworte kommen additiv daneben.
+        parsed = parse_result(result.optimized_text or "")
+        text = parsed.body
         status = OptimizationStatus(result.status)
         if status == OptimizationStatus.succeeded and not text:
             status = OptimizationStatus.failed
@@ -280,6 +294,8 @@ class PromptOptimizationService:
 
         job.status = status
         job.optimized_text = text or None
+        job.optimized_title = parsed.title
+        job.optimized_tags = parsed.tags
         job.model = result.model or job.model
         job.exit_code = result.exit_code
         job.duration_ms = result.duration_ms or self._elapsed_ms(job, now)
@@ -308,6 +324,26 @@ class PromptOptimizationService:
             f" error={job.error}" if job.error else "",
         )
         return job
+
+    #: Wie viele der eigenen Schlagworte dem Modell gezeigt werden. Genug,
+    #: um das Schema eines Kontos zu erkennen, wenig genug, um nichts zu
+    #: kosten - in der Produktion sind es ohnehin nur knapp zwanzig.
+    VOCABULARY_LIMIT = 40
+
+    def _vocabulary(self, uid: int | None) -> list[str]:
+        """Die Schlagworte dieses Kontos, meistgenutzte zuerst.
+
+        Das ist der Unterschied zwischen einem Vorschlag aus dem Nichts und
+        dem Fortschreiben eines vorhandenen Schemas: ohne diese Liste
+        erfindet ein Modell `bug-fixing` neben dem `bugfix`, das seit
+        Monaten in Gebrauch ist.
+        """
+        if uid is None:
+            return []
+        rows, _ = TagService(self.session).list_with_usage(
+            uid, sort='usage', limit=self.VOCABULARY_LIMIT
+        )
+        return [row.tag.name for row in rows]
 
     def _elapsed_ms(self, job: PromptOptimization, now) -> int | None:  # noqa: ANN001
         if job.started_at is None:
@@ -368,6 +404,15 @@ class PromptOptimizationService:
 
         if apply:
             prompt.body = job.optimized_text or prompt.body
+            if job.optimized_title:
+                prompt.title = job.optimized_title
+            if job.optimized_tags:
+                # Der EINE Schreibpfad fuer Schlagworte (`Prompt.tags` ist nur
+                # ein Cache darueber). Ein leerer Vorschlag loescht bewusst
+                # nichts: "das Modell hat nichts vorgeschlagen" und "alle
+                # Schlagworte sollen weg" sehen im Ergebnis gleich aus, und von
+                # den beiden Lesarten ist nur eine verlustfrei.
+                TagService(self.session).set_for_prompt(prompt, job.optimized_tags, uid=uid)
             prompt.updated_at = now
             # The one place this is written: it is what "dieser Prompt wurde
             # per KI optimiert" means, as opposed to "es lag mal ein Vorschlag
