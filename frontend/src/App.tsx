@@ -1111,7 +1111,13 @@ function Shell({
             project={detailLive.project_id ? pmap.get(detailLive.project_id) : undefined}
             projects={projects ?? []}
             dark={settings.resolvedDark}
-            onClose={() => setDetail(null)}
+            onClose={() => {
+              setDetail(null)
+              // Zusammen abräumen: sonst stünde die Bearbeitungs-Markierung
+              // noch, und derselbe Prompt öffnete beim nächsten Mal direkt im
+              // Formular statt in der Ansicht.
+              setEditDetailId(null)
+            }}
             onCopy={handleCopy}
             editing={detailEditing}
             onCancelEdit={() => setEditDetailId(null)}

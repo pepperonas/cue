@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.0] - 2026-09-03
+
+### Changed
+- **Speichern im Detail-Dialog schließt ihn jetzt** — wie beim Anlegen eines
+  neuen Prompts. Bis hierher kehrte er zur Leseansicht zurück und verlangte ein
+  zweites Schließen für nichts: die Karte dahinter trägt den neuen Text
+  ohnehin schon.
+- ⚠️ Der Speicherpfad läuft dafür über `onClose` und **nicht** über
+  `onCancelEdit`: dort räumt der Aufrufer **beides** ab, offenen Dialog und
+  Bearbeitungs-Markierung. Bliebe die Markierung stehen, öffnete derselbe
+  Prompt beim nächsten Mal direkt im Formular — und weil die Markierung eine id
+  ist, wäre das genau bei diesem einen Prompt so und sonst nirgends.
+
 ## [0.61.1] - 2026-09-01
 
 ### Fixed

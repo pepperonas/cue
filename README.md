@@ -24,8 +24,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.61.1-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-32%20031-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.62.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-32%20045-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
@@ -41,10 +41,10 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
 [![test LOC](https://img.shields.io/badge/test%20LOC-13%20937-0A9EDC.svg)](docs/TESTING.md)
-[![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
+[![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-43%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-10%20028-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20800-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20814-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20203-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-153-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-35-3178C6.svg)](frontend/src/lib/)
@@ -57,8 +57,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-83-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-77-blue.svg)](CHANGELOG.md)
-[![last release](https://img.shields.io/badge/last%20release-2026--09--01-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-78-blue.svg)](CHANGELOG.md)
+[![last release](https://img.shields.io/badge/last%20release-2026--09--03-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -188,7 +188,7 @@ Wer lieber selbst hostet: die komplette Anleitung steht unter
 - **Über cue** (Einstellungen, letzter Abschnitt): Version, Entwickler, Spenden-Knopf, „Auf Google Maps bewerten" und der **aufklappbare Changelog** — und zwar die Datei `CHANGELOG.md` selbst, beim Bauen eingebettet statt als zweite, gepflegte Liste. Der Eintrag der laufenden Version ist als „installiert" markiert. Geladen wird der Verlauf erst beim Aufklappen (eigener Chunk, bewusst nicht im PWA-Precache).
 - **Statistiken**: eigener Tab mit Analytics-Dashboard — KPI-Kacheln mit Sparkline und Vergleich zur Vorperiode (erstellt / erledigt / bearbeitet / gelöscht / CLI-Prompts / Serie / Durchlaufzeit / Backlog) und Sektionen für **Prompts** (Zeitverlauf, Statusverteilung, Längen), **Nutzung** (Aktivitätskalender, Wochentag×Stunde-Heatmap, Wochentags-Radar, Tageszeiten, Streaks), **Projekte** (Top-Listen, Treemap, zuletzt verwendet), **Tags** (Top, Wolke, Vokabular-Wachstum) **KI-Runs** (Kostenverlauf, Erfolgsquote, Laufzeit) und **Prompt-Optimierung** (wie viele Prompts die KI umgeschrieben hat, Kosten gesamt / je Prompt / je Versuch, Einzelwerte je Prompt, Erfolgs- und Übernahmequote, Kosten je Modell, Median-Längenfaktor). ⚠️ Auf dem CLI-Weg sind die Kosten die von der **Claude-CLI gemeldeten** Werte, keine Hochrechnung aus Tokenpreisen — die gespeicherten Input-Tokens enthalten keine Cache-Eingaben (live: 68 Tokens für 14 125 Zeichen), eine Preis-mal-Tokens-Rechnung wäre schlicht falsch. Versuche ohne Kostenmeldung werden als „nicht erfasst" ausgewiesen statt als 0 mitgemittelt. Auf dem **API-Weg** ist es umgekehrt: dort meldet die API vollständige Token-Zahlen und gar keinen Preis, also wird aus der Preistabelle gerechnet — eine Schätzung mit Stand-Datum. Zeitraum umschaltbar von **Heute bis Gesamt** inkl. **benutzerdefiniertem** Bereich; Tages-/Stundenraster in der **Zeitzone des Browsers**. Charts mit Recharts, nur in diesem Tab nachgeladen.
 - **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
-- **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** (oder `e`, oder „Bearbeiten“) schaltet **denselben Dialog** ins Formular um, statt einen zweiten zu öffnen: Kopf, Felder und Aktionszeile blenden versetzt um, das Formular steigt von unten, die zurückkehrende Ansicht senkt sich von oben. `Cmd/Ctrl+Enter` speichert — egal, wo der Fokus liegt — und der Dialog bleibt offen und zeigt das Ergebnis. Escape verlässt erst das Formular, beim zweiten Druck den Dialog.
+- **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** (oder `e`, oder „Bearbeiten“) schaltet **denselben Dialog** ins Formular um, statt einen zweiten zu öffnen: Kopf, Felder und Aktionszeile blenden versetzt um, das Formular steigt von unten, die zurückkehrende Ansicht senkt sich von oben. `Cmd/Ctrl+Enter` speichert — egal, wo der Fokus liegt — und **schließt den Dialog**, genau wie beim Anlegen: die Karte dahinter trägt den neuen Text bereits. Escape verlässt erst das Formular, beim zweiten Druck den Dialog.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips (**per Drag & Drop direkt im Board sortierbar**). Jeder Chip zeigt, **wie viel dort offen ist** — Queued plus Running, **ohne blockierte** Prompts; wo nichts offen ist, steht auch keine Zahl.  neuer Prompt übernimmt das zuletzt genutzte Projekt. Im Prompt-Detail öffnet der **Projekt-Badge ein Menü**: Prompt in ein anderes Projekt **verschieben** oder als **Kopie** (inkl. Screenshots, landet als Queued) dorthin **duplizieren**.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft und **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
 - **Titel vervollständigt sich Wort für Wort**: das Feld zeigt den nächsten Wortvorschlag als graue Fortsetzung hinter dem Cursor, **Enter** übernimmt **genau ein Wort**, danach steht sofort der nächste Vorschlag da; `→` am Feldende tut dasselbe, Escape blendet ihn aus, ohne den Dialog zu schließen. Die Vorschläge stammen aus den **eigenen bisherigen Titeln**, nicht aus einer Wortliste. Die Schwellen sind gemessen, nicht geschätzt: auf leerem Feld trifft ein Rateversuch nur zu 2 % — deshalb kommt dort nie einer; beim Vervollständigen des getippten Wortes sind es 25 / 36 / 51 % bei 1 / 2 / 3 Zeichen, also beginnt der Vorschlag ab dem zweiten Zeichen.

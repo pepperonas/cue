@@ -294,7 +294,15 @@ export function DetailSheet({
             cancelIcon="arrow_back"
             cancelLabel="Bearbeiten beenden"
             onCancel={() => onCancelEdit?.()}
-            onSaved={() => onCancelEdit?.()}
+            // Speichern SCHLIESST den Dialog, statt zur Leseansicht
+            // zurückzukehren — wie beim Anlegen. Die Karte dahinter trägt den
+            // neuen Text bereits; die Ansicht noch einmal zu zeigen verlangt
+            // ein zweites Schließen für nichts.
+            // ⚠️ Über `onClose`, nicht über `onCancelEdit`: der Aufrufer räumt
+            // dort BEIDES ab — offener Dialog und Bearbeitungsmodus. Bliebe
+            // die Bearbeitungs-Markierung stehen, öffnete derselbe Prompt beim
+            // nächsten Mal direkt im Formular.
+            onSaved={onClose}
             animateIn
           />
         ) : (
