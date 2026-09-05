@@ -794,16 +794,22 @@ function Shell({
                 <input
                   ref={searchRef}
                   value={q}
-                  placeholder="Prompts durchsuchen… ( / )"
-                  // Die Anführungszeichen-Syntax ist sonst unsichtbar. Als
-                  // Tooltip statt im Platzhalter: der ist auf dem Telefon
-                  // ohnehin knapp und würde umbrechen.
-                  title={
-                    'Sucht in Titel, Text, Tags und Projektnamen.\n' +
-                    'Mit " davor nur in Projektnamen: "termst'
-                  }
+                  placeholder="Projekte / Prompts durchsuchen… ( / )"
+                  // ⚠️ Kein `title`: der native Tooltip erscheint erst nach
+                  // ein bis zwei Sekunden und lässt sich nicht gestalten. Der
+                  // Hinweis unten ist reines CSS und damit sofort da.
+                  // `aria-describedby` sorgt dafür, dass ihn auch bekommt, wer
+                  // nicht mit der Maus zeigt.
+                  aria-describedby="such-hinweis"
                   onChange={(e) => setQ(e.target.value)}
                 />
+                <span className="search-hint" id="such-hinweis" role="note">
+                  Sucht in <strong>Titel, Text, Tags</strong> — und im{' '}
+                  <strong>Projektnamen</strong>.
+                  <br />
+                  Mit einem <code>"</code> davor nur in Projektnamen:{' '}
+                  <code>"termst</code>
+                </span>
                 {q && (
                   <button className="mini-btn" aria-label="Leeren" onClick={() => setQ('')}>
                     <Icon name="close" />

@@ -4231,3 +4231,59 @@ img.logo-xl { border-radius: 18px; }
     padding: 5px 9px;
   }
 }
+
+/* ── Hinweis am Suchfeld ──────────────────────────────────────────────
+   ⚠️ Bewusst KEIN `title`-Attribut: der native Tooltip lässt ein bis zwei
+   Sekunden auf sich warten, bricht Zeilen nach eigenem Gutdünken um und
+   nimmt keine Auszeichnung an. Ein eigener Hinweis ist sofort da.
+
+   Rein über CSS — kein Zustand, kein Zeitgeber, nichts, was hängenbleiben
+   könnte. Er liegt dauerhaft im DOM (nur durchsichtig), damit
+   `aria-describedby` ihn auch dann vorliest, wenn niemand mit der Maus
+   darauf zeigt. */
+.search {
+  position: relative;
+}
+.search-hint {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  max-width: min(340px, calc(100vw - 2 * var(--gap-4)));
+  padding: 10px 14px;
+  border-radius: var(--shape-md);
+  background: var(--md-inverse-surface, #2b2a2d);
+  color: var(--md-inverse-on-surface, #f2eff4);
+  box-shadow: var(--elev-3);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  opacity: 0;
+  /* Ein Hinweis wird nie angeklickt — so kann er auch unsichtbar nichts
+     abfangen, was darunter liegt. */
+  pointer-events: none;
+  transition: opacity 90ms var(--ease-flat, ease-out);
+}
+.search-hint code {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 0.95em;
+}
+.search:hover .search-hint {
+  opacity: 1;
+}
+/* Tastaturweg — aber nur, solange das Feld leer ist: über den eigenen
+   Suchbegriff zu schreiben, während man ihn tippt, wäre keine Hilfe.
+   ⚠️ Eigene Regel, NICHT in der Liste oben: ein Browser ohne `:has()` würde
+   sonst die ganze Auswahl verwerfen und auch das Zeigen mit der Maus
+   verlieren. */
+.search:focus-within:has(input:placeholder-shown) .search-hint {
+  opacity: 1;
+}
+@media (hover: none) {
+  /* Auf dem Telefon gibt es kein Zeigen; der Hinweis erschiene nur beim
+     Antippen und stünde dann über dem Board. Vorgelesen wird er weiterhin. */
+  .search-hint {
+    display: none;
+  }
+}

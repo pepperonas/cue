@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.1] - 2026-09-05
+
+### Changed
+- Das Suchfeld heißt jetzt **„Projekte / Prompts durchsuchen…"** — es sucht seit
+  0.63.0 in beidem, sagte aber nur das eine.
+- **Ein Hinweis erklärt die Anführungszeichen, sobald man auf das Feld zeigt.**
+  ⚠️ Bewusst **kein** `title`-Attribut: der native Tooltip lässt ein bis zwei
+  Sekunden auf sich warten, bricht nach eigenem Gutdünken um und nimmt keine
+  Auszeichnung an. Der eigene ist reines CSS — kein Zustand, kein Zeitgeber,
+  nichts, was hängenbleiben könnte — und nach 90 ms da.
+- Er liegt dauerhaft im DOM (nur durchsichtig) und hängt an `aria-describedby`,
+  damit ihn auch bekommt, wer nicht mit der Maus zeigt. Über die Tastatur
+  erscheint er, **solange das Feld leer ist** — über den eigenen Suchbegriff zu
+  schreiben, während man ihn tippt, wäre keine Hilfe.
+- Auf dem Telefon ausgeblendet: dort gibt es kein Zeigen, er erschiene erst beim
+  Antippen und stünde dann über dem Board. Vorgelesen wird er weiterhin.
+
+### Internal
+- ⚠️ Die Regel für den Tastaturweg steht **als eigene Regel**, nicht in einer
+  Auswahl-Liste mit der Hover-Regel: ein Browser ohne `:has()` verwürfe sonst
+  die ganze Liste und damit auch das Zeigen mit der Maus.
+- Kontrast in beiden Themes gemessen: Text 11,5 hell / 10,2 dunkel, die
+  `code`-Auszeichnung 7,2 / 7,7. ⚠️ Die erste Messung ergab dabei 1,55 für den
+  dunklen Fall — ein Fehler der Messung, nicht der Farbe: der halbdurchsichtige
+  Hintergrund war über Schwarz statt über seinem Vorfahren gerechnet.
+
 ## [0.63.0] - 2026-09-05
 
 ### Added

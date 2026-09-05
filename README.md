@@ -24,8 +24,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.63.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-32%20188-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.63.1-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-32%20248-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
@@ -44,8 +44,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-10%20028-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20957-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20203-663399.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-17%20963-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20257-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-154-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-36-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-48-61DAFB.svg)](frontend/src/components/)
@@ -57,7 +57,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-83-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-79-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-80-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--09--05-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-9-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
@@ -171,7 +171,7 @@ Wer lieber selbst hostet: die komplette Anleitung steht unter
 - **Listenansicht** nach Status **gruppiert + ein-/aufklappbar**; Status dezent farbcodiert (grüner Haken = Done usw.).
 - **Bookmarks**: Prompts mit einem Klick anpinnen; **direkt im Tab anlegbar** (ohne Projektbezug — Filter und zuletzt genutztes Projekt werden bewusst ignoriert); eigener Tab zeigt **immer alle** Bookmarks — unabhängig davon, welches Projekt gerade gefiltert ist —, **per Drag & Drop frei sortierbar**. Bookmarks werden außerdem **universell optimiert** (siehe KI-Prompt-Optimierung).
 - **„Getestet"-Status**: für Running-/Done-Prompts markieren, ob das Feature schon getestet wurde (grün gefülltes, animiertes Icon). In **Done** liegen die getesteten Karten unter den ungetesteten in einer **zuklappbaren Sektion „✓ Getestet (n)"** — Board, Liste und Handy gleichermaßen; der Kopf zeigt die Anzahl auch zugeklappt, und der Block hat einen eigenen „N weitere anzeigen"-Zähler. Der Zustand überlebt den Reload und gilt **board-weit, nicht pro Projekt**: die Projekt-Chips filtern dieselbe Tafel, und bei „Alle" gäbe es gar kein Projekt, an dem die Einstellung hängen könnte. Standard ist zugeklappt. Innerhalb beider Blöcke gilt die selbst gezogene Reihenfolge.
-- **Suche über Prompts, Tags und Projektnamen** — und die **Projekt-Chips oben folgen ihr**: „termst" lässt nur Projekte stehen, die so heißen oder passende Prompts haben. Mit Anführungszeichen (`"termst`) wird **nur in Projektnamen** gesucht; das öffnende Zeichen genügt, damit die Trefferliste beim Tippen enger wird statt am Ende zu springen. „Ohne Projekt" verschwindet, wenn die Suche dort nichts findet — außer es ist der aktive Filter.
+- **Suche über Prompts, Tags und Projektnamen** — und die **Projekt-Chips oben folgen ihr**: „termst" lässt nur Projekte stehen, die so heißen oder passende Prompts haben. Mit Anführungszeichen (`"termst`) wird **nur in Projektnamen** gesucht — ein Hinweis am Feld erklärt das beim Zeigen (eigener Tooltip statt `title`: sofort da statt nach zwei Sekunden); das öffnende Zeichen genügt, damit die Trefferliste beim Tippen enger wird statt am Ende zu springen. „Ohne Projekt" verschwindet, wenn die Suche dort nichts findet — außer es ist der aktive Filter.
 - **Zusammenführen**: Auswahl-Modus (Button oder **Cmd/Ctrl+Klick** direkt auf Karten/Zeilen — erneuter Cmd/Ctrl+Klick wählt ab) → mehrere Prompts wählen → Merge-Dialog mit Reihenfolge (↑/↓), Format, Live-Vorschau und Wahl, was mit den Originalen passiert (löschen/archivieren/behalten). Das Ergebnis landet **ganz oben** in seiner Spalte — man arbeitet als Nächstes daran.
 - **Löschen mit Undo**: einzeln (aus dem Detail) oder mehrere (Auswahl-Modus) — Toast „Rückgängig" macht das Löschen innerhalb von 6 s ungeschehen.
 - **Screenshots**: Bilder per Drag & Drop, Einfügen (Cmd/Ctrl+V — auch direkt im Prompt-Textfeld) oder Button an Prompts anhängen; Thumbnails + Lightbox im Detail. Jedes Bild wird **vor dem Upload im Browser zu WebP verkleinert** (längste Kante 2048 px) — ein 2400×1422-Screenshot schrumpft von 189 KB auf 44 KB; animierte GIFs bleiben unangetastet, und wenn die Neukodierung nichts bringt, wird das Original behalten. **Nach 30 Tagen werden Screenshots automatisch gelöscht.**
