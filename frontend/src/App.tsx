@@ -6,6 +6,7 @@ import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
 import { countOpenByProject } from './lib/board-groups'
+import { parseQuery, showsUnassigned, visibleProjects } from './lib/search-query'
 import { bookmarkedPrompts, filterPrompts } from './lib/filter'
 import { withChunkRecovery } from './lib/lazy-chunk'
 import { columnComparator } from './lib/order'
@@ -344,8 +345,24 @@ function Shell({
       pendingDelete,
       project: projectFilter,
       query: q,
+      // Damit die Suche auch den Projektnamen trifft — sonst zeigte ein Chip,
+      // der nur über seinen Namen gefunden wurde, beim Klick ein leeres Board.
+      projects: projects ?? [],
     })
-  }, [prompts, q, projectFilter, pendingDelete])
+  }, [prompts, q, projectFilter, pendingDelete, projects])
+
+  // Die Chips oben folgen derselben Suche: „termst" lässt nur Projekte stehen,
+  // die so heißen oder passende Prompts haben, „termst" in Anführungszeichen
+  // nur die mit passendem Namen.
+  const parsedQuery = useMemo(() => parseQuery(q), [q])
+  const chipProjects = useMemo(
+    () => visibleProjects(projects ?? [], prompts ?? [], parsedQuery),
+    [projects, prompts, parsedQuery],
+  )
+  const chipUnassigned = useMemo(
+    () => showsUnassigned(prompts ?? [], parsedQuery),
+    [prompts, parsedQuery],
+  )
 
   // Bookmarks are global on purpose: the project chips and the search field
   // only exist above the board and the list, so honouring them here would hide
@@ -778,6 +795,13 @@ function Shell({
                   ref={searchRef}
                   value={q}
                   placeholder="Prompts durchsuchen… ( / )"
+                  // Die Anführungszeichen-Syntax ist sonst unsichtbar. Als
+                  // Tooltip statt im Platzhalter: der ist auf dem Telefon
+                  // ohnehin knapp und würde umbrechen.
+                  title={
+                    'Sucht in Titel, Text, Tags und Projektnamen.\n' +
+                    'Mit " davor nur in Projektnamen: "termst'
+                  }
                   onChange={(e) => setQ(e.target.value)}
                 />
                 {q && (
@@ -822,7 +846,8 @@ function Shell({
             </div>
 
             <ProjectChips
-              projects={projects ?? []}
+              projects={chipProjects}
+              showUnassigned={chipUnassigned}
               filter={projectFilter}
               setFilter={setProjectFilter}
               openCounts={openCounts}

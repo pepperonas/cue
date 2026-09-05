@@ -7,26 +7,33 @@
 // the bookmarks tab would filter the list by settings the user cannot see
 // there — a bookmark would silently go missing because of a project chip
 // clicked on another tab.
-import type { Prompt } from './types'
+import { parseQuery, promptMatches } from './search-query'
+import type { Project, Prompt } from './types'
 
 export interface PromptFilter {
   /** Hidden immediately while their undo window runs. Always applied. */
   pendingDelete?: number[]
   /** `all` (or omitted) keeps every project. */
   project?: number | 'all' | 'none'
-  /** Free-text over title, body and tags. */
+  /** Free-text over title, body, tags — und den Namen des Projekts.
+   *  `"..."` sucht ausschließlich in Projektnamen (siehe `search-query.ts`). */
   query?: string
+  /** Die Projekte, damit die Suche auch deren Namen treffen kann. Fehlt sie,
+   *  wird wie bisher nur im Prompt selbst gesucht. */
+  projects?: Project[]
 }
 
 export function filterPrompts(prompts: Prompt[], filter: PromptFilter = {}): Prompt[] {
-  const { pendingDelete, project = 'all', query = '' } = filter
-  const needle = query.trim().toLowerCase()
+  const { pendingDelete, project = 'all', query = '', projects } = filter
+  const parsed = parseQuery(query)
+  const namen = new Map((projects ?? []).map((p) => [p.id, p.name]))
   const pending = pendingDelete?.length ? new Set(pendingDelete) : null
   return prompts.filter((p) => {
     if (pending?.has(p.id)) return false
     if (project === 'none' && p.project_id != null) return false
     if (typeof project === 'number' && p.project_id !== project) return false
-    if (needle && !`${p.title} ${p.body} ${p.tags}`.toLowerCase().includes(needle)) return false
+    const projektName = p.project_id != null ? (namen.get(p.project_id) ?? '') : ''
+    if (!promptMatches(p, projektName, parsed)) return false
     return true
   })
 }

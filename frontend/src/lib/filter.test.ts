@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookmarkedPrompts, filterPrompts } from './filter'
-import type { Prompt } from './types'
+import type { Project, Prompt } from './types'
 
 function prompt(id: number, extra: Partial<Prompt> = {}): Prompt {
   return {
@@ -91,5 +91,39 @@ describe('bookmarkedPrompts', () => {
   it('handles an empty shelf', () => {
     expect(bookmarkedPrompts([])).toEqual([])
     expect(bookmarkedPrompts([prompt(9)])).toEqual([])
+  })
+})
+
+describe('the search reaches the project name', () => {
+  const projects = [
+    { id: 1, name: 'termstats', color: '#000', sort_order: 1, created_at: '', prompt_count: 0 },
+    { id: 2, name: 'cue', color: '#000', sort_order: 2, created_at: '', prompt_count: 0 },
+  ] as Project[]
+  const prompts = [
+    { id: 10, title: 'Charts', body: 'plotext', tags: '', project_id: 1, status: 'queued' },
+    { id: 11, title: 'Doku', body: 'termst im Text', tags: '', project_id: 2, status: 'queued' },
+  ] as Prompt[]
+
+  it('keeps a prompt whose PROJECT is named like the needle', () => {
+    // ⚠️ Ohne das zeigte ein Chip, der nur über seinen Namen gefunden wurde,
+    // beim Klick ein leeres Board.
+    const out = filterPrompts(prompts, { query: 'termst', projects })
+    expect(out.map((p) => p.id).sort()).toEqual([10, 11])
+  })
+
+  it('keeps ONLY the project matches when the query is quoted', () => {
+    const out = filterPrompts(prompts, { query: '"termst"', projects })
+    expect(out.map((p) => p.id)).toEqual([10])
+  })
+
+  it('searches the prompt alone when no projects are handed in', () => {
+    // Rückwärtsverträglich: die Bookmark-Ansicht ruft ohne Projekte auf.
+    const out = filterPrompts(prompts, { query: 'termst' })
+    expect(out.map((p) => p.id)).toEqual([11])
+  })
+
+  it('still honours the project chip on top of the search', () => {
+    const out = filterPrompts(prompts, { query: 'termst', projects, project: 2 })
+    expect(out.map((p) => p.id)).toEqual([11])
   })
 })

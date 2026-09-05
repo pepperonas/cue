@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.0] - 2026-09-05
+
+### Added
+- **Die Suche filtert jetzt auch die Projekt-Chips oben.** „termst" lässt nur
+  Projekte stehen, die so heißen **oder** passende Prompts haben; alles andere
+  verschwindet aus der Reihe, statt als Chip stehenzubleiben, der auf nichts
+  zeigt.
+- **`"termst"` sucht ausschließlich in Projektnamen.** Ohne Anführungszeichen
+  geht ein Projekt, das wie ein häufiges Wort heißt, in den Textreffern unter.
+- Der Projektname gehört damit zum Suchraum eines Prompts. ⚠️ Das ist kein
+  Beiwerk, sondern die Bedingung dafür, dass die Chips ehrlich sind: ein
+  Projekt, das nur über seinen **Namen** gefunden wurde, zeigt beim Klick
+  sonst ein leeres Board.
+- **„Ohne Projekt" blendet sich aus**, wenn die Suche nichts ohne Projekt
+  findet — außer es ist gerade der aktive Filter, sonst verschwände unter dem
+  Nutzer, was er eben gewählt hat.
+- Ein Hinweis am Suchfeld (Tooltip) nennt die Syntax; im Platzhalter wäre auf
+  dem Telefon kein Platz.
+
+### Internal
+- Alles davon in `lib/search-query.ts` — **eine** Auslegung der Eingabe für
+  Board, Liste und Chips. Zwei wären zwei Antworten auf dieselbe Frage.
+- ⚠️ **Das öffnende Anführungszeichen löst aus, das schließende ist optional.**
+  Zuerst war ein vollständiges Paar verlangt; im Browser nachgespielt heißt das,
+  dass die App beim Tippen wörtlich nach `"cue` sucht, nichts findet und das
+  Ergebnis erst beim letzten Zeichen auf einen Schlag erscheint — genau der
+  Sprung, den die Regel verhindern sollte.
+- ⚠️ Die Mutationsprobe fand **zwei wirkungslose Wachen**: eigene Abfragen auf
+  `projectsOnly` in `visibleProjects` und `showsUnassigned` wiederholten nur,
+  was `promptMatches` ohnehin entscheidet. Entfernt — sie lasen sich wie eine
+  Regel und waren keine.
+- **32 neue Tests**, alle verbliebenen Regeln einzeln mutationsgeprüft.
+
 ## [0.62.0] - 2026-09-03
 
 ### Changed

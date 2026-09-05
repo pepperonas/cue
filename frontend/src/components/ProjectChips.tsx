@@ -91,12 +91,17 @@ function SortableChip({ p, active, count, onClick }: ChipProps) {
  */
 export function ProjectChips({
   projects,
+  showUnassigned = true,
   filter,
   setFilter,
   openCounts,
 }: {
-  /** In the STORED order — the display order is derived here. */
+  /** In the STORED order — the display order is derived here. Bereits nach der
+   *  Suche gefiltert (siehe `lib/search-query.ts`). */
   projects: Project[]
+  /** Ob „Ohne Projekt" noch etwas trifft. Bei einer Projektsuche nie: was kein
+   *  Projekt hat, hat auch keinen Namen, der passen könnte. */
+  showUnassigned?: boolean
   filter: Filter
   setFilter: (f: Filter) => void
   /** Live count of open prompts per project (see App: derived from the
@@ -145,10 +150,17 @@ export function ProjectChips({
       <button className="chip" data-active={filter === 'all'} onClick={() => setFilter('all')}>
         Alle
       </button>
-      <button className="chip" data-active={filter === 'none'} onClick={() => setFilter('none')}>
-        Ohne Projekt
-        <OpenBadge count={openCounts?.get('none') ?? 0} />
-      </button>
+      {/* Ausgeblendet, sobald die Suche nichts ohne Projekt findet — ein Chip,
+          der auf nichts zeigt, ist ein Klick ins Leere. ⚠️ Bleibt sichtbar,
+          solange er AKTIV ist: sonst verschwände unter dem Nutzer der Filter,
+          den er gerade gesetzt hat, und das Board wäre ohne erkennbaren Grund
+          leer. */}
+      {(showUnassigned || filter === 'none') && (
+        <button className="chip" data-active={filter === 'none'} onClick={() => setFilter('none')}>
+          Ohne Projekt
+          <OpenBadge count={openCounts?.get('none') ?? 0} />
+        </button>
+      )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
           {shown.map((p) =>
