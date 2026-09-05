@@ -122,7 +122,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.63.1",
+    version="0.63.2",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,

@@ -803,12 +803,26 @@ function Shell({
                   aria-describedby="such-hinweis"
                   onChange={(e) => setQ(e.target.value)}
                 />
-                <span className="search-hint" id="such-hinweis" role="note">
-                  Sucht in <strong>Titel, Text, Tags</strong> — und im{' '}
-                  <strong>Projektnamen</strong>.
-                  <br />
-                  Mit einem <code>"</code> davor nur in Projektnamen:{' '}
-                  <code>"termst</code>
+                {/* Die Erklärung zeigt die Syntax so, wie sie im Feld
+                    aussieht — ein zweites, winziges Suchfeld. „Schreib ein
+                    Anführungszeichen davor" als Satz zu lesen ist eine
+                    Anweisung; es an seinem Platz zu sehen, ist eine Antwort. */}
+                <span className="search-hint" id="such-hinweis">
+                  <span className="search-hint-lead">
+                    Sucht in Titel, Text, Tags und Projektnamen.
+                  </span>
+                  <span className="search-hint-rule" aria-hidden="true" />
+                  <span className="search-hint-row">
+                    <span className="search-hint-label">Nur Projekte</span>
+                    <span className="search-hint-field" aria-hidden="true">
+                      <Icon name="search" />
+                      <span className="search-hint-typed">"termst</span>
+                      <span className="search-hint-caret" />
+                    </span>
+                    <span className="sr-only">
+                      Ein Anführungszeichen vor dem Suchbegriff durchsucht nur die Projektnamen.
+                    </span>
+                  </span>
                 </span>
                 {q && (
                   <button className="mini-btn" aria-label="Leeren" onClick={() => setQ('')}>

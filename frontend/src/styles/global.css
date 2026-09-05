@@ -4234,43 +4234,129 @@ img.logo-xl { border-radius: 18px; }
 
 /* ── Hinweis am Suchfeld ──────────────────────────────────────────────
    ⚠️ Bewusst KEIN `title`-Attribut: der native Tooltip lässt ein bis zwei
-   Sekunden auf sich warten, bricht Zeilen nach eigenem Gutdünken um und
-   nimmt keine Auszeichnung an. Ein eigener Hinweis ist sofort da.
+   Sekunden auf sich warten, bricht Zeilen nach eigenem Gutdünken um und nimmt
+   keine Auszeichnung an. Dieser hier ist reines CSS — kein Zustand, kein
+   Zeitgeber, nichts, was hängenbleiben könnte.
 
-   Rein über CSS — kein Zustand, kein Zeitgeber, nichts, was hängenbleiben
-   könnte. Er liegt dauerhaft im DOM (nur durchsichtig), damit
-   `aria-describedby` ihn auch dann vorliest, wenn niemand mit der Maus
-   darauf zeigt. */
+   Gestaltet in der Popover-Sprache der App (dieselbe Fläche, Kontur und
+   Rundung wie das Projekt-Menü), nicht als fremder schwarzer Kasten. Die eine
+   auffällige Stelle ist das kleine Suchfeld darin: die Syntax an dem Ort zu
+   zeigen, an dem man sie eintippt, erklärt sie besser als ein Satz darüber.
+
+   Er liegt dauerhaft im DOM (nur durchsichtig), damit `aria-describedby` ihn
+   auch dann vorliest, wenn niemand mit der Maus zeigt. */
 .search {
   position: relative;
 }
 .search-hint {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   left: 0;
   z-index: 30;
-  max-width: min(340px, calc(100vw - 2 * var(--gap-4)));
-  padding: 10px 14px;
-  border-radius: var(--shape-md);
-  background: var(--md-inverse-surface, #2b2a2d);
-  color: var(--md-inverse-on-surface, #f2eff4);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: max-content;
+  max-width: min(330px, calc(100vw - 2 * var(--gap-4)));
+  padding: 12px 14px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m);
   box-shadow: var(--elev-3);
-  font-size: 0.8rem;
-  line-height: 1.45;
   opacity: 0;
-  /* Ein Hinweis wird nie angeklickt — so kann er auch unsichtbar nichts
-     abfangen, was darunter liegt. */
+  /* Steigt aus dem Feld auf, statt einfach zu erscheinen — vier Pixel, mehr
+     braucht es nicht, damit die Herkunft ablesbar ist. */
+  transform: translateY(-4px);
+  /* Ein Hinweis wird nie angeklickt; so fängt er auch unsichtbar nichts ab. */
   pointer-events: none;
-  transition: opacity 90ms var(--ease-flat, ease-out);
+  transition:
+    opacity 110ms var(--ease-emphasized),
+    transform 110ms var(--ease-emphasized);
 }
-.search-hint code {
-  background: color-mix(in srgb, currentColor 16%, transparent);
-  border-radius: 4px;
-  padding: 0 4px;
-  font-size: 0.95em;
+/* Die Spitze zeigt auf die Lupe des echten Feldes — sie bindet die Erklärung
+   an das, was sie erklärt. */
+.search-hint::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 24px;
+  width: 9px;
+  height: 9px;
+  background: var(--md-surface-container-high);
+  border-left: 1px solid var(--md-outline-variant);
+  border-top: 1px solid var(--md-outline-variant);
+  border-radius: 2px 0 0 0;
+  transform: rotate(45deg);
 }
-.search:hover .search-hint {
+.search-hint-lead {
+  color: var(--md-on-surface);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.search-hint-rule {
+  height: 1px;
+  background: var(--md-outline-variant);
+  /* Bis an die Polsterkanten, damit die Trennung die Karte teilt und nicht
+     als kurzer Strich darin schwebt. */
+  margin: 0 -14px;
+}
+.search-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.search-hint-label {
+  color: var(--md-on-surface-variant);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* Das kleine Suchfeld: dieselbe Pillenform wie das echte, eine Stufe tiefer
+   in der Fläche, damit es eingelassen wirkt. */
+.search-hint-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-highest);
+  border: 1px solid var(--md-outline-variant);
+}
+.search-hint-field .material-symbols-rounded {
+  font-size: 14px;
+  color: var(--md-on-surface-variant);
+}
+.search-hint-typed {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--md-primary);
+}
+/* Ein Cursor, der blinkt, solange der Hinweis steht — das Feld liest sich
+   dadurch als Eingabe und nicht als Abbildung. */
+.search-hint-caret {
+  width: 1px;
+  height: 13px;
+  background: var(--md-primary);
+  opacity: 0.9;
+}
+.search:hover .search-hint,
+.search-hint:hover {
   opacity: 1;
+  transform: translateY(0);
+}
+.search:hover .search-hint-caret {
+  animation: hint-caret 1.1s steps(1, end) infinite;
+}
+@keyframes hint-caret {
+  0%,
+  50% {
+    opacity: 0.9;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 /* Tastaturweg — aber nur, solange das Feld leer ist: über den eigenen
    Suchbegriff zu schreiben, während man ihn tippt, wäre keine Hilfe.
@@ -4279,6 +4365,16 @@ img.logo-xl { border-radius: 18px; }
    verlieren. */
 .search:focus-within:has(input:placeholder-shown) .search-hint {
   opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-hint {
+    transition-duration: 1ms;
+    transform: none;
+  }
+  .search:hover .search-hint-caret {
+    animation: none;
+  }
 }
 @media (hover: none) {
   /* Auf dem Telefon gibt es kein Zeigen; der Hinweis erschiene nur beim

@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.2] - 2026-09-05
+
+### Changed
+- **Der Hinweis am Suchfeld ist jetzt gestaltet wie die übrigen Popover der
+  App** — dieselbe Fläche, Kontur und Rundung wie das Projekt-Menü, statt eines
+  fremden schwarzen Kastens. Eine Spitze zeigt auf die Lupe des Feldes und
+  bindet die Erklärung an das, was sie erklärt.
+- **Die Syntax steht in einem kleinen Suchfeld**, mit Lupe, Schreibmaschinen-
+  schrift und blinkendem Cursor: „schreib ein Anführungszeichen davor" als Satz
+  zu lesen ist eine Anweisung, es an seinem Platz zu sehen eine Antwort. Eine
+  Trennlinie teilt „was gesucht wird" von „der einen Abkürzung" — der Inhalt
+  ist wirklich zweiteilig, die Linie behauptet also nichts.
+- Er steigt beim Erscheinen vier Pixel auf, statt einfach da zu sein.
+  `prefers-reduced-motion` schaltet Bewegung **und** den blinkenden Cursor ab.
+
+### Internal
+- Kontrast in beiden Themes gemessen, von Anfang an über die Vorfahren
+  gerechnet: Text 14,7 hell / 11,3 dunkel, Bezeichnung 7,7 / 8,6, das getippte
+  Beispiel 6,6 / 6,5, die Lupe 7,3 / 7,2 — keines unter 4,5:1.
+- Verhalten unverändert geprüft: nach 150 ms sichtbar, beim Weggehen und beim
+  Tippen verborgen, auf dem Telefon ausgeblendet, kein Überlauf, keine
+  Konsolenfehler.
+
 ## [0.63.1] - 2026-09-05
 
 ### Changed
