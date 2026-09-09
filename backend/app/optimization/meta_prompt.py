@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 # Bump whenever the wording below changes materially.
-META_PROMPT_VERSION = 4
+META_PROMPT_VERSION = 5
 
 _INSTRUCTIONS = """Du bist ein erfahrener Prompt Engineer. Verbessere den unten stehenden Prompt.
 
@@ -94,13 +94,19 @@ umschließende Code-Fences und ohne Kommentare zu deinen Änderungen:
 {E_MARK}
 
 Zu Titel und Schlagworten:
-- Der Titel beschreibt die Aufgabe des ÜBERARBEITETEN Prompts. Passt der
-  bisherige weiterhin, gib ihn unverändert zurück.
+- Gib IMMER den besten Titel und den besten Satz Schlagworte an — auch dann,
+  wenn das Ergebnis dem bisherigen entspricht. Der bisherige Titel ist ein
+  Vorschlag, kein Bestand.
+- Der Titel nennt zuerst den Gegenstand, dann die Aufgabe: eine knappe
+  Wendung mit Großbuchstaben am Anfang, höchstens {MAX_TITLE_CHARS} Zeichen.
+  Er ist KEIN Befehlssatz und niemals eine Kopie der ersten Prompt-Zeile.
+  Schlecht: „mach die suche schneller, der filter hakt auch noch"
+  Gut:      „Suche: Geschwindigkeit und Filter-Fehler"
+- Ist der bisherige Titel bereits eine solche Wendung, übernimm ihn.
 - Schlagworte benennen die Art der Arbeit, nicht ihren Gegenstand.
-- Nutze bevorzugt bereits vorhandene Schlagworte (Liste unten). Erfinde nur
-  eines, wenn wirklich keines passt — zwei Wörter für dieselbe Sache sind
-  schlimmer als ein fehlendes.
-- Sind Titel und Schlagworte bereits treffend, ändere sie nicht."""
+- Nimm Schlagworte aus der Liste unten. Ein neues ist die Ausnahme: höchstens
+  EINES je Prompt, und nur wenn dort wirklich nichts passt — zwei Wörter für
+  dieselbe Sache sind schlimmer als ein fehlendes."""
 
 _ORIGINAL_HEADER = "Zu optimierender Prompt:"
 
@@ -240,7 +246,27 @@ def _title_from(head: str) -> str | None:
     line = line.lstrip("#").strip().strip('"').strip("'").strip()
     if not line:
         return None
-    return line[:MAX_TITLE_CHARS].strip()
+    return _clamp_title(line)
+
+
+def _clamp_title(line: str) -> str:
+    """Kürzen auf `MAX_TITLE_CHARS` — an einer Wortgrenze und sichtbar.
+
+    ⚠️ Ein harter Schnitt (`line[:90]`) erzeugt „… soll besser rüberko": das
+    liest sich als Defekt, nicht als Titel, und stand nach dem Übernehmen
+    genau so auf der Karte. Gekürzt wird deshalb am letzten Leerzeichen und
+    mit Auslassungszeichen — es sei denn, das letzte Leerzeichen liegt in der
+    ersten Hälfte, dann wäre vom Titel kaum etwas übrig und der harte Schnitt
+    ist das kleinere Übel.
+    """
+    line = line.strip()
+    if len(line) <= MAX_TITLE_CHARS:
+        return line
+    cut = line[: MAX_TITLE_CHARS - 1]
+    space = cut.rfind(" ")
+    if space >= MAX_TITLE_CHARS // 2:
+        cut = cut[:space]
+    return cut.rstrip(" ,;:–-—") + "…"
 
 
 def _tags_from(head: str) -> str | None:

@@ -4,6 +4,40 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.64.0] - 2026-09-09
+
+### Fixed
+- **Der optimierte Titel wurde mitten im Wort abgeschnitten.** Die 90-Zeichen-
+  Grenze war ein harter Schnitt (`titel[:90]`), und so stand nach dem
+  Übernehmen real `… soll besser rüberko` auf der Karte — ein Titel, der sich
+  als Defekt liest. Gekürzt wird jetzt an der Wortgrenze und sichtbar mit
+  Auslassungszeichen. ⚠️ Betroffen waren ausgerechnet die Fälle, in denen der
+  Titel ohnehin schwach war: ein zu langer Titel ist fast immer der
+  unveränderte erste Satz des Prompts.
+
+### Changed
+- **Die KI überarbeitet Titel und Schlagworte jetzt wirklich, statt sie
+  durchzuwinken.** Der bisherige Wortlaut sagte dem Modell **zweimal**, es
+  solle beides unverändert lassen, wenn es „weiterhin passt" — ohne je zu
+  sagen, was ein Titel überhaupt ist. Gemessen an 24 echten Läufen kam dabei
+  dreimal die rohe Eingabe zurück (`suche fixen`, `optimiere die animation
+  wenn ich noten treffe…`). Jetzt wird immer der beste Titel verlangt, und
+  seine Form ist beschrieben: zuerst der Gegenstand, dann die Aufgabe, kein
+  Befehlssatz und niemals eine Kopie der ersten Prompt-Zeile.
+- `META_PROMPT_VERSION` steht auf **5**; ältere Läufe bleiben in der Historie
+  mit ihrer Version nachvollziehbar.
+
+### Internal
+- Gegen dasselbe Modell A/B gemessen, das die alten Läufe erzeugt hat:
+  `suche fixen` → „Suche: ,q' landet im Suchfeld, Menüs ohne Zurück-Knopf",
+  `optimiere die animation…rüberko` → „Treffer-Animation: Flammeneffekt
+  überarbeiten". Drei von drei zuvor durchgewunkenen Titeln werden jetzt
+  überarbeitet.
+- ⚠️ Der gestrichene Satz bremste auch die Schlagworte: ohne ihn erfand das
+  Modell für einen langen Prompt **drei** neue neben einem gewachsenen
+  Vokabular. Die Bremse steht deshalb ausdrücklich wieder da — höchstens ein
+  neues Schlagwort je Prompt — und nachgemessen: null erfundene.
+
 ## [0.63.2] - 2026-09-05
 
 ### Changed

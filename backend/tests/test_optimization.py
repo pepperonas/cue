@@ -1054,6 +1054,63 @@ def test_a_title_paragraph_is_cut_to_a_title():
     assert len(parsed.title) == MAX_TITLE_CHARS
 
 
+def test_an_overlong_title_is_never_cut_inside_a_word():
+    """⚠️ Der harte Schnitt stand real auf einer Karte: „… soll besser rüberko".
+
+    Ein abgeschnittenes Wort liest sich als Defekt, nicht als Titel — und weil
+    ein zu langer Titel meist der unveränderte Erstsatz des Prompts ist, traf
+    es genau die Fälle, in denen der Titel ohnehin schon schwach war.
+    """
+    zu_lang = "optimiere die animation wenn ich noten treffe insb der flammen effekt soll besser rüberkommen"
+    assert len(zu_lang) > MAX_TITLE_CHARS
+    parsed = parse_result(f"--- TITEL ---\n{zu_lang}\n--- PROMPT ---\nX\n--- ENDE ---")
+    assert parsed.title is not None
+    assert len(parsed.title) <= MAX_TITLE_CHARS
+    assert parsed.title.endswith("…")
+    # Der Kern: was vor dem Auslassungszeichen steht, sind ganze Wörter.
+    rumpf = parsed.title[:-1]
+    assert zu_lang.startswith(rumpf)
+    assert zu_lang[len(rumpf)] == " ", f"mitten im Wort geschnitten: {parsed.title!r}"
+
+
+def test_a_title_without_spaces_is_still_cut_to_the_limit():
+    """Ein einziges Riesenwort hat keine Wortgrenze — dann ist der harte
+    Schnitt das kleinere Übel gegenüber einem fast leeren Titel."""
+    parsed = parse_result(
+        f"--- TITEL ---\n{'W' * 200}\n--- PROMPT ---\nX\n--- ENDE ---"
+    )
+    assert parsed.title is not None
+    assert len(parsed.title) == MAX_TITLE_CHARS
+
+
+def test_a_title_that_fits_is_passed_through_untouched():
+    parsed = parse_result("--- TITEL ---\nSuche: Filter-Fehler\n--- PROMPT ---\nX\n--- ENDE ---")
+    assert parsed.title == "Suche: Filter-Fehler"
+
+
+def test_the_meta_prompt_demands_a_title_instead_of_allowing_a_pass():
+    """Der Wortlaut ist die eigentliche Ursache gewesen.
+
+    v4 sagte ZWEIMAL, Titel und Schlagworte seien unverändert zu lassen, wenn
+    sie „weiterhin passen" — ohne je zu sagen, was ein Titel ist. Gemessen an
+    24 echten Läufen kam dabei dreimal die rohe Eingabe zurück. v5 verlangt
+    immer den besten Titel und beschreibt dessen Form.
+    """
+    gebaut = build_meta_prompt("Mach X", title="mach mal was", tags="gui")
+    assert "IMMER den besten Titel" in gebaut
+    assert "KEIN Befehlssatz" in gebaut
+    assert "niemals eine Kopie der ersten Prompt-Zeile" in gebaut
+    # Und die alte Freikarte darf nicht zurückkommen.
+    assert "ändere sie nicht" not in gebaut
+
+
+def test_the_meta_prompt_caps_invented_tags():
+    """Ohne diese Bremse erfand das Modell für einen langen Prompt drei neue
+    Schlagworte neben einem gewachsenen Vokabular (real gemessen)."""
+    gebaut = build_meta_prompt("Mach X", tags="gui", vocabulary=["gui", "bugfix"])
+    assert "höchstens" in gebaut and "EINES je Prompt" in gebaut
+
+
 def test_tags_are_capped_and_deduplicated():
     # Asking for at most four is not enforcing it.
     parsed = parse_result(
