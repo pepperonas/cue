@@ -277,7 +277,17 @@ Schlagworte reisen als eigene Vorschläge mit (`optimized_title`,
 Vokabular in die Anfrage, damit das vorhandene Schema fortgeschrieben statt
 durch Synonyme ergänzt wird.
 
-⚠️ Zwei Regeln tragen das:
+**Verlangt wird immer der beste Titel, nicht bloß ein zulässiger.** Bis v4 stand
+im Meta-Prompt zweimal, Titel und Schlagworte seien unverändert zu lassen, wenn
+sie „weiterhin passen" — ohne je zu sagen, was ein Titel ist. Über 24 echte
+Läufe gemessen kam dreimal die rohe Eingabe zurück (`suche fixen`, ein 95
+Zeichen langer Kleinbuchstaben-Befehlssatz). Seit v5 beschreibt der Meta-Prompt
+die Form: zuerst der Gegenstand, dann die Aufgabe, kein Befehlssatz und niemals
+eine Kopie der ersten Prompt-Zeile. Die Gegenbremse steht ausdrücklich daneben —
+höchstens **ein** neues Schlagwort je Prompt, sonst wächst das Vokabular mit
+jedem Lauf.
+
+⚠️ Drei Regeln tragen das:
 
 1. **Der Körper überlebt jede Antwortform.** Fehlt die Formatmarke, ist der
    ganze Text der Körper und es wird nichts vorgeschlagen — eine Antwort im
@@ -287,6 +297,14 @@ durch Synonyme ergänzt wird.
    entfernen" sehen im Ergebnis gleich aus; nur eine der Lesarten ist
    verlustfrei. Server und Anzeige folgen hier derselben Regel, sonst zeigte
    die Oberfläche eine Änderung an, die nie geschrieben wird.
+3. **Gekürzt wird an der Wortgrenze.** Länge und Anzahl werden geklemmt statt
+   geglaubt — verlangen ist nicht erzwingen. Ein harter Schnitt bei 90 Zeichen
+   erzeugte aber `… soll besser rüberko`, was sich als Defekt liest und real so
+   auf einer Karte stand; er bleibt nur für den Fall eines einzigen Riesenworts,
+   wo eine Wortgrenze fast nichts übrig ließe. Beide Fehler verstärkten sich:
+   ein zu langer Titel ist fast immer der unveränderte erste Satz des Prompts,
+   die Verstümmelung traf also genau die Titel, die am dringendsten Arbeit
+   brauchten.
 
 **Der Key liegt verschlüsselt** (`app/secrets_store.py`, Fernet, Schlüssel aus
 `SECRET_KEY` abgeleitet) und verlässt den Server nie wieder — die API liefert nur
