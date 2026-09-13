@@ -330,12 +330,17 @@ export function handleDemoRequest(
     }
   }
   if (url === '/projects/reorder' && method === 'POST') {
-    const ids = (body?.ids ?? []) as number[]
-    ids.forEach((id, i) => {
+    // Match the real API: the board sends the complete, persisted priority
+    // list as `{ items: [{ id, sort_order }] }`, not a bare id list. Keeping
+    // this in sync matters especially for quiet project chips: their manual
+    // order is intentionally invisible until they have no open-prompt count.
+    const items = (body?.items ?? []) as { id: number; sort_order: number }[]
+    items.forEach(({ id, sort_order }) => {
       const p = state.projects.find((x) => x.id === id)
-      if (p) p.sort_order = i + 1
+      if (p) p.sort_order = sort_order
     })
-    return { ok: true }
+    state.projects.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    return projectsWithCounts(state)
   }
   const projectId = matchId(url, '/projects/')
   if (projectId !== null) {

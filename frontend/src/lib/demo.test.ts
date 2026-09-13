@@ -202,6 +202,21 @@ describe('projects and tags', () => {
     expect(cue.prompt_count).toBe(state.prompts.filter((p) => p.project_id === 1).length)
   })
 
+  it('persists the manually dragged project priority', () => {
+    // The board sends the whole invisible priority list. Returning the same
+    // order as the API makes a quiet badge stay where it was dropped after a
+    // query refresh.
+    const result = call('POST', '/projects/reorder', {
+      items: [
+        { id: 3, sort_order: 1 },
+        { id: 1, sort_order: 2 },
+        { id: 2, sort_order: 3 },
+      ],
+    }) as { id: number }[]
+    expect(result.map((p) => p.id)).toEqual([3, 1, 2])
+    expect((call('GET', '/projects') as { id: number }[]).map((p) => p.id)).toEqual([3, 1, 2])
+  })
+
   it('detaches prompts instead of deleting them with the project', () => {
     // ⚠️ „Kein Prompt hat mehr diese Projekt-ID" gilt auch, wenn man sie alle
     // gelöscht hat — der Test muss die ANZAHL festhalten. Beim Mutieren blieb
