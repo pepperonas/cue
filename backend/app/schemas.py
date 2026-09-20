@@ -106,6 +106,9 @@ class PromptCreate(BaseModel):
     # that shelf, otherwise the user creates something and sees nothing.
     bookmarked: bool = False
     priority: PromptPriority = PromptPriority.normal
+    #: Weggelassen = das Standardmodell des Mandanten, falls eines gesetzt ist.
+    #: Ausdrücklich `null` heißt „bewusst keines".
+    ai_model_id: int | None = None
 
 
 class PromptUpdate(BaseModel):
@@ -123,6 +126,10 @@ class PromptUpdate(BaseModel):
     attachment_ids: list[int] | None = None
     # Sentinel to allow explicitly clearing project_id (set unassign=True).
     unassign_project: bool = False
+    ai_model_id: int | None = None
+    #: Gegenstück zu `unassign_project`: `ai_model_id: null` allein ist von
+    #: „Feld nicht mitgeschickt" nicht zu unterscheiden.
+    unassign_model: bool = False
 
 
 class PromptRead(BaseModel):
@@ -142,6 +149,8 @@ class PromptRead(BaseModel):
     blocked: bool
     priority: PromptPriority = PromptPriority.normal
     test_closely: bool = False
+    #: Verweis in den Modell-Katalog; null = noch keins zugeordnet.
+    ai_model_id: int | None = None
     created_at: Utc
     updated_at: Utc
     # Last content write; null only for rows a client of an older build wrote.
@@ -877,3 +886,70 @@ class AnalysisClaimResponse(BaseModel):
     max_chars: int
     max_retries: int
     project_name: str = ""
+
+
+# ---- Modell-Katalog ----
+class AiModelRead(BaseModel):
+    id: int
+    name: str
+    provider: str
+    #: Klartext des Anbieters, aufgelöst über `aimodels/catalog.py`.
+    provider_label: str = ""
+    #: Zwei Zeichen für den Badge, wenn der Name das Ökosystem nicht verrät.
+    provider_short: str = ""
+    #: Die Farbe, die wirklich gilt: eigene, sonst die des Anbieters.
+    color: str = ""
+    api_id: str = ""
+    description: str = ""
+    enabled: bool = True
+    is_default: bool = False
+    sort_order: int = 0
+    #: Wie viele Prompts dieses Modell tragen — treibt die Löschwarnung.
+    usage: int = 0
+
+
+class AiModelProviderRead(BaseModel):
+    id: str
+    label: str
+    short: str
+    color: str
+
+
+class AiModelListResponse(BaseModel):
+    models: list[AiModelRead]
+    #: Die bekannten Anbieter für die Auswahl beim Anlegen.
+    providers: list[AiModelProviderRead]
+    #: Stand der hinterlegten Recherche, damit die Oberfläche ihn nennen kann.
+    catalog_state: str = ""
+
+
+class AiModelCreate(BaseModel):
+    name: str
+    provider: str = "custom"
+    api_id: str = ""
+    description: str = ""
+    color: str = ""
+    enabled: bool = True
+    is_default: bool = False
+
+
+class AiModelUpdate(BaseModel):
+    name: str | None = None
+    provider: str | None = None
+    api_id: str | None = None
+    description: str | None = None
+    color: str | None = None
+    enabled: bool | None = None
+    #: True macht dieses Modell zum Standard; False hebt ihn auf, wenn es
+    #: dieses Modell war. None lässt die Standardwahl unberührt.
+    is_default: bool | None = None
+
+
+class AiModelReorder(BaseModel):
+    ids: list[int]
+
+
+class AiModelDeleteResult(BaseModel):
+    deleted: int
+    #: Wie viele Prompts auf das Ersatzmodell umgehängt wurden.
+    reassigned: int = 0

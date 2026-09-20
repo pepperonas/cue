@@ -27,6 +27,8 @@ import { autoTags, deriveTags } from '../lib/tag-rules'
 import { buildTitleModel } from '../lib/title-complete'
 import { GhostInput } from './GhostInput'
 import { Select } from './Select'
+import { ModelBadge } from './ModelBadge'
+import { useModels } from '../state/queries'
 import { useDictation } from '../lib/speech'
 import { compressImage } from '../lib/image-compress'
 import { formatBytes } from '../lib/format'
@@ -137,6 +139,13 @@ export function PromptEditor({
   })
   const [status, setStatus] = useState<Status>(editing?.status ?? 'queued')
   const [priority, setPriority] = useState<Priority>(editing?.priority ?? 'normal')
+  // ⚠️ Beim NEUEN Prompt bleibt das Feld absichtlich unberührt (`undefined`):
+  // der Server setzt dann das Standardmodell des Mandanten. Würde hier
+  // `null` stehen, hieße das „bewusst keines" und der Standard bliebe aus.
+  const [modelId, setModelId] = useState<number | null | undefined>(
+    editing ? editing.ai_model_id : undefined,
+  )
+  const modelle = useModels().data?.models ?? []
   const [tags, setTags] = useState(editing?.tags ?? '')
   // Tags derived from the title fill the field until the user takes it over.
   // Editing counts as taken over from the start: the tags on an existing prompt
@@ -326,6 +335,8 @@ export function PromptEditor({
             tags: cleanTags,
             project_id: projectId,
             unassign_project: projectId === null,
+            ai_model_id: modelId ?? null,
+            unassign_model: modelId == null,
             attachment_ids,
           },
         })
@@ -338,6 +349,8 @@ export function PromptEditor({
           status,
           priority,
           tags: cleanTags,
+          // Weggelassen = der Server nimmt das Standardmodell.
+          ...(modelId === undefined ? {} : { ai_model_id: modelId }),
           attachment_ids,
           bookmarked: asBookmark || undefined,
         })
@@ -583,6 +596,22 @@ export function PromptEditor({
               }))}
             />
           </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor={id('model')}>Modell</label>
+          {/* Gut erkennbares Auswahlfeld statt des kompakten Karten-Badges —
+              und dieselbe `ai_model_id` wie dort, kein zweiter Zustand. */}
+          <ModelBadge
+            id={id('model')}
+            models={modelle}
+            value={modelId ?? null}
+            onChange={setModelId}
+          />
+          <p className="muted field-note">
+            Mit welchem Modell dieser Prompt abgearbeitet werden soll. Verwaltet
+            wird die Liste unter „Modelle“.
+          </p>
         </div>
 
         <div className="field">

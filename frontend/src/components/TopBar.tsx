@@ -4,6 +4,7 @@ import { useSettings } from '../state/settings'
 import { Icon, IconButton } from './ui'
 
 export type View =
+  | 'models'
   | 'board'
   | 'list'
   | 'bookmarks'
@@ -24,6 +25,7 @@ const TABS: { key: View; icon: string; label: string }[] = [
   { key: 'snippets', icon: 'data_object', label: 'Snippets' },
   { key: 'projects', icon: 'folder', label: 'Projekte' },
   { key: 'tags', icon: 'sell', label: 'Tags' },
+  { key: 'models', icon: 'smart_toy', label: 'Modelle' },
   { key: 'stats', icon: 'insights', label: 'Statistiken' },
 ]
 

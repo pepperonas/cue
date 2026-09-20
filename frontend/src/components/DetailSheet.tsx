@@ -18,7 +18,8 @@ import { PromptEditor } from './PromptEditor'
 import { PrioritySelect } from './PriorityButton'
 import { CloseTestButton } from './CloseTestButton'
 import { useBackDismiss } from '../state/overlays'
-import { usePendingProposal } from '../state/queries'
+import { useModels, usePendingProposal, useSetPromptModel } from '../state/queries'
+import { ModelBadge } from './ModelBadge'
 import { Button, Icon, IconButton } from './ui'
 
 interface Props {
@@ -128,6 +129,8 @@ export function DetailSheet({
   }, [editing])
   // The proposal this prompt is holding open for review, if the user may decide
   // at all. Shares the history query with the panel below — no extra request.
+  const modelle = useModels().data?.models ?? []
+  const setzeModell = useSetPromptModel()
   const proposal = usePendingProposal(canOptimize ? prompt : null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -444,6 +447,13 @@ export function DetailSheet({
               />{' '}
               {STATUS_LABEL[prompt.status]}
             </span>
+            {/* Dieselbe Komponente und dieselbe Mutation wie auf der Karte —
+                es gibt keinen zweiten Zustand für die Modellzuordnung. */}
+            <ModelBadge
+              models={modelle}
+              value={prompt.ai_model_id}
+              onChange={(modelId) => setzeModell.mutate({ id: prompt.id, modelId })}
+            />
           </div>
 
           <div className="detail-status">

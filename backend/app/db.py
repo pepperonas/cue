@@ -69,6 +69,14 @@ def _migrate(engine: Engine) -> None:
         # existing prompt becomes `normal` and keeps its exact board position.
         "priority": "ALTER TABLE prompt ADD COLUMN priority VARCHAR NOT NULL DEFAULT 'normal'",
         "test_closely": "ALTER TABLE prompt ADD COLUMN test_closely BOOLEAN NOT NULL DEFAULT 0",
+        # Modellzuordnung (v0.71.0). NULL für alles Bestehende — die Spalte
+        # ändert an keinem vorhandenen Prompt etwas, sie kommt nur dazu.
+        "ai_model_id": "ALTER TABLE prompt ADD COLUMN ai_model_id INTEGER REFERENCES ai_model(id)",
+    }
+    merge_part_additions = {
+        # Momentaufnahme ohne Fremdschlüssel: sie soll ein gelöschtes Modell
+        # überdauern (wie `project_id` in derselben Tabelle).
+        "ai_model_id": "ALTER TABLE prompt_merge_part ADD COLUMN ai_model_id INTEGER",
     }
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
@@ -85,6 +93,9 @@ def _migrate(engine: Engine) -> None:
         "snippet_sync_last": "ALTER TABLE user ADD COLUMN snippet_sync_last TIMESTAMP",
         "anthropic_key_enc": "ALTER TABLE user ADD COLUMN anthropic_key_enc VARCHAR",
         "optimize_model": "ALTER TABLE user ADD COLUMN optimize_model VARCHAR",
+        # ⚠️ Eigener Merker statt „hat der Nutzer Modelle?": wer alle Modelle
+        # bewusst gelöscht hat, bekäme sie sonst beim nächsten Start zurück.
+        "ai_models_seeded": "ALTER TABLE user ADD COLUMN ai_models_seeded BOOLEAN NOT NULL DEFAULT 0",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).
@@ -120,6 +131,7 @@ def _migrate(engine: Engine) -> None:
             ("snippet_group", snippet_group_additions),
             ("prompt_optimization", optimization_additions),
             ("capture_session", capture_session_additions),
+            ("prompt_merge_part", merge_part_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             for column, ddl in additions.items():
@@ -166,6 +178,7 @@ def _migrate(engine: Engine) -> None:
         _seed_prompt_events(conn)
         _repair_sort_order(conn)
     _migrate_tags()
+    _seed_ai_models()
 
 
 def _repair_sort_order(conn) -> None:  # noqa: ANN001
@@ -260,6 +273,30 @@ def _seed_prompt_events(conn) -> None:  # noqa: ANN001
           AND (ran_at IS NULL OR updated_at != ran_at)
         """
     )
+
+
+def _seed_ai_models() -> None:
+    """Die recherchierten Start-Modelle je Mandant anlegen — genau einmal.
+
+    Beim Start und nicht erst beim ersten Blick in den Katalog: die Empfehlung
+    nach einer Optimierung greift sonst ins Leere, weil sie einen passenden
+    Eintrag voraussetzt. Idempotent über den Merker `User.ai_models_seeded` —
+    „hat keine Modelle" wäre nicht von „hat alle gelöscht" zu unterscheiden.
+    """
+    from sqlmodel import Session, select
+
+    from .aimodels import AiModelService
+    from .models import User
+
+    with Session(engine) as session:
+        offen = session.exec(
+            select(User.id).where(User.ai_models_seeded == False)  # noqa: E712
+        ).all()
+        if not offen:
+            return
+        service = AiModelService(session)
+        for user_id in offen:
+            service.seed_defaults(user_id)
 
 
 def _migrate_tags() -> None:

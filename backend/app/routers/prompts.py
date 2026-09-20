@@ -22,6 +22,7 @@ from ..models import (
     utcnow,
 )
 from ..config import get_settings
+from ..aimodels import AiModelService
 from ..optimization import PromptOptimizationService
 from ..ordering import display_key, highest_priority, insert_block
 from ..search import LIKE_ESCAPE, contains_pattern
@@ -76,6 +77,38 @@ def _reads(session: Session, prompts: list[Prompt]) -> list[PromptRead]:
 
 def _read(session: Session, prompt: Prompt) -> PromptRead:
     return _reads(session, [prompt])[0]
+
+
+def _gueltiges_modell(session: Session, model_id: int | None, uid: int) -> int | None:
+    """Die Modell-ID, falls es sie noch gibt und sie dem Aufrufer gehört.
+
+    Bewusst ohne `enabled`-Prüfung: ein deaktiviertes Modell darf an einem
+    wiederhergestellten Prompt stehen bleiben — es ist die Aussage von damals.
+    """
+    if model_id is None:
+        return None
+    from ..models import AiModel
+
+    modell = session.get(AiModel, model_id)
+    return model_id if modell is not None and modell.user_id == uid else None
+
+
+def _check_model(session: Session, model_id: int | None, uid: int) -> None:
+    """Ein Modell muss dem Aufrufer gehören und benutzbar sein.
+
+    ⚠️ Ein DEAKTIVIERTES Modell wird beim Zuweisen abgelehnt, bleibt an
+    bestehenden Prompts aber erhalten — genau darum geht es beim Deaktivieren:
+    nicht mehr anbieten, ohne die Vergangenheit umzuschreiben.
+    """
+    if model_id is None:
+        return
+    from ..models import AiModel
+
+    modell = session.get(AiModel, model_id)
+    if modell is None or modell.user_id != uid:
+        raise HTTPException(status_code=404, detail="Modell nicht gefunden")
+    if not modell.enabled:
+        raise HTTPException(status_code=400, detail="Dieses Modell ist deaktiviert")
 
 
 def _attach(session: Session, attachment_ids: list[int] | None, prompt_id: int, uid: int) -> None:
@@ -239,7 +272,16 @@ def create_prompt(
         status=payload.status,
         sort_order=sort_order,
         priority=payload.priority,
+        # Weggelassen heißt „nimm den Standard"; ein ausdrückliches null bleibt
+        # null. Ohne gesetzten Standard bleibt es ebenfalls null — der Prompt
+        # zeigt dann „Modell wählen“ statt etwas Geratenem.
+        ai_model_id=(
+            payload.ai_model_id
+            if "ai_model_id" in payload.model_fields_set
+            else AiModelService(session).default_model_id(uid)
+        ),
     )
+    _check_model(session, prompt.ai_model_id, uid)
     if payload.status in _RAN_STATUSES:
         prompt.ran_at = utcnow()
     if payload.bookmarked:
@@ -294,6 +336,12 @@ def update_prompt(
     elif payload.project_id is not None:
         _check_project(session, payload.project_id, uid)
         prompt.project_id = payload.project_id
+
+    if payload.unassign_model:
+        prompt.ai_model_id = None
+    elif payload.ai_model_id is not None:
+        _check_model(session, payload.ai_model_id, uid)
+        prompt.ai_model_id = payload.ai_model_id
 
     if payload.tags is not None:
         TagService(session).set_for_prompt(prompt, payload.tags, uid=uid)
@@ -532,6 +580,7 @@ def merge_prompts(
                 sort_order=prompt.sort_order,
                 priority=prompt.priority,
                 tags=prompt.tags,
+                ai_model_id=prompt.ai_model_id,
                 bookmarked=prompt.bookmarked,
                 bookmark_order=prompt.bookmark_order,
                 tested=prompt.tested,
@@ -634,6 +683,9 @@ def unmerge_prompt(
             status=part.status,
             sort_order=_top_sort_order(session, part.status, uid),
             priority=part.priority,
+            # Wie beim Projekt: ein inzwischen gelöschtes Modell wird still
+            # fallen gelassen, statt die Wiederherstellung scheitern zu lassen.
+            ai_model_id=_gueltiges_modell(session, part.ai_model_id, uid),
             bookmarked=part.bookmarked,
             bookmark_order=part.bookmark_order,
             tested=part.tested,

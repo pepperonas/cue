@@ -44,15 +44,30 @@ export function parseQuery(raw: string): ParsedQuery {
   return { needle: inner.toLowerCase(), projectsOnly: quoted && inner.length > 0 }
 }
 
-/** Passt ein Prompt zur Suche? `projectName` ist leer, wenn es keins hat. */
-export function promptMatches(p: Prompt, projectName: string, parsed: ParsedQuery): boolean {
+/**
+ * Passt ein Prompt zur Suche? `projectName` ist leer, wenn es keins hat.
+ *
+ * `modelName` ist optional und aus demselben Grund im Heuhaufen wie der
+ * Projektname: damit „opus" die Prompts findet, die mit Claude Opus 5
+ * abgearbeitet werden sollen. Das ist bewusst KEIN eigener Filter — die
+ * Werkzeugleiste ist gemessen voll (1130 von 1222 px belegt), ein weiteres
+ * Auswahlfeld würde sie umbrechen lassen. Die Suche ist die Stelle, an der
+ * Tags und Projektnamen längst gefunden werden; ein drittes Merkmal fügt sich
+ * dort ein, ohne eine zweite Filterarchitektur aufzumachen.
+ */
+export function promptMatches(
+  p: Prompt,
+  projectName: string,
+  parsed: ParsedQuery,
+  modelName = '',
+): boolean {
   if (!parsed.needle) return true
   const name = projectName.toLowerCase()
   if (parsed.projectsOnly) return name.includes(parsed.needle)
   // Der Projektname gehört zum Heuhaufen: sonst zeigte ein Chip, der nur über
   // seinen Namen gefunden wurde, beim Klick ein leeres Board.
   return (
-    `${p.title} ${p.body} ${p.tags}`.toLowerCase().includes(parsed.needle) ||
+    `${p.title} ${p.body} ${p.tags} ${modelName}`.toLowerCase().includes(parsed.needle) ||
     name.includes(parsed.needle)
   )
 }

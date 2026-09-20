@@ -43,6 +43,7 @@ import {
   useMovePrompt,
   useMovePrompts,
   useActiveAnalyses,
+  useModels,
   useAnalyses,
   useAnalysis,
   useApplyAnalysis,
@@ -79,6 +80,7 @@ import { DemoBanner } from './components/DemoBanner'
 import { useRoute } from './state/route'
 import { ProjectChips } from './components/ProjectChips'
 import { AnalysisDialog } from './components/analysis/AnalysisDialog'
+import { ModelsView } from './components/ModelsView'
 import { wartetAufEntscheidung } from './lib/analysis'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
@@ -256,6 +258,7 @@ function Shell({
       saved === 'snippets' ||
       saved === 'projects' ||
       saved === 'tags' ||
+      saved === 'models' ||
       saved === 'stats' ||
       saved === 'settings'
       ? saved
@@ -335,6 +338,7 @@ function Shell({
   )
   // Der Vorschlag kennt nur IDs; die Titel kommen aus der Liste, die der
   // Client ohnehin hält (kein zweiter Request).
+  const modellKatalog = useModels().data?.models ?? []
   const promptsById = useMemo(
     () => new Map((prompts ?? []).map((p) => [p.id, p])),
     [prompts],
@@ -399,8 +403,12 @@ function Shell({
       // Damit die Suche auch den Projektnamen trifft — sonst zeigte ein Chip,
       // der nur über seinen Namen gefunden wurde, beim Klick ein leeres Board.
       projects: projects ?? [],
+      // Und den Modellnamen: „opus“ zeigt die Prompts, die damit abgearbeitet
+      // werden sollen. Bewusst KEIN eigenes Filter-Bedienelement — die
+      // Begründung steht in `search-query.ts`.
+      models: modellKatalog,
     })
-  }, [prompts, q, projectFilter, pendingDelete, projects])
+  }, [prompts, q, projectFilter, pendingDelete, projects, modellKatalog])
 
   // Die Chips oben folgen derselben Suche: „termst" lässt nur Projekte stehen,
   // die so heißen oder passende Prompts haben, „termst" in Anführungszeichen
@@ -1096,6 +1104,7 @@ function Shell({
 
         {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
         {view === 'tags' && <TagsView />}
+        {view === 'models' && <ModelsView />}
         {view === 'stats' && (
           <Suspense fallback={<div className="stats-view" aria-busy="true" />}>
             <StatsView query={statsQuery} onQuery={setStatsQuery} />

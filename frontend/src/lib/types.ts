@@ -74,6 +74,8 @@ export interface Prompt {
   status: Status
   sort_order: number
   tags: string
+  /** Verweis in den Modell-Katalog; null = noch keins zugeordnet. */
+  ai_model_id: number | null
   bookmarked: boolean
   bookmark_order: number
   tested: boolean
@@ -628,4 +630,43 @@ export type {
 export interface AnalysisDecisionResult {
   analysis: import('./analysis').Analysis
   geaendert: number
+}
+
+// ---- Modell-Katalog ----
+export interface AiModel {
+  id: number
+  name: string
+  provider: string
+  /** Klartext des Anbieters, vom Server aufgelöst. */
+  provider_label: string
+  /** Zwei Zeichen für den Badge. */
+  provider_short: string
+  /** Die Farbe, die wirklich gilt: eigene, sonst die des Anbieters. */
+  color: string
+  api_id: string
+  description: string
+  enabled: boolean
+  is_default: boolean
+  sort_order: number
+  /** Wie viele Prompts dieses Modell tragen. */
+  usage: number
+}
+
+export interface AiModelProvider {
+  id: string
+  label: string
+  short: string
+  color: string
+}
+
+export interface AiModelList {
+  models: AiModel[]
+  providers: AiModelProvider[]
+  /** Stand der im Server hinterlegten Recherche. */
+  catalog_state: string
+}
+
+export interface AiModelDeleteResult {
+  deleted: number
+  reassigned: number
 }

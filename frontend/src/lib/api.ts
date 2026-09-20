@@ -15,6 +15,9 @@ import type {
   Delivery,
   Me,
   Optimization,
+  AiModel,
+  AiModelDeleteResult,
+  AiModelList,
   Analysis,
   AnalysisDecisionResult,
   OptimizationBatch,
@@ -187,6 +190,10 @@ export const api = {
       test_closely: boolean
       attachment_ids: number[]
       unassign_project: boolean
+      ai_model_id: number | null
+      /** Gegenstück zu `unassign_project`: `null` allein wäre nicht von
+       *  „Feld nicht mitgeschickt" zu unterscheiden. */
+      unassign_model: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
   // The caller's own Anthropic key. GET returns status only — never the key.
@@ -356,6 +363,19 @@ export const api = {
   /** Drop the proposal; the prompt keeps its text. */
   discardOptimization: (id: number) =>
     request<OptimizationDecisionResult>('POST', `/optimizations/${id}/discard`),
+  // ---- Modell-Katalog ----
+  models: () => request<AiModelList>('GET', '/models'),
+  createModel: (input: Partial<AiModel> & { name: string }) =>
+    request<AiModel>('POST', '/models', input),
+  updateModel: (id: number, patch: Partial<AiModel>) =>
+    request<AiModel>('PATCH', `/models/${id}`, patch),
+  reorderModels: (ids: number[]) => request<void>('POST', '/models/reorder', { ids }),
+  deleteModel: (id: number, replaceWith?: number | null) =>
+    request<AiModelDeleteResult>(
+      'DELETE',
+      replaceWith == null ? `/models/${id}` : `/models/${id}?replace_with=${replaceWith}`,
+    ),
+
   // ---- Projekt-Analyse ----
   analyses: (project_id?: number | null) =>
     request<Analysis[]>(

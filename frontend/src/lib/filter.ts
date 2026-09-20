@@ -8,7 +8,7 @@
 // there — a bookmark would silently go missing because of a project chip
 // clicked on another tab.
 import { parseQuery, promptMatches } from './search-query'
-import type { Project, Prompt } from './types'
+import type { AiModel, Project, Prompt } from './types'
 
 export interface PromptFilter {
   /** Hidden immediately while their undo window runs. Always applied. */
@@ -21,19 +21,24 @@ export interface PromptFilter {
   /** Die Projekte, damit die Suche auch deren Namen treffen kann. Fehlt sie,
    *  wird wie bisher nur im Prompt selbst gesucht. */
   projects?: Project[]
+  /** Der Modell-Katalog, damit „opus" die Prompts dieses Modells findet.
+   *  Fehlt er, bleibt die Suche wie zuvor. */
+  models?: AiModel[]
 }
 
 export function filterPrompts(prompts: Prompt[], filter: PromptFilter = {}): Prompt[] {
-  const { pendingDelete, project = 'all', query = '', projects } = filter
+  const { pendingDelete, project = 'all', query = '', projects, models } = filter
   const parsed = parseQuery(query)
   const namen = new Map((projects ?? []).map((p) => [p.id, p.name]))
+  const modellNamen = new Map((models ?? []).map((m) => [m.id, m.name]))
   const pending = pendingDelete?.length ? new Set(pendingDelete) : null
   return prompts.filter((p) => {
     if (pending?.has(p.id)) return false
     if (project === 'none' && p.project_id != null) return false
     if (typeof project === 'number' && p.project_id !== project) return false
     const projektName = p.project_id != null ? (namen.get(p.project_id) ?? '') : ''
-    if (!promptMatches(p, projektName, parsed)) return false
+    const modellName = p.ai_model_id != null ? (modellNamen.get(p.ai_model_id) ?? '') : ''
+    if (!promptMatches(p, projektName, parsed, modellName)) return false
     return true
   })
 }

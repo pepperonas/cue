@@ -69,6 +69,9 @@ class User(SQLModel, table=True):
     anthropic_key_enc: str | None = Field(default=None)
     #: Which model that key pays for. Empty = the default in optimization/pricing.
     optimize_model: str | None = Field(default=None)
+    #: Ob die Modell-Erstbelegung für diesen Mandanten schon gelaufen ist.
+    #: Ein Merker, damit ein bewusst leer geräumter Katalog leer bleibt.
+    ai_models_seeded: bool = Field(default=False)
 
 
 class Project(SQLModel, table=True):
@@ -134,6 +137,9 @@ class PromptMergePart(SQLModel, table=True):
     sort_order: int = Field(default=0)
     priority: PromptPriority = Field(default=PromptPriority.normal)
     tags: str = Field(default="")
+    #: Momentaufnahme der Modellzuordnung. Ohne Fremdschlüssel wie `project_id`
+    #: darüber: die Aufnahme muss ein später gelöschtes Modell überdauern.
+    ai_model_id: int | None = Field(default=None)
     bookmarked: bool = Field(default=False)
     bookmark_order: int = Field(default=0)
     tested: bool = Field(default=False)
@@ -168,6 +174,13 @@ class Prompt(SQLModel, table=True):
     test_closely: bool = Field(default=False)
     # Simple comma-separated tags.
     tags: str = Field(default="")
+    #: Mit welchem Modell dieser Prompt abgearbeitet werden soll.
+    #: ⚠️ NULLABLE mit Absicht: bestehende Prompts haben keines, ein
+    #: deaktiviertes oder gelöschtes Modell darf nicht zu einer kaputten
+    #: Referenz führen, und „noch nicht entschieden“ ist ein echter Zustand.
+    #: Neue Prompts bekommen das Standardmodell des Mandanten, falls eines
+    #: gesetzt ist (`AiModel.is_default`).
+    ai_model_id: int | None = Field(default=None, foreign_key="ai_model.id", index=True)
     # Bookmarking: pinned prompts get their own drag-sortable section.
     bookmarked: bool = Field(default=False, index=True)
     # Position within the bookmarks section. Lower = higher up.
@@ -218,6 +231,51 @@ class TagSource(str, enum.Enum):
 
     user = "user"  # typed or created by the user
     system = "system"  # picked from the curated developer catalogue
+
+
+class AiModel(SQLModel, table=True):
+    """Ein Modell im zentralen Katalog des Nutzers.
+
+    Bewusst nach dem Vorbild von `Tag` gebaut: eigenständige Zeile je Mandant,
+    `name_ci` als echter Eindeutigkeitsschlüssel, Umbenennen an EINER Stelle.
+    Ein Prompt verweist per `Prompt.ai_model_id` darauf und speichert den Namen
+    NICHT als freie Zeichenkette — sonst wäre ein Umbenennen eine Wanderung
+    durch alle Prompts.
+
+    ⚠️ Heißt `AiModel`, nicht `Model`: Pydantic v2 schützt den Namensraum
+    `model_`, und ein Feld `model_id` löste dort Warnungen aus. Aus demselben
+    Grund heißt die Spalte am Prompt `ai_model_id`.
+
+    ⚠️ `provider` ist eine freie Zeichenkette, KEIN Datenbank-Enum. Ein neuer
+    Anbieter ist damit ein Eintrag in `aimodels/catalog.py` (für Farbe und
+    Kürzel) und sonst nichts — ein unbekannter Wert bleibt gültig.
+    """
+
+    __tablename__ = "ai_model"
+    __table_args__ = (UniqueConstraint("user_id", "name_ci", name="uq_ai_model_user_name"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    name: str = Field(index=True)
+    name_ci: str = Field(index=True)
+    #: Die Kennung, mit der das Modell wirklich angesprochen wird
+    #: (`claude-opus-5`, `gpt-6-astra`). Leer erlaubt: ein rein
+    #: organisatorischer Eintrag muss keine API-Kennung haben.
+    api_id: str = Field(default="")
+    provider: str = Field(default="custom", index=True)
+    description: str = Field(default="")
+    #: Leer = die Farbe des Anbieters gilt.
+    color: str = Field(default="")
+    #: Deaktiviert statt gelöscht: ein Modell, das Prompts zugeordnet ist,
+    #: verschwindet nicht, es wird nur nicht mehr angeboten.
+    enabled: bool = Field(default=True, index=True)
+    #: Das Modell, das ein neuer Prompt bekommt. Höchstens eines je Mandant —
+    #: durchgesetzt im Dienst, nicht in der Datenbank (SQLite kennt keinen
+    #: partiellen Unique-Index über SQLModel).
+    is_default: bool = Field(default=False)
+    sort_order: int = Field(default=0, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
 
 
 class Tag(SQLModel, table=True):

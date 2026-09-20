@@ -388,3 +388,83 @@ describe('Projekt-Analyse in der Demo', () => {
     expect(state.prompts.map((p) => [p.id, p.sort_order, p.priority] as const)).toEqual(vorher)
   })
 })
+
+describe('Modell-Katalog in der Demo', () => {
+  it('liefert die recherchierten Start-Modelle mit Stand', () => {
+    const state = seedDemo()
+    const k = handleDemoRequest(state, 'GET', '/models') as {
+      models: { name: string; is_default: boolean }[]
+      providers: { id: string }[]
+      catalog_state: string
+    }
+    expect(k.models.map((m) => m.name)).toContain('Claude Opus 5')
+    expect(k.models.map((m) => m.name)).toContain('Codex Astra')
+    expect(k.models.filter((m) => m.is_default)).toHaveLength(1)
+    expect(k.providers.map((p) => p.id)).toContain('openai')
+    expect(k.catalog_state).toBeTruthy()
+  })
+
+  it('zählt die Nutzung je Modell', () => {
+    const state = seedDemo()
+    const k = handleDemoRequest(state, 'GET', '/models') as { models: { id: number; usage: number }[] }
+    const gesamt = k.models.reduce((s, m) => s + m.usage, 0)
+    expect(gesamt).toBe(state.prompts.filter((p) => p.ai_model_id != null).length)
+  })
+
+  it('ändert das Modell eines Prompts', () => {
+    const state = seedDemo()
+    const p = state.prompts[0]
+    handleDemoRequest(state, 'PATCH', `/prompts/${p.id}`, { ai_model_id: 3 })
+    expect(state.prompts.find((x) => x.id === p.id)!.ai_model_id).toBe(3)
+    handleDemoRequest(state, 'PATCH', `/prompts/${p.id}`, { unassign_model: true })
+    expect(state.prompts.find((x) => x.id === p.id)!.ai_model_id).toBeNull()
+  })
+
+  it('lässt nur einen Standard zu', () => {
+    const state = seedDemo()
+    handleDemoRequest(state, 'PATCH', '/models/5', { is_default: true })
+    expect(state.models.filter((m) => m.is_default).map((m) => m.id)).toEqual([5])
+  })
+
+  it('räumt den Standard mit, wenn das Modell abgeschaltet wird', () => {
+    const state = seedDemo()
+    const standard = state.models.find((m) => m.is_default)!
+    handleDemoRequest(state, 'PATCH', `/models/${standard.id}`, { enabled: false })
+    expect(state.models.find((m) => m.id === standard.id)!.is_default).toBe(false)
+  })
+
+  it('weigert sich, ein benutztes Modell ohne Ersatz zu löschen', () => {
+    const state = seedDemo()
+    const benutzt = state.prompts.find((p) => p.ai_model_id != null)!.ai_model_id!
+    expect(() => handleDemoRequest(state, 'DELETE', `/models/${benutzt}`)).toThrow(/Deaktiviere/)
+    expect(state.models.some((m) => m.id === benutzt)).toBe(true)
+  })
+
+  it('hängt beim Löschen mit Ersatz um', () => {
+    const state = seedDemo()
+    const alt = state.prompts.find((p) => p.ai_model_id != null)!.ai_model_id!
+    const neu = state.models.find((m) => m.id !== alt)!.id
+    const r = handleDemoRequest(state, 'DELETE', `/models/${alt}?replace_with=${neu}`) as {
+      reassigned: number
+    }
+    expect(r.reassigned).toBeGreaterThan(0)
+    expect(state.prompts.some((p) => p.ai_model_id === alt)).toBe(false)
+  })
+
+  it('lehnt einen doppelten Namen ab', () => {
+    const state = seedDemo()
+    expect(() => handleDemoRequest(state, 'POST', '/models', { name: 'claude opus 5' })).toThrow(
+      /gibt es bereits/,
+    )
+  })
+
+  it('legt ein eigenes Modell an', () => {
+    const state = seedDemo()
+    const m = handleDemoRequest(state, 'POST', '/models', {
+      name: 'Mein Modell',
+      provider: 'custom',
+    }) as { id: number; provider_label: string }
+    expect(m.provider_label).toBe('Eigenes')
+    expect(state.models.some((x) => x.id === m.id)).toBe(true)
+  })
+})

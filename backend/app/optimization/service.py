@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 from ..config import Settings, get_settings
 from ..tags import TagService
 from .. import events
+from ..aimodels import AiModelService
 from ..models import (
     OPTIMIZATION_TERMINAL,
     OptimizationBatch,
@@ -384,6 +385,11 @@ class PromptOptimizationService:
         prompt.optimized_body = job.optimized_text
         prompt.optimized_at = now
         prompt.optimization_model = job.model or providers.get(job.provider).label
+        # Empfehlung: womit optimiert wurde, damit soll der Prompt auch
+        # abgearbeitet werden. Greift nur bei Claude-Code-Modellen und nur,
+        # wenn der Katalog des Nutzers einen passenden Eintrag hat — ein Lauf
+        # erweitert den Katalog nicht heimlich.
+        AiModelService(self.session).apply_recommendation(prompt, job.model)
         prompt.optimization_version = job.version
         self.session.add(prompt)
 

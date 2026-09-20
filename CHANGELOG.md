@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.71.0] - 2026-09-20
+
+### Added
+- **Zentrale Modellverwaltung.** Jeder Prompt trägt, mit welchem KI-/Coding-Modell
+  er abgearbeitet werden soll — sichtbar als kompakter Badge auf der Karte und
+  dort auch änderbar, ohne den Dialog zu öffnen. Derselbe Wert ist im
+  Detaildialog als normales Auswahlfeld bearbeitbar; es gibt nur EINE Zuordnung.
+- **Reiter „Modelle"** — anlegen, umbenennen, Anbieter und API-Kennung pflegen,
+  deaktivieren, löschen, per Ziehen sortieren und eines als Standard für neue
+  Prompts festlegen. Aufbau und Formensprache wie die Tag- und Projektverwaltung.
+- **Recherchierte Start-Modelle** für Claude Code (Opus 5, Fable 5.1, Sonnet 5,
+  Haiku 4.5) und OpenAI Codex (Astra, 5.6 Sol/Terra/Luna) — Quelle und Stand
+  stehen in `backend/app/aimodels/catalog.py`. Sie werden je Konto **genau
+  einmal** angelegt und sind danach frei änderbar.
+- **Nach einer KI-Optimierung wird das dabei genutzte Claude-Code-Modell am
+  Prompt gesetzt**, sofern der Katalog einen passenden Eintrag hat. Die volle
+  Kennung, der CLI-Alias (`opus`) und Zusätze wie `claude-opus-5[1m]` treffen
+  denselben Eintrag.
+- Die Suche findet Prompts jetzt auch über ihren **Modellnamen** — bewusst kein
+  eigenes Filter-Bedienelement, die Werkzeugleiste ist gemessen voll.
+
+### Changed
+- `Prompt.ai_model_id` ist nullable: bestehende Prompts bleiben unverändert
+  gültig, und ein deaktiviertes Modell bleibt an ihnen sichtbar statt zu
+  verschwinden. Ein benutztes Modell lässt sich nur mit ausdrücklichem
+  Ersatzmodell löschen — der empfohlene Weg ist Deaktivieren.
+
 ## [0.70.1] - 2026-09-20
 
 ### Fixed

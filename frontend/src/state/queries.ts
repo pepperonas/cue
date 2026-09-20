@@ -7,7 +7,7 @@ import {
 import { api } from '../lib/api'
 import type { BookmarkMovePayload, MovePayload } from '../lib/api'
 import { pendingProposal, succeededVersions } from '../lib/optimization'
-import type { AnalysisDecisionResult, OptimizationDecisionResult } from '../lib/types'
+import type { AiModel, AnalysisDecisionResult, OptimizationDecisionResult } from '../lib/types'
 import type { Optimization, Project, Prompt, StatsQuery, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
@@ -833,4 +833,79 @@ export function useApplyAnalysis() {
 
 export function useDiscardAnalysis() {
   return useAnalysisDecision(api.discardAnalysis)
+}
+
+// ---- Modell-Katalog ----
+const MODELS_KEY = ['models'] as const
+
+/**
+ * Der Katalog. Treibt die Badges auf den Karten UND die Auswahl im Dialog —
+ * EINE Abfrage, React Query entdoppelt sie über alle Aufrufer.
+ */
+export function useModels() {
+  return useQuery({ queryKey: MODELS_KEY, queryFn: () => api.models() })
+}
+
+function useModelMutation<T, V>(fn: (v: V) => Promise<T>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: MODELS_KEY })
+      // Eine Zuordnung kann sich mitgeändert haben (Löschen mit Ersatz), und
+      // die Nutzungszahlen hängen an den Prompts.
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+    },
+  })
+}
+
+export function useCreateModel() {
+  return useModelMutation((input: Partial<AiModel> & { name: string }) => api.createModel(input))
+}
+
+export function useUpdateModel() {
+  return useModelMutation(({ id, patch }: { id: number; patch: Partial<AiModel> }) =>
+    api.updateModel(id, patch),
+  )
+}
+
+export function useDeleteModel() {
+  return useModelMutation(({ id, replaceWith }: { id: number; replaceWith?: number | null }) =>
+    api.deleteModel(id, replaceWith),
+  )
+}
+
+export function useReorderModels() {
+  return useModelMutation((ids: number[]) => api.reorderModels(ids))
+}
+
+/**
+ * Das Modell eines Prompts setzen — von der Karte UND aus dem Dialog.
+ *
+ * ⚠️ EINE Mutation für beide Wege: zwei getrennte Pfade wären zwei Zustände,
+ * die auseinanderlaufen können. Optimistisch, damit der Badge sofort umspringt
+ * (dieselbe Regel wie beim Status).
+ */
+export function useSetPromptModel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, modelId }: { id: number; modelId: number | null }) =>
+      api.updatePrompt(id, modelId == null ? { unassign_model: true } : { ai_model_id: modelId }),
+    onMutate: async ({ id, modelId }) => {
+      await qc.cancelQueries({ queryKey: PROMPTS_KEY })
+      const vorher = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (alt) =>
+        (alt ?? []).map((p) => (p.id === id ? { ...p, ai_model_id: modelId } : p)),
+      )
+      return { vorher }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.vorher) qc.setQueryData(PROMPTS_KEY, ctx.vorher)
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      // Die Nutzungszahlen im Katalog ändern sich mit.
+      qc.invalidateQueries({ queryKey: MODELS_KEY })
+    },
+  })
 }

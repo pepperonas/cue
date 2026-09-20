@@ -22,6 +22,7 @@
  * Nichts wird gespeichert; ein Neuladen setzt zurück.
  */
 import type {
+  AiModel,
   Analysis,
   Me,
   Optimization,
@@ -47,6 +48,7 @@ export interface DemoState {
   tags: Tag[]
   optimizations: Optimization[]
   analyses: Analysis[]
+  models: AiModel[]
   /** Aufgezeichnete Zusammenführungen, damit sich das Trennen auch hier zeigt. */
   merges: { mergedId: number; parts: Prompt[] }[]
   nextId: number
@@ -61,6 +63,7 @@ function prompt(p: Partial<Prompt> & { id: number; title: string; body: string }
     status: 'queued',
     sort_order: p.id,
     tags: '',
+    ai_model_id: null,
     bookmarked: false,
     bookmark_order: 0,
     tested: false,
@@ -103,6 +106,7 @@ export function seedDemo(): DemoState {
         'Ausgabe: die geänderten Dateien mit je einem Satz Begründung.',
       project_id: 1,
       tags: 'documentation, gui',
+      ai_model_id: null,
       priority: 'high',
       sort_order: 1,
     }),
@@ -115,6 +119,7 @@ export function seedDemo(): DemoState {
         'Reproduktion, dann den Fix.',
       project_id: 1,
       tags: 'bugfix, testing',
+      ai_model_id: null,
       priority: 'high',
       sort_order: 2,
     }),
@@ -124,6 +129,7 @@ export function seedDemo(): DemoState {
       body: 'Die Sicherung liegt auf demselben Host wie die Daten. Plane einen zweiten Ablageort.',
       project_id: 3,
       tags: 'infrastructure',
+      ai_model_id: null,
       sort_order: 3,
       blocked: true,
     }),
@@ -133,6 +139,7 @@ export function seedDemo(): DemoState {
       body: 'Unter 700 px laufen die Tabellen über. Mach daraus Karten, ohne Inhalt zu verlieren.',
       project_id: 2,
       tags: 'gui, mobile',
+      ai_model_id: null,
       priority: 'low',
       sort_order: 4,
     }),
@@ -144,6 +151,7 @@ export function seedDemo(): DemoState {
         'wird zu einzelnen Einträgen. Leere Abschnitte überspringen.',
       project_id: 1,
       tags: 'feature',
+      ai_model_id: null,
       sort_order: 5,
       bookmarked: true,
       bookmark_order: 1,
@@ -154,6 +162,7 @@ export function seedDemo(): DemoState {
       body: 'Geh jede Route durch und prüfe, ob sie auf den Mandanten gefiltert ist.',
       project_id: 1,
       tags: 'security',
+      ai_model_id: null,
       status: 'running' as Status,
       sort_order: 1,
       ran_at: iso(12),
@@ -164,6 +173,7 @@ export function seedDemo(): DemoState {
       body: 'Die Versionsnummer soll dezent im Footer stehen — eine Quelle, keine Kopie.',
       project_id: 1,
       tags: 'gui',
+      ai_model_id: null,
       status: 'done' as Status,
       sort_order: 1,
       tested: false,
@@ -176,6 +186,7 @@ export function seedDemo(): DemoState {
       body: 'Der Changelog in der App soll die Datei selbst sein, nicht eine zweite Liste.',
       project_id: 1,
       tags: 'feature, documentation',
+      ai_model_id: null,
       status: 'done' as Status,
       sort_order: 2,
       tested: true,
@@ -187,6 +198,7 @@ export function seedDemo(): DemoState {
       body: 'Die Startseite braucht neue Screenshots und einen klareren Einstieg.',
       project_id: 1,
       tags: 'gui',
+      ai_model_id: null,
       status: 'queued' as Status,
       sort_order: 6,
     }),
@@ -196,6 +208,7 @@ export function seedDemo(): DemoState {
       body: 'Screenshots sind zu groß. Verkleinere sie im Browser, bevor sie den Server erreichen.',
       project_id: 2,
       tags: 'performance',
+      ai_model_id: null,
       status: 'done' as Status,
       sort_order: 3,
       tested: true,
@@ -338,7 +351,36 @@ export function seedDemo(): DemoState {
     },
   ]
 
-  return { prompts, projects, tags, optimizations, analyses, merges: [], nextId: 100 }
+  // Derselbe recherchierte Satz wie im Server (`app/aimodels/catalog.py`),
+  // damit die Vorschau zeigt, was ein frisches Konto wirklich bekommt.
+  const models: AiModel[] = [
+    ['Claude Opus 5', 'claude-opus-5', 'Für komplexe agentische Arbeit. CLI-Alias: opus.', true],
+    ['Claude Fable 5.1', 'claude-fable-5-1', 'Für langes Schlussfolgern. CLI-Alias: fable.', false],
+    ['Claude Sonnet 5', 'claude-sonnet-5', 'Tempo und Tiefe. CLI-Alias: sonnet.', false],
+    ['Claude Haiku 4.5', 'claude-haiku-4-5', 'Das schnellste Modell. CLI-Alias: haiku.', false],
+    ['Codex Astra', 'gpt-6-astra', 'Empfohlen für Codex.', false],
+    ['Codex 5.6 Sol', 'gpt-5.6-sol', '', false],
+  ].map(([name, api, desc, std], i) => ({
+    id: i + 1,
+    name: name as string,
+    provider: i < 4 ? 'anthropic' : 'openai',
+    provider_label: i < 4 ? 'Claude Code' : 'OpenAI Codex',
+    provider_short: i < 4 ? 'CC' : 'CX',
+    color: i < 4 ? '#c96442' : '#10a37f',
+    api_id: api as string,
+    description: desc as string,
+    enabled: true,
+    is_default: Boolean(std),
+    sort_order: i + 1,
+    usage: 0,
+  }))
+  // Ein paar Zuordnungen, damit die Badges nicht alle leer sind.
+  prompts[0].ai_model_id = 1
+  prompts[1].ai_model_id = 1
+  prompts[2].ai_model_id = 5
+  prompts[3].ai_model_id = 3
+
+  return { prompts, projects, tags, optimizations, analyses, models, merges: [], nextId: 100 }
 }
 
 export const DEMO_ME: Me = {
@@ -610,6 +652,93 @@ export function handleDemoRequest(
   }
 
   // ---- Optimierungs-Historie (lesen erlaubt) ------------------------------
+  // ---- Modell-Katalog ----------------------------------------------------
+  if (url === '/models' && method === 'GET') {
+    const nutzung = (id: number) => state.prompts.filter((p) => p.ai_model_id === id).length
+    return {
+      models: state.models.map((m) => ({ ...m, usage: nutzung(m.id) })),
+      providers: [
+        { id: 'anthropic', label: 'Claude Code', short: 'CC', color: '#c96442' },
+        { id: 'openai', label: 'OpenAI Codex', short: 'CX', color: '#10a37f' },
+        { id: 'custom', label: 'Eigenes', short: '··', color: '#7d7d8a' },
+      ],
+      catalog_state: '2026-09-20',
+    }
+  }
+  if (url === '/models' && method === 'POST') {
+    const name = String(body?.name ?? '').trim()
+    if (!name) throw new DemoRefusal('Ein Modell braucht einen Namen')
+    if (state.models.some((m) => m.name.toLowerCase() === name.toLowerCase())) {
+      throw new DemoRefusal(`„${name}“ gibt es bereits`)
+    }
+    const provider = String(body?.provider ?? 'custom')
+    const farben: Record<string, string> = {
+      anthropic: '#c96442',
+      openai: '#10a37f',
+      custom: '#7d7d8a',
+    }
+    const neu: AiModel = {
+      id: state.nextId++,
+      name,
+      provider,
+      provider_label: provider === 'anthropic' ? 'Claude Code' : provider === 'openai' ? 'OpenAI Codex' : 'Eigenes',
+      provider_short: provider === 'anthropic' ? 'CC' : provider === 'openai' ? 'CX' : '··',
+      color: farben[provider] ?? farben.custom,
+      api_id: String(body?.api_id ?? ''),
+      description: String(body?.description ?? ''),
+      enabled: true,
+      is_default: false,
+      sort_order: state.models.length + 1,
+      usage: 0,
+    }
+    state.models.push(neu)
+    if (body?.is_default) setzeStandard(state, neu.id)
+    return copies([neu])[0]
+  }
+  if (url === '/models/reorder' && method === 'POST') {
+    const ids = (body?.ids as number[]) ?? []
+    ids.forEach((id, i) => {
+      const m = state.models.find((x) => x.id === id)
+      if (m) m.sort_order = i + 1
+    })
+    return { ok: true }
+  }
+  const modellId = matchId(url, '/models/')
+  if (modellId != null) {
+    const m = state.models.find((x) => x.id === modellId)
+    if (!m) throw new DemoRefusal('Dieses Modell gibt es in der Vorschau nicht.')
+    if (method === 'PATCH') {
+      if (body?.name !== undefined) m.name = String(body.name)
+      if (body?.provider !== undefined) m.provider = String(body.provider)
+      if (body?.api_id !== undefined) m.api_id = String(body.api_id)
+      if (body?.description !== undefined) m.description = String(body.description)
+      if (body?.enabled !== undefined) {
+        m.enabled = Boolean(body.enabled)
+        // Wie im Server: ein abgeschaltetes Modell kann nicht der Standard sein.
+        if (!m.enabled) m.is_default = false
+      }
+      if (body?.is_default === true) {
+        if (!m.enabled) throw new DemoRefusal('Ein deaktiviertes Modell kann nicht der Standard sein')
+        setzeStandard(state, m.id)
+      } else if (body?.is_default === false) {
+        m.is_default = false
+      }
+      return copies([m])[0]
+    }
+    if (method === 'DELETE') {
+      const genutzt = state.prompts.filter((p) => p.ai_model_id === m.id)
+      const ersatz = query.get('replace_with')
+      if (genutzt.length && !ersatz) {
+        throw new DemoRefusal(
+          `„${m.name}“ ist ${genutzt.length} Prompt(s) zugeordnet. Deaktiviere es, oder gib ein Ersatzmodell an.`,
+        )
+      }
+      for (const p of genutzt) p.ai_model_id = ersatz ? num(ersatz) : null
+      state.models = state.models.filter((x) => x.id !== m.id)
+      return { deleted: 1, reassigned: genutzt.length }
+    }
+  }
+
   // ---- Projekt-Analyse ----------------------------------------------------
   if (url === '/analyses' && method === 'GET') {
     const pid = query.get('project_id')
@@ -812,6 +941,8 @@ function patchPrompt(state: DemoState, p: Prompt, body: Body): Prompt {
   if (body?.bookmarked !== undefined) p.bookmarked = Boolean(body.bookmarked)
   if (body?.blocked !== undefined) p.blocked = Boolean(body.blocked)
   if (body?.priority !== undefined) p.priority = body.priority as Priority
+  if (body?.unassign_model) p.ai_model_id = null
+  else if (body?.ai_model_id !== undefined) p.ai_model_id = body.ai_model_id as number | null
   if (body?.test_closely !== undefined) p.test_closely = Boolean(body.test_closely)
   if (body?.tested !== undefined) {
     // Dieselbe Zusicherung wie im Server: „getestet" gibt es nur auf done.
@@ -838,4 +969,10 @@ function registerTags(state: DemoState, tags: string): void {
       })
     }
   }
+}
+
+
+/** Genau ein Standardmodell — wie im Server. */
+function setzeStandard(state: DemoState, id: number): void {
+  for (const m of state.models) m.is_default = m.id === id
 }

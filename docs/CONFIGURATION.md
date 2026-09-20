@@ -88,6 +88,20 @@ heißt das:
   sonst liefe fremde Arbeit auf der Maschine und der Rechnung des Eigentümers.
 - `OPTIMIZE_ENABLED=false` schaltet **beide** Wege ab.
 
+### Der Modell-Katalog steht ebenfalls nicht in der Umgebung
+
+Welche Modelle auswählbar sind und welches ein neuer Prompt bekommt, liegt in
+der **Datenbank** (`ai_model`, je Mandant) — dieselbe Begründung wie beim
+API-Schlüssel oben: eine Umgebungsvariable ist eine Aussage des Betreibers über
+die Instanz, der Katalog eine Aussage des Nutzers über seine Arbeit. Die
+Start-Modelle stehen recherchiert in `app/aimodels/catalog.py` (mit Quelle und
+Stand) und werden je Mandant genau einmal angelegt.
+
+⚠️ `OPTIMIZE_MODEL` ist davon unberührt: es bestimmt, womit **optimiert** wird,
+nicht, womit ein Prompt abgearbeitet werden soll. Nach einer Optimierung setzt
+cue allerdings das dabei genutzte Claude-Code-Modell am Prompt, sofern der
+Katalog einen passenden Eintrag hat.
+
 ## Prompt-Capture
 
 | Variable | Standard | Bedeutung |

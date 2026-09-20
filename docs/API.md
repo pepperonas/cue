@@ -207,6 +207,23 @@ einzige neue Schreibpfad ist die Reihenfolge.
 | `POST` | `/analyses/claim` | **Runner**: nächsten Job atomar übernehmen (Long-Poll über `?wait=`). |
 | `POST` | `/analyses/{analysis_id}/result` | **Runner**: Ergebnis melden. Teilt das Schema mit der Optimierung. |
 
+### Modell-Katalog
+
+<sub>`backend/app/routers/aimodels.py`</sub>
+
+Zentral verwaltete KI-/Coding-Modelle, die ein Prompt zugewiesen bekommt
+(`Prompt.ai_model_id`). Aufbau wie die Tags: eigenständige Zeile je Mandant,
+Umbenennen an einer Stelle. Für jeden freigeschalteten Nutzer offen — ein
+Katalog kostet nichts und gehört zum eigenen Konto.
+
+| Methode | Pfad | Beschreibung |
+| --- | --- | --- |
+| `GET` | `/models` | Katalog mit Nutzungszahl je Modell, die bekannten Anbieter und der Stand der hinterlegten Recherche. Legt beim ersten Aufruf die recherchierten Start-Modelle an — genau einmal je Mandant (Merker `User.ai_models_seeded`). `?include_disabled=false` blendet Deaktiviertes aus. |
+| `POST` | `/models` | Eigenes Modell anlegen. Name eindeutig je Mandant (ohne Rücksicht auf Groß-/Kleinschreibung), 409 bei Dopplung. |
+| `PATCH` | `/models/{model_id}` | Umbenennen, Anbieter/API-Kennung/Beschreibung/Farbe ändern, deaktivieren (`enabled`), zum Standard machen (`is_default`). |
+| `POST` | `/models/reorder` | Reihenfolge setzen (`{ids}`), wie bei den Projekten. |
+| `DELETE` | `/models/{model_id}` | Löschen. **409, wenn das Modell Prompts zugeordnet ist** — außer `?replace_with=<id>` nennt ein Ersatzmodell; dann werden sie umgehängt. Der empfohlene Weg für ein benutztes Modell ist Deaktivieren. |
+
 ### Prompt-Capture & CLI-Delivery
 
 <sub>`backend/app/routers/capture.py`</sub>

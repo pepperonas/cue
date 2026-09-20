@@ -11,6 +11,7 @@ function p(id: number, over: Partial<Prompt> = {}): Prompt {
     status: 'done' as Status,
     sort_order: id,
     tags: '',
+    ai_model_id: null,
     bookmarked: false,
     bookmark_order: 0,
     priority: 'normal',

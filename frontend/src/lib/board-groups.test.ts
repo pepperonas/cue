@@ -26,6 +26,7 @@ function prompt(id: number, projectId: number | null, tested = false): Prompt {
     status: 'queued',
     sort_order: id,
     tags: '',
+    ai_model_id: null,
     bookmarked: false,
     bookmark_order: 0,
     tested,

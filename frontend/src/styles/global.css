@@ -4792,3 +4792,141 @@ img.logo-xl { border-radius: 18px; }
   stroke: var(--md-primary);
   stroke-width: 2;
 }
+
+/* ---- Modell-Katalog ------------------------------------------------------ */
+/* Der Badge auf der Karte: im Ruhezustand ein Bestandteil der Karte wie ein
+   Tag, erst bei Interaktion erkennbar als Auswahl. Er IST das Dropdown der App
+   (`.cselect`) — nur kleiner und ohne dauerhaften Pfeil; damit erbt er Portal,
+   Tastatur, Escape und Klick-daneben, statt sie ein zweites Mal zu bauen. */
+.model-badge-wrap {
+  display: inline-flex;
+  max-width: 100%;
+}
+.cselect.model-badge {
+  min-height: 0;
+  height: auto;
+  padding: 2px 8px 2px 7px;
+  gap: 5px;
+  border-radius: var(--shape-s);
+  border: 1px solid transparent;
+  background: var(--md-surface-container-high);
+  font: var(--label-s);
+  color: var(--md-on-surface-variant);
+  max-width: 190px;
+}
+.cselect.model-badge:hover,
+.cselect.model-badge:focus-visible,
+.cselect.model-badge[data-open='true'] {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface-container-highest);
+}
+/* Der Pfeil erscheint erst bei Interaktion — im Ruhezustand soll der Badge
+   nicht wie ein großes Auswahlfeld wirken. */
+.cselect.model-badge .cselect-caret {
+  width: 0;
+  opacity: 0;
+  margin: 0;
+  transition:
+    width var(--dur-short),
+    opacity var(--dur-short);
+}
+.cselect.model-badge:hover .cselect-caret,
+.cselect.model-badge:focus-visible .cselect-caret,
+.cselect.model-badge[data-open='true'] .cselect-caret {
+  width: 14px;
+  opacity: 0.7;
+}
+.cselect.model-badge .cselect-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Ohne Zuordnung ist der Badge eine Aufforderung, keine Angabe. */
+.cselect.model-badge[data-empty='true'] {
+  border-style: dashed;
+  border-color: var(--md-outline-variant);
+  background: none;
+}
+/* Das zugeordnete Modell wurde abgeschaltet: sichtbar lassen, aber kennzeichnen
+   — die Aussage von damals bleibt lesbar. */
+.cselect.model-badge[data-stale='true'] .cselect-value {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+/* Im Dialog kein Badge, sondern ein normales Auswahlfeld. */
+.cselect.model-select {
+  width: 100%;
+}
+.field-note {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* ---- Verwaltung ---- */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--gap-4);
+}
+.model-row {
+  align-items: flex-start;
+  gap: var(--gap-3);
+}
+.model-row[data-disabled='true'] {
+  /* Gedämpft über die FLÄCHE, nicht über `opacity` auf dem Text: Deckkraft
+     multipliziert sich auf den Grund und drückt den Kontrast unter AA. */
+  background: var(--md-surface-container-low);
+}
+.model-row[data-disabled='true'] .model-name {
+  color: var(--text-mut);
+}
+.model-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex: none;
+}
+.model-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font: var(--title-s);
+}
+.model-flag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: var(--label-s);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+.model-flag.off {
+  background: none;
+  border: 1px solid var(--md-outline-variant);
+  color: var(--text-mut);
+}
+.model-meta,
+.model-desc {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.model-meta code {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+.model-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.model-source {
+  margin-top: var(--gap-4);
+  font-size: 0.8rem;
+}
+.input.mono {
+  font-family: var(--font-mono);
+}

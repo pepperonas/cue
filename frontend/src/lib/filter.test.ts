@@ -11,6 +11,7 @@ function prompt(id: number, extra: Partial<Prompt> = {}): Prompt {
     status: 'queued',
     sort_order: id,
     tags: '',
+    ai_model_id: null,
     bookmarked: false,
     bookmark_order: 0,
     priority: 'normal',
@@ -126,5 +127,39 @@ describe('the search reaches the project name', () => {
   it('still honours the project chip on top of the search', () => {
     const out = filterPrompts(prompts, { query: 'termst', projects, project: 2 })
     expect(out.map((p) => p.id)).toEqual([11])
+  })
+})
+
+describe('Suche nach dem Modell', () => {
+  const modell = {
+    id: 7,
+    name: 'Claude Opus 5',
+    provider: 'anthropic',
+    provider_label: 'Claude Code',
+    provider_short: 'CC',
+    color: '#c96442',
+    api_id: 'claude-opus-5',
+    description: '',
+    enabled: true,
+    is_default: true,
+    sort_order: 1,
+    usage: 0,
+  }
+
+  it('findet Prompts über den Namen ihres Modells', () => {
+    const liste = [prompt(1, { ai_model_id: 7 }), prompt(2, { ai_model_id: null })]
+    const treffer = filterPrompts(liste, { query: 'opus', models: [modell] })
+    expect(treffer.map((x) => x.id)).toEqual([1])
+  })
+
+  it('bleibt ohne Katalog wie zuvor', () => {
+    // Die Ergänzung darf das bestehende Verhalten nicht verschieben.
+    const liste = [prompt(1, { ai_model_id: 7 })]
+    expect(filterPrompts(liste, { query: 'opus' })).toEqual([])
+  })
+
+  it('ändert an der Projektsuche nichts', () => {
+    const liste = [prompt(1, { ai_model_id: 7 })]
+    expect(filterPrompts(liste, { query: '"opus"', models: [modell] })).toEqual([])
   })
 })

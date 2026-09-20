@@ -31,6 +31,7 @@ from .routers import (
     auth,
     capture,
     changes,
+    aimodels,
     analysis,
     importexport,
     optimize,
@@ -128,7 +129,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.70.1",
+    version="0.71.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -217,6 +218,7 @@ api.include_router(importexport.router)
 api.include_router(stats.router)
 api.include_router(optimize.router)
 api.include_router(analysis.router)
+api.include_router(aimodels.router)
 api.include_router(tags.router)
 api.include_router(changes.router)
 

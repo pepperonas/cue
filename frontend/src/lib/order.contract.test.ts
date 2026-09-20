@@ -46,6 +46,7 @@ function prompt(spec: OrderCase['prompts'][number]): Prompt {
     status: (spec.status ?? 'queued') as Status,
     sort_order: spec.sort_order,
     tags: '',
+    ai_model_id: null,
     bookmarked: false,
     bookmark_order: 0,
     tested: spec.tested ?? false,

@@ -6,6 +6,8 @@ import { projectTones } from '../lib/color'
 import { springs } from '../lib/motion'
 import { isOptimizable } from '../lib/optimization'
 import { dedupeTags } from '../lib/tags'
+import { ModelBadge } from './ModelBadge'
+import { useModels, useSetPromptModel } from '../state/queries'
 import type { Priority, Project, Prompt } from '../lib/types'
 import { STATUS_CLASS, STATUS_ICON } from '../lib/types'
 import { BlockedButton } from './BlockedButton'
@@ -64,6 +66,11 @@ export function PromptCard({
   onToggleSelect,
   onModSelect,
 }: Props) {
+  // Der Katalog kommt aus derselben Abfrage, die auch der Dialog und die
+  // Verwaltung nutzen — React Query entdoppelt sie, es entsteht kein zweiter
+  // Request je Karte (dasselbe Muster wie `usePrompts` in `GhostInput`).
+  const modelle = useModels().data?.models ?? []
+  const setzeModell = useSetPromptModel()
   const canTest = prompt.status === 'running' || prompt.status === 'done'
   // Blocking and priority are both queue-only: a control that cannot do
   // anything where it sits is worse than no control.
@@ -173,6 +180,14 @@ export function PromptCard({
               <Icon name="image" /> {prompt.attachments.length}
             </span>
           )}
+          {/* Mit welchem Modell dieser Prompt abgearbeitet werden soll —
+              sichtbar UND änderbar, ohne den Dialog zu öffnen. */}
+          <ModelBadge
+            compact
+            models={modelle}
+            value={prompt.ai_model_id}
+            onChange={(modelId) => setzeModell.mutate({ id: prompt.id, modelId })}
+          />
           {/* Age and actions are one block so the age keeps the same spot no
               matter how many tags wrapped above it — a column of cards is only
               scannable if the number is always in the same place. */}
