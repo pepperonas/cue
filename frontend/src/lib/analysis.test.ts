@@ -162,7 +162,9 @@ describe('layoutGraph', () => {
     expect(g.edges).toHaveLength(0)
   })
 
-  it('führt eine Kante innerhalb einer Spalte außen herum', () => {
+  it('verbindet direkt benachbarte Karten mit einer geraden Strecke', () => {
+    // Ein Bogen zeigte hier in die Nachbarspalte und las sich als Verbindung
+    // dorthin (im Browser aufgefallen, nicht im Test).
     const g = layoutGraph(
       {
         reihenfolge: [schritt(1, 1), schritt(2, 2)],
@@ -171,11 +173,24 @@ describe('layoutGraph', () => {
       },
       titel,
     )
+    const [a, b] = g.nodes
+    expect(g.edges[0].d).toBe(`M ${a.x + a.w / 2} ${a.y + a.h} L ${b.x + b.w / 2} ${b.y}`)
+  })
+
+  it('führt eine Kante über eine Karte hinweg außen herum', () => {
+    const g = layoutGraph(
+      {
+        reihenfolge: [schritt(1, 1), schritt(2, 2), schritt(3, 3)],
+        phasen: [{ name: 'A', prompt_ids: [1, 2, 3], ziel: '' }],
+        abhaengigkeiten: [{ von: 1, nach: 3, grund: '' }],
+      },
+      titel,
+    )
     // Sie ENDET an der rechten Kante des Ziels — sonst liefe sie durch die Karte.
     // ⚠️ Geprüft wird der Endpunkt, nicht ein Vorkommen: in einer Spalte ist
     // `ziel.x + ziel.w` genau der Startpunkt, eine Suche danach träfe das „M"
     // und wäre in beide Richtungen erfüllt (per Mutationsprobe gefunden).
-    const ziel = g.nodes.find((n) => n.id === 2)!
+    const ziel = g.nodes.find((n) => n.id === 3)!
     expect(endpunkt(g.edges[0].d)).toBe(ziel.x + ziel.w)
   })
 

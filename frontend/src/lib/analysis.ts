@@ -229,7 +229,14 @@ function pfad(a: GraphNode, b: GraphNode): string {
   const x2 = b.x
   const y2 = b.y + b.h / 2
   if (b.phase === a.phase) {
-    // Gleiche Spalte: außen herum, sonst liefe die Linie durch die Karten.
+    // Direkt untereinander: eine gerade Strecke von unten nach oben. Ein Bogen
+    // zeigte hier in die NACHBARSPALTE und ließ sich als Verbindung dorthin
+    // lesen — im Sichttest genau so aufgefallen.
+    if (Math.abs(b.y - a.y - (a.h + ZEILE_GAP)) < 1) {
+      return `M ${a.x + a.w / 2} ${a.y + a.h} L ${b.x + b.w / 2} ${b.y}`
+    }
+    // Weiter auseinander: außen herum, sonst liefe die Linie durch die Karten
+    // dazwischen. Der Bogen bleibt innerhalb des Spaltenabstands.
     const bogen = a.x + a.w + SPALTE_GAP / 2
     return `M ${x1} ${y1} C ${bogen} ${y1}, ${bogen} ${y2}, ${x2 + b.w} ${y2}`
   }

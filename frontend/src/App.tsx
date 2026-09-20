@@ -43,6 +43,7 @@ import {
   useMovePrompt,
   useMovePrompts,
   useActiveAnalyses,
+  useAnalyses,
   useAnalysis,
   useApplyAnalysis,
   useCancelAnalysis,
@@ -78,6 +79,7 @@ import { DemoBanner } from './components/DemoBanner'
 import { useRoute } from './state/route'
 import { ProjectChips } from './components/ProjectChips'
 import { AnalysisDialog } from './components/analysis/AnalysisDialog'
+import { wartetAufEntscheidung } from './lib/analysis'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
 import { TagsView } from './components/TagsView'
@@ -325,6 +327,12 @@ function Shell({
   const activeAnalysesQ = useActiveAnalyses(canOptimize)
   const analysisQ = useAnalysis(analysisId)
   const aktiveAnalysen = activeAnalysesQ.data ?? []
+  // Die Läufe DIESES Projekts — nur damit ein bereits fertiger Vorschlag
+  // erreichbar bleibt, statt beim nächsten Klick einen zweiten zu bezahlen.
+  const analysenQ = useAnalyses(
+    projectFilter === 'none' ? null : projectFilter === 'all' ? undefined : projectFilter,
+    canOptimize && projectFilter !== 'all',
+  )
   // Der Vorschlag kennt nur IDs; die Titel kommen aus der Liste, die der
   // Client ohnehin hält (kein zweiter Request).
   const promptsById = useMemo(
@@ -532,11 +540,24 @@ function Shell({
     return aktiveAnalysen.find((a) => a.project_id === ziel)
   }, [aktiveAnalysen, projectFilter])
 
+  /** Ein fertiger Vorschlag dieses Projekts, über den noch nicht entschieden wurde. */
+  const offenerVorschlag = useMemo(
+    () => (analysenQ.data ?? []).find(wartetAufEntscheidung),
+    [analysenQ.data],
+  )
+
   const handleAnalyse = useCallback(() => {
     if (projectFilter === 'all') return
     // Läuft schon eine, wird sie gezeigt statt eine zweite zu bezahlen.
     if (laufendeAnalyse) {
       setAnalysisId(laufendeAnalyse.id)
+      return
+    }
+    // Gleiches Prinzip für einen fertigen, unentschiedenen Vorschlag: erst
+    // entscheiden, dann neu rechnen lassen. Ein zweiter Lauf über denselben
+    // Stand kostet Geld und macht zwei Vorschläge anwendbar.
+    if (offenerVorschlag) {
+      setAnalysisId(offenerVorschlag.id)
       return
     }
     const ziel = projectFilter === 'none' ? null : projectFilter
@@ -550,7 +571,7 @@ function Shell({
         toast.show(text, 'error')
       },
     })
-  }, [laufendeAnalyse, projectFilter, startAnalysis, toast])
+  }, [laufendeAnalyse, offenerVorschlag, projectFilter, startAnalysis, toast])
 
   /** Aus einem Fund heraus zusammenführen: derselbe Dialog wie sonst auch,
    *  damit der Merge über `unmerge` rückabwickelbar bleibt. */
@@ -963,7 +984,11 @@ function Shell({
                   }
                 >
                   <Icon name="account_tree" />{' '}
-                  {laufendeAnalyse ? 'Analyse läuft…' : 'Projekt analysieren'}
+                  {laufendeAnalyse
+                    ? 'Analyse läuft…'
+                    : offenerVorschlag
+                      ? 'Vorschlag ansehen'
+                      : 'Projekt analysieren'}
                 </button>
               )}
               {(view === 'board' || view === 'list') && (
