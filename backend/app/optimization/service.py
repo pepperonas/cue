@@ -106,17 +106,30 @@ class PromptOptimizationService:
         return self._queue_for(prompt, uid, provider=provider, batch_id=batch_id)
 
     def provider_for(self, uid: int) -> str:
-        """Which optimizer this user's work runs through.
+        """Which optimizer this user's work runs through — and who pays for it.
 
         A user who stored their OWN Anthropic key gets the server-side API
-        provider — that is the whole point of storing one: their optimizations
-        must not be paid for by the owner's Claude subscription. Everyone else
-        (in practice the owner) keeps the Claude Code CLI on the runner Mac,
-        which is what has been running all along.
+        provider; that is the whole point of storing one. The owner keeps the
+        Claude Code CLI on their runner Mac, billed to their Claude account.
+
+        ⚠️ **Der Rückfall auf die CLI ist dem Eigentümer vorbehalten, und zwar
+        durch Bauart.** Die Berechtigung davor (`require_optimizer`) prüft die
+        ROHE Spalte, diese Stelle das ENTSCHLÜSSELTE Ergebnis — und `decrypt`
+        liefert bei jedem Fehlschlag `None`. Ein gespeicherter, aber nicht mehr
+        lesbarer Schlüssel (etwa nach einem Wechsel von `SECRET_KEY`) kam so
+        durch das Tor und landete anschließend auf der Maschine UND der Rechnung
+        des Eigentümers. Reproduziert und gepinnt in
+        `tests/test_own_api_key.py`.
         """
         user = self.session.get(User, uid)
         if user is not None and secrets_store.decrypt(user.anthropic_key_enc):
             return providers.ANTHROPIC_API.id
+        if not self.settings.is_owner(user.email if user else None):
+            raise OptimizationError(
+                "Dein gespeicherter API-Key ist nicht mehr lesbar. Bitte hinterlege "
+                "ihn in den Einstellungen neu.",
+                400,
+            )
         return self.settings.optimize_provider
 
     def model_for(self, uid: int, spec: providers.ProviderSpec) -> str:

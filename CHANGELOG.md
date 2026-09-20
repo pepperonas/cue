@@ -6,7 +6,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-09-20
+
+### Fixed
+- **Fremde Optimierungs-Jobs konnten auf der Rechnung des Eigentümers landen.**
+  Die Berechtigung (`require_optimizer`) prüfte die rohe Schlüssel-Spalte, die
+  Wegwahl (`provider_for`) das entschlüsselte Ergebnis — und `decrypt` liefert
+  bei jedem Fehlschlag `None`. Ein gespeicherter, aber nicht mehr lesbarer
+  Schlüssel (nach einer Rotation von `SECRET_KEY` der Normalfall) kam so durch
+  das Tor und fiel anschließend auf die Claude-Code-CLI des Runner-Macs zurück:
+  ein fremder Tenant hätte auf der Maschine **und** dem Claude-Konto des
+  Eigentümers gerechnet. Neu ist `Settings.is_owner` als **eine** Definition für
+  beide Stellen; wer keinen lesbaren Schlüssel hat, bekommt jetzt die
+  Aufforderung, ihn neu zu hinterlegen, statt eines stillen Umwegs.
+
+### Added
+- **Ein Wächter gegen Zugangsdaten im öffentlichen Repo**
+  (`backend/tests/test_no_secrets_in_repo.py`). Er liest, was `git ls-files`
+  meldet — also exakt das, was veröffentlicht wird — und sucht nach der Form
+  echter Anthropic-, Google- und GitHub-Token, privaten Schlüsseln und belegten
+  Werten hinter den Geheimnis-Namen. Erfundene Test-Attrappen werden über eine
+  Markierung in der Zeile selbst ausgenommen, die damit im Diff sichtbar ist.
+  Eine Gegenprobe legt je ein echtes Muster in eine Wegwerfdatei und verlangt,
+  dass der Scanner es findet — ein Werkzeug, das 0 meldet, ist erst danach
+  glaubwürdig.
+
 ### Changed
+- `SECURITY.md` bekommt den Abschnitt „Nichts davon liegt im Repo" (wo welches
+  Geheimnis wirklich liegt, und wer das prüft). Die Betreiber-Notiz zur
+  `SECRET_KEY`-Rotation beschrieb den oben behobenen Fehler bisher, als wäre er
+  in Ordnung — berichtigt.
 - **Leere Projekt-Badges behalten jetzt ihre eigene Priorität.** Im Board sind
   nur Projekte ohne offene Queued-/Running-Prompts direkt sortierbar; ihre
   Position wird gespeichert und kommt nach einem Reload wieder. Projekte mit

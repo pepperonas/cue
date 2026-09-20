@@ -20,7 +20,12 @@ def _mk(client, headers, body="Ein Prompt"):
     return res.json()
 
 
-def _store_key(client, headers, key="sk-ant-test-0000000000000000ABCD", monkeypatch=None):
+def _store_key(
+    client,
+    headers,
+    key="sk-ant-test-0000000000000000ABCD",  # attrappe: erfunden, nur die Form
+    monkeypatch=None,
+):
     """Store a key, short-circuiting the live verification call."""
     import app.routers.optimize as router
 
@@ -37,7 +42,7 @@ def test_a_stored_key_is_not_readable_in_the_database(client, monkeypatch):
     would hand out somebody else's key with the dump."""
     csrf = _auth(client, email="fremd@example.com", sub="k-1")
     headers = {"X-CSRF-Token": csrf}
-    secret = "sk-ant-supergeheim-0000000000WXYZ"
+    secret = "sk-ant-supergeheim-0000000000WXYZ"  # attrappe
     assert _store_key(client, headers, secret, monkeypatch).status_code == 200
 
     import app.db as db_module
@@ -57,7 +62,7 @@ def test_the_key_never_travels_back_to_the_browser(client, monkeypatch):
     every XSS into a key leak."""
     csrf = _auth(client, email="fremd@example.com", sub="k-2")
     headers = {"X-CSRF-Token": csrf}
-    secret = "sk-ant-supergeheim-0000000000WXYZ"
+    secret = "sk-ant-supergeheim-0000000000WXYZ"  # attrappe
     saved = _store_key(client, headers, secret, monkeypatch).json()
 
     assert saved["configured"] is True
@@ -400,3 +405,43 @@ def test_removing_the_key_does_not_hide_what_it_already_paid_for(client, monkeyp
     assert done["optimized_text"] == "Fertige Fassung."
     applied = client.post(f"/api/optimizations/{job['id']}/apply", headers=headers)
     assert applied.status_code == 200
+
+
+def test_an_unreadable_key_never_falls_back_to_the_owners_cli(client, monkeypatch):
+    """⚠️ Die Lücke, die genau die Zusicherung dieses Moduls aushebelt.
+
+    Die Berechtigung prüft die ROHE Spalte (`anthropic_key_enc` ist gesetzt),
+    die Auswahl des Weges aber das ENTSCHLÜSSELTE Ergebnis — und `decrypt`
+    liefert bei jedem Fehlschlag `None`. Ein Schlüssel, der nicht mehr lesbar
+    ist (etwa nach einem Wechsel von `SECRET_KEY`), käme damit durch das Tor
+    und fiele anschließend auf die Claude-Code-CLI zurück: auf die Maschine
+    des Eigentümers und auf seine Rechnung.
+    """
+    import app.db as db_module
+    from sqlmodel import Session, select
+
+    from app.models import PromptOptimization, User
+
+    csrf = _auth(client, email="fremd@example.com", sub="k-fallback")
+    headers = {"X-CSRF-Token": csrf}
+    prompt = _mk(client, headers)
+
+    # Ein Schlüssel, der gespeichert, aber nicht mehr zu entschlüsseln ist.
+    with Session(db_module.engine) as s:
+        user = s.exec(select(User).where(User.email == "fremd@example.com")).first()
+        user.anthropic_key_enc = "nicht-mehr-lesbar"
+        s.add(user)
+        s.commit()
+    assert secrets_store.decrypt("nicht-mehr-lesbar") is None
+
+    res = client.post("/api/optimizations", json={"prompt_id": prompt["id"]}, headers=headers)
+    if res.status_code == 201:
+        with Session(db_module.engine) as s:
+            job = s.exec(select(PromptOptimization)).all()[-1]
+        assert job.provider not in providers.runner_ids(), (
+            f"Job eines fremden Tenants landete auf dem Runner-Weg ({job.provider}) "
+            "— das läuft auf der Maschine und der Rechnung des Eigentümers"
+        )
+    else:
+        # Abweisen ist die andere zulässige Antwort: dann wird nichts gebucht.
+        assert res.status_code in (400, 403), res.text

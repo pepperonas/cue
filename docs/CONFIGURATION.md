@@ -81,6 +81,11 @@ heißt das:
   `OPTIMIZE_MODEL` gelten dann nicht — es zählt, was in der UI steht.
 - Ist keiner hinterlegt, gilt der alte Weg (Mac-Runner + CLI) und damit auch die
   Tabelle oben. Anstoßen darf ihn nur `OWNER_EMAIL`.
+- ⚠️ **„Hinterlegt" heißt „lesbar".** Ein gespeicherter Schlüssel, der sich nicht
+  mehr entschlüsseln lässt — nach einer Rotation von `SECRET_KEY` ist das der
+  Normalfall —, ist für die Wegwahl kein Schlüssel. Ein fremder Nutzer bekommt
+  dann eine Aufforderung, ihn neu zu hinterlegen, und **nicht** den CLI-Weg:
+  sonst liefe fremde Arbeit auf der Maschine und der Rechnung des Eigentümers.
 - `OPTIMIZE_ENABLED=false` schaltet **beide** Wege ab.
 
 ## Prompt-Capture

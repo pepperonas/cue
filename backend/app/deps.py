@@ -101,12 +101,10 @@ def require_optimizer(
     # ("you may not"). Checking it in the permission would shadow the more
     # accurate error — a test caught exactly that.
     user = session.get(User, uid)
-    owner = _settings.owner_email
-    if user and owner and (user.email or "").strip().lower() == owner:
+    # Dieselbe Definition wie in `provider_for` — siehe Settings.is_owner.
+    if _settings.is_owner(user.email if user else None):
         return uid
     if user and user.anthropic_key_enc:
-        return uid
-    if not owner and _settings.dev_mode:
         return uid
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

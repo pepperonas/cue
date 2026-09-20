@@ -105,10 +105,48 @@ mittel, also gilt:
 - **Kein Weg zurück in fremde Jobs.** Die Claim-Abfrage des Runners filtert auf
   `providers.runner_ids()`; ein Job, der gegen einen Nutzer-Schlüssel laufen
   soll, kann vom Mac gar nicht übernommen werden.
+- **Die CLI bleibt dem Eigentümer vorbehalten, durch Bauart.** Wer keinen
+  lesbaren Schlüssel hat, bekommt eine Fehlermeldung — nie den Weg über die
+  Claude-Code-CLI auf dem Runner-Mac, der auf die Rechnung des Eigentümers
+  liefe. Das war einmal anders: die Berechtigung davor prüft die ROHE Spalte,
+  die Wegwahl das ENTSCHLÜSSELTE Ergebnis, und ein gespeicherter, aber nicht
+  mehr lesbarer Schlüssel (etwa nach einer Rotation von `SECRET_KEY`) fiel durch
+  diese Lücke. Eine Definition — `Settings.is_owner` — beantwortet die Frage
+  jetzt an beiden Stellen; gepinnt in `tests/test_own_api_key.py`.
 - **Ausgeben und Lesen sind getrennte Rechte.** Einen Job anstoßen braucht einen
   Schlüssel (oder den Betreiber-Status), einen bereits bezahlten Vorschlag lesen,
   übernehmen oder verwerfen nicht — sonst würde das Entfernen des Schlüssels
   rückwirkend Arbeit sperren, die schon bezahlt ist.
+
+### Nichts davon liegt im Repo
+
+`pepperonas/cue` ist **öffentlich**. Was einmal eingecheckt wurde, ist lesbar,
+und ein `git rm` nimmt es aus dem Baum, nicht aus der Historie — ein
+versehentlich committetes Geheimnis ist deshalb verbrannt und muss rotiert
+werden, nicht gelöscht.
+
+Im Baum steht kein einziges Zugangsdatum. Alle Geheimnisse leben ausschließlich
+dort, wo sie gebraucht werden:
+
+| Geheimnis | Wo es liegt |
+| --- | --- |
+| `SECRET_KEY`, `GOOGLE_CLIENT_ID/SECRET`, `RUNNER_TOKEN`, `CAPTURE_TOKEN`, `OWNER_EMAIL` | `/opt/cue/.env` auf dem VPS (root, nicht im Repo) |
+| `RUNNER_TOKEN`, `CAPTURE_TOKEN` (Gegenstück) | `cue-runner/.env` auf dem Runner-Mac |
+| Anthropic-Schlüssel der Nutzer | verschlüsselt in der Datenbank, nie in einer Datei |
+
+Versioniert sind nur `.env.example` und `cue-runner/.env.example` — Vorlagen mit
+**leeren** Werten. `.gitignore` sperrt `.env`, `*.env.local` und `*.db*`.
+
+⚠️ Durchgesetzt wird das nicht durch Disziplin, sondern durch
+`backend/tests/test_no_secrets_in_repo.py`: der Test liest, was `git ls-files`
+meldet — also exakt das, was veröffentlicht wird — und sucht nach der Form
+echter Zugangsdaten (Anthropic-, Google-, GitHub-Token, private Schlüssel) sowie
+nach belegten Werten hinter den Namen oben. Eine Zeile mit einer erfundenen
+Attrappe wird übersprungen, wenn sie das Wort `attrappe` trägt; diese
+Markierung steht in der Zeile selbst und taucht damit im Diff auf. Und weil ein
+Werkzeug, das 0 meldet, erst nach der Gegenprobe glaubwürdig ist, legt ein
+zweiter Test je ein echtes Muster in eine Wegwerfdatei und verlangt, dass der
+Scanner es findet.
 
 ### Auslieferung
 
@@ -166,7 +204,9 @@ eine kaputte Prüfung still aufhört zu prüfen.
 - `OPTIMIZE_MODEL` gesetzt lassen, sonst entscheidet der Zustand der CLI auf dem
   Runner-Mac, was deine Prompts umschreibt.
 - **`SECRET_KEY` rotieren heißt: alle hinterlegten API-Schlüssel sind weg.** Die
-  Nutzer tragen sie danach neu ein; ein Fehler entsteht nicht, die Optimierung
-  fällt still auf „kein Schlüssel" zurück.
+  Nutzer tragen sie danach neu ein und bekommen bis dahin beim Optimieren einen
+  Klartext-Hinweis. Ein stiller Rückfall auf die CLI des Eigentümers findet
+  nicht statt — das wäre eine Rotation, die fremde Arbeit auf deine Rechnung
+  umleitet.
 - Nach jedem Deploy zeigt `/api/health` den Zustand; die nächtliche Sicherung
   prüft jede Kopie mit `PRAGMA integrity_check` und verwirft sie bei Fehlern.

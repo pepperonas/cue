@@ -142,6 +142,23 @@ class Settings:
         """Must exactly match an Authorized redirect URI in the Google console."""
         return f"{self.allowed_origin.rstrip('/')}/api/auth/google/callback"
 
+    def is_owner(self, email: str | None) -> bool:
+        """Ob diese Adresse dem Betreiber der Instanz gehört.
+
+        ⚠️ EINE Definition, weil zwei Stellen davon abhängen und sie sich nicht
+        widersprechen dürfen: `require_optimizer` entscheidet, WER optimieren
+        darf, und `PromptOptimizationService.provider_for`, auf WESSEN Rechnung.
+        Als die beiden das getrennt beantworteten, kam ein fremder Tenant mit
+        einem nicht mehr lesbaren Schlüssel durch das Tor und landete auf der
+        Claude-Code-CLI des Betreibers.
+
+        Ohne gesetzten `OWNER_EMAIL` gilt das nur im Entwicklungsbetrieb — in
+        der Produktion ist „kein Eigentümer konfiguriert" kein Freibrief.
+        """
+        if not self.owner_email:
+            return self.dev_mode
+        return (email or "").strip().lower() == self.owner_email
+
     def is_email_allowed(self, email: str) -> bool:
         """Allowlist check. With no lists configured, allow only in dev mode."""
         email = (email or "").strip().lower()
