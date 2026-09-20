@@ -4394,23 +4394,35 @@ img.logo-xl { border-radius: 18px; }
 }
 .search-hint {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
+  /* ⚠️ NEBEN dem Feld, nicht darunter. Darunter beginnt unmittelbar der
+     Projekt-Badge-Block (`.chips`, umbrechend — in der echten Instanz 60
+     Chips über mehrere Zeilen): ein 98 px hohes Overlay verdeckte dort
+     mehrere Reihen, und mit getipptem Text genau die, die die Suche gerade
+     gefiltert hatte. Nach OBEN geht es nicht — gemessen sind zwischen Feld
+     und Topbar 16 px, der Hinweis bräuchte 98 und begänne bei y −23, also
+     außerhalb des Bildes. Rechts sind 802 px frei; was dort liegt, sind
+     Aktions-Chips und keine Einträge, und sie bleiben anklickbar
+     (`pointer-events: none`, s. u.). */
+  top: 50%;
+  left: calc(100% + 12px);
   z-index: 30;
   display: flex;
-  flex-direction: column;
-  gap: 9px;
+  align-items: center;
+  gap: 12px;
   width: max-content;
-  max-width: min(330px, calc(100vw - 2 * var(--gap-4)));
-  padding: 12px 14px;
+  max-width: min(560px, calc(100vw - 100% - 3 * var(--gap-4)));
+  padding: 10px 14px;
   background: var(--md-surface-container-high);
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--shape-m);
   box-shadow: var(--elev-3);
   opacity: 0;
-  /* Steigt aus dem Feld auf, statt einfach zu erscheinen — vier Pixel, mehr
-     braucht es nicht, damit die Herkunft ablesbar ist. */
-  transform: translateY(-4px);
+  /* Schiebt sich aus dem Feld heraus, statt einfach zu erscheinen — vier
+     Pixel, mehr braucht es nicht, damit die Herkunft ablesbar ist.
+     ⚠️ `translateY(-50%)` trägt die vertikale Zentrierung und MUSS in jeder
+     Stufe mitlaufen, sonst springt der Kasten beim Einblenden um seine halbe
+     Höhe. */
+  transform: translate(-4px, -50%);
   /* Ein Hinweis wird nie angeklickt; so fängt er auch unsichtbar nichts ab. */
   pointer-events: none;
   transition:
@@ -4422,32 +4434,39 @@ img.logo-xl { border-radius: 18px; }
 .search-hint::before {
   content: '';
   position: absolute;
-  top: -5px;
-  left: 24px;
+  top: 50%;
+  left: -5px;
   width: 9px;
   height: 9px;
   background: var(--md-surface-container-high);
   border-left: 1px solid var(--md-outline-variant);
-  border-top: 1px solid var(--md-outline-variant);
-  border-radius: 2px 0 0 0;
-  transform: rotate(45deg);
+  border-bottom: 1px solid var(--md-outline-variant);
+  border-radius: 0 0 0 2px;
+  transform: translateY(-50%) rotate(45deg);
 }
 .search-hint-lead {
   color: var(--md-on-surface);
   font-size: 0.82rem;
   line-height: 1.45;
+  /* Eine Zeile bleibt eine Zeile — bräche sie um, wüchse der Hinweis wieder
+     in die Höhe, und genau die hat er nicht. */
+  white-space: nowrap;
 }
 .search-hint-rule {
-  height: 1px;
+  /* Senkrecht, seit der Hinweis eine Zeile ist: er trennt jetzt nebeneinander
+     statt übereinander. Über die volle Höhe, damit er die Karte teilt und
+     nicht als kurzer Strich darin schwebt. */
+  flex: none;
+  width: 1px;
+  align-self: stretch;
   background: var(--md-outline-variant);
-  /* Bis an die Polsterkanten, damit die Trennung die Karte teilt und nicht
-     als kurzer Strich darin schwebt. */
-  margin: 0 -14px;
+  margin: -10px 0;
 }
 .search-hint-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: none;
 }
 .search-hint-label {
   color: var(--md-on-surface-variant);
@@ -4484,12 +4503,32 @@ img.logo-xl { border-radius: 18px; }
   background: var(--md-primary);
   opacity: 0.9;
 }
-.search:hover .search-hint,
-.search-hint:hover {
+/* ⚠️ Auch der Maus-Weg verlangt jetzt ein LEERES Feld — bisher tat das nur
+   der Tastatur-Weg darunter. Ohne die Bedingung stand der Hinweis auch beim
+   Tippen und verdeckte, was die Suche gerade gefiltert hatte (gemessen: beide
+   übrig gebliebenen Projekt-Chips zu 100 %). Der Hinweis erklärt, wie man eine
+   Suche BEGINNT; wer schon tippt, ist darüber hinaus.
+   ⚠️ Eigene Regel statt eines Eintrags in einer Liste: ein Browser ohne
+   `:has()` verwürfe sonst die ganze Auswahl. */
+.search:hover:has(input:placeholder-shown) .search-hint {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(0, -50%);
+  /* ⚠️ Nur beim ZEIGEN verzögert, nicht beim Verschwinden: der Hinweis ist
+     jetzt 508 px breit und liegt über drei Knöpfen der Werkzeugleiste — ohne
+     Verzögerung blitzte er auf, sobald der Zeiger das Feld nur überquert.
+     Beim Verlassen greift die Regel nicht mehr, die Verzögerung fällt damit
+     auf 0 zurück und er verschwindet sofort. 260 ms schlagen den nativen
+     Tooltip (1–2 s) weiterhin um ein Vielfaches.
+     ⚠️ Der Klick-Weg erbt diese Bremse unvermeidlich: ein Klick hovert zuerst,
+     und der bereits GESTARTETE Übergang behält seine Verzögerung, weil sich
+     sein Ziel (opacity 1) beim Wechsel auf :focus-within nicht ändert — eine
+     spätere Regel mit `transition-delay: 0s` kann ihn nicht mehr einholen
+     (gemessen). Deshalb 150 ms statt 260: das reicht gegen zufälliges
+     Überqueren und lässt den bewussten Klick prompt bleiben. Nur der
+     Tastaturweg (`/`, ohne Zeiger über dem Feld) ist ohne Verzögerung. */
+  transition-delay: 150ms;
 }
-.search:hover .search-hint-caret {
+.search:hover:has(input:placeholder-shown) .search-hint-caret {
   animation: hint-caret 1.1s steps(1, end) infinite;
 }
 @keyframes hint-caret {
@@ -4509,12 +4548,19 @@ img.logo-xl { border-radius: 18px; }
    verlieren. */
 .search:focus-within:has(input:placeholder-shown) .search-hint {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(0, -50%);
+  /* ⚠️ Setzt die Verzögerung der Hover-Regel ausdrücklich zurück: ein Klick
+     ins Feld HOVERT es zwangsläufig, sonst erbte der bewusste Griff die
+     Bremse, die nur gegen zufälliges Überqueren gedacht ist (gemessen: nach
+     150 ms war noch nichts da). Gleiche Spezifität, spätere Quelle — deshalb
+     gewinnt diese Zeile. */
+  transition-delay: 0s;
 }
 @media (prefers-reduced-motion: reduce) {
   .search-hint {
     transition-duration: 1ms;
-    transform: none;
+    /* Kein `none`: die Zentrierung steckt in derselben Eigenschaft. */
+    transform: translateY(-50%);
   }
   .search:hover .search-hint-caret {
     animation: none;
@@ -4523,6 +4569,19 @@ img.logo-xl { border-radius: 18px; }
 @media (hover: none) {
   /* Auf dem Telefon gibt es kein Zeigen; der Hinweis erschiene nur beim
      Antippen und stünde dann über dem Board. Vorgelesen wird er weiterhin. */
+  .search-hint {
+    display: none;
+  }
+}
+/* ⚠️ Dieselbe Begründung für schmale Fenster MIT Zeiger: der Hinweis liegt
+   seit der Umstellung NEBEN dem Feld und braucht dort rund 510 px. Gemessen
+   reicht der Platz ab etwa 860 px Fensterbreite; darunter quillt der Text aus
+   der Karte und aus dem Bild (bei 390 px um 483 px). Statt ihn dann wieder
+   unter das Feld und damit über die Projekt-Badges zu legen, entfällt er —
+   `aria-describedby` liest ihn weiterhin vor. 900 px als Schwelle, weil die
+   Werkzeugleiste je nach freigeschalteten Chips unterschiedlich umbricht und
+   die Messung Luft haben soll. */
+@media (max-width: 900px) {
   .search-hint {
     display: none;
   }

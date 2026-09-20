@@ -25,7 +25,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 
 <!-- hero:dynamic -->
 [![version](https://img.shields.io/badge/version-v0.70.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-36%20353-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-36%20412-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
@@ -45,7 +45,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-11%20837-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-19%20822-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20694-663399.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20753-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-168-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-39-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-52-61DAFB.svg)](frontend/src/components/)

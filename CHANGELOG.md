@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.70.1] - 2026-09-20
+
+### Fixed
+- **Der Syntax-Hinweis an der Suche verdeckte die Projekt-Badges.** Er fiel als
+  98 px hohes Overlay direkt in die Zeile darunter — dort beginnt der
+  Badge-Block, der in der echten Instanz 60 Chips über mehrere Reihen führt.
+  Schlimmer: die Maus-Regel verlangte, anders als die Tastatur-Regel, KEIN
+  leeres Feld, der Hinweis stand also auch beim Tippen und verdeckte genau die
+  Chips, die die Suche gerade gefiltert hatte (gemessen: beide zu 100 %). Er
+  liegt jetzt einzeilig NEBEN dem Feld und erscheint nur noch bei leerem Feld.
+- Zeigen mit der Maus wartet 150 ms, damit ein Zeiger, der das Feld nur
+  überquert, kein 508 px breites Panel über die Werkzeugleiste blitzen lässt;
+  der Tastaturweg (`/`) bleibt ohne Verzögerung.
+- Unter 900 px Fensterbreite entfällt der Hinweis — neben dem Feld ist dort
+  kein Platz, und unter das Feld zurück wäre genau der behobene Fehler.
+  Vorgelesen wird er weiterhin (`aria-describedby`).
+
 ## [0.70.0] - 2026-09-20
 
 ### Added
