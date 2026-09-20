@@ -4,6 +4,7 @@ import { springs } from '../lib/motion'
 import type { Prompt, RunConfig, RunKind } from '../lib/types'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { useBackDismiss } from '../state/overlays'
+import { Select } from './Select'
 
 export interface RunPayload {
   kind: RunKind
@@ -179,14 +180,13 @@ export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Pr
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor="r-base">Projekt-Basis</label>
-            <select id="r-base" className="select" value={base} onChange={(e) => setBase(e.target.value)}>
-              {config.allowed_bases.length === 0 && <option value="">— keine konfiguriert —</option>}
-              {config.allowed_bases.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+            <Select
+              id="r-base"
+              value={base}
+              onChange={setBase}
+              placeholder="keine konfiguriert"
+              options={config.allowed_bases.map((b) => ({ value: b, label: b }))}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor="r-sub">Unterordner (optional)</label>
@@ -207,29 +207,24 @@ export function RunDialog({ kind, prompts, config, busy, onClose, onSubmit }: Pr
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 150 }}>
             <label htmlFor="r-model">Modell</label>
-            <select id="r-model" className="select" value={model} onChange={(e) => setModel(e.target.value)}>
-              <option value="">Standard</option>
-              {config.models.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <Select
+              id="r-model"
+              value={model}
+              onChange={setModel}
+              options={[
+                { value: '', label: 'Standard' },
+                ...config.models.map((m) => ({ value: m, label: m })),
+              ]}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 150 }}>
             <label htmlFor="r-perm">Permission-Mode</label>
-            <select
+            <Select
               id="r-perm"
-              className="select"
               value={permissionMode}
-              onChange={(e) => setPermissionMode(e.target.value)}
-            >
-              {config.permission_modes.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              onChange={setPermissionMode}
+              options={config.permission_modes.map((m) => ({ value: m, label: m }))}
+            />
           </div>
         </div>
 

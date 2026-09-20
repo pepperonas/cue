@@ -762,6 +762,112 @@ a {
   border-radius: 50%;
 }
 
+/* ── Dropdown ─────────────────────────────────────────────────────────
+   Die App hatte längst ein eigenes Dropdown — das Projekt-Menü im
+   Detail-Dialog. Diese Regeln sind dessen Formensprache, verallgemeinert:
+   dieselbe getönte Fläche, dieselbe Zeile, derselbe Haken. Der Auslöser erbt
+   die Geometrie von `.select`, damit sich kein Formular verschiebt. */
+.cselect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+/* Dieselbe Behandlung wie `.select:focus` — inklusive des Polster-Ausgleichs
+   für den 2 px breiten Rand, sonst springt das Feld beim Fokussieren. */
+.cselect:focus-visible,
+.cselect[data-open='true'] {
+  border-color: var(--md-primary);
+  border-width: 2px;
+  padding: 11px 13px;
+}
+.cselect:disabled {
+  cursor: default;
+  color: var(--md-on-surface-variant);
+}
+.cselect .dot,
+.cselect-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.cselect-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cselect-value[data-empty='true'] {
+  color: var(--md-on-surface-variant);
+}
+.cselect-caret {
+  flex: none;
+  font-size: 20px;
+  color: var(--md-on-surface-variant);
+  transition: transform var(--dur-short) var(--ease-standard);
+}
+.cselect[data-open='true'] .cselect-caret {
+  transform: rotate(180deg);
+}
+
+/* ⚠️ Liegt im Portal am `body`, nicht im Dialog: `.sheet` ist
+   `overflow: hidden`, ein Menü am untersten Feld würde dort abgeschnitten.
+   z-index 50 = über dem Scrim (40), unter Toasts (60) und Lightbox (70). */
+.cselect-menu {
+  position: fixed;
+  z-index: 50;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-width: min(92vw, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m);
+  box-shadow: var(--elev-3);
+}
+.cselect-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--shape-s);
+  font: var(--label-l);
+  color: var(--md-on-surface);
+  cursor: pointer;
+  transition: background var(--dur-short);
+}
+/* EIN Hervorhebungszustand für Maus und Tastatur: der Zeiger setzt dieselbe
+   Markierung, die die Pfeiltasten bewegen — zwei getrennte Zustände zeigten
+   sonst gleichzeitig auf zwei verschiedene Zeilen. */
+.cselect-item[data-active='true'] {
+  background: var(--md-surface-container-highest);
+}
+.cselect-label {
+  flex: 1;
+  min-width: 0;
+}
+.cselect-icon {
+  flex: none;
+  font-size: 18px;
+}
+.cselect-check {
+  flex: none;
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--md-primary);
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .cselect-item {
+    padding: 12px 10px;
+    min-height: 44px;
+  }
+}
+
 /* ---- Search ---- */
 .search {
   display: flex;

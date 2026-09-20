@@ -9,6 +9,7 @@ import { useCreateSnippet, useUpdateSnippet } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton } from './ui'
 import { useBackDismiss } from '../state/overlays'
+import { Select } from './Select'
 
 interface Props {
   snippet: Snippet | null // null = create
@@ -132,19 +133,15 @@ export function SnippetEditor({ snippet, snippets, groups, onClose, onDelete }: 
             </div>
             <div className="field" style={{ flex: 1, minWidth: 160 }}>
               <label htmlFor="s-group">Gruppe</label>
-              <select
+              <Select
                 id="s-group"
-                className="select"
                 value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-              >
-                <option value="">— Ohne Gruppe —</option>
-                {groups.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
+                onChange={setGroupName}
+                options={[
+                  { value: '', label: 'Ohne Gruppe' },
+                  ...groups.map((g) => ({ value: g, label: g })),
+                ]}
+              />
             </div>
           </div>
 

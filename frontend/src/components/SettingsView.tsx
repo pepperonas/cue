@@ -8,6 +8,7 @@ import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { Confirm } from './Confirm'
 import { AboutSection } from './AboutSection'
+import { Select } from './Select'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
   { key: 'light', icon: 'light_mode', label: 'Hell' },
@@ -128,27 +129,29 @@ export function SettingsView({
         <h3>Import / Export</h3>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 160 }}>
-            <label>Split-Modus</label>
-            <select className="select" value={split} onChange={(e) => setSplit(e.target.value)}>
-              <option value="none">Eine Datei = ein Prompt</option>
-              <option value="rule">Trennen an „---"</option>
-              <option value="blank">Trennen an Leerzeilen</option>
-            </select>
+            <label htmlFor="imp-split">Split-Modus</label>
+            <Select
+              id="imp-split"
+              value={split}
+              onChange={setSplit}
+              options={[
+                { value: 'none', label: 'Eine Datei = ein Prompt' },
+                { value: 'rule', label: 'Trennen an „---"' },
+                { value: 'blank', label: 'Trennen an Leerzeilen' },
+              ]}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 160 }}>
-            <label>Ziel-Projekt</label>
-            <select
-              className="select"
-              value={importProject ?? ''}
-              onChange={(e) => setImportProject(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">— Kein Projekt —</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <label htmlFor="imp-project">Ziel-Projekt</label>
+            <Select
+              id="imp-project"
+              value={importProject ?? 0}
+              onChange={(v) => setImportProject(v === 0 ? null : v)}
+              options={[
+                { value: 0, label: 'Kein Projekt' },
+                ...projects.map((p) => ({ value: p.id, label: p.name, dot: p.color })),
+              ]}
+            />
           </div>
         </div>
         <input
@@ -244,23 +247,23 @@ export function SettingsView({
           <div className="field">
             <label htmlFor="anthropic-model">Modell</label>
             <div className="row">
-              <select
+              <Select
                 id="anthropic-model"
-                className="select grow"
+                className="grow"
                 value={apiKey.model}
-                onChange={(e) =>
+                onChange={(v) =>
                   saveApiKey.mutate(
-                    { model: e.target.value },
+                    { model: v },
                     { onSuccess: () => toast.show('Modell gespeichert', 'success') },
                   )
                 }
-              >
-                {apiKey.models.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label} — ${m.input_per_mtok}/${m.output_per_mtok} je Mio. Tokens
-                  </option>
-                ))}
-              </select>
+                /* Der Preis gehört in die Zeile: er ist der Grund, aus dem
+                   man hier überhaupt wählt. */
+                options={apiKey.models.map((m) => ({
+                  value: m.id,
+                  label: `${m.label} — $${m.input_per_mtok}/$${m.output_per_mtok} je Mio. Tokens`,
+                }))}
+              />
             </div>
             <div className="muted" style={{ fontSize: '0.78rem' }}>
               Preise als Schätzung: Listenpreise pro Million Tokens (Eingabe/Ausgabe),

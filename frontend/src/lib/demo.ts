@@ -276,7 +276,9 @@ const READ_ONLY: Record<string, unknown> = {
   '/runs/config': { bases: ['/pfad/zum/projekt'], models: ['opus'], permission_modes: ['default'] },
   '/runs': [],
   '/sessions': [],
-  '/snippets': { items: [], total: 0 },
+  // ⚠️ Eine LISTE, kein Umschlag: `snippetsApi.list` verspricht `Snippet[]`,
+  // und `{items,total}` ließ den Snippets-Reiter der Demo abstürzen.
+  '/snippets': [],
   '/snippets/groups': [],
   '/capture/settings': { token_set: false, project_base: '', capture_base: '' },
   '/sync/settings': { token_set: false, sync_ungrouped: false, last_sync: null },

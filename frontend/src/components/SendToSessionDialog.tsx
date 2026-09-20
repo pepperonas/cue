@@ -7,6 +7,7 @@ import { useSendToSession, useSessions } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Button, IconButton, Switch } from './ui'
 import { useBackDismiss } from '../state/overlays'
+import { Select } from './Select'
 
 interface Props {
   text: string
@@ -133,18 +134,12 @@ export function SendToSessionDialog({ text, projectId, onClose }: Props) {
               damit cue die Session kennt.
             </div>
           ) : (
-            <select
+            <Select
               id="send-session"
-              className="select"
-              value={sessionId ?? ''}
-              onChange={(e) => setSessionId(Number(e.target.value))}
-            >
-              {options.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {label(s)}
-                </option>
-              ))}
-            </select>
+              value={sessionId ?? 0}
+              onChange={setSessionId}
+              options={options.map((s) => ({ value: s.id, label: label(s) }))}
+            />
           )}
         </div>
 

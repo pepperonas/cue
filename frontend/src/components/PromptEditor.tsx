@@ -5,7 +5,14 @@ import { renderMarkdown } from '../lib/markdown'
 import { IS_MAC } from '../lib/platform'
 import { api } from '../lib/api'
 import type { Attachment, Priority, Project, Prompt, Status } from '../lib/types'
-import { PRIORITIES, PRIORITY_LABEL, STATUS_LABEL, STATUSES } from '../lib/types'
+import {
+  PRIORITIES,
+  PRIORITY_LABEL,
+  STATUS_CLASS,
+  STATUS_ICON,
+  STATUS_LABEL,
+  STATUSES,
+} from '../lib/types'
 import { useCreatePrompt, usePrompts, useTags, useUpdatePrompt } from '../state/queries'
 import { useToast } from '../state/toast'
 import {
@@ -19,6 +26,7 @@ import {
 import { autoTags, deriveTags } from '../lib/tag-rules'
 import { buildTitleModel } from '../lib/title-complete'
 import { GhostInput } from './GhostInput'
+import { Select } from './Select'
 import { useDictation } from '../lib/speech'
 import { compressImage } from '../lib/image-compress'
 import { formatBytes } from '../lib/format'
@@ -534,51 +542,46 @@ export function PromptEditor({
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor={id('project')}>Projekt</label>
-            <select
+            {/* Der farbige Punkt steht an jedem Chip und auf jeder Karte —
+                im Menü zu fehlen wäre die Ausnahme, nicht die Regel. */}
+            <Select
               id={id('project')}
-              className="select"
-              value={projectId ?? ''}
-              onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">— Kein Projekt —</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              value={projectId ?? 0}
+              onChange={(v) => setProjectId(v === 0 ? null : v)}
+              options={[
+                { value: 0, label: 'Kein Projekt' },
+                ...projects.map((p) => ({ value: p.id, label: p.name, dot: p.color })),
+              ]}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor={id('status')}>Status</label>
-            <select
+            <Select
               id={id('status')}
-              className="select"
               value={status}
-              onChange={(e) => setStatus(e.target.value as Status)}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setStatus(v as Status)}
+              options={STATUSES.map((s) => ({
+                value: s,
+                label: STATUS_LABEL[s],
+                icon: STATUS_ICON[s],
+                iconClass: STATUS_CLASS[s],
+              }))}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor={id('priority')}>Priorität</label>
-            <select
+            <Select
               id={id('priority')}
-              className="select"
               data-prio={priority}
               value={priority}
-              onChange={(e) => setPriority(e.target.value as Priority)}
-            >
-              {/* Urgent first — the list reads top-down like the queue it orders. */}
-              {PRIORITIES.map((level) => (
-                <option key={level} value={level}>
-                  {PRIORITY_LABEL[level]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setPriority(v as Priority)}
+              /* Dringend zuerst — die Liste liest sich von oben nach unten wie
+                 die Warteschlange, die sie ordnet. */
+              options={PRIORITIES.map((level) => ({
+                value: level,
+                label: PRIORITY_LABEL[level],
+              }))}
+            />
           </div>
         </div>
 

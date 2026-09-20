@@ -3,9 +3,10 @@ import { motion } from 'motion/react'
 import { springs } from '../lib/motion'
 import { renderMarkdown } from '../lib/markdown'
 import type { Project, Prompt, Status } from '../lib/types'
-import { STATUS_LABEL, STATUSES } from '../lib/types'
+import { STATUS_CLASS, STATUS_ICON, STATUS_LABEL, STATUSES } from '../lib/types'
 import { Button, Icon, IconButton } from './ui'
 import { useBackDismiss } from '../state/overlays'
+import { Select } from './Select'
 
 type Format = 'headings' | 'rule' | 'blank'
 type Originals = 'delete' | 'archive' | 'keep'
@@ -223,34 +224,29 @@ export function MergeDialog({ parts, projects, onClose, onConfirm }: Props) {
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor="m-project">Projekt</label>
-            <select
+            <Select
               id="m-project"
-              className="select"
-              value={projectId ?? ''}
-              onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">— Kein Projekt —</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              value={projectId ?? 0}
+              onChange={(v) => setProjectId(v === 0 ? null : v)}
+              options={[
+                { value: 0, label: 'Kein Projekt' },
+                ...projects.map((p) => ({ value: p.id, label: p.name, dot: p.color })),
+              ]}
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label htmlFor="m-status">Status</label>
-            <select
+            <Select
               id="m-status"
-              className="select"
               value={status}
-              onChange={(e) => setStatus(e.target.value as Status)}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setStatus(v as Status)}
+              options={STATUSES.map((s) => ({
+                value: s,
+                label: STATUS_LABEL[s],
+                icon: STATUS_ICON[s],
+                iconClass: STATUS_CLASS[s],
+              }))}
+            />
           </div>
         </div>
 

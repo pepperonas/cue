@@ -4,6 +4,7 @@ import { PRIORITY_ICON, PRIORITY_LABEL, type Priority } from '../lib/types'
 import { priorityAfterPress } from '../lib/order'
 import { usePress } from '../state/long-press'
 import { Icon } from './ui'
+import { Select } from './Select'
 
 interface Props {
   priority: Priority
@@ -82,18 +83,19 @@ export function PrioritySelect({
   id?: string
 }) {
   return (
-    <select
+    <Select
       id={id}
-      className="select select--prio"
+      className="select--prio"
       data-prio={priority}
       value={priority}
-      aria-label="Priorität"
-      onChange={(e) => onChange(e.target.value as Priority)}
-    >
-      {/* Urgent first: the list reads top-down like the queue it orders. */}
-      <option value="high">Hoch</option>
-      <option value="normal">Mittel</option>
-      <option value="low">Gering</option>
-    </select>
+      ariaLabel="Priorität"
+      onChange={(v) => onChange(v as Priority)}
+      /* Urgent first: the list reads top-down like the queue it orders. */
+      options={[
+        { value: 'high', label: 'Hoch' },
+        { value: 'normal', label: 'Mittel' },
+        { value: 'low', label: 'Gering' },
+      ]}
+    />
   )
 }

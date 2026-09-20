@@ -14,6 +14,49 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Die Demo verarbeitet dieselbe Projekt-Reorder-Anfrage wie die API und zeigt
   die gespeicherte Reihenfolge deshalb auch nach dem Aktualisieren korrekt.
 
+## [0.67.0] - 2026-09-20
+
+### Changed
+- **Alle Dropdowns sind jetzt eigene Bedienelemente im Stil der App.** Die 16
+  nativen Auswahlfelder zeichnete das Betriebssystem, nicht cue — sie waren der
+  einzige Ort, an dem die Oberfläche fremd aussah.
+- Der Look ist **nicht neu erfunden**: cue hatte längst ein eigenes Dropdown,
+  das Projekt-Menü im Detail-Dialog. Dessen Fläche, Zeilen, Haken und Feder
+  sind jetzt eine Komponente, die überall gilt.
+- Zwei Listen **zeigen jetzt, was die App sonst überall zeigt**: Projekte tragen
+  ihren Farbpunkt, Status ihr getöntes Symbol. Die Modellliste in den
+  Einstellungen nennt den Preis in der Zeile — er ist der Grund, aus dem man
+  dort überhaupt wählt.
+- Tastatur vollständig: Pfeile, Bild auf/ab, Pos1/Ende, Eingabe, Tabulator und
+  **Sprungsuche** wie am nativen Feld (dieselbe Taste blättert durch alle
+  Treffer, ein wachsendes Wort sucht von vorn). Escape schließt **nur** das
+  Menü, nicht den Dialog darunter.
+- Auf dem Telefon sind die Zeilen 44 px hoch.
+
+### Fixed
+- **Der Snippets-Reiter der Demo stürzte ab** („snippets is not iterable"): die
+  Demo antwortete mit `{items, total}`, wo `snippetsApi.list` eine Liste
+  verspricht. Beim Umbau darübergestolpert, ein Zeichen Unterschied.
+
+### Internal
+- ⚠️ Das Menü hängt in einem **Portal am `body`** und liegt `fixed`. Im Dialog
+  ginge es nicht: `.sheet` ist `overflow: hidden` und scrollt innen — ein Menü
+  am untersten Feld würde dort abgeschnitten. Dafür wird es bei jedem Scrollen
+  neu vermessen, auch beim Scrollen INNERHALB des Dialogs (`capture`, sonst
+  steigt das Ereignis nicht auf). Live geprüft: das Menü wandert mit.
+- ⚠️ Der Fokus bleibt auf dem Auslöser (`aria-activedescendant`), er wandert
+  nicht in die Liste — damit bleibt `<label htmlFor>` wirksam und es braucht
+  keine Fokusfalle.
+- Regeln in `lib/select.ts`, ohne React und ohne DOM: Tastenziel, Sprungsuche,
+  Puffer und Platzierung. **18 Tests, alle 8 Mutationen zünden** — zwei davon
+  erst nach dem Nachschärfen: ein Test fand über den Umlauf denselben Treffer
+  und bewies nichts, ein zweiter erzeugte gar keine Platzierung nach oben.
+- ⚠️ Die Zeit der Sprungsuche kommt aus `event.timeStamp`, nicht aus
+  `Date.now()` — sie gehört zum Tastendruck, und der Lint-Fehler „unreiner
+  Aufruf" war berechtigt.
+- Kontrast gemessen: Zeile 11,3 dunkel / 14,7 hell, markierte Zeile 9,5 / 14,0,
+  Haken 6,5 / 6,6.
+
 ## [0.66.0] - 2026-09-20
 
 ### Changed

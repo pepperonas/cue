@@ -33,6 +33,7 @@ import { SnippetEditor } from './SnippetEditor'
 import { ToggleIconButton } from './ToggleIconButton'
 import { Button, Icon, IconButton } from './ui'
 import { useDragSensors } from '../lib/dnd'
+import { Select } from './Select'
 
 const COLLAPSE_KEY = 'cue-snippet-collapsed'
 
@@ -373,13 +374,15 @@ export function SnippetsView() {
           <button className="btn btn--text" onClick={() => setSelectedIds([])}>
             Abbrechen
           </button>
-          <select
-            className="select"
+          {/* Ein AKTIONSMENÜ, kein Wertfeld: der Wert bleibt leer, die Wahl
+              löst aus. Deshalb trägt keine Zeile einen Haken, und der
+              Platzhalter steht dauerhaft im Auslöser. */}
+          <Select
             style={{ maxWidth: 220 }}
-            defaultValue=""
-            onChange={(e) => {
-              const value = e.target.value
-              if (value === '') return
+            value=""
+            placeholder="Verschieben nach…"
+            ariaLabel="Ausgewählte Snippets verschieben"
+            onChange={(value) => {
               bulkMove.mutate(
                 { ids: selectedIds, groupName: value === UNGROUPED_LABEL ? '' : value },
                 {
@@ -389,17 +392,12 @@ export function SnippetsView() {
                   },
                 },
               )
-              e.target.value = ''
             }}
-          >
-            <option value="">Verschieben nach…</option>
-            <option value={UNGROUPED_LABEL}>{UNGROUPED_LABEL}</option>
-            {groupChoices.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: UNGROUPED_LABEL, label: UNGROUPED_LABEL },
+              ...groupChoices.map((name) => ({ value: name, label: name })),
+            ]}
+          />
           <button className="btn btn--danger" onClick={() => setConfirmBulk(true)}>
             <Icon name="delete" /> Löschen
           </button>

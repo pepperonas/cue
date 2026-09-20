@@ -195,6 +195,15 @@ describe('the waiting AI proposal', () => {
   })
 })
 
+describe('die Demo hält sich an die Form, die der Client erwartet', () => {
+  it('liefert Snippets als Liste, nicht als Umschlag', () => {
+    // `snippetsApi.list` verspricht `Snippet[]`. Mit `{items,total}` warf der
+    // Snippets-Reiter „snippets is not iterable" und blieb leer.
+    expect(Array.isArray(call('GET', '/snippets'))).toBe(true)
+    expect(Array.isArray(call('GET', '/snippets/groups'))).toBe(true)
+  })
+})
+
 describe('projects and tags', () => {
   it('counts the prompts of each project', () => {
     const projects = call('GET', '/projects') as { id: number; prompt_count: number }[]

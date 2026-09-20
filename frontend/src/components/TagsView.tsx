@@ -20,6 +20,7 @@ import { useToast } from '../state/toast'
 import { useBackDismiss } from '../state/overlays'
 import { InputDialog } from './InputDialog'
 import { Button, Icon } from './ui'
+import { Select } from './Select'
 
 const SORTS: { key: TagSort; label: string }[] = [
   { key: 'usage', label: 'Verwendung' },
@@ -271,22 +272,24 @@ function DeleteTagDialog({
               ))}
               {usage.prompts.length > 5 && <li className="muted">… und {usage.prompts.length - 5} weitere</li>}
             </ul>
+            {/* ⚠️ Kein umschließendes <label> mehr: ein Button ist kein
+                beschriftbares Element, der Klick auf den Text erreichte ihn
+                nicht. `htmlFor` tut es. */}
             {candidates.length > 0 && (
-              <label className="tag-replace">
-                <span className="muted">Stattdessen ersetzen durch</span>
-                <select
-                  className="input"
-                  value={replaceWith ?? ''}
-                  onChange={(e) => setReplaceWith(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">— nur entfernen —</option>
-                  {candidates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="tag-replace">
+                <label className="muted" htmlFor="tag-replace-with">
+                  Stattdessen ersetzen durch
+                </label>
+                <Select
+                  id="tag-replace-with"
+                  value={replaceWith ?? 0}
+                  onChange={(v) => setReplaceWith(v === 0 ? null : v)}
+                  options={[
+                    { value: 0, label: 'nur entfernen' },
+                    ...candidates.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                />
+              </div>
             )}
           </>
         ) : (
