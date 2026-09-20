@@ -14,6 +14,59 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Die Demo verarbeitet dieselbe Projekt-Reorder-Anfrage wie die API und zeigt
   die gespeicherte Reihenfolge deshalb auch nach dem Aktualisieren korrekt.
 
+## [0.68.0] - 2026-09-20
+
+### Added
+- **Zusammengeführte Prompts lassen sich wieder auftrennen.** Der Detail-Dialog
+  zeigt bei so entstandenen Prompts „Aus N Prompts zusammengeführt" und den Weg
+  zurück; die Quellen kommen mit Projekt, Schlagworten, Priorität und
+  Screenshots wieder.
+- ⚠️ **Das ging bisher grundsätzlich nicht**: der Merge wurde nirgends
+  aufgezeichnet, und seine Vorgabe ist „Quellen löschen" — was gelöscht war,
+  konnte kein Trennen zurückholen. Jetzt entsteht beim Zusammenführen ein
+  vollständiges Abbild jeder Quelle, **bevor** sie angefasst wird.
+- Im Trenn-Dialog entscheidet man, was mit dem zusammengeführten Prompt
+  geschieht — löschen, archivieren, behalten. Wer eine Woche daran gearbeitet
+  hat, will ihn behalten.
+
+### Changed
+- **Aufgeklappte Listen im Board überleben das Neuladen.** Die Spalten-
+  Erweiterung („+N weitere anzeigen") wurde bisher **gar nicht** gespeichert,
+  die Mobil-Sektionen lagen in `sessionStorage` und überlebten damit zwar F5,
+  aber keinen neuen Tab. Beides liegt jetzt in `localStorage`; ein vorhandener
+  Sitzungs-Zustand wird beim ersten Start übernommen.
+- **Auf dem Telefon klappt die Projektleiste zu, sobald ein Chip gewählt ist.**
+  Sie ist aufgeklappt, WEIL man ein Projekt sucht — ist es gewählt, hat sie ihre
+  Aufgabe erfüllt. Gemessen: 148 → 46 px, das Board bekommt 102 px zurück.
+
+### Fixed
+- **Der Löschen-Knopf ist jetzt rot.** Er nahm `--md-error`, und die Fehlerfarbe
+  wird aus dem Seed erzeugt: gemessen ein blasser **Pfirsich** im dunklen und
+  ein **Braun** im hellen Theme. Jetzt `--danger` mit eigener Textfarbe je Theme
+  — gemessen `#ff6b6b` / `#b3261e`, Text 6,2:1 bzw. 6,5:1. Betrifft alle sechs
+  wirklich zerstörenden Knöpfe.
+- „Alle" und „Ohne Projekt" gingen an der gemeinsamen Auswahlfunktion vorbei und
+  umgingen damit auch die Sperre, die einen Klick nach dem Ziehen verschluckt.
+
+### Internal
+- ⚠️ Beim Auftrennen wird eine noch LEBENDE Quelle zurückgesetzt statt neu
+  angelegt (sonst stünde alles doppelt da), und zurückgesetzt wird nur, was das
+  Zusammenführen selbst verändert hat — den Text einer behaltenen Quelle zu
+  überschreiben vernichtete jede spätere Bearbeitung.
+- ⚠️ Ein Projekt kann seit dem Zusammenführen gelöscht sein. Die ID blind zu
+  übernehmen ließe `foreign_keys=ON` das Wiederherstellen abbrechen; ohne
+  Projekt anzulegen ist der verlustärmere Weg.
+- ⚠️ Die Kind-Zeilen müssen VOR der Elternzeile geschrieben werden — ohne
+  ORM-Beziehung hat SQLAlchemy keine Reihenfolge, und SQLite weist das Löschen
+  sonst ab. Dieselbe Falle wie in `_detach_references`, prompt wieder getappt.
+- ⚠️ Der Trenn-Dialog muss im DOM NACH dem Detail-Dialog stehen: beide liegen
+  auf demselben z-index, es entscheidet die Reihenfolge. Davor gerendert lag er
+  darunter und war nicht anklickbar (im Browser aufgefallen).
+- 23 neue Tests, alle 8 Mutationen zünden. Zwei Proben waren aufschlussreich:
+  ein Test war blind (alle Eingaben fing schon der Filter darunter ab), und eine
+  Mutation entlarvte eine **überflüssige Bedingung** in meinem eigenen Code, die
+  daraufhin entfallen ist.
+
 ## [0.67.0] - 2026-09-20
 
 ### Changed

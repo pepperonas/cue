@@ -85,6 +85,66 @@ class Project(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class PromptMerge(SQLModel, table=True):
+    """Ein Zusammenführen, aufgezeichnet, damit es sich wieder trennen lässt.
+
+    ⚠️ Ohne diese Zeile ist ein Merge UNUMKEHRBAR: die Vorgabe des Dialogs ist
+    „Quellen löschen", und was gelöscht ist, kann kein Trennen zurückholen.
+    Deshalb hängt am Ergebnis ein vollständiges Abbild jeder Quelle.
+
+    Der Datensatz lebt genau so lange wie der zusammengeführte Prompt: ist der
+    weg, gibt es keinen Ort mehr, von dem aus man trennen könnte, und die
+    Abbilder wären nur noch Ballast.
+    """
+
+    __tablename__ = "prompt_merge"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    # Das Ergebnis. Kein FK: das Aufräumen erledigt `delete_prompt` selbst, und
+    # `foreign_keys=ON` würde sonst genau dieses Löschen blockieren — dieselbe
+    # Falle wie beim Aktivitätsprotokoll.
+    merged_prompt_id: int = Field(index=True)
+    # Was beim Zusammenführen mit den Quellen geschah: delete / archive / keep.
+    originals: str = Field(default="delete")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class PromptMergePart(SQLModel, table=True):
+    """Eine Quelle eines Zusammenführens, als vollständiges Abbild.
+
+    Gespeichert wird der Stand ZUM ZEITPUNKT des Zusammenführens — beim Trennen
+    steht damit wieder da, was man damals zusammengeschoben hat, und nicht eine
+    Rekonstruktion aus dem Text des Ergebnisses.
+    """
+
+    __tablename__ = "prompt_merge_part"
+
+    id: int | None = Field(default=None, primary_key=True)
+    merge_id: int = Field(foreign_key="prompt_merge.id", index=True)
+    # Die ID, die die Quelle damals hatte. Existiert sie noch (bei „behalten"
+    # oder „archivieren"), wird sie zurückgesetzt statt ein zweites Mal
+    # angelegt — sonst stünde nach dem Trennen alles doppelt da.
+    source_prompt_id: int = Field(index=True)
+    position: int = Field(default=0)
+    title: str = Field(default="")
+    body: str = Field(default="")
+    project_id: int | None = Field(default=None)
+    status: PromptStatus = Field(default=PromptStatus.queued)
+    sort_order: int = Field(default=0)
+    priority: PromptPriority = Field(default=PromptPriority.normal)
+    tags: str = Field(default="")
+    bookmarked: bool = Field(default=False)
+    bookmark_order: int = Field(default=0)
+    tested: bool = Field(default=False)
+    blocked: bool = Field(default=False)
+    test_closely: bool = Field(default=False)
+    # Die Screenshots, die beim Zusammenführen von dieser Quelle kamen, als
+    # Komma-Liste. ⚠️ Ohne sie hingen sie nach dem Trennen alle am Ergebnis —
+    # und wer das Ergebnis dabei löschen lässt, verlöre sie ganz.
+    attachment_ids: str = Field(default="")
+
+
 class Prompt(SQLModel, table=True):
     __tablename__ = "prompt"
 

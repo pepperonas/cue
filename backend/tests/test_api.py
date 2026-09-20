@@ -2346,3 +2346,169 @@ def test_a_tested_prompt_does_not_climb_back_out_of_the_folded_block(client):
         key=display_key,
     )
     assert [p.id for p in shown] == [offen, fertig]
+
+
+# --------------------------------------------------- Zusammenführen auftrennen
+
+
+def _merge(client, headers, ids, originals="delete", **rest) -> dict:
+    r = client.post(
+        "/api/prompts/merge",
+        json={"source_ids": ids, "body": "zusammen", "originals": originals, **rest},
+        headers=headers,
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_unmerge_brings_deleted_sources_back(client):
+    """Der Fall, der ohne Aufzeichnung unmöglich wäre.
+
+    „Quellen löschen" ist die VORGABE des Dialogs — ohne gespeichertes Abbild
+    gäbe es nach einem Zusammenführen schlicht nichts mehr, was man trennen
+    könnte.
+    """
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "erster Text")
+    b = _mk_prompt(client, headers, "zweiter Text")
+    merged = _merge(client, headers, [a, b])
+    assert merged["merged_from"] == 2
+    assert client.get(f"/api/prompts/{a}").status_code == 404
+
+    r = client.post(f"/api/prompts/{merged['id']}/unmerge", json={}, headers=headers)
+    assert r.status_code == 200, r.text
+    zurueck = r.json()
+    assert [p["body"] for p in zurueck] == ["erster Text", "zweiter Text"]
+    # Die Vorgabe ist „löschen": das Ergebnis ist weg.
+    assert client.get(f"/api/prompts/{merged['id']}").status_code == 404
+
+
+def test_unmerge_restores_a_surviving_source_instead_of_duplicating_it(client):
+    """⚠️ Bei „archivieren" LEBEN die Quellen noch.
+
+    Sie neu anzulegen stünde nach dem Trennen alles doppelt da — sie werden
+    also zurückgesetzt, nicht wiederhergestellt.
+    """
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "quelle a")
+    b = _mk_prompt(client, headers, "quelle b")
+    merged = _merge(client, headers, [a, b], originals="archive")
+    assert client.get(f"/api/prompts/{a}").json()["status"] == "archived"
+
+    r = client.post(f"/api/prompts/{merged['id']}/unmerge", json={}, headers=headers)
+    assert r.status_code == 200
+    assert [p["id"] for p in r.json()] == [a, b]          # dieselben, keine neuen
+    assert client.get(f"/api/prompts/{a}").json()["status"] == "queued"
+    alle = client.get("/api/prompts").json()
+    assert len([p for p in alle if p["body"] == "quelle a"]) == 1
+
+
+def test_unmerge_does_not_overwrite_a_kept_source_that_was_edited(client):
+    """⚠️ Bei „behalten" hat das Zusammenführen die Quelle gar nicht angefasst.
+
+    Ihren Text aus dem Abbild zurückzuschreiben vernichtete jede Bearbeitung,
+    die seither daran passiert ist.
+    """
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "urtext")
+    b = _mk_prompt(client, headers, "anderer")
+    merged = _merge(client, headers, [a, b], originals="keep")
+    client.patch(f"/api/prompts/{a}", json={"body": "seither bearbeitet"}, headers=headers)
+
+    client.post(f"/api/prompts/{merged['id']}/unmerge", json={}, headers=headers)
+    assert client.get(f"/api/prompts/{a}").json()["body"] == "seither bearbeitet"
+
+
+def test_unmerge_can_keep_or_archive_the_merged_prompt(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    for wahl, erwartet in (("keep", "queued"), ("archive", "archived")):
+        a = _mk_prompt(client, headers, f"a {wahl}")
+        b = _mk_prompt(client, headers, f"b {wahl}")
+        merged = _merge(client, headers, [a, b])
+        r = client.post(
+            f"/api/prompts/{merged['id']}/unmerge", json={"merged": wahl}, headers=headers
+        )
+        assert r.status_code == 200
+        assert client.get(f"/api/prompts/{merged['id']}").json()["status"] == erwartet
+
+
+def test_a_prompt_can_only_be_unmerged_once(client):
+    """Die Aufzeichnung ist verbraucht — ein zweites Trennen legte alles doppelt an."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a = _mk_prompt(client, headers, "x")
+    b = _mk_prompt(client, headers, "y")
+    merged = _merge(client, headers, [a, b], originals="keep")
+    assert client.post(f"/api/prompts/{merged['id']}/unmerge",
+                       json={"merged": "keep"}, headers=headers).status_code == 200
+    zweite = client.post(f"/api/prompts/{merged['id']}/unmerge",
+                         json={"merged": "keep"}, headers=headers)
+    assert zweite.status_code == 400
+    assert client.get(f"/api/prompts/{merged['id']}").json()["merged_from"] == 0
+
+
+def test_an_ordinary_prompt_cannot_be_unmerged(client):
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    p = _mk_prompt(client, headers, "nie zusammengeführt")
+    r = client.post(f"/api/prompts/{p}/unmerge", json={}, headers=headers)
+    assert r.status_code == 400
+    assert client.get(f"/api/prompts/{p}").json()["merged_from"] == 0
+
+
+def test_unmerge_survives_a_project_deleted_in_the_meantime(client):
+    """⚠️ Die Projekt-ID blind zu übernehmen ließe `foreign_keys=ON` das
+    Wiederherstellen abbrechen — ohne Projekt anzulegen ist der verlustärmere
+    Weg, denn der Prompt taucht dann unter „Ohne Projekt" auf statt gar nicht."""
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    pid = client.post("/api/projects", json={"name": "vergänglich"}, headers=headers).json()["id"]
+    a = client.post("/api/prompts", json={"body": "a", "project_id": pid}, headers=headers).json()["id"]
+    b = client.post("/api/prompts", json={"body": "b", "project_id": pid}, headers=headers).json()["id"]
+    merged = _merge(client, headers, [a, b], project_id=pid)
+    client.delete(f"/api/projects/{pid}", headers=headers)
+
+    r = client.post(f"/api/prompts/{merged['id']}/unmerge", json={}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert [p["project_id"] for p in r.json()] == [None, None]
+
+
+def test_deleting_the_merged_prompt_drops_its_merge_record(client):
+    """Ohne das Ergebnis gibt es keinen Ort mehr, von dem aus man trennen
+    könnte — die Abbilder wären nur noch Ballast."""
+    from sqlmodel import select
+
+    from app.db import engine
+    from app.models import PromptMerge, PromptMergePart
+    from sqlmodel import Session as S
+
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a, b = _mk_prompt(client, headers, "a"), _mk_prompt(client, headers, "b")
+    merged = _merge(client, headers, [a, b])
+    with S(engine) as s:
+        assert len(s.exec(select(PromptMerge)).all()) == 1
+    client.delete(f"/api/prompts/{merged['id']}", headers=headers)
+    with S(engine) as s:
+        assert s.exec(select(PromptMerge)).all() == []
+        assert s.exec(select(PromptMergePart)).all() == []
+
+
+def test_another_account_cannot_unmerge(client):
+    from tests.conftest import auth
+
+    csrf = _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    a, b = _mk_prompt(client, headers, "a"), _mk_prompt(client, headers, "b")
+    merged = _merge(client, headers, [a, b])
+
+    fremd = auth(client, email="fremd@example.com", sub="fremd-sub")
+    r = client.post(
+        f"/api/prompts/{merged['id']}/unmerge", json={}, headers={"X-CSRF-Token": fremd}
+    )
+    # 404, nicht 403: „verboten" bestätigte, dass es die Zeile gibt.
+    assert r.status_code == 404

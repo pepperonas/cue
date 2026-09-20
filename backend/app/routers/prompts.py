@@ -11,6 +11,8 @@ from .. import events
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
 from ..models import (
+    PromptMerge,
+    PromptMergePart,
     Attachment,
     Project,
     Prompt,
@@ -35,6 +37,7 @@ from ..schemas import (
     PromptRead,
     PromptUpdate,
     ReorderRequest,
+    UnmergeRequest,
 )
 from .attachments import attachment_read, clone_attachment_file, delete_attachment_file
 
@@ -50,7 +53,25 @@ def _reads(session: Session, prompts: list[Prompt]) -> list[PromptRead]:
     if ids:
         for a in session.exec(select(Attachment).where(Attachment.prompt_id.in_(ids))).all():
             by_prompt.setdefault(a.prompt_id, []).append(attachment_read(a))
-    return [PromptRead(**p.model_dump(), attachments=by_prompt.get(p.id, [])) for p in prompts]
+    # Wie viele Quellen in jedem Prompt stecken — EINE gruppierte Abfrage, kein
+    # Zählen je Zeile. 0 heißt: nicht aus einem Zusammenführen entstanden.
+    quellen: dict[int, int] = {}
+    if ids:
+        for mid, count in session.exec(
+            select(PromptMerge.merged_prompt_id, func.count(PromptMergePart.id))
+            .join(PromptMergePart, PromptMergePart.merge_id == PromptMerge.id)
+            .where(PromptMerge.merged_prompt_id.in_(ids))
+            .group_by(PromptMerge.merged_prompt_id)
+        ).all():
+            quellen[mid] = count
+    return [
+        PromptRead(
+            **p.model_dump(),
+            attachments=by_prompt.get(p.id, []),
+            merged_from=quellen.get(p.id, 0),
+        )
+        for p in prompts
+    ]
 
 
 def _read(session: Session, prompt: Prompt) -> PromptRead:
@@ -80,6 +101,15 @@ def _detach_references(session: Session, prompt_id: int) -> None:
     # `discard_for_prompt`, which also re-counts a batch that just lost its last
     # outstanding job.
     PromptOptimizationService(session, _settings).discard_for_prompt(prompt_id)
+    # Die Merge-Aufzeichnung lebt genau so lange wie ihr Ergebnis: ist das weg,
+    # gibt es keinen Ort mehr, von dem aus man trennen könnte.
+    for rec in session.exec(select(PromptMerge).where(PromptMerge.merged_prompt_id == prompt_id)).all():
+        for part in session.exec(
+            select(PromptMergePart).where(PromptMergePart.merge_id == rec.id)
+        ).all():
+            session.delete(part)
+        session.flush()  # Kinder zuerst, siehe unmerge_prompt
+        session.delete(rec)
     # Flush the child deletes first: without an ORM relationship SQLAlchemy has
     # no dependency to order them by, and SQLite would reject the parent DELETE.
     session.flush()
@@ -476,6 +506,41 @@ def merge_prompts(
     session.flush()  # assign merged.id for attachment reassignment
     TagService(session).set_for_prompt(merged, payload.tags, uid=uid)
 
+    # ⚠️ Das Abbild entsteht, BEVOR die Quellen angefasst werden — danach wäre
+    # bei „löschen" nichts mehr da, wovon man eines nehmen könnte. Genau deshalb
+    # war ein Zusammenführen bis 0.68.0 unumkehrbar.
+    record = PromptMerge(
+        user_id=uid,
+        merged_prompt_id=merged.id,
+        originals=payload.originals,
+    )
+    session.add(record)
+    session.flush()
+    for pos, prompt in enumerate(sources):
+        anhaenge = session.exec(
+            select(Attachment.id).where(Attachment.prompt_id == prompt.id)
+        ).all()
+        session.add(
+            PromptMergePart(
+                merge_id=record.id,
+                source_prompt_id=prompt.id,
+                position=pos,
+                title=prompt.title,
+                body=prompt.body,
+                project_id=prompt.project_id,
+                status=prompt.status,
+                sort_order=prompt.sort_order,
+                priority=prompt.priority,
+                tags=prompt.tags,
+                bookmarked=prompt.bookmarked,
+                bookmark_order=prompt.bookmark_order,
+                tested=prompt.tested,
+                blocked=prompt.blocked,
+                test_closely=prompt.test_closely,
+                attachment_ids=",".join(str(a) for a in anhaenge),
+            )
+        )
+
     if payload.originals == "delete":
         for prompt in sources:
             # Carry each source's screenshots over to the merged prompt.
@@ -503,6 +568,133 @@ def merge_prompts(
     session.commit()
     session.refresh(merged)
     return _read(session, merged)
+
+
+@router.post("/{prompt_id}/unmerge", response_model=list[PromptRead])
+def unmerge_prompt(
+    prompt_id: int,
+    payload: UnmergeRequest,
+    session: Session = Depends(get_session),
+    uid: int = Depends(current_user_id),
+    _csrf: None = Depends(require_csrf),
+) -> list[PromptRead]:
+    """Ein Zusammenführen wieder auftrennen.
+
+    Die Quellen kommen so zurück, wie sie beim Zusammenführen waren — aus dem
+    Abbild, nicht aus dem Text des Ergebnisses: eine Rekonstruktion aus den
+    Trennzeichen brächte Projekt, Schlagworte, Priorität und Reihenfolge nicht
+    wieder, und bei einem seither bearbeiteten Ergebnis auch den Wortlaut nicht.
+
+    ⚠️ Eine Quelle, die es noch GIBT (beim Zusammenführen „behalten" oder
+    „archiviert"), wird nicht ein zweites Mal angelegt, sondern zurückgesetzt —
+    sonst stünde nach dem Trennen alles doppelt da. Und zurückgesetzt wird nur,
+    was das Zusammenführen selbst verändert hat (Status und Platz): den Text
+    einer behaltenen Quelle zu überschreiben würde jede spätere Bearbeitung
+    daran vernichten.
+    """
+    merged = session.get(Prompt, prompt_id)
+    if not merged or merged.user_id != uid:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    record = session.exec(
+        select(PromptMerge).where(
+            PromptMerge.merged_prompt_id == prompt_id, PromptMerge.user_id == uid
+        )
+    ).first()
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="Dieser Prompt ist nicht aus einem Zusammenführen entstanden",
+        )
+    parts = session.exec(
+        select(PromptMergePart)
+        .where(PromptMergePart.merge_id == record.id)
+        .order_by(PromptMergePart.position)
+    ).all()
+
+    tags = TagService(session)
+    restored: list[Prompt] = []
+    for part in parts:
+        vorhanden = session.get(Prompt, part.source_prompt_id)
+        if vorhanden is not None and vorhanden.user_id == uid:
+            # Nur zurückdrehen, was das Zusammenführen angefasst hat.
+            if vorhanden.status != part.status:
+                vorhanden.status = part.status
+                vorhanden.sort_order = part.sort_order
+                vorhanden.updated_at = utcnow()
+                session.add(vorhanden)
+                events.record(session, vorhanden, PromptEventType.status_changed)
+            restored.append(vorhanden)
+            continue
+
+        wieder = Prompt(
+            user_id=uid,
+            title=part.title,
+            body=part.body,
+            project_id=_valid_project(session, part.project_id, uid),
+            status=part.status,
+            sort_order=_top_sort_order(session, part.status, uid),
+            priority=part.priority,
+            bookmarked=part.bookmarked,
+            bookmark_order=part.bookmark_order,
+            tested=part.tested,
+            blocked=part.blocked,
+            test_closely=part.test_closely,
+        )
+        if part.status in _RAN_STATUSES:
+            wieder.ran_at = utcnow()
+        session.add(wieder)
+        session.flush()
+        tags.set_for_prompt(wieder, part.tags, uid=uid)
+        # Die Screenshots zurückgeben, die beim Zusammenführen ans Ergebnis
+        # gewandert sind — sonst verlöre sie, wer das Ergebnis löschen lässt.
+        for aid in (int(x) for x in part.attachment_ids.split(",") if x.strip()):
+            att = session.get(Attachment, aid)
+            if att and att.user_id == uid and att.prompt_id == prompt_id:
+                att.prompt_id = wieder.id
+                session.add(att)
+        events.record(session, wieder, PromptEventType.created)
+        restored.append(wieder)
+
+    # Die Aufzeichnung ist verbraucht: ein zweites Trennen legte alles doppelt an.
+    for part in parts:
+        session.delete(part)
+    # ⚠️ Die Kinder ZUERST schreiben: ohne ORM-Beziehung hat SQLAlchemy keine
+    # Abhängigkeit, nach der es ordnen könnte, und SQLite weist das Löschen der
+    # Elternzeile ab (dieselbe Falle wie in `_detach_references`).
+    session.flush()
+    session.delete(record)
+    session.flush()
+
+    if payload.merged == "delete":
+        _purge_attachments(session, prompt_id)
+        _detach_references(session, prompt_id)
+        events.record(session, merged, PromptEventType.deleted)
+        session.delete(merged)
+    elif payload.merged == "archive" and merged.status != PromptStatus.archived:
+        merged.status = PromptStatus.archived
+        merged.sort_order = _next_sort_order(session, PromptStatus.archived, uid)
+        merged.updated_at = utcnow()
+        session.add(merged)
+        events.record(session, merged, PromptEventType.status_changed)
+
+    session.commit()
+    for prompt in restored:
+        session.refresh(prompt)
+    return _reads(session, restored)
+
+
+def _valid_project(session: Session, project_id: int | None, uid: int) -> int | None:
+    """Das Projekt von damals — falls es das noch gibt.
+
+    ⚠️ Ein Projekt kann seit dem Zusammenführen gelöscht worden sein. Die ID
+    blind zu übernehmen ließe `foreign_keys=ON` das Wiederherstellen abbrechen;
+    ohne Projekt anzulegen ist der verlustärmere Weg, denn der Prompt taucht
+    dann unter „Ohne Projekt" auf statt gar nicht.
+    """
+    if project_id is None:
+        return None
+    projekt = session.get(Project, project_id)
+    return project_id if projekt and projekt.user_id == uid else None
 
 
 def _apply_drag_status(session: Session, prompt: Prompt, new_status: PromptStatus) -> None:

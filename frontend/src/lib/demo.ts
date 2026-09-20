@@ -45,6 +45,8 @@ export interface DemoState {
   projects: Project[]
   tags: Tag[]
   optimizations: Optimization[]
+  /** Aufgezeichnete Zusammenführungen, damit sich das Trennen auch hier zeigt. */
+  merges: { mergedId: number; parts: Prompt[] }[]
   nextId: number
 }
 
@@ -62,6 +64,7 @@ function prompt(p: Partial<Prompt> & { id: number; title: string; body: string }
     tested: false,
     priority: 'normal',
     test_closely: false,
+    merged_from: 0,
     optimized: false,
     optimized_body: null,
     optimized_at: null,
@@ -245,7 +248,7 @@ export function seedDemo(): DemoState {
   prompts[3].optimization_version = 1
 
   for (const p of projects) p.prompt_count = prompts.filter((x) => x.project_id === p.id).length
-  return { prompts, projects, tags, optimizations, nextId: 100 }
+  return { prompts, projects, tags, optimizations, merges: [], nextId: 100 }
 }
 
 export const DEMO_ME: Me = {
@@ -386,13 +389,49 @@ export function handleDemoRequest(
   if (url === '/prompts/merge' && method === 'POST') {
     const sources = (body?.source_ids ?? []) as number[]
     const merged = createPrompt(state, body)
+    // ⚠️ Wie der Server: das Abbild entsteht, BEVOR die Quellen angefasst
+    // werden. Ohne Aufzeichnung zeigte die Demo einen „Auftrennen"-Knopf, der
+    // ins Leere führt — oder gar keinen, und damit etwas anderes als die App.
+    const teile = sources
+      .map((id) => state.prompts.find((p) => p.id === id))
+      .filter(Boolean)
+      .map((p) => ({ ...(p as Prompt) }))
+    state.merges.push({ mergedId: merged.id, parts: teile })
+    merged.merged_from = teile.length
     if (body?.originals === 'delete') {
       state.prompts = state.prompts.filter((p) => !sources.includes(p.id))
     } else if (body?.originals === 'archive') {
       for (const p of state.prompts) if (sources.includes(p.id)) p.status = 'archived'
     }
     placeOnTop(state, [merged.id])
-    return merged
+    return { ...merged }
+  }
+
+  const unmergeMatch = /^\/prompts\/(\d+)\/unmerge$/.exec(url)
+  if (unmergeMatch && method === 'POST') {
+    const id = Number(unmergeMatch[1])
+    const idx = state.merges.findIndex((m) => m.mergedId === id)
+    if (idx < 0) throw new DemoRefusal('Dieser Prompt ist nicht aus einem Zusammenführen entstanden')
+    const [record] = state.merges.splice(idx, 1)
+    const zurueck: Prompt[] = []
+    for (const part of record.parts) {
+      const lebt = state.prompts.find((p) => p.id === part.id)
+      if (lebt) {
+        lebt.status = part.status
+        lebt.sort_order = part.sort_order
+        zurueck.push(lebt)
+      } else {
+        const wieder = { ...part, id: state.nextId++ }
+        state.prompts.push(wieder)
+        zurueck.push(wieder)
+      }
+    }
+    const fate = (body?.merged as string) ?? 'delete'
+    const uebrig = state.prompts.find((p) => p.id === id)
+    if (uebrig) uebrig.merged_from = 0    // die Aufzeichnung ist verbraucht
+    if (fate === 'delete') state.prompts = state.prompts.filter((p) => p.id !== id)
+    else if (fate === 'archive' && uebrig) uebrig.status = 'archived'
+    return copies(zurueck)
   }
 
   const moveMatch = /^\/prompts\/(\d+)\/(move|bookmarks\/move)$/.exec(url)

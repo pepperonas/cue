@@ -296,6 +296,9 @@ export const api = {
     tags?: string
     originals: 'delete' | 'archive' | 'keep'
   }) => request<Prompt>('POST', '/prompts/merge', input),
+  /** Ein Zusammenführen auftrennen; liefert die wiederhergestellten Prompts. */
+  unmergePrompt: (id: number, merged: 'delete' | 'archive' | 'keep') =>
+    request<Prompt[]>('POST', `/prompts/${id}/unmerge`, { merged }),
 
   // Import / export return raw URLs for download handling in the UI.
   exportJsonUrl: '/api/export',

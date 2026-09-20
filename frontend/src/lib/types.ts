@@ -81,6 +81,9 @@ export interface Prompt {
   priority: Priority
   /** "Needs a thorough test" — a marker on done work, no ordering effect. */
   test_closely: boolean
+  /** Aus wie vielen Prompts dieser zusammengeführt wurde. 0 = aus keinem.
+   *  Nur was aufgezeichnet ist, lässt sich wieder trennen. */
+  merged_from: number
   // AI optimization — `body` above always stays the untouched original.
   optimized: boolean
   optimized_body: string | null

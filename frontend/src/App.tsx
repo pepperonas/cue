@@ -36,6 +36,7 @@ import {
   useApplyOptimization,
   useDiscardOptimization,
   useMergePrompts,
+  useUnmergePrompt,
   usePrompts,
   useProjects,
   useMoveBookmark,
@@ -56,6 +57,7 @@ import { Board } from './components/Board'
 import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
+import { UnmergeDialog } from './components/UnmergeDialog'
 import { RunDialog, type RunPayload } from './components/RunDialog'
 import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
@@ -215,6 +217,7 @@ function Shell({
   const duplicate = useDuplicatePrompt()
   const duplicateInPlace = useDuplicateInPlace()
   const merge = useMergePrompts()
+  const unmerge = useUnmergePrompt()
   const runConfigQ = useRunConfig()
   const canRun = runConfigQ.isSuccess
   const createRun = useCreateRun()
@@ -304,6 +307,7 @@ function Shell({
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [mergeOpen, setMergeOpen] = useState(false)
+  const [unmergeTarget, setUnmergeTarget] = useState<Prompt | null>(null)
   const [runDialog, setRunDialog] = useState<{ kind: RunKind; prompts: Prompt[] } | null>(null)
   const [sendTarget, setSendTarget] = useState<{ text: string; projectId: number | null } | null>(
     null,
@@ -664,7 +668,13 @@ function Shell({
   }, [])
 
   const anyModalOpen =
-    composerOpen || !!detail || shortcuts || mergeOpen || !!runDialog || !!sendTarget
+    composerOpen ||
+    !!detail ||
+    shortcuts ||
+    mergeOpen ||
+    !!runDialog ||
+    !!sendTarget ||
+    !!unmergeTarget
 
   // Open a finished proposal for review — but never over something the user is
   // currently doing.
@@ -1187,6 +1197,7 @@ function Shell({
             onToggleTested={handleToggleTested}
             onToggleBlocked={handleToggleBlocked}
             onSetPriority={handleSetPriority}
+            onUnmerge={setUnmergeTarget}
             onToggleCloseTest={handleToggleCloseTest}
             canOptimize={canOptimize}
             optimizeBusy={optimizingIds.includes(detailLive.id)}
@@ -1235,6 +1246,28 @@ function Shell({
                     setSendTarget({ text: p.body, projectId: p.project_id })
                   }
                 : undefined
+            }
+          />
+        )}
+        {unmergeTarget && (
+          <UnmergeDialog
+            key="unmerge"
+            prompt={unmergeTarget}
+            busy={unmerge.isPending}
+            onClose={() => setUnmergeTarget(null)}
+            onConfirm={(fate) =>
+              unmerge.mutate(
+                { id: unmergeTarget.id, merged: fate },
+                {
+                  onSuccess: (zurueck) => {
+                    setUnmergeTarget(null)
+                    // Beim Löschen hätte der Detail-Dialog nichts mehr zu zeigen.
+                    if (fate === 'delete') setDetail(null)
+                    toast.show(`${zurueck.length} Prompts wiederhergestellt`, 'success')
+                  },
+                  onError: () => toast.show('Auftrennen fehlgeschlagen', 'error'),
+                },
+              )
             }
           />
         )}

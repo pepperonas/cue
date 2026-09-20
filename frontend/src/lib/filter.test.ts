@@ -15,6 +15,7 @@ function prompt(id: number, extra: Partial<Prompt> = {}): Prompt {
     bookmark_order: 0,
     priority: 'normal',
     test_closely: false,
+    merged_from: 0,
     tested: false,
     blocked: false,
     optimized: false,

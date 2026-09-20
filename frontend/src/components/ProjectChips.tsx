@@ -155,11 +155,16 @@ export function ProjectChips({
   function select(f: Filter) {
     if (justDragged.current) return
     setFilter(f)
+    // ⚠️ Mobil die aufgeklappte Liste wieder schließen. Die Liste ist
+    // aufgeklappt, WEIL man ein Projekt sucht — ist es gewählt, hat sie ihre
+    // Aufgabe erfüllt und schiebt sonst nur das Board aus dem Bild (bei 36
+    // Projekten sechs Reihen). Auf dem Desktop gibt es nichts zu schließen.
+    if (isNarrow) setShowAll(false)
   }
 
   return (
     <div className="chips" data-collapsed={collapsed}>
-      <button className="chip" data-active={filter === 'all'} onClick={() => setFilter('all')}>
+      <button className="chip" data-active={filter === 'all'} onClick={() => select('all')}>
         Alle
       </button>
       {/* Ausgeblendet, sobald die Suche nichts ohne Projekt findet — ein Chip,
@@ -172,7 +177,7 @@ export function ProjectChips({
           className="chip"
           data-active={filter === 'none'}
           data-running={runsIn('none')}
-          onClick={() => setFilter('none')}
+          onClick={() => select('none')}
         >
           Ohne Projekt
           <OpenBadge count={openCounts?.get('none') ?? 0} />

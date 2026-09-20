@@ -126,6 +126,9 @@ class PromptUpdate(BaseModel):
 
 
 class PromptRead(BaseModel):
+    # Aus wie vielen Prompts dieser zusammengeführt wurde. 0 = aus keinem.
+    # Treibt den „Trennen"-Knopf: nur was aufgezeichnet ist, lässt sich trennen.
+    merged_from: int = 0
     id: int
     title: str
     body: str
@@ -215,6 +218,16 @@ class DuplicateRequest(BaseModel):
     # title suffixed "(n+1)", placed directly below the original. project_id
     # is ignored in this mode.
     in_place: bool = False
+
+
+class UnmergeRequest(BaseModel):
+    """Trennen: was soll mit dem zusammengeführten Prompt geschehen?
+
+    Dieselben drei Möglichkeiten wie beim Zusammenführen für die Quellen —
+    dieselbe Frage, nur andersherum, also auch dasselbe Vokabular.
+    """
+
+    merged: Literal["delete", "archive", "keep"] = "delete"
 
 
 class MergeRequest(BaseModel):

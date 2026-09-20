@@ -31,6 +31,7 @@ function prompt(id: number, projectId: number | null, tested = false): Prompt {
     tested,
     priority: 'normal',
     test_closely: false,
+    merged_from: 0,
     blocked: false,
     optimized: false,
     optimized_body: null,

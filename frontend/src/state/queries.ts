@@ -185,6 +185,18 @@ export function useMergePrompts() {
   })
 }
 
+export function useUnmergePrompt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, merged }: { id: number; merged: 'delete' | 'archive' | 'keep' }) =>
+      api.unmergePrompt(id, merged),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
 // ---- Prompt capture history ----
 export function useSessions(enabled: boolean) {
   return useQuery({

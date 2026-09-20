@@ -40,6 +40,8 @@ interface Props {
   onToggleTested: (p: Prompt) => void
   onToggleBlocked: (p: Prompt) => void
   onSetPriority?: (p: Prompt, next: Priority) => void
+  /** Nur gesetzt, wenn das Trennen überhaupt möglich ist. */
+  onUnmerge?: (p: Prompt) => void
   onToggleCloseTest?: (p: Prompt) => void
   onMoveProject: (p: Prompt, projectId: number | null) => void
   onCopyToProject: (p: Prompt, projectId: number | null) => void
@@ -81,6 +83,7 @@ export function DetailSheet({
   onToggleTested,
   onToggleBlocked,
   onSetPriority,
+  onUnmerge,
   onToggleCloseTest,
   onMoveProject,
   onCopyToProject,
@@ -477,6 +480,21 @@ export function DetailSheet({
               {prompt.status !== 'queued' && (
                 <span className="muted detail-prio-note">wirkt in der Queue</span>
               )}
+            </div>
+          )}
+
+          {/* Herkunft, keine Hauptaktion: sie steht bei den Angaben zum Prompt,
+              nicht in der Knopfreihe unten — dort drängen sich schon sechs, und
+              das Trennen ist eine seltene Rückabwicklung, kein Alltagsgriff. */}
+          {prompt.merged_from > 0 && onUnmerge && (
+            <div className="detail-merge">
+              <Icon name="call_merge" className="st-icon" />
+              <span>
+                Aus <strong>{prompt.merged_from}</strong> Prompts zusammengeführt
+              </span>
+              <button className="btn btn--text btn--compact" onClick={() => onUnmerge(prompt)}>
+                <Icon name="call_split" /> Auftrennen
+              </button>
             </div>
           )}
 

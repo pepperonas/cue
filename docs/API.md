@@ -93,6 +93,7 @@ Ressource.
 | `DELETE` | `/prompts/{prompt_id}` | Löschen samt Screenshot-Dateien und Optimierungs-Historie. |
 | `POST` | `/prompts/{prompt_id}/duplicate` | Kopie — entweder an Ort und Stelle (`in_place`) oder in ein anderes Projekt. |
 | `POST` | `/prompts/merge` | Mehrere Prompts zu einem zusammenführen; die Quellen werden gelöscht, archiviert oder behalten. Das Ergebnis landet oben in seiner Spalte. |
+| `POST` | `/prompts/{prompt_id}/unmerge` | Ein Zusammenführen wieder auftrennen: die Quellen kommen aus dem gespeicherten Abbild zurück, der zusammengeführte Prompt wird gelöscht, archiviert oder behalten. 400, wenn der Prompt nicht aus einem Zusammenführen stammt. |
 | `POST` | `/prompts/move` | Eine ganze Auswahl in einem Zug verschieben — als zusammenhängender Block in Board-Reihenfolge. |
 | `POST` | `/prompts/{prompt_id}/move` | Einen Prompt verschieben, verankert an einem **Nachbarn** (`before_id`/`after_id`/`top`), nicht an einem Index. |
 | `POST` | `/prompts/{prompt_id}/bookmarks/move` | Dasselbe innerhalb der Bookmark-Spalte. |

@@ -195,6 +195,43 @@ describe('the waiting AI proposal', () => {
   })
 })
 
+describe('Zusammenführen auftrennen', () => {
+  it('bringt gelöschte Quellen zurück', () => {
+    const a = state.prompts[0]
+    const b = state.prompts[1]
+    const merged = call('POST', '/prompts/merge', {
+      source_ids: [a.id, b.id],
+      body: 'zusammen',
+      originals: 'delete',
+    }) as Prompt
+    expect(merged.merged_from).toBe(2)
+    expect(state.prompts.some((p) => p.id === a.id)).toBe(false)
+
+    const zurueck = call('POST', `/prompts/${merged.id}/unmerge`, { merged: 'delete' }) as Prompt[]
+    expect(zurueck.map((p) => p.body)).toEqual([a.body, b.body])
+    expect(state.prompts.some((p) => p.id === merged.id)).toBe(false)
+  })
+
+  it('setzt eine noch lebende Quelle zurück, statt sie zu doppeln', () => {
+    const [a, b] = state.prompts
+    const vorher = state.prompts.length
+    const merged = call('POST', '/prompts/merge', {
+      source_ids: [a.id, b.id],
+      body: 'zusammen',
+      originals: 'archive',
+    }) as Prompt
+    expect(state.prompts.find((p) => p.id === a.id)?.status).toBe('archived')
+
+    call('POST', `/prompts/${merged.id}/unmerge`, { merged: 'delete' })
+    expect(state.prompts.find((p) => p.id === a.id)?.status).toBe(a.status)
+    expect(state.prompts.length).toBe(vorher)   // keine Doppel
+  })
+
+  it('weist einen Prompt ab, der aus keinem Zusammenführen stammt', () => {
+    expect(() => call('POST', `/prompts/${state.prompts[0].id}/unmerge`, {})).toThrow()
+  })
+})
+
 describe('die Demo hält sich an die Form, die der Client erwartet', () => {
   it('liefert Snippets als Liste, nicht als Umschlag', () => {
     // `snippetsApi.list` verspricht `Snippet[]`. Mit `{items,total}` warf der

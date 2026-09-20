@@ -42,6 +42,7 @@ function prompt(spec: OrderCase['prompts'][number]): Prompt {
     title: `p${spec.id}`,
     body: '',
     project_id: null,
+    merged_from: 0,
     status: (spec.status ?? 'queued') as Status,
     sort_order: spec.sort_order,
     tags: '',

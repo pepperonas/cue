@@ -18,6 +18,8 @@ import {
   splitTested,
   visibleCards,
 } from '../lib/board-groups'
+import type { FoldState } from '../lib/fold-store'
+import { CAPS_KEY, SECTIONS_KEY, adoptLegacy, loadFolds, saveFolds, withFold } from '../lib/fold-store'
 import { boardCollision, dragSelection, useDragSensors } from '../lib/dnd'
 import { useIsMobile } from '../lib/media'
 import { useTestedFold } from '../state/tested-fold'
@@ -55,17 +57,13 @@ interface Props {
   onModSelect?: (p: Prompt) => void
 }
 
-// Collapse state of the mobile sections, per browser session (the requirement
-// is "keeps its state during the current session" — a new tab starts fresh).
-const SECTION_KEY = 'cue-board-sections'
-
-function loadSections(): Record<string, boolean> {
-  try {
-    return JSON.parse(sessionStorage.getItem(SECTION_KEY) || '{}') as Record<string, boolean>
-  } catch {
-    return {}
-  }
-}
+// ⚠️ Beides liegt seit 0.68.0 in `localStorage`, nicht mehr in React-Zustand
+// bzw. `sessionStorage`: „was ich aufgeklappt gelassen habe" soll das Neuladen
+// überleben, und zwar auch in einem neuen Tab. Regeln in `lib/fold-store.ts`.
+const speicher = () => (typeof localStorage === 'undefined' ? null : localStorage)
+const sitzung = () => (typeof sessionStorage === 'undefined' ? null : sessionStorage)
+const ladeSektionen = () => adoptLegacy(speicher(), sitzung(), SECTIONS_KEY)
+const ladeKappen = () => loadFolds(speicher(), CAPS_KEY)
 
 function group(prompts: Prompt[], columns: Status[]): Containers {
   const out: Containers = {}
@@ -141,9 +139,9 @@ export function Board({
   // "Show all" toggles, keyed per section: `col:<status>` for a desktop column,
   // the group id for a mobile project group. Keyed rather than per status so
   // expanding one project group leaves the others capped.
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [expanded, setExpanded] = useState<FoldState>(ladeKappen)
   // Explicit open/closed choices for the mobile sections (status + project).
-  const [sections, setSections] = useState<Record<string, boolean>>(loadSections)
+  const [sections, setSections] = useState<FoldState>(ladeSektionen)
   // The one fold that outlives the tab; shared with the list view.
   const [testedOpen, toggleTested] = useTestedFold()
   const dragging = useRef(false)
@@ -155,12 +153,20 @@ export function Board({
 
   const toggleSection = useCallback((id: string, next: boolean) => {
     setSections((prev) => {
-      const merged = { ...prev, [id]: next }
-      try {
-        sessionStorage.setItem(SECTION_KEY, JSON.stringify(merged))
-      } catch {
-        /* private mode / quota — the UI still works, it just forgets */
-      }
+      // ⚠️ OHNE Vorgabe: die Vorgabe einer Gruppe hängt an ihrer Kartenzahl,
+      // eine ausdrückliche Wahl muss auch dann bleiben, wenn sie gerade damit
+      // übereinstimmt (siehe lib/fold-store.ts).
+      const merged = withFold(prev, id, next)
+      saveFolds(speicher(), SECTIONS_KEY, merged)
+      return merged
+    })
+  }, [])
+
+  /** „+N weitere anzeigen" — Vorgabe ist immer gedeckelt, also wegräumbar. */
+  const toggleCap = useCallback((key: string) => {
+    setExpanded((prev) => {
+      const merged = withFold(prev, key, !(prev[key] ?? false), false)
+      saveFolds(speicher(), CAPS_KEY, merged)
       return merged
     })
   }, [])
@@ -367,7 +373,7 @@ export function Board({
     return (
       <button
         className="col-more"
-        onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+        onClick={() => toggleCap(key)}
       >
         <Icon name={isExpanded ? 'unfold_less' : 'unfold_more'} />
         {label}

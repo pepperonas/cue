@@ -209,9 +209,13 @@ a {
   color: var(--md-primary);
   padding: 10px 14px;
 }
+/* ⚠️ NICHT `--md-error`: die Fehlerfarbe wird aus dem Seed des Nutzers
+   erzeugt und landet, wo die Tonpalette sie hinlegt — gemessen #f2c6a6, ein
+   blasser Pfirsich, im hellen Theme #b35919, ein Braun. Ein Löschen-Knopf, der
+   nicht rot ist, sagt nicht, was er tut. `--danger` ist genau dafür da. */
 .btn--danger {
-  background: var(--md-error);
-  color: var(--md-on-error);
+  background: var(--danger);
+  color: var(--on-danger);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -760,6 +764,28 @@ a {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+}
+
+/* Herkunftszeile im Detail-Dialog: „aus N Prompts zusammengeführt" samt dem
+   Weg zurück. Eine Angabe zum Prompt, kein Hauptknopf — deshalb steht sie bei
+   den Angaben und nicht in der Knopfreihe. */
+.detail-merge {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-s);
+  background: var(--md-surface-container-low);
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+}
+.detail-merge strong {
+  color: var(--md-on-surface);
+}
+.detail-merge .btn {
+  margin-left: auto;
 }
 
 /* ── Dropdown ─────────────────────────────────────────────────────────
