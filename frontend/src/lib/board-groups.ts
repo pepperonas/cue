@@ -251,6 +251,28 @@ export function withReorderedTail<T extends { id: number }>(
   return next
 }
 
+/**
+ * Projekte, in denen gerade mindestens ein Prompt LÄUFT.
+ *
+ * Ein Set, keine Zählung: der Ring am Chip beantwortet eine Ja/Nein-Frage, und
+ * eine Zahl, die niemand anzeigt, wäre eine zweite Wahrheit, die man pflegen
+ * müsste.
+ *
+ * ⚠️ Anders als `countOpenByProject` KEINE `blocked`-Prüfung: blockiert ist ein
+ * Zustand der WARTESCHLANGE — der Server weist `running` bei blockiertem Prompt
+ * mit 400 ab und räumt die Markierung beim Verlassen von queued weg, „blockiert
+ * und laufend" gibt es also nicht. Eine Prüfung darauf behauptete einen Fall,
+ * den es nicht gibt.
+ */
+export function projectsWithRunning(prompts: Prompt[]): Set<GroupKey> {
+  const laufend = new Set<GroupKey>()
+  for (const prompt of prompts) {
+    if (prompt.status !== 'running') continue
+    laufend.add(prompt.project_id ?? NO_PROJECT)
+  }
+  return laufend
+}
+
 export function countOpenByProject(prompts: Prompt[]): Map<number | typeof NO_PROJECT, number> {
   const counts = new Map<number | typeof NO_PROJECT, number>()
   for (const prompt of prompts) {

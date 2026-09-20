@@ -744,6 +744,18 @@ a {
   color: var(--md-on-secondary-container, var(--md-on-primary-container));
   border-color: transparent;
 }
+/* Hier läuft gerade etwas. Der Rahmen trägt den Farbton des Running-Icons —
+   `--warn` ist dessen theme-fähige Fassung: der blanke Hex `#d79a3f` aus
+   `.st-running` misst auf heller Fläche 1,87:1 und wäre dort Dekoration statt
+   Information (siehe tokens.css).
+   ⚠️ Steht BEWUSST hinter `[data-active='true']`: beide Regeln haben dieselbe
+   Spezifität, also gewinnt die spätere Quelle — und der Rahmen muss den
+   aktiven Chip überleben, sonst verbirgt ausgerechnet das Anklicken eines
+   Projekts, dass dort etwas läuft. Die 200-ms-Überblendung kommt aus `.chip`
+   selbst; der Wechsel hängt an den Daten, nicht an einem Nachladen. */
+.chip[data-running='true'] {
+  border-color: var(--warn);
+}
 .chip .dot {
   width: 10px;
   height: 10px;

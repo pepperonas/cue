@@ -5,7 +5,7 @@ import { detailAction } from './lib/detail-keys'
 import type { MovePayload } from './lib/api'
 import { copyText, vibrate } from './lib/clipboard'
 import { springs } from './lib/motion'
-import { countOpenByProject } from './lib/board-groups'
+import { countOpenByProject, projectsWithRunning } from './lib/board-groups'
 import { parseQuery, showsUnassigned, visibleProjects } from './lib/search-query'
 import { bookmarkedPrompts, filterPrompts } from './lib/filter'
 import { withChunkRecovery } from './lib/lazy-chunk'
@@ -277,11 +277,6 @@ function Shell({
   }, [projectFilter])
   const [showExtra, setShowExtra] = useState(false)
 
-  // Open prompts (queued + running) per project for the chip badges. Derived
-  // from the UNFILTERED prompt list, so filtering doesn't zero the others, and
-  // it re-renders with every optimistic status change — no refresh needed.
-  const openCounts = useMemo(() => countOpenByProject(prompts ?? []), [prompts])
-
   // If the persisted filter points at a project that no longer exists, reset.
   useEffect(() => {
     if (typeof projectFilter === 'number' && projects && !projects.some((p) => p.id === projectFilter)) {
@@ -336,6 +331,24 @@ function Shell({
     setSelectMode(next.length > 0)
     if (next.length === 0) setMergeOpen(false)
   }
+
+  // Alles, was der Nutzer noch sehen kann: die volle Liste OHNE die Prompts im
+  // 6-Sekunden-Löschfenster. Bewusst nicht nach Suche oder Projekt gefiltert —
+  // ein Filter darf die Zahlen der anderen Chips nicht auf null ziehen.
+  // ⚠️ Die Löschungen gehören aber heraus: der Ring (und die Zahl) überlebten
+  // sonst die Karte, die sie beschreiben, volle sechs Sekunden lang.
+  const visiblePrompts = useMemo(
+    () => filterPrompts(prompts ?? [], { pendingDelete }),
+    [prompts, pendingDelete],
+  )
+
+  // Offene Prompts (queued + running) je Projekt für die Zahl am Chip, und die
+  // Projekte, in denen gerade etwas LÄUFT, für den orangen Rahmen. Beide folgen
+  // derselben Liste, also können Zahl und Ring nie Verschiedenes behaupten; und
+  // weil jeder Statuswechsel optimistisch in den Cache schreibt, sind sie im
+  // selben Bild aktuell — ohne Nachladen.
+  const openCounts = useMemo(() => countOpenByProject(visiblePrompts), [visiblePrompts])
+  const runningProjects = useMemo(() => projectsWithRunning(visiblePrompts), [visiblePrompts])
 
   const pmap = useMemo(() => projectMap(projects), [projects])
 
@@ -871,6 +884,7 @@ function Shell({
               filter={projectFilter}
               setFilter={setProjectFilter}
               openCounts={openCounts}
+              runningProjects={runningProjects}
             />
 
             {isLoading ? (

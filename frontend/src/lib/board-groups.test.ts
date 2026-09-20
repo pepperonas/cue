@@ -6,6 +6,7 @@ import {
   capToggleLabel,
   columnKey,
   countOpenByProject,
+  projectsWithRunning,
   sortProjectsByAttention,
   withReorderedTail,
   defaultGroupsOpen,
@@ -160,6 +161,40 @@ describe('columnKey', () => {
   it('namespaces a column apart from the project groups inside it', () => {
     expect(columnKey('done')).toBe('col:done')
     expect(columnKey('done')).not.toBe('done:1')
+  })
+})
+
+describe('projectsWithRunning', () => {
+  const p = (id: number, projectId: number | null, status: Prompt['status']) => ({
+    ...prompt(id, projectId),
+    status,
+  })
+
+  it('nennt nur Projekte, in denen etwas LÄUFT', () => {
+    const laufend = projectsWithRunning([
+      p(1, 1, 'running'),
+      p(2, 2, 'queued'),
+      p(3, 3, 'done'),
+      p(4, 4, 'failed'),
+      p(5, 5, 'archived'),
+    ])
+    expect([...laufend]).toEqual([1])
+  })
+
+  it('sammelt Prompts ohne Projekt im eigenen Eimer', () => {
+    const laufend = projectsWithRunning([p(1, null, 'running'), p(2, 7, 'running')])
+    expect(laufend.has(NO_PROJECT)).toBe(true)
+    expect(laufend.has(7)).toBe(true)
+  })
+
+  it('bleibt leer, wenn nichts läuft — kein Projekt ohne Grund im Ring', () => {
+    expect(projectsWithRunning([p(1, 1, 'queued'), p(2, 1, 'done')]).size).toBe(0)
+  })
+
+  it('sieht jeden Prompt an, nicht nur bis zum ersten fremden Status', () => {
+    // Fängt ein `break` statt `continue`: der laufende Prompt steht HINTER
+    // einem, der nicht läuft.
+    expect(projectsWithRunning([p(1, 1, 'done'), p(2, 2, 'running')]).has(2)).toBe(true)
   })
 })
 

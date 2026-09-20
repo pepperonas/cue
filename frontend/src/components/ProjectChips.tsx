@@ -3,6 +3,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { GroupKey } from '../lib/board-groups'
 import { sortProjectsByAttention, withReorderedTail } from '../lib/board-groups'
 import { useDragSensors } from '../lib/dnd'
 import { useMediaQuery } from '../lib/media'
@@ -15,10 +16,14 @@ type Filter = number | 'all' | 'none'
 /** Open prompts (queued + running) per project; 'none' = prompts without one. */
 export type OpenCounts = Map<number | 'none', number>
 
+/** Projekte mit mindestens einem laufenden Prompt — der orange Rahmen. */
+export type RunningProjects = Set<GroupKey>
+
 interface ChipProps {
   p: Project
   active: boolean
   count: number
+  running: boolean
   onClick: () => void
 }
 
@@ -43,16 +48,16 @@ function ChipBody({ p, count }: { p: Project; count: number }) {
 }
 
 /** Placed by its open count — dragging it would be undone on the next render. */
-function FixedChip({ p, active, count, onClick }: ChipProps) {
+function FixedChip({ p, active, count, running, onClick }: ChipProps) {
   return (
-    <button className="chip" data-active={active} onClick={onClick}>
+    <button className="chip" data-active={active} data-running={running} onClick={onClick}>
       <ChipBody p={p} count={count} />
     </button>
   )
 }
 
 /** Nothing open, so nothing overrules the manual order: this one drags. */
-function SortableChip({ p, active, count, onClick }: ChipProps) {
+function SortableChip({ p, active, count, running, onClick }: ChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: p.id,
   })
@@ -61,6 +66,7 @@ function SortableChip({ p, active, count, onClick }: ChipProps) {
       ref={setNodeRef}
       className="chip chip--sortable"
       data-active={active}
+      data-running={running}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -95,6 +101,7 @@ export function ProjectChips({
   filter,
   setFilter,
   openCounts,
+  runningProjects,
 }: {
   /** In the STORED order — the display order is derived here. Bereits nach der
    *  Suche gefiltert (siehe `lib/search-query.ts`). */
@@ -107,6 +114,9 @@ export function ProjectChips({
   /** Live count of open prompts per project (see App: derived from the
    *  prompts query, so it follows every status change without a refresh). */
   openCounts?: OpenCounts
+  /** Projekte, in denen gerade etwas läuft — aus derselben Ableitung wie
+   *  `openCounts`, damit Zahl und Rahmen nie Verschiedenes behaupten. */
+  runningProjects?: RunningProjects
 }) {
   const reorder = useReorderProjects()
   // On a phone 36 projects wrap into six rows and push the board off-screen.
@@ -120,6 +130,7 @@ export function ProjectChips({
   const sensors = useDragSensors()
 
   const countOf = (p: Project) => openCounts?.get(p.id) ?? 0
+  const runsIn = (key: GroupKey) => runningProjects?.has(key) ?? false
   const shown = useMemo(
     () => sortProjectsByAttention(projects, openCounts ?? new Map()),
     [projects, openCounts],
@@ -156,7 +167,12 @@ export function ProjectChips({
           den er gerade gesetzt hat, und das Board wäre ohne erkennbaren Grund
           leer. */}
       {(showUnassigned || filter === 'none') && (
-        <button className="chip" data-active={filter === 'none'} onClick={() => setFilter('none')}>
+        <button
+          className="chip"
+          data-active={filter === 'none'}
+          data-running={runsIn('none')}
+          onClick={() => setFilter('none')}
+        >
           Ohne Projekt
           <OpenBadge count={openCounts?.get('none') ?? 0} />
         </button>
@@ -170,6 +186,7 @@ export function ProjectChips({
                 p={p}
                 active={filter === p.id}
                 count={0}
+                running={runsIn(p.id)}
                 onClick={() => select(p.id)}
               />
             ) : (
@@ -178,6 +195,7 @@ export function ProjectChips({
                 p={p}
                 active={filter === p.id}
                 count={countOf(p)}
+                running={runsIn(p.id)}
                 onClick={() => select(p.id)}
               />
             ),

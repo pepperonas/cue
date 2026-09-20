@@ -14,6 +14,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Die Demo verarbeitet dieselbe Projekt-Reorder-Anfrage wie die API und zeigt
   die gespeicherte Reihenfolge deshalb auch nach dem Aktualisieren korrekt.
 
+## [0.65.0] - 2026-09-20
+
+### Added
+- **Projekte, in denen gerade etwas läuft, tragen einen orangen Rahmen.** Der
+  Chip im Board wechselt vom grauen Standardrand auf den Farbton des
+  Running-Symbols, sobald dort mindestens ein Prompt läuft — und zurück, sobald
+  der letzte ihn verlässt.
+- Der Rahmen überlebt das **Anklicken** des Chips: sonst verbärge ausgerechnet
+  das Auswählen eines Projekts, dass dort etwas läuft.
+- „Ohne Projekt" bekommt ihn genauso. Die Regel ist schlicht: den Rahmen trägt
+  genau der Chip, der auch die Zahl der offenen Prompts trägt — „Alle" also
+  nicht, das wäre orange, sobald irgendwo irgendetwas läuft.
+
+### Fixed
+- **Zahl und Rahmen am Chip überleben eine gelöschte Karte nicht mehr.** Beide
+  stammen jetzt aus derselben Liste OHNE die Prompts im 6-Sekunden-Undo-Fenster.
+  Vorher zählte die Zahl eine Karte weiter, die längst vom Board verschwunden
+  war; der Rahmen hätte denselben Fehler geerbt. Gemessen: beim Löschen fällt
+  die Zahl sofort 4 → 3, beim Rückgängig steht sie wieder auf 4.
+
+### Internal
+- ⚠️ Der Farbton ist `--warn`, nicht der blanke Hex `#d79a3f` aus `.st-running`:
+  die Tokens sind genau deshalb da, weil dieser Hex auf heller Fläche 1,87:1
+  misst. Gemessen am echten Chip — dunkel **7,9:1**, hell **6,6:1**, auf dem
+  gefüllten aktiven Chip **5,1:1**, gegen 1,7:1 des grauen Standardrands.
+- ⚠️ Die CSS-Regel steht BEWUSST hinter `[data-active='true']`: gleiche
+  Spezifität, also gewinnt die spätere Quelle.
+- Im Browser geprüft: Statuswechsel kippt den Zustand **im selben Bild** (der
+  optimistische Cache-Schreibvorgang ist synchron), die Farbe folgt über die
+  200-ms-Blende, die `.chip` ohnehin für jeden Rahmenwechsel hat. 390 px ohne
+  Überlauf, keine Konsolenfehler.
+
 ## [0.64.0] - 2026-09-09
 
 ### Fixed
