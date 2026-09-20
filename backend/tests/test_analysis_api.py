@@ -198,50 +198,45 @@ def test_applying_writes_the_proposed_order(client):
     assert queue == [ids[2], ids[0], ids[1]]
 
 
-def test_applying_does_not_touch_other_projects(client):
+def spalten_folge(client) -> list[int]:
+    """Die Queue-Spalte in Board-Reihenfolge, über ALLE Projekte hinweg."""
+    return [p["id"] for p in client.get("/api/prompts").json() if p["status"] == "queued"]
+
+
+def test_applying_does_not_disturb_other_projects(client):
     """Der 0.27.0-Regressionswächter.
 
-    `sort_order` gilt je STATUSSPALTE, nicht je Projekt. Eine Teilmenge 1..n
-    durchzunummerieren überschreibt die Reihenfolge aller anderen Projekte in
-    derselben Spalte.
+    ⚠️ Die Falle ist feiner, als sie aussieht, und meine erste Fassung dieses
+    Tests ging ihr auf den Leim: `sort_order` gilt je STATUSSPALTE, nicht je
+    Projekt — eine Teilmenge 1..n durchzunummerieren schreibt zwar KEINE
+    fremde Zeile, erzeugt aber KOLLIDIERENDE Werte und mischt die Spalte damit
+    trotzdem durch. Geprüft wird deshalb die Eigenschaft, die zählt: die
+    fremden Prompts stehen hinterher an denselben POSITIONEN der Spalte.
     """
-    import app.db as db_module
-    from sqlmodel import Session, select
-
-    from app.models import Prompt
-
     csrf = auth(client)
     a, b = projekt(client, csrf, "a"), projekt(client, csrf, "b")
-    # Verschränkt anlegen, damit die Plätze beider Projekte sich abwechseln.
+    # Verschränkt anlegen — nur so kann eine Neunummerierung überhaupt auffallen.
     a_ids, b_ids = [], []
     for i in range(3):
         a_ids.append(prompt(client, csrf, a, f"a{i}"))
         b_ids.append(prompt(client, csrf, b, f"b{i}"))
 
-    with Session(db_module.engine) as s:
-        vorher = {
-            p.id: p.sort_order
-            for p in s.exec(select(Prompt)).all()
-            if p.project_id == b
-        }
+    vorher = spalten_folge(client)
+    b_positionen = {pid: vorher.index(pid) for pid in b_ids}
+    a_positionen = sorted(vorher.index(pid) for pid in a_ids)
 
     fertig = durchlaufen(client, csrf, a, [a_ids[2], a_ids[1], a_ids[0]])
     client.post(f"/api/analyses/{fertig['id']}/apply", headers=hdr(csrf))
 
-    with Session(db_module.engine) as s:
-        nachher = {
-            p.id: p.sort_order
-            for p in s.exec(select(Prompt)).all()
-            if p.project_id == b
-        }
-    assert nachher == vorher, "die Analyse hat fremde Projekte verschoben"
-
-    # Und das eigene Projekt sitzt genau auf den Plätzen, die es vorher hielt.
-    with Session(db_module.engine) as s:
-        plaetze = sorted(
-            p.sort_order for p in s.exec(select(Prompt)).all() if p.project_id == a
+    nachher = spalten_folge(client)
+    assert len(nachher) == len(vorher), "die Spalte hat Prompts verloren oder gewonnen"
+    for pid, platz in b_positionen.items():
+        assert nachher[platz] == pid, (
+            f"Projekt b wurde verschoben: Position {platz} war {pid}, ist {nachher[platz]}"
         )
-    assert len(set(plaetze)) == 3
+    # Und Projekt a sitzt auf genau denselben Plätzen — nur in neuer Folge.
+    assert sorted(nachher.index(pid) for pid in a_ids) == a_positionen
+    assert [nachher[i] for i in a_positionen] == [a_ids[2], a_ids[1], a_ids[0]]
 
 
 def test_a_proposed_priority_is_applied_only_where_given(client):
