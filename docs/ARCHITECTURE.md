@@ -170,6 +170,23 @@ aufzubauen. Der Editor rendert bewusst **drei direkte Kinder ohne eigenen
 Container** — die Layoutregeln der Dialoge (`.sheet--x > *`) sprechen direkte
 Kinder an, ein Wrapper ließe den Scrollbereich kollabieren.
 
+**Exportieren ohne Endpunkt.** Prompts als JSON hinauszugeben ist vollständig
+Client-Sache (`lib/export.ts` baut, `lib/download.ts` legt die Datei an,
+`components/ExportControl.tsx` bedient beides). Das ist keine Abkürzung: der
+Browser hält mit `PromptRead` bereits den vollständigen Datensatz, und die
+Zwischenablage lässt sich ohnehin nur hier füllen — ein Server-Pfad für die
+Datei daneben wären **zwei Antworten auf dieselbe Frage**, von denen die
+seltener benutzte abdriftet. `exportJson` ist der einzige Bauer; Datei und
+Zwischenablage reichen dieselbe Zeichenkette durch.
+
+Exportiert wird eine **portable Sicht, kein Abbild**: das Projekt reist als
+NAME (eine `project_id` ist außerhalb dieser Instanz bedeutungslos), das Modell
+im Klartext, und `sort_order`, `bookmark_order`, `merged_from` oder
+`optimization_version` bleiben draußen — sie beschreiben die Verwaltung dieser
+App. Ein vollständiges Abbild gibt es längst unter `GET /api/export`. Was es
+nicht gibt, bekommt kein Feld; `"project": null` behauptete eine leere
+Zuordnung, wo schlicht keine getroffen wurde.
+
 ## Eine Regel, drei Spiegel: die Spaltenordnung
 
 In welcher Reihenfolge Karten in einer Spalte stehen, ist an **drei** Stellen

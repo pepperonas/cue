@@ -143,6 +143,11 @@ jeder Weg aus *done* heraus löscht die Kennzeichen wieder.
 | `GET` | `/export` | JSON-Backup des Kontos. |
 | `GET` | `/export/txt` | ZIP mit einer `.txt` je Prompt. |
 
+Diese drei betreffen das **ganze Konto**. Der Export einzelner oder ausgewählter
+Prompts hat bewusst **keine Route**: er wird im Browser aus Daten gebaut, die dort
+schon liegen (`frontend/src/lib/export.ts`) — siehe
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
 ### Runs
 
 <sub>`backend/app/routers/runs.py`</sub>
