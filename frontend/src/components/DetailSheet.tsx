@@ -21,6 +21,7 @@ import { useBackDismiss } from '../state/overlays'
 import { useModels, usePendingProposal, useSetPromptModel } from '../state/queries'
 import { ModelBadge } from './ModelBadge'
 import { Button, Icon, IconButton } from './ui'
+import { ExportControl } from './ExportControl'
 
 interface Props {
   prompt: Prompt
@@ -660,6 +661,7 @@ export function DetailSheet({
             <Button variant="tonal" icon="edit" onClick={() => onEdit(prompt)}>
               Bearbeiten
             </Button>
+            <ExportControl prompts={[prompt]} />
           </motion.div>
           </>
         )}

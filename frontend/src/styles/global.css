@@ -575,6 +575,13 @@ a {
   z-index: 45;
   display: flex;
   align-items: center;
+  /* ⚠️ `wrap`, nicht `nowrap`: mit sieben Bedienelementen steht die Leiste bei
+     1280 px genau an ihrer Maximalbreite (gemessen 1247 von 1248) und quetschte
+     ihre Kinder — die Export-Gruppe bekam 195 statt 199 px und brach IN SICH
+     um, wodurch die Leiste von 56 auf 98 px wuchs. Umbrechen lässt jedes
+     Element ganz und bricht die Zeile dort, wo der Platz endet; mobil tut die
+     Leiste das ohnehin seit jeher. */
+  flex-wrap: wrap;
   gap: var(--gap-3);
   padding: 8px 8px 8px 18px;
   background: var(--md-surface-container-high);
@@ -606,6 +613,91 @@ a {
 }
 .btn--compact .material-symbols-rounded {
   font-size: 18px;
+}
+
+/* ---- Export: Ausgabe wählen, dann ausführen ----------------------------
+   Die Wahl steht GEFÜLLT direkt neben dem Knopf, damit der Modus nicht
+   versteckt ist — dieselbe Formensprache wie die Reiter-Pille oben (getönte
+   Wanne, gefüllte aktive Fläche), nur ohne gleitenden Indikator: bei zwei
+   Einträgen trüge der nichts bei. */
+.export-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-2);
+  flex-wrap: wrap;
+}
+.export-mode {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--md-surface-container);
+  border-radius: var(--shape-full);
+}
+.export-mode-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--shape-full);
+  font: var(--label-m);
+  color: var(--md-on-surface-variant);
+  transition: background var(--dur-short), color var(--dur-short);
+}
+.export-mode-opt .material-symbols-rounded {
+  font-size: 18px;
+}
+/* ⚠️ GEFÜLLT mit --md-primary, nicht mit --md-secondary-container: dessen
+   Füllung misst gegen die Wanne 1,12:1 (hell) bzw. 1,85:1 (dunkel) — die
+   Reiter-Pille der App hat dieselbe Schwäche und lebt allein vom Textton. Für
+   eine Pille ist das tragbar, für einen Umschalter, der entscheidet, was der
+   Knopf daneben TUT, nicht. Gemessen mit Primary: 7,27:1 hell / 9,13:1
+   dunkel. */
+.export-mode-opt[data-on='true'] {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
+.export-mode-opt:hover:not([data-on='true']) {
+  color: var(--md-on-surface);
+}
+/* In der Auswahlleiste liegt die Wanne auf einer bereits erhöhten Fläche —
+   eine Stufe höher, sonst verschwindet sie im Untergrund. */
+.select-bar .export-mode {
+  background: var(--md-surface-container-highest);
+}
+/* ⚠️ In der Auswahlleiste NUR die Zeichen. Die Leiste ist `nowrap` und
+   quetscht ihre Kinder: mit Beschriftung brauchte die Gruppe 349 px, bekam 277
+   und brach INTERN um — die Leiste wuchs dadurch von 56 auf 98 px. Ohne die
+   beiden Wörter sind es 203 px, und bei 1280 px bleiben 88 px Luft. Den ganzen
+   Satz spricht der `title` des Knopfes aus, den man wirklich drückt. */
+.export-ctl--compact .export-mode-label {
+  display: none;
+}
+/* Und auf schmalen Bildschirmen überall — dieselbe Entscheidung, die die App
+   für `.tab-label` in der Kopfleiste trifft. Mit Beschriftung braucht die
+   Gruppe im Dialog bei 390 px 372 px und bricht in sich um: 102 statt 44 px
+   angehefteter Höhe, die dem Lesebereich fehlen. */
+@media (max-width: 640px) {
+  .export-mode-label {
+    display: none;
+  }
+  .export-mode-opt {
+    min-width: 44px;
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
+.export-ctl--compact .export-mode-opt {
+  padding-inline: 8px;
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .export-mode-opt {
+    min-height: 44px;
+    padding-inline: 14px;
+  }
+  .export-ctl--compact .export-mode-opt {
+    min-width: 44px;
+    justify-content: center;
+  }
 }
 
 /* Multi-card drag: every travelling card is drawn, fanned behind the grabbed

@@ -65,6 +65,7 @@ import { Board } from './components/Board'
 import { BookmarksView } from './components/BookmarksView'
 import { Composer } from './components/Composer'
 import { MergeDialog } from './components/MergeDialog'
+import { ExportControl } from './components/ExportControl'
 import { UnmergeDialog } from './components/UnmergeDialog'
 import { RunDialog, type RunPayload } from './components/RunDialog'
 import { SendToSessionDialog } from './components/SendToSessionDialog'
@@ -393,6 +394,14 @@ function Shell({
   const runningProjects = useMemo(() => projectsWithRunning(visiblePrompts), [visiblePrompts])
 
   const pmap = useMemo(() => projectMap(projects), [projects])
+
+  // Die ausgewählten Prompts in AUSWAHL-Reihenfolge — dieselbe, die der
+  // Zusammenführen-Dialog vorbelegt. Wer drei Prompts in einer bestimmten Folge
+  // antippt, meint diese Folge auch beim Export.
+  const selectedPrompts = useMemo(() => {
+    const byId = new Map((prompts ?? []).map((p) => [p.id, p]))
+    return selectedIds.map((id) => byId.get(id)).filter(Boolean) as Prompt[]
+  }, [prompts, selectedIds])
 
   // Board + list follow the toolbar above them.
   const filtered = useMemo(() => {
@@ -1205,9 +1214,7 @@ function Shell({
                 className="btn btn--tonal"
                 disabled={selectedIds.length < 1}
                 onClick={() => {
-                  const ps = selectedIds
-                    .map((id) => (prompts ?? []).find((p) => p.id === id))
-                    .filter(Boolean) as Prompt[]
+                  const ps = selectedPrompts
                   if (ps.length) setRunDialog({ kind: ps.length > 1 ? 'chain' : 'single', prompts: ps })
                 }}
               >
@@ -1221,6 +1228,7 @@ function Shell({
             >
               <Icon name="merge" /> Zusammenführen
             </button>
+            <ExportControl prompts={selectedPrompts} compact />
           </motion.div>
       )}
 

@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-09-21
+
+### Added
+- **Prompts lassen sich als JSON exportieren** — einen im Ansichtsdialog,
+  mehrere über die Auswahlleiste. Zwei Ziele: als `.json`-Datei mit
+  automatischem Namen (`cue-<titel>-20260921.json` bzw.
+  `cue-3-prompts-20260921.json`) oder direkt in die Zwischenablage. Ein
+  Umschalter vor dem Knopf wählt das Ziel und merkt es sich.
+- Exportiert wird eine **portable** Sicht, kein Datenbank-Abbild: das Projekt
+  reist als Name, das Modell im Klartext, Tags als Liste; interne Zähler
+  (`sort_order`, `bookmark_order`, `merged_from` …) bleiben draußen. Ein
+  vollständiges Abbild gibt es weiterhin unter Einstellungen → JSON-Backup.
+- Eine wartende KI-Fassung reist als `optimized_body` mit — nur solange sie
+  unentschieden ist, denn nur dann ist `body` nicht der neueste Text.
+  Vorhandene Screenshots werden beim Namen genannt, aber nicht eingebettet.
+
+### Fixed
+- Die Auswahlleiste bricht jetzt um, statt ihre Bedienelemente zu quetschen.
+  Mit sieben Gruppen stand sie bei 1280 px genau an ihrer Maximalbreite
+  (gemessen 1247 von 1248 px) und drückte das letzte Element unter seine
+  Inhaltsbreite.
+
 ## [0.72.0] - 2026-09-20
 
 ### Changed
