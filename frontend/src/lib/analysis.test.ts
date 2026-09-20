@@ -171,9 +171,28 @@ describe('layoutGraph', () => {
       },
       titel,
     )
-    // Sie endet an der RECHTEN Kante des Ziels — sonst liefe sie durch die Karte.
+    // Sie ENDET an der rechten Kante des Ziels — sonst liefe sie durch die Karte.
+    // ⚠️ Geprüft wird der Endpunkt, nicht ein Vorkommen: in einer Spalte ist
+    // `ziel.x + ziel.w` genau der Startpunkt, eine Suche danach träfe das „M"
+    // und wäre in beide Richtungen erfüllt (per Mutationsprobe gefunden).
     const ziel = g.nodes.find((n) => n.id === 2)!
-    expect(g.edges[0].d).toContain(`${ziel.x + ziel.w} `)
+    expect(endpunkt(g.edges[0].d)).toBe(ziel.x + ziel.w)
+  })
+
+  it('führt eine Kante zwischen Spalten an die LINKE Kante des Ziels', () => {
+    const g = layoutGraph(
+      {
+        reihenfolge: [schritt(1, 1), schritt(2, 2)],
+        phasen: [
+          { name: 'A', prompt_ids: [1], ziel: '' },
+          { name: 'B', prompt_ids: [2], ziel: '' },
+        ],
+        abhaengigkeiten: [{ von: 1, nach: 2, grund: '' }],
+      },
+      titel,
+    )
+    const ziel = g.nodes.find((n) => n.id === 2)!
+    expect(endpunkt(g.edges[0].d)).toBe(ziel.x)
   })
 
   it('wächst in der Höhe mit der längsten Spalte, nicht mit der Summe', () => {
@@ -236,3 +255,9 @@ describe('umbrechen', () => {
     expect(umbrechen('kurz', 10, 2)).toEqual(['kurz'])
   })
 })
+
+/** Die x-Koordinate, an der ein SVG-Pfad endet. */
+function endpunkt(d: string): number {
+  const zahlen = d.match(/-?\d+(\.\d+)?/g) ?? []
+  return Number(zahlen[zahlen.length - 2])
+}

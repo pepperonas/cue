@@ -322,8 +322,12 @@ describe('isolation from the app', () => {
 describe('Projekt-Analyse in der Demo', () => {
   it('lehnt das Anstoßen ab — das kostet Geld', () => {
     const state = seedDemo()
+    // ⚠️ Auf die BEGRÜNDUNG prüfen, nicht auf die Fehlerart: eine unbekannte
+    // Route wird ebenfalls mit einer DemoRefusal abgewiesen, der Test könnte
+    // „abgelehnt, weil teuer" sonst nicht von „abgelehnt, weil unbekannt"
+    // unterscheiden (per Mutationsprobe gefunden).
     expect(() => handleDemoRequest(state, 'POST', '/analyses', { project_id: 1 })).toThrow(
-      DemoRefusal,
+      /echte KI-Anfrage/,
     )
   })
 
@@ -339,23 +343,30 @@ describe('Projekt-Analyse in der Demo', () => {
 
   it('übernimmt die Reihenfolge auf den Plätzen, die das Projekt schon hält', () => {
     const state = seedDemo()
-    const fremd = state.prompts
-      .filter((p) => p.status === 'queued' && p.project_id !== 1)
-      .map((p) => [p.id, p.sort_order] as const)
+    // ⚠️ POSITIONEN prüfen, nicht Werte: 1..n schreibt keine fremde Zeile,
+    // erzeugt aber kollidierende sort_order-Werte und mischt die Spalte
+    // trotzdem durch (derselbe blinde Fleck wie im Backend-Test).
+    const spalte = () =>
+      state.prompts
+        .filter((p) => p.status === 'queued')
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+        .map((p) => p.id)
+    const vorher = spalte()
+    const fremdPositionen = vorher
+      .map((id, i) => [id, i] as const)
+      .filter(([id]) => state.prompts.find((p) => p.id === id)!.project_id !== 1)
 
     const r = handleDemoRequest(state, 'POST', '/analyses/1/apply') as { geaendert: number }
     expect(r.geaendert).toBeGreaterThan(0)
 
-    // Fremde Projekte in derselben Spalte bleiben unangetastet.
-    for (const [id, platz] of fremd) {
-      expect(state.prompts.find((p) => p.id === id)!.sort_order).toBe(platz)
+    const nachher = spalte()
+    for (const [id, platz] of fremdPositionen) {
+      expect(nachher[platz]).toBe(id)
     }
     // Und die eigene Folge stimmt.
-    const eigene = state.prompts
-      .filter((p) => p.status === 'queued' && p.project_id === 1)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((p) => p.id)
-    expect(eigene).toEqual([2, 1, 10, 5])
+    expect(nachher.filter((id) => state.prompts.find((p) => p.id === id)!.project_id === 1))
+      .toEqual([2, 1, 10, 5])
   })
 
   it('schreibt die vorgeschlagenen Prioritäten mit', () => {
