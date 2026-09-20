@@ -182,6 +182,31 @@ jeder Weg aus *done* heraus löscht die Kennzeichen wieder.
 | `POST` | `/optimizations/claim` | **Runner**: nächsten Job atomar übernehmen. |
 | `POST` | `/optimizations/{optimization_id}/result` | **Runner**: Ergebnis melden. |
 
+### Projekt-Analyse
+
+<sub>`backend/app/routers/analysis.py`</sub>
+
+Analysiert alle offenen Prompts **eines** Projekts im Zusammenhang und schlägt
+eine Reihenfolge, Zusammenführungen, Redundanzen und einen Ablaufplan vor.
+Gleiche Rechte und gleicher Zahler wie die Optimierung (`require_optimizer`).
+
+⚠️ Es gibt hier bewusst **keine** Routen zum Zusammenführen oder Archivieren:
+Zusammenführen läuft über `POST /prompts/merge` (und erbt damit
+`POST /prompts/{id}/unmerge`), Archivieren über `PATCH /prompts/{id}`. Der
+einzige neue Schreibpfad ist die Reihenfolge.
+
+| Methode | Pfad | Beschreibung |
+| --- | --- | --- |
+| `POST` | `/analyses` | Analyse eines Projekts einreihen (`project_id: null` = „Ohne Projekt"). 400 unter zwei offenen Prompts, 409 wenn für dieses Projekt schon eine läuft. |
+| `GET` | `/analyses` | Läufe des Nutzers, optional `?project_id=`. |
+| `GET` | `/analyses/active` | Was gerade läuft — treibt die Fortschrittsanzeige. |
+| `GET` | `/analyses/{analysis_id}` | Ein Lauf mit Ergebnis, Kosten und dem Merker `stale`. |
+| `POST` | `/analyses/{analysis_id}/cancel` | Laufende Analyse abbrechen. |
+| `POST` | `/analyses/{analysis_id}/apply` | Reihenfolge (und vorgeschlagene Prioritäten) übernehmen; liefert die Zahl der geänderten Prompts. |
+| `POST` | `/analyses/{analysis_id}/discard` | Vorschlag verwerfen; das Ergebnis bleibt lesbar. |
+| `POST` | `/analyses/claim` | **Runner**: nächsten Job atomar übernehmen (Long-Poll über `?wait=`). |
+| `POST` | `/analyses/{analysis_id}/result` | **Runner**: Ergebnis melden. Teilt das Schema mit der Optimierung. |
+
 ### Prompt-Capture & CLI-Delivery
 
 <sub>`backend/app/routers/capture.py`</sub>

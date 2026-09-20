@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-09-20
+
+### Added
+- **Projekt-Analyse.** Die KI liest alle offenen Prompts EINES Projekts im
+  Zusammenhang und schlägt vor: eine begründete **Reihenfolge** (auf Wunsch mit
+  korrigierten Prioritäten), **Zusammenführungen** von Prompts, die dasselbe
+  Ziel verfolgen, **Redundanzen** (schon erledigt oder von einem anderen
+  abgedeckt) und einen **Ablaufplan** als Grafik, die Phasen und echte
+  Abhängigkeiten zeigt. Einstieg über „Projekt analysieren" in der Board-Leiste,
+  sobald ein Projekt gewählt ist.
+- Wie bei der Optimierung ist das Ergebnis ein **Vorschlag**: „Übernehmen"
+  schreibt ausschließlich die Reihenfolge und die vorgeschlagenen Prioritäten.
+  Zusammenführen läuft über den bestehenden Merge-Dialog (und bleibt damit über
+  `unmerge` rückabwickelbar), Archivieren über den normalen Statuswechsel.
+- Der Ablaufplan ist **selbst gezeichnetes SVG** aus geprüfter Struktur, kein
+  von der KI geliefertes Diagramm-Markup: ein Tippfehler des Modells kann die
+  Grafik damit nicht zerlegen, und sie folgt dem Theme.
+- Ändern sich die Daten nach einem Lauf, wird der Vorschlag als **veraltet**
+  gekennzeichnet, statt Positionen für einen Stand anzubieten, den es nicht
+  mehr gibt.
+- Die Demo zeigt eine fertige Analyse samt Ablaufplan; das Anstoßen bleibt
+  abgelehnt, weil es Geld kostet.
+
+### Fixed
+- Die Melde-Wiederholung des Runners galt nur für Optimierungen und liegt jetzt
+  als **eine** Politik für beide Job-Arten vor.
+
 ## [0.69.0] - 2026-09-20
 
 ### Fixed

@@ -368,6 +368,65 @@ class PromptOptimization(SQLModel, table=True):
     finished_at: datetime | None = Field(default=None)
 
 
+class ProjectAnalysis(SQLModel, table=True):
+    """Ein Analyse-Lauf über die offene Queue EINES Projekts.
+
+    Job, solange er läuft; Vorschlag, sobald er fertig ist — dieselbe Form wie
+    `PromptOptimization`, deshalb teilt er sich deren Status- und
+    Entscheidungs-Enum (ein zweites mit denselben fünf Werten wäre eine zweite
+    Wahrheit über denselben Lebenszyklus).
+
+    ⚠️ `project_id` trägt bewusst KEINEN Fremdschlüssel, wie `PromptEvent` und
+    `PromptMerge`: ein Lauf ist eine Momentaufnahme, und der Name reist als
+    Schnappschuss mit, damit das Ergebnis lesbar bleibt. Läufe eines gelöschten
+    Projekts werden im Lösch-Pfad aufgeräumt, nicht von der Datenbank.
+    """
+
+    __tablename__ = "project_analysis"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    #: None = die Sammelspalte „Ohne Projekt".
+    project_id: int | None = Field(default=None, index=True)
+    project_name: str = Field(default="")
+
+    status: OptimizationStatus = Field(default=OptimizationStatus.queued, index=True)
+    decision: OptimizationDecision = Field(default=OptimizationDecision.pending, index=True)
+    decided_at: datetime | None = Field(default=None)
+
+    provider: str = Field(default="claude_cli")
+    model: str = Field(default="")
+    prompt_version: int = Field(default=1)
+
+    #: Der tatsächlich gesendete Text. Gespeichert, weil das Ergebnis nur gegen
+    #: GENAU diese Eingabe auswertbar ist.
+    prompt_text: str = Field(default="")
+    #: JSON-Liste der Prompt-IDs, die mitgeschickt wurden — die Menge, gegen die
+    #: der Vertrag jede Antwort misst.
+    subject_ids: str = Field(default="[]")
+    #: Der Fingerabdruck der Daten beim Anstoßen (`changes.cursor_for`). Ändert
+    #: sich die Queue danach, ist der Vorschlag über einen anderen Stand
+    #: gerechnet — die Ansicht sagt das, statt falsche Positionen anzubieten.
+    cursor: str = Field(default="")
+
+    #: Das normalisierte Ergebnis (`analysis.schema.als_dict`).
+    result_json: str | None = Field(default=None)
+    #: Die rohe Antwort, gekappt — die einzige Spur, wenn das Auswerten scheitert.
+    raw_text: str | None = Field(default=None)
+
+    exit_code: int | None = Field(default=None)
+    duration_ms: int | None = Field(default=None)
+    cost_usd: float | None = Field(default=None)
+    input_tokens: int | None = Field(default=None)
+    output_tokens: int | None = Field(default=None)
+    error: str | None = Field(default=None)
+    runner_id: str | None = Field(default=None)
+
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    started_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(default=None)
+
+
 class PromptEventType(str, enum.Enum):
     created = "created"
     updated = "updated"  # content edit (title/body/tags/project)

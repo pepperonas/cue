@@ -318,3 +318,62 @@ describe('isolation from the app', () => {
     expect(hist[0]).not.toBe(state.optimizations[0])
   })
 })
+
+describe('Projekt-Analyse in der Demo', () => {
+  it('lehnt das Anstoßen ab — das kostet Geld', () => {
+    const state = seedDemo()
+    expect(() => handleDemoRequest(state, 'POST', '/analyses', { project_id: 1 })).toThrow(
+      DemoRefusal,
+    )
+  })
+
+  it('zeigt den vorbereiteten Vorschlag', () => {
+    const state = seedDemo()
+    const liste = handleDemoRequest(state, 'GET', '/analyses?project_id=1') as unknown[]
+    expect(liste).toHaveLength(1)
+    const eine = handleDemoRequest(state, 'GET', '/analyses/1') as {
+      result: { reihenfolge: { prompt_id: number }[] }
+    }
+    expect(eine.result.reihenfolge.map((s) => s.prompt_id)).toEqual([2, 1, 10, 5])
+  })
+
+  it('übernimmt die Reihenfolge auf den Plätzen, die das Projekt schon hält', () => {
+    const state = seedDemo()
+    const fremd = state.prompts
+      .filter((p) => p.status === 'queued' && p.project_id !== 1)
+      .map((p) => [p.id, p.sort_order] as const)
+
+    const r = handleDemoRequest(state, 'POST', '/analyses/1/apply') as { geaendert: number }
+    expect(r.geaendert).toBeGreaterThan(0)
+
+    // Fremde Projekte in derselben Spalte bleiben unangetastet.
+    for (const [id, platz] of fremd) {
+      expect(state.prompts.find((p) => p.id === id)!.sort_order).toBe(platz)
+    }
+    // Und die eigene Folge stimmt.
+    const eigene = state.prompts
+      .filter((p) => p.status === 'queued' && p.project_id === 1)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((p) => p.id)
+    expect(eigene).toEqual([2, 1, 10, 5])
+  })
+
+  it('schreibt die vorgeschlagenen Prioritäten mit', () => {
+    const state = seedDemo()
+    handleDemoRequest(state, 'POST', '/analyses/1/apply')
+    expect(state.prompts.find((p) => p.id === 2)!.priority).toBe('high')
+    expect(state.prompts.find((p) => p.id === 5)!.priority).toBe('low')
+    // Prompt 1 steht schon auf „hoch" — der Vorschlag nennt dafür KEINE
+    // Priorität und darf sie deshalb auch nicht anfassen.
+    expect(state.prompts.find((p) => p.id === 1)!.priority).toBe('high')
+    expect(state.prompts.find((p) => p.id === 10)!.priority).toBe('normal')
+  })
+
+  it('ändert beim Verwerfen nichts', () => {
+    const state = seedDemo()
+    const vorher = state.prompts.map((p) => [p.id, p.sort_order, p.priority] as const)
+    const r = handleDemoRequest(state, 'POST', '/analyses/1/discard') as { geaendert: number }
+    expect(r.geaendert).toBe(0)
+    expect(state.prompts.map((p) => [p.id, p.sort_order, p.priority] as const)).toEqual(vorher)
+  })
+})

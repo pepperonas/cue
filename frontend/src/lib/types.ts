@@ -612,3 +612,20 @@ export interface TagUsage {
 }
 
 export type TagSort = 'usage' | 'name' | 'created' | 'recent'
+
+// ---- Projekt-Analyse ----
+export type {
+  Analysis,
+  AnalysisBundle,
+  AnalysisEdge,
+  AnalysisPhase,
+  AnalysisRedundancy,
+  AnalysisResult,
+  AnalysisStatus,
+  AnalysisStep,
+} from './analysis'
+
+export interface AnalysisDecisionResult {
+  analysis: import('./analysis').Analysis
+  geaendert: number
+}

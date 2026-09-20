@@ -139,16 +139,84 @@ class RunnerApi:
             "output_tokens": output_tokens,
             "error": error,
         }
+        await self._post_result(
+            art="optimization",
+            ident=optimization_id,
+            path=f"/api/optimizations/{optimization_id}/result",
+            payload=payload,
+            cost_usd=cost_usd,
+        )
+
+    async def claim_analysis(self) -> dict | None:
+        """Den nächsten Projekt-Analyse-Job übernehmen (None = nichts zu tun)."""
+        r = await self.client.post(
+            "/api/analyses/claim",
+            json={"runner_id": self.cfg.runner_id},
+            params=self._wait,
+        )
+        if r.status_code == 204:
+            return None
+        r.raise_for_status()
+        return r.json()
+
+    async def analysis_result(
+        self,
+        analysis_id: int,
+        *,
+        status: str,
+        optimized_text: str | None = None,
+        model: str = "",
+        exit_code: int | None = None,
+        duration_ms: int | None = None,
+        cost_usd: float | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Ergebnis einer Analyse melden — gleiche Meldepolitik wie oben.
+
+        Das Feld heißt weiterhin `optimized_text`: der Ausführer liefert in
+        beiden Fällen Text plus Telemetrie und kennt dessen Bedeutung nicht.
+        Ein zweites, feldgleiches Schema wäre nur eine weitere Stelle zum
+        Driften.
+        """
+        await self._post_result(
+            art="analysis",
+            ident=analysis_id,
+            path=f"/api/analyses/{analysis_id}/result",
+            payload={
+                "status": status,
+                "optimized_text": optimized_text,
+                "model": model,
+                "exit_code": exit_code,
+                "duration_ms": duration_ms,
+                "cost_usd": cost_usd,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "error": error,
+            },
+            cost_usd=cost_usd,
+        )
+
+    async def _post_result(
+        self, *, art: str, ident: int, path: str, payload: dict, cost_usd: float | None
+    ) -> None:
+        """Ein Ergebnis melden und einen vorübergehenden Fehler wiederholen.
+
+        EINE Meldepolitik für beide Job-Arten. Früher war das fire-and-forget:
+        kein `raise_for_status`, kein Log — ein abgewiesener Bericht verschwand
+        spurlos auf BEIDEN Seiten (real gesehen als `-> 404`, nachdem der
+        Prompt mitten im Lauf gelöscht worden war).
+        """
         for attempt in range(1, _RESULT_ATTEMPTS + 1):
             try:
-                r = await self.client.post(
-                    f"/api/optimizations/{optimization_id}/result", json=payload
-                )
+                r = await self.client.post(path, json=payload)
             except httpx.HTTPError as exc:
                 if attempt == _RESULT_ATTEMPTS:
                     log.error(
-                        "optimization %s: result LOST after %s attempts (%s)%s",
-                        optimization_id,
+                        "%s %s: result LOST after %s attempts (%s)%s",
+                        art,
+                        ident,
                         attempt,
                         exc,
                         self._cost_note(cost_usd),
@@ -160,20 +228,22 @@ class RunnerApi:
             if r.status_code < 300:
                 return
             if r.status_code < 500:
-                # The job is gone or no longer accepts a result — usually its
-                # prompt was deleted while the CLI was still running. Final by
-                # definition: retrying cannot bring the row back.
+                # Der Job ist weg oder nimmt kein Ergebnis mehr an — meist
+                # wurde sein Gegenstand gelöscht, während der Ausführer lief.
+                # Endgültig: ein Wiederholen bringt die Zeile nicht zurück.
                 log.warning(
-                    "optimization %s: result discarded by the server (HTTP %s)%s",
-                    optimization_id,
+                    "%s %s: result discarded by the server (HTTP %s)%s",
+                    art,
+                    ident,
                     r.status_code,
                     self._cost_note(cost_usd),
                 )
                 return
             if attempt == _RESULT_ATTEMPTS:
                 log.error(
-                    "optimization %s: result LOST after %s attempts (HTTP %s)%s",
-                    optimization_id,
+                    "%s %s: result LOST after %s attempts (HTTP %s)%s",
+                    art,
+                    ident,
                     attempt,
                     r.status_code,
                     self._cost_note(cost_usd),

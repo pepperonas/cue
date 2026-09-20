@@ -22,6 +22,8 @@ from . import events
 from .config import get_settings
 from .optimization import PromptOptimizationService
 from .optimization import server_executor as server_optimizer
+from .analysis import executor as server_analyzer
+from .analysis.service import ProjectAnalysisService
 from .db import engine, init_db
 from .routers import (
     admin,
@@ -29,6 +31,7 @@ from .routers import (
     auth,
     capture,
     changes,
+    analysis,
     importexport,
     optimize,
     projects,
@@ -94,6 +97,7 @@ async def _run_reaper_loop() -> None:
             with Session(engine) as session:
                 runs.reap_stale(session, _settings.run_stale_timeout)
                 PromptOptimizationService(session, _settings).reap_stale()
+                ProjectAnalysisService(session).reap_stale()
         except Exception:  # noqa: BLE001 — the loop must outlive one bad tick
             _log_housekeeping_failure("run/optimization reaper", state)
         await asyncio.sleep(60)
@@ -109,6 +113,8 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
         # owner's jobs are not touched by this — those still go to the Mac
         # runner, which claims only runner-executed providers.
         asyncio.create_task(server_optimizer.loop()),
+        # Dasselbe für Projekt-Analysen: Eigentümer-Jobs holt der Mac-Runner.
+        asyncio.create_task(server_analyzer.loop()),
     ]
     try:
         yield
@@ -122,7 +128,7 @@ async def lifespan(_app: FastAPI):  # noqa: ANN201
 
 app = FastAPI(
     title="cue",
-    version="0.69.0",
+    version="0.70.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -210,6 +216,7 @@ api.include_router(sync.router)
 api.include_router(importexport.router)
 api.include_router(stats.router)
 api.include_router(optimize.router)
+api.include_router(analysis.router)
 api.include_router(tags.router)
 api.include_router(changes.router)
 

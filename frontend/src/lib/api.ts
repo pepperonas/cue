@@ -15,6 +15,8 @@ import type {
   Delivery,
   Me,
   Optimization,
+  Analysis,
+  AnalysisDecisionResult,
   OptimizationBatch,
   OptimizationDecisionResult,
   ApiKeyStatus,
@@ -354,6 +356,21 @@ export const api = {
   /** Drop the proposal; the prompt keeps its text. */
   discardOptimization: (id: number) =>
     request<OptimizationDecisionResult>('POST', `/optimizations/${id}/discard`),
+  // ---- Projekt-Analyse ----
+  analyses: (project_id?: number | null) =>
+    request<Analysis[]>(
+      'GET',
+      project_id == null ? '/analyses' : `/analyses?project_id=${project_id}`,
+    ),
+  activeAnalyses: () => request<Analysis[]>('GET', '/analyses/active'),
+  analysis: (id: number) => request<Analysis>('GET', `/analyses/${id}`),
+  startAnalysis: (project_id: number | null) =>
+    request<Analysis>('POST', '/analyses', { project_id }),
+  cancelAnalysis: (id: number) => request<Analysis>('POST', `/analyses/${id}/cancel`),
+  applyAnalysis: (id: number) =>
+    request<AnalysisDecisionResult>('POST', `/analyses/${id}/apply`),
+  discardAnalysis: (id: number) =>
+    request<AnalysisDecisionResult>('POST', `/analyses/${id}/discard`),
   startOptimizationBatch: (input: { project_id?: number | null; only_pending?: boolean }) =>
     request<OptimizationBatch>('POST', '/optimizations/batch', input),
   activeOptimizationBatch: () =>

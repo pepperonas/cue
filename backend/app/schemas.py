@@ -780,3 +780,100 @@ class TagUsageRead(BaseModel):
 
     tag: TagRead
     prompts: list[PromptRef]
+
+
+# ---- Projekt-Analyse ----
+class AnalysisStep(BaseModel):
+    prompt_id: int
+    rang: int
+    begruendung: str = ""
+    prioritaet: str | None = None
+    #: True = von der KI nicht eingeordnet, unverändert hinten angehängt.
+    ergaenzt: bool = False
+
+
+class AnalysisBundle(BaseModel):
+    prompt_ids: list[int]
+    titel: str = ""
+    begruendung: str = ""
+
+
+class AnalysisRedundancy(BaseModel):
+    prompt_id: int
+    grund: str = ""
+    abgedeckt_von: int | None = None
+
+
+class AnalysisPhase(BaseModel):
+    name: str
+    prompt_ids: list[int]
+    ziel: str = ""
+
+
+class AnalysisEdge(BaseModel):
+    """`von` muss vor `nach` erledigt sein."""
+
+    von: int
+    nach: int
+    grund: str = ""
+
+
+class AnalysisResult(BaseModel):
+    reihenfolge: list[AnalysisStep] = []
+    zusammenfuehren: list[AnalysisBundle] = []
+    redundant: list[AnalysisRedundancy] = []
+    phasen: list[AnalysisPhase] = []
+    abhaengigkeiten: list[AnalysisEdge] = []
+    zusammenfassung: str = ""
+    hinweise: list[str] = []
+
+
+class AnalysisRead(BaseModel):
+    id: int
+    project_id: int | None = None
+    project_name: str = ""
+    status: OptimizationStatus
+    decision: OptimizationDecision
+    provider: str = ""
+    model: str = ""
+    prompt_version: int = 1
+    prompt_count: int = 0
+    #: True, wenn sich die Daten seit dem Lauf geändert haben — der Vorschlag
+    #: nennt dann Positionen für einen Stand, den es nicht mehr gibt.
+    stale: bool = False
+    duration_ms: int | None = None
+    cost_usd: float | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    error: str | None = None
+    result: AnalysisResult | None = None
+    created_at: Utc
+    started_at: Utc | None = None
+    finished_at: Utc | None = None
+    decided_at: Utc | None = None
+
+
+class AnalysisCreate(BaseModel):
+    #: None = die Sammelspalte „Ohne Projekt".
+    project_id: int | None = None
+
+
+class AnalysisDecisionResult(BaseModel):
+    analysis: AnalysisRead
+    #: Wie viele Prompts wirklich verändert wurden.
+    geaendert: int = 0
+
+
+class AnalysisClaimRequest(BaseModel):
+    runner_id: str | None = None
+
+
+class AnalysisClaimResponse(BaseModel):
+    id: int
+    provider: str
+    model: str
+    prompt: str
+    timeout_s: int
+    max_chars: int
+    max_retries: int
+    project_name: str = ""

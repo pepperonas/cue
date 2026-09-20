@@ -11,6 +11,7 @@ from .capture import CaptureForwarder
 from .config import Config
 from .deliver import deliver_one
 from .executor import execute_run
+from .analyze import run_next as analyze_next
 from .optimize import run_next as optimize_next
 
 log = logging.getLogger("cue-runner")
@@ -111,6 +112,30 @@ async def _optimize_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> No
         await _idle(stop, cfg.optimize_interval, loop.time() - started)
 
 
+async def _analysis_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
+    """Projekt-Analysen abarbeiten — wie die Optimierung, eine nach der anderen.
+
+    Eigene Schleife statt eines gemeinsamen Takts mit der Optimierung: beide
+    fahren dieselbe CLI, und wer sie parallel anstößt, bezahlt zwei Läufe, die
+    sich gegenseitig ausbremsen. Getrennte Schleifen halten je einen Job.
+    """
+    last_err_log = 0.0
+    loop = asyncio.get_event_loop()
+    while not stop.is_set():
+        started = loop.time()
+        worked = False
+        try:
+            worked = await analyze_next(cfg, api)
+        except Exception as exc:  # noqa: BLE001
+            now = loop.time()
+            if now - last_err_log > 60:
+                log.warning("analysis poll paused (retrying): %s", exc)
+                last_err_log = now
+        if worked and not stop.is_set():
+            continue
+        await _idle(stop, cfg.optimize_interval, loop.time() - started)
+
+
 async def _capture_loop(cfg: Config, api: RunnerApi, stop: asyncio.Event) -> None:
     """Forward prompts written to the spool by the UserPromptSubmit hook."""
     fwd = CaptureForwarder(cfg, api)
@@ -191,9 +216,12 @@ async def run_forever(cfg: Config) -> None:
         log.info("cli delivery on (poll %.1fs)", cfg.deliver_interval)
 
     optimize_task: asyncio.Task | None = None
+    analysis_task: asyncio.Task | None = None
     if cfg.optimize_enabled:
         optimize_task = asyncio.create_task(_optimize_loop(cfg, api, shutdown))
-        log.info("prompt optimization on (poll %.1fs)", cfg.optimize_interval)
+        # Dieselbe Schaltung: wer die KI-Funktionen abschaltet, meint beide.
+        analysis_task = asyncio.create_task(_analysis_loop(cfg, api, shutdown))
+        log.info("prompt optimization + project analysis on (poll %.1fs)", cfg.optimize_interval)
 
     log.info(
         "cue-runner started → %s (concurrency=%d, long-poll %s)",
@@ -230,7 +258,7 @@ async def run_forever(cfg: Config) -> None:
         if tasks:
             with contextlib.suppress(Exception):
                 await asyncio.wait(tasks, timeout=30)
-        for extra in (capture_task, delivery_task, optimize_task):
+        for extra in (capture_task, delivery_task, optimize_task, analysis_task):
             if extra:
                 extra.cancel()
                 with contextlib.suppress(asyncio.CancelledError):

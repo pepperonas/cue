@@ -42,6 +42,12 @@ import {
   useMoveBookmark,
   useMovePrompt,
   useMovePrompts,
+  useActiveAnalyses,
+  useAnalysis,
+  useApplyAnalysis,
+  useCancelAnalysis,
+  useDiscardAnalysis,
+  useStartAnalysis,
   useOptimizeConfig,
   useRefreshOnOptimizationFinish,
   useOptimizePrompt,
@@ -71,6 +77,7 @@ import { Landing } from './components/Landing'
 import { DemoBanner } from './components/DemoBanner'
 import { useRoute } from './state/route'
 import { ProjectChips } from './components/ProjectChips'
+import { AnalysisDialog } from './components/analysis/AnalysisDialog'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
 import { TagsView } from './components/TagsView'
@@ -306,6 +313,25 @@ function Shell({
   // Multi-select / merge mode.
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+  // ---- Projekt-Analyse ----
+  // Offen ist EINE Analyse, identifiziert über ihre id — nicht ein Boolean:
+  // so kann kein veralteter Merker zurückbleiben, wenn das Fenster schließt
+  // (dieselbe Begründung wie `editDetailId`).
+  const [analysisId, setAnalysisId] = useState<number | null>(null)
+  const startAnalysis = useStartAnalysis()
+  const cancelAnalysis = useCancelAnalysis()
+  const applyAnalysis = useApplyAnalysis()
+  const discardAnalysis = useDiscardAnalysis()
+  const activeAnalysesQ = useActiveAnalyses(canOptimize)
+  const analysisQ = useAnalysis(analysisId)
+  const aktiveAnalysen = activeAnalysesQ.data ?? []
+  // Der Vorschlag kennt nur IDs; die Titel kommen aus der Liste, die der
+  // Client ohnehin hält (kein zweiter Request).
+  const promptsById = useMemo(
+    () => new Map((prompts ?? []).map((p) => [p.id, p])),
+    [prompts],
+  )
+
   const [mergeOpen, setMergeOpen] = useState(false)
   const [unmergeTarget, setUnmergeTarget] = useState<Prompt | null>(null)
   const [runDialog, setRunDialog] = useState<{ kind: RunKind; prompts: Prompt[] } | null>(null)
@@ -497,6 +523,55 @@ function Shell({
       update.mutate({ id: p.id, patch: { status: s } })
     },
     [toast, update],
+  )
+
+  /** Die Analyse dieses Projekts, falls gerade eine läuft. */
+  const laufendeAnalyse = useMemo(() => {
+    const ziel = projectFilter === 'none' ? null : projectFilter
+    if (ziel === 'all') return undefined
+    return aktiveAnalysen.find((a) => a.project_id === ziel)
+  }, [aktiveAnalysen, projectFilter])
+
+  const handleAnalyse = useCallback(() => {
+    if (projectFilter === 'all') return
+    // Läuft schon eine, wird sie gezeigt statt eine zweite zu bezahlen.
+    if (laufendeAnalyse) {
+      setAnalysisId(laufendeAnalyse.id)
+      return
+    }
+    const ziel = projectFilter === 'none' ? null : projectFilter
+    startAnalysis.mutate(ziel, {
+      onSuccess: (a) => {
+        setAnalysisId(a.id)
+        toast.show('Analyse gestartet', 'success')
+      },
+      onError: (e: unknown) => {
+        const text = e instanceof Error ? e.message : 'Analyse konnte nicht gestartet werden'
+        toast.show(text, 'error')
+      },
+    })
+  }, [laufendeAnalyse, projectFilter, startAnalysis, toast])
+
+  /** Aus einem Fund heraus zusammenführen: derselbe Dialog wie sonst auch,
+   *  damit der Merge über `unmerge` rückabwickelbar bleibt. */
+  const handleAnalyseMerge = useCallback(
+    (ids: number[]) => {
+      setAnalysisId(null)
+      setSelectedIds(ids)
+      setSelectMode(true)
+      setMergeOpen(true)
+    },
+    [setMergeOpen, setSelectMode, setSelectedIds],
+  )
+
+  const handleAnalyseArchive = useCallback(
+    (id: number) => {
+      const prompt = (prompts ?? []).find((p) => p.id === id)
+      if (!prompt) return
+      applyStatus(prompt, 'archived')
+      toast.show('Archiviert — über „Failed / Archived" wieder sichtbar', 'success')
+    },
+    [applyStatus, prompts, toast],
   )
 
   // Only done prompts carry a tested flag (the toggle is disabled elsewhere —
@@ -874,6 +949,21 @@ function Shell({
                   }
                 >
                   <Icon name="auto_awesome" /> Alle optimieren
+                </button>
+              )}
+              {canOptimize && (view === 'board' || view === 'list') && (
+                <button
+                  className="chip chip--optimize"
+                  disabled={startAnalysis.isPending || projectFilter === 'all'}
+                  onClick={handleAnalyse}
+                  title={
+                    projectFilter === 'all'
+                      ? 'Wähle zuerst ein Projekt — analysiert wird immer EIN Projekt im Zusammenhang'
+                      : 'Offene Prompts dieses Projekts von der KI ordnen lassen'
+                  }
+                >
+                  <Icon name="account_tree" />{' '}
+                  {laufendeAnalyse ? 'Analyse läuft…' : 'Projekt analysieren'}
                 </button>
               )}
               {(view === 'board' || view === 'list') && (
@@ -1271,6 +1361,53 @@ function Shell({
             }
           />
         )}
+
+      {/* Zuletzt im DOM: bei gleichem z-index entscheidet die Malreihenfolge,
+          und eine Analyse wird über allem anderen geöffnet. */}
+      {analysisQ.data && analysisId !== null && (
+        <AnalysisDialog
+          analysis={analysisQ.data}
+          prompts={promptsById}
+          busy={
+            applyAnalysis.isPending || discardAnalysis.isPending || cancelAnalysis.isPending
+          }
+          onClose={() => setAnalysisId(null)}
+          onApply={() =>
+            applyAnalysis.mutate(analysisQ.data!.id, {
+              onSuccess: (r) => {
+                setAnalysisId(null)
+                toast.show(
+                  r.geaendert > 0
+                    ? `Reihenfolge übernommen — ${r.geaendert} Änderungen`
+                    : 'Reihenfolge übernommen — nichts zu ändern',
+                  'success',
+                )
+              },
+              onError: () => toast.show('Übernehmen fehlgeschlagen', 'error'),
+            })
+          }
+          onDiscard={() =>
+            discardAnalysis.mutate(analysisQ.data!.id, {
+              onSuccess: () => {
+                setAnalysisId(null)
+                toast.show('Vorschlag verworfen', 'success')
+              },
+              onError: () => toast.show('Verwerfen fehlgeschlagen', 'error'),
+            })
+          }
+          onCancel={() =>
+            cancelAnalysis.mutate(analysisQ.data!.id, {
+              onSuccess: () => setAnalysisId(null),
+            })
+          }
+          onOpenPrompt={(id) => {
+            const prompt = (prompts ?? []).find((x) => x.id === id)
+            if (prompt) setDetail(prompt)
+          }}
+          onMerge={handleAnalyseMerge}
+          onArchive={handleAnalyseArchive}
+        />
+      )}
     </div>
   )
 }

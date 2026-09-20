@@ -4527,3 +4527,209 @@ img.logo-xl { border-radius: 18px; }
     display: none;
   }
 }
+
+/* ---- Projekt-Analyse ---------------------------------------------------- */
+/* Gleiche Bauweise wie `.sheet--detail`: die Hülle klemmt, gescrollt wird nur
+   innen. Alles, was fest bleibt (Kopf, Reiter, Entscheidungsleiste), MUSS
+   klein und begrenzt sein — was im fixierten Bereich zu hoch wird, schneidet
+   `overflow: hidden` ab, ohne dass man hinscrollen könnte. */
+.sheet--analysis {
+  overflow: hidden;
+  max-width: 940px;
+  width: min(940px, 100%);
+}
+.sheet--analysis > * {
+  flex: none;
+}
+.sheet--analysis > .detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.analysis-running,
+.analysis-error {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: var(--gap-3);
+  border-radius: var(--shape-m);
+  background: var(--md-surface-container-high);
+}
+.analysis-error .material-symbols-rounded {
+  color: var(--danger);
+}
+
+.analysis-sum {
+  margin: 0;
+  color: var(--md-on-surface);
+  line-height: 1.5;
+}
+
+.analysis-warn,
+.analysis-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 var(--gap-3);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.analysis-warn {
+  color: var(--warn);
+}
+.analysis-warn .material-symbols-rounded,
+.analysis-hint .material-symbols-rounded {
+  font-size: 1.1rem;
+  flex: none;
+}
+
+.analysis-tabs {
+  flex-wrap: wrap;
+}
+.analysis-count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-order {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.analysis-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-3);
+  padding: 10px var(--gap-3);
+  border-radius: var(--shape-s);
+  background: var(--md-surface-container-low);
+}
+.analysis-rank {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.analysis-why {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.analysis-prio {
+  flex: none;
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid var(--md-outline-variant);
+}
+.analysis-prio.prio-high {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.analysis-finds section + section {
+  margin-top: var(--gap-4);
+}
+.analysis-finds h3 {
+  font: var(--title-s);
+  margin: 0 0 var(--gap-2);
+}
+.analysis-find {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  flex-wrap: wrap;
+  padding: var(--gap-3);
+  border-radius: var(--shape-s);
+  background: var(--md-surface-container-low);
+}
+.analysis-find + .analysis-find {
+  margin-top: 6px;
+}
+.analysis-members {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+
+.analysis-notes {
+  margin-top: var(--gap-4);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.analysis-notes summary {
+  cursor: pointer;
+}
+.analysis-done {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Ein Button, der wie ein Link aussieht: der Titel führt zum Prompt, ist aber
+   eine Aktion und kein Ziel — ein `<a>` ohne href wäre für die Tastatur tot. */
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--md-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.linklike:hover {
+  text-decoration: underline;
+}
+
+/* ---- Ablaufplan --------------------------------------------------------- */
+/* Eigener waagerechter Scroller: der Plan wächst mit der Zahl der Phasen, und
+   eine Grafik zu stauchen macht sie unlesbar, bevor sie passt. */
+.flow-wrap {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.flow {
+  display: block;
+  max-width: none;
+}
+.flow-phase {
+  fill: var(--md-on-surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+.flow-label {
+  fill: var(--md-on-surface);
+  font-size: 11px;
+  dominant-baseline: middle;
+}
+.flow-rang {
+  fill: var(--md-on-secondary-container);
+  font-size: 10px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-variant-numeric: tabular-nums;
+}
+.flow-node {
+  cursor: pointer;
+}
+.flow-node:hover rect {
+  stroke: var(--md-primary);
+}
+.flow-node:focus-visible rect {
+  stroke: var(--md-primary);
+  stroke-width: 2;
+}

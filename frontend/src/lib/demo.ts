@@ -22,6 +22,7 @@
  * Nichts wird gespeichert; ein Neuladen setzt zurück.
  */
 import type {
+  Analysis,
   Me,
   Optimization,
   Priority,
@@ -45,6 +46,7 @@ export interface DemoState {
   projects: Project[]
   tags: Tag[]
   optimizations: Optimization[]
+  analyses: Analysis[]
   /** Aufgezeichnete Zusammenführungen, damit sich das Trennen auch hier zeigt. */
   merges: { mergedId: number; parts: Prompt[] }[]
   nextId: number
@@ -180,6 +182,15 @@ export function seedDemo(): DemoState {
       ran_at: iso(240),
     }),
     prompt({
+      id: 10,
+      title: 'Startseite überarbeiten',
+      body: 'Die Startseite braucht neue Screenshots und einen klareren Einstieg.',
+      project_id: 1,
+      tags: 'gui',
+      status: 'queued' as Status,
+      sort_order: 6,
+    }),
+    prompt({
       id: 9,
       title: 'Bilder vor dem Hochladen verkleinern',
       body: 'Screenshots sind zu groß. Verkleinere sie im Browser, bevor sie den Server erreichen.',
@@ -248,7 +259,86 @@ export function seedDemo(): DemoState {
   prompts[3].optimization_version = 1
 
   for (const p of projects) p.prompt_count = prompts.filter((x) => x.project_id === p.id).length
-  return { prompts, projects, tags, optimizations, merges: [], nextId: 100 }
+  // Eine fertige Analyse, damit Reihenfolge, Ablaufplan und Funde in der Demo
+  // etwas zeigen. Entscheiden darf man sie — das kostet nichts und ist der
+  // interessante Teil; ANSTOSSEN kostet Geld und wird abgelehnt.
+  const analyses: Analysis[] = [
+    {
+      id: 1,
+      project_id: 1,
+      project_name: 'cue',
+      status: 'succeeded',
+      decision: 'pending',
+      provider: 'claude_cli',
+      model: 'claude-opus-5',
+      prompt_version: 1,
+      prompt_count: 4,
+      stale: false,
+      duration_ms: 24800,
+      cost_usd: 0.31,
+      input_tokens: 18400,
+      output_tokens: 1420,
+      error: null,
+      created_at: iso(30),
+      started_at: iso(30),
+      finished_at: iso(29),
+      decided_at: null,
+      result: {
+        zusammenfassung:
+          'Erst den wackeligen Test stabilisieren, dann die Startseite in einem Zug erneuern — die beiden Seiten-Prompts beschreiben dieselbe Arbeit.',
+        reihenfolge: [
+          {
+            prompt_id: 2,
+            rang: 1,
+            begruendung: 'Ein unzuverlässiger Test macht jede folgende Änderung schwer zu bewerten.',
+            prioritaet: 'high',
+            ergaenzt: false,
+          },
+          {
+            prompt_id: 1,
+            rang: 2,
+            begruendung: 'Die Startseite ist der erste Eindruck und hängt an nichts anderem.',
+            prioritaet: null,
+            ergaenzt: false,
+          },
+          {
+            prompt_id: 10,
+            rang: 3,
+            begruendung: 'Gleiche Seite, gleiche Dateien — direkt im Anschluss.',
+            prioritaet: null,
+            ergaenzt: false,
+          },
+          {
+            prompt_id: 5,
+            rang: 4,
+            begruendung: 'Einmalige Übernahme, unabhängig vom Rest und ohne Eile.',
+            prioritaet: 'low',
+            ergaenzt: false,
+          },
+        ],
+        phasen: [
+          { name: 'Stabilisieren', ziel: 'Verlässliche Grundlage zum Messen', prompt_ids: [2] },
+          { name: 'Seite erneuern', ziel: 'Der erste Eindruck stimmt wieder', prompt_ids: [1, 10] },
+          { name: 'Aufräumen', ziel: 'Altlast übernehmen', prompt_ids: [5] },
+        ],
+        abhaengigkeiten: [
+          { von: 2, nach: 1, grund: 'Ohne grüne Suite ist eine Änderung an der Seite nicht abnehmbar.' },
+          { von: 1, nach: 10, grund: 'Beide fassen dieselben Dateien an.' },
+        ],
+        zusammenfuehren: [
+          {
+            prompt_ids: [1, 10],
+            titel: 'Startseite erneuern',
+            begruendung: 'Beide beschreiben dieselbe Seite — getrennt bearbeitet entsteht doppelte Arbeit.',
+          },
+        ],
+        redundant: [],
+        hinweise: [],
+      },
+    },
+  ]
+
+  return { prompts, projects, tags, optimizations, analyses, merges: [], nextId: 100 }
 }
 
 export const DEMO_ME: Me = {
@@ -276,6 +366,7 @@ const READ_ONLY: Record<string, unknown> = {
     providers: [{ id: 'claude_cli', label: 'Claude Code CLI', description: '', available: true }],
   },
   '/optimizations/batch/active': null,
+  '/analyses/active': [],
   '/runs/config': { bases: ['/pfad/zum/projekt'], models: ['opus'], permission_modes: ['default'] },
   '/runs': [],
   '/sessions': [],
@@ -306,6 +397,7 @@ export function handleDemoRequest(
   const spends =
     (method === 'POST' && (url === '/optimizations' || url === '/optimizations/batch')) ||
     (method === 'POST' && url === '/runs') ||
+    (method === 'POST' && url === '/analyses') ||
     (method === 'POST' && /^\/sessions\/[^/]+\/send$/.test(url)) ||
     (method === 'PUT' && url === '/optimizations/key') ||
     url.startsWith('/admin/')
@@ -518,6 +610,51 @@ export function handleDemoRequest(
   }
 
   // ---- Optimierungs-Historie (lesen erlaubt) ------------------------------
+  // ---- Projekt-Analyse ----------------------------------------------------
+  if (url === '/analyses' && method === 'GET') {
+    const pid = query.get('project_id')
+    return copies(
+      pid ? state.analyses.filter((a) => a.project_id === Number(pid)) : state.analyses,
+    )
+  }
+  const analyseEine = /^\/analyses\/(\d+)$/.exec(url)
+  if (analyseEine && method === 'GET') {
+    const gefunden = state.analyses.find((a) => a.id === num(analyseEine[1]))
+    if (!gefunden) throw new DemoRefusal('Diese Analyse gibt es in der Vorschau nicht.')
+    return copies([gefunden])[0]
+  }
+  const analyseEntscheidung = /^\/analyses\/(\d+)\/(apply|discard)$/.exec(url)
+  if (analyseEntscheidung && method === 'POST') {
+    const lauf = state.analyses.find((a) => a.id === num(analyseEntscheidung[1]))
+    if (!lauf || !lauf.result) throw new DemoRefusal('Diese Analyse gibt es in der Vorschau nicht.')
+    let geaendert = 0
+    if (analyseEntscheidung[2] === 'apply') {
+      // Dieselbe Regel wie der Server: die Prompts wandern auf die Plätze, die
+      // sie BEREITS halten — eine Teilmenge 1..n durchzunummerieren würde die
+      // Reihenfolge der anderen Projekte in derselben Spalte überschreiben.
+      const betroffen = lauf.result.reihenfolge
+        .map((schritt) => ({
+          schritt,
+          prompt: state.prompts.find((p) => p.id === schritt.prompt_id),
+        }))
+        .filter((x) => x.prompt && x.prompt.status === 'queued')
+      const plaetze = betroffen.map((x) => x.prompt!.sort_order).sort((a, b) => a - b)
+      betroffen.forEach(({ schritt, prompt }, i) => {
+        if (prompt!.sort_order !== plaetze[i]) {
+          prompt!.sort_order = plaetze[i]
+          geaendert++
+        }
+        if (schritt.prioritaet && prompt!.priority !== schritt.prioritaet) {
+          prompt!.priority = schritt.prioritaet
+          geaendert++
+        }
+      })
+    }
+    lauf.decision = analyseEntscheidung[2] === 'apply' ? 'applied' : 'discarded'
+    lauf.decided_at = new Date().toISOString()
+    return { analysis: copies([lauf])[0], geaendert }
+  }
+
   if (url === '/optimizations' && method === 'GET') {
     const pid = query.get('prompt_id')
     return copies(

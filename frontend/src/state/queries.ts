@@ -7,7 +7,7 @@ import {
 import { api } from '../lib/api'
 import type { BookmarkMovePayload, MovePayload } from '../lib/api'
 import { pendingProposal, succeededVersions } from '../lib/optimization'
-import type { OptimizationDecisionResult } from '../lib/types'
+import type { AnalysisDecisionResult, OptimizationDecisionResult } from '../lib/types'
 import type { Optimization, Project, Prompt, StatsQuery, TagSort } from '../lib/types'
 import { RUN_ACTIVE } from '../lib/types'
 
@@ -754,4 +754,83 @@ export function useDeleteTag() {
       api.deleteTag(id, replaceWith),
     onSuccess: () => invalidateTagConsumers(qc),
   })
+}
+
+// ---- Projekt-Analyse ----
+const ANALYSES_KEY = ['analyses'] as const
+
+/** Läufe eines Projekts (null = „Ohne Projekt", undefined = alle). */
+export function useAnalyses(projectId: number | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: [...ANALYSES_KEY, projectId ?? 'alle'],
+    queryFn: () => api.analyses(projectId),
+    enabled,
+    retry: false,
+  })
+}
+
+/**
+ * Was gerade läuft.
+ *
+ * Pollt nur, solange etwas läuft — dieselbe Regel wie bei den Optimierungen:
+ * ein Dauer-Poll für einen leeren Zustand ist die Art Verkehr, die 0.35.0
+ * gerade entfernt hat.
+ */
+export function useActiveAnalyses(enabled: boolean) {
+  return useQuery({
+    queryKey: [...ANALYSES_KEY, 'aktiv'],
+    queryFn: () => api.activeAnalyses(),
+    enabled,
+    retry: false,
+    refetchInterval: (q) => ((q.state.data ?? []).length ? 2000 : false),
+  })
+}
+
+export function useAnalysis(id: number | null) {
+  return useQuery({
+    queryKey: [...ANALYSES_KEY, 'eine', id],
+    queryFn: () => api.analysis(id as number),
+    enabled: id != null,
+  })
+}
+
+export function useStartAnalysis() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: number | null) => api.startAnalysis(projectId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ANALYSES_KEY })
+    },
+  })
+}
+
+export function useCancelAnalysis() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.cancelAnalysis(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ANALYSES_KEY })
+    },
+  })
+}
+
+function useAnalysisDecision(fn: (id: number) => Promise<AnalysisDecisionResult>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      // Das Übernehmen schreibt Reihenfolge UND Prioritäten — das Board muss
+      // neu laden, sonst steht die alte Folge bis zum nächsten Takt.
+      qc.invalidateQueries({ queryKey: PROMPTS_KEY })
+      qc.invalidateQueries({ queryKey: ANALYSES_KEY })
+    },
+  })
+}
+
+export function useApplyAnalysis() {
+  return useAnalysisDecision(api.applyAnalysis)
+}
+
+export function useDiscardAnalysis() {
+  return useAnalysisDecision(api.discardAnalysis)
 }
