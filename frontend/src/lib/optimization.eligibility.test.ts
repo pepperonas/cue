@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { isOptimizable, optimizeState } from './optimization'
+import { isOptimizable, optimizeState,
+  tapAction,
+  holdAction } from './optimization'
 import { STATUSES } from './types'
 
 describe('isOptimizable', () => {
@@ -25,7 +27,11 @@ describe('isOptimizable', () => {
 })
 
 describe('optimizeState', () => {
-  const base = { optimized: false, optimization_applied_at: null as string | null }
+  const base = {
+    optimized: false,
+    optimization_applied_at: null as string | null,
+    optimized_manually: null as boolean | null,
+  }
 
   it('is "none" for a prompt nobody has optimized', () => {
     expect(optimizeState(base)).toBe('none')
@@ -59,5 +65,101 @@ describe('optimizeState', () => {
       for (const applied of [null, '2026-08-23T10:00:00Z'])
         seen.add(optimizeState({ optimized, optimization_applied_at: applied }))
     expect([...seen].sort()).toEqual(['applied', 'none', 'pending'])
+  })
+})
+
+describe('Übersteuerung von Hand (0.72.0)', () => {
+  const leer = { optimized: false, optimization_applied_at: null as string | null }
+  const kiGruen = { ...leer, optimization_applied_at: '2026-08-01T10:00:00Z' }
+
+  it('zeigt eine Markierung von Hand als eigenen Zustand', () => {
+    expect(optimizeState({ ...leer, optimized_manually: true })).toBe('manual')
+  })
+
+  it('lässt einen Einwand die KI-Tatsache übersteuern', () => {
+    // Ohne diesen Vorrang ließe sich ein grüner Indikator nicht zurücknehmen,
+    // ohne `optimization_applied_at` zu löschen — also ohne Historie zu
+    // fälschen.
+    expect(optimizeState({ ...kiGruen, optimized_manually: false })).toBe('none')
+  })
+
+  it('lässt einen wartenden Vorschlag jeden Einwand schlagen', () => {
+    expect(optimizeState({ ...kiGruen, optimized: true, optimized_manually: false }))
+      .toBe('pending')
+  })
+
+  it('behandelt ein fehlendes Feld wie „kein Eingriff“, nicht wie false', () => {
+    // Eine Antwort aus dem Service-Worker-Cache von vor diesem Feld.
+    expect(optimizeState(kiGruen)).toBe('applied')
+    expect(optimizeState({ ...kiGruen, optimized_manually: undefined })).toBe('applied')
+  })
+})
+
+describe('tapAction', () => {
+  it('öffnet alles, was schon einen Zustand hat', () => {
+    expect(tapAction('pending')).toBe('open')
+    expect(tapAction('applied')).toBe('open')
+    expect(tapAction('manual')).toBe('open')
+  })
+
+  it('stößt nur auf dem leeren Knopf eine Optimierung an', () => {
+    // ⚠️ Das ist die ganze Behebung: auf `pending` hat der Klick früher eine
+    // neue Optimierung gestartet, obwohl der Tooltip „öffnen“ versprach.
+    expect(tapAction('none')).toBe('optimize')
+  })
+})
+
+describe('holdAction', () => {
+  const leer = { optimized: false, optimization_applied_at: null as string | null }
+  const kiGruen = { ...leer, optimization_applied_at: '2026-08-01T10:00:00Z' }
+
+  it('optimiert erneut, solange ein Vorschlag wartet', () => {
+    expect(holdAction({ ...leer, optimized: true })).toEqual({ kind: 'optimize' })
+  })
+
+  it('markiert einen leeren Prompt von Hand', () => {
+    expect(holdAction(leer)).toEqual({ kind: 'manual', value: true })
+  })
+
+  it('nimmt eine Markierung von Hand wieder weg', () => {
+    expect(holdAction({ ...leer, optimized_manually: true })).toEqual({
+      kind: 'manual',
+      value: null,
+    })
+  })
+
+  it('nimmt ein KI-Grün zurück, ohne zu optimieren', () => {
+    expect(holdAction(kiGruen)).toEqual({ kind: 'manual', value: false })
+  })
+
+  it('hebt einen Einwand wieder auf — und zwar zurück auf die KI-Tatsache', () => {
+    // Genau das „und anders herum": jeder Zustand ist mit derselben Geste
+    // erreichbar UND wieder verlassbar.
+    expect(holdAction({ ...kiGruen, optimized_manually: false })).toEqual({
+      kind: 'manual',
+      value: null,
+    })
+  })
+
+  it('ist in jedem Zustand umkehrbar', () => {
+    // Eigenschaft statt Einzelfall: zweimal halten führt immer dahin zurück,
+    // wo man war.
+    const faelle: {
+      optimized: boolean
+      optimization_applied_at: string | null
+      optimized_manually?: boolean | null
+    }[] = [
+      leer,
+      { ...leer, optimized_manually: true },
+      kiGruen,
+      { ...kiGruen, optimized_manually: false },
+    ]
+    for (const start of faelle) {
+      const erste = holdAction(start)
+      if (erste.kind !== 'manual') continue
+      const zwischen = { ...start, optimized_manually: erste.value }
+      const zweite = holdAction(zwischen)
+      expect(zweite).toEqual({ kind: 'manual', value: start.optimized_manually ?? null })
+    }
   })
 })

@@ -6,6 +6,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-09-20
+
+### Changed
+- **Der Optimierungs-Indikator auf den Karten hat jetzt zwei Gesten: Klick =
+  ansehen, langes Drücken = die teure bzw. verändernde Aktion.** Ein Klick auf
+  den gelben Knopf startete bisher eine NEUE Optimierung, obwohl sein eigener
+  Tooltip „zum Ansehen öffnen" versprach — der Knopf log über sich selbst, und
+  ein Fehlklick kostete Geld. Jetzt öffnet jeder Zustand mit Inhalt den Dialog;
+  nur der leere Knopf stößt eine Optimierung an.
+- Langes Drücken auf einen wartenden Vorschlag optimiert erneut.
+
+### Added
+- **Prompts lassen sich von Hand als optimiert markieren.** Langes Drücken auf
+  den leeren Indikator setzt ihn grün (eigenes Zeichen: Haken ohne Kreis),
+  langes Drücken darauf nimmt es zurück. So sind selbst überarbeitete Prompts
+  auf dem Board als solche erkennbar.
+- Auch ein KI-Grün lässt sich per langem Drücken zurücknehmen — und wieder
+  herstellen. ⚠️ Dafür ist `Prompt.optimized_manually` **dreiwertig**
+  (null/true/false): der grüne Zustand kommt aus `optimization_applied_at`,
+  und das ist Historie. Statt sie zu löschen, speichert das Feld den
+  Widerspruch des Nutzers — jederzeit wieder aufhebbar. Ein frisch
+  übernommener Vorschlag räumt ihn weg: eine neue Tatsache schlägt einen alten
+  Einwand.
+
+### Fixed
+- Die Demo hielt jeden Prompt mit abgeschlossenem Lauf für „läuft gerade" (sie
+  lieferte bei `/optimizations` auch die Historie, der Server nur die aktiven
+  Jobs) und erreichte den grünen Zustand nie, weil ihr „Übernehmen"
+  `optimization_applied_at` nicht setzte.
+
 ## [0.71.0] - 2026-09-20
 
 ### Added

@@ -130,6 +130,11 @@ class PromptUpdate(BaseModel):
     #: Gegenstück zu `unassign_project`: `ai_model_id: null` allein ist von
     #: „Feld nicht mitgeschickt" nicht zu unterscheiden.
     unassign_model: bool = False
+    #: Dreiwertige Übersteuerung des Optimierungs-Indikators. Weil `null` hier
+    #: ein BEDEUTUNGSVOLLER Wert ist („kein Eingriff"), braucht es wie oben
+    #: einen eigenen Schalter, um ihn zu setzen.
+    optimized_manually: bool | None = None
+    clear_optimized_manually: bool = False
 
 
 class PromptRead(BaseModel):
@@ -151,6 +156,8 @@ class PromptRead(BaseModel):
     test_closely: bool = False
     #: Verweis in den Modell-Katalog; null = noch keins zugeordnet.
     ai_model_id: int | None = None
+    #: Übersteuerung des Optimierungs-Indikators: null/true/false.
+    optimized_manually: bool | None = None
     created_at: Utc
     updated_at: Utc
     # Last content write; null only for rows a client of an older build wrote.

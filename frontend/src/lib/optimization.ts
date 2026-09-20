@@ -14,13 +14,83 @@ import type { Optimization, Prompt } from './types'
  * stays readable in the panel either way. Showing the green "done" tint over an
  * undecided proposal would hide the request for a decision.
  */
-export type OptimizeState = 'none' | 'pending' | 'applied'
+export type OptimizeState = 'none' | 'pending' | 'applied' | 'manual'
 
-export function optimizeState(
-  prompt: Pick<Prompt, 'optimized' | 'optimization_applied_at'>,
-): OptimizeState {
+/**
+ * ⚠️ Nur `optimized` ist Pflicht. Eine Antwort, die der Service Worker vor
+ * diesem Feld zwischengespeichert hat, trägt es nicht — und `undefined` muss
+ * sich wie `null` verhalten („kein Eingriff"), nicht wie `false`. Genau
+ * deshalb prüft `optimizeState` unten auf `=== false` bzw. `=== true` und
+ * nicht auf Wahrheitswerte.
+ */
+type Zustandsquelle = Pick<Prompt, 'optimized'> &
+  Partial<Pick<Prompt, 'optimization_applied_at' | 'optimized_manually'>>
+
+/**
+ * ⚠️ Vier Zustände seit 0.72.0, und die REIHENFOLGE der Prüfungen ist die
+ * Aussage:
+ *
+ *   1. `pending` schlägt alles — es ist der einzige Zustand, der etwas vom
+ *      Nutzer will.
+ *   2. Ein ausdrücklicher Einwand (`optimized_manually === false`) schlägt die
+ *      KI-Tatsache. Genau dafür ist das Feld dreiwertig: „zurückgenommen" muss
+ *      sich sagen lassen, ohne `optimization_applied_at` zu löschen — das ist
+ *      Historie und keine Meinung.
+ *   3. Die KI-Tatsache.
+ *   4. Die Markierung von Hand.
+ */
+export function optimizeState(prompt: Zustandsquelle): OptimizeState {
   if (prompt.optimized) return 'pending'
-  return prompt.optimization_applied_at ? 'applied' : 'none'
+  if (prompt.optimized_manually === false) return 'none'
+  if (prompt.optimization_applied_at) return 'applied'
+  if (prompt.optimized_manually === true) return 'manual'
+  return 'none'
+}
+
+/** Was ein Klick auf den Knopf tut. */
+export type TapAction = 'open' | 'optimize'
+
+/**
+ * Klick = ansehen, außer es gibt noch nichts anzusehen.
+ *
+ * ⚠️ Auf `pending` hat der Klick bis 0.72.0 eine NEUE Optimierung gestartet,
+ * obwohl sein eigener Tooltip „zum Ansehen öffnen" versprach — der Knopf log
+ * über sich selbst, und ein versehentlicher Klick kostete Geld. Jetzt gilt
+ * durchgehend: was schon einen Zustand hat, wird geöffnet; nur der leere
+ * Knopf stößt an.
+ */
+export function tapAction(state: OptimizeState): TapAction {
+  return state === 'none' ? 'optimize' : 'open'
+}
+
+/** Was ein langer Druck tut. */
+export type HoldAction =
+  | { kind: 'optimize' }
+  | { kind: 'manual'; value: boolean | null }
+
+/**
+ * Langes Drücken: die teure bzw. verändernde Aktion.
+ *
+ * Auf `pending` heißt das „erneut optimieren" — dort liegt ein Vorschlag, den
+ * man verwerfen und neu rechnen lassen will. Überall sonst schaltet es die
+ * Markierung, und zwar IMMER umkehrbar:
+ *
+ *   ✨ nichts        → von Hand markiert  (true)
+ *   ✓  von Hand      → nichts            (null)
+ *   ✓○ von der KI    → zurückgenommen    (false)
+ *   ✨ zurückgenommen → wieder die KI     (null)
+ *
+ * Erneut optimieren bei Grün führt bewusst über den Dialog („Erneut
+ * optimieren" steht dort schon): eine Geste, eine Bedeutung.
+ */
+export function holdAction(prompt: Zustandsquelle): HoldAction {
+  const state = optimizeState(prompt)
+  if (state === 'pending') return { kind: 'optimize' }
+  if (state === 'applied') return { kind: 'manual', value: false }
+  if (state === 'manual') return { kind: 'manual', value: null }
+  // `none` hat zwei Herkünfte: gar nichts — oder ein früherer Einwand, den
+  // dieser Druck wieder aufhebt.
+  return { kind: 'manual', value: prompt.optimized_manually === false ? null : true }
 }
 
 /**

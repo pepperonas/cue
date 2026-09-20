@@ -199,6 +199,7 @@ export function PromptCard({
                   prompt={prompt}
                   busy={optimizeBusy}
                   onOptimize={onOptimize}
+                  onOpen={onOpen}
                 />
               )}
               {onToggleTested && canTest && (

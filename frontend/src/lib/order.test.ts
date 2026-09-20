@@ -12,6 +12,7 @@ function p(id: number, over: Partial<Prompt> = {}): Prompt {
     sort_order: id,
     tags: '',
     ai_model_id: null,
+    optimized_manually: null,
     bookmarked: false,
     bookmark_order: 0,
     priority: 'normal',

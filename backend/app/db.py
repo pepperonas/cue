@@ -72,6 +72,9 @@ def _migrate(engine: Engine) -> None:
         # Modellzuordnung (v0.71.0). NULL für alles Bestehende — die Spalte
         # ändert an keinem vorhandenen Prompt etwas, sie kommt nur dazu.
         "ai_model_id": "ALTER TABLE prompt ADD COLUMN ai_model_id INTEGER REFERENCES ai_model(id)",
+        # Übersteuerung des Optimierungs-Indikators (v0.72.0). NULL = kein
+        # Eingriff, also genau das bisherige Verhalten für jeden Bestand.
+        "optimized_manually": "ALTER TABLE prompt ADD COLUMN optimized_manually BOOLEAN",
     }
     merge_part_additions = {
         # Momentaufnahme ohne Fremdschlüssel: sie soll ein gelöschtes Modell

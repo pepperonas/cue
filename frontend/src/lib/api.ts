@@ -194,6 +194,8 @@ export const api = {
       /** Gegenstück zu `unassign_project`: `null` allein wäre nicht von
        *  „Feld nicht mitgeschickt" zu unterscheiden. */
       unassign_model: boolean
+      optimized_manually: boolean | null
+      clear_optimized_manually: boolean
     }>,
   ) => request<Prompt>('PATCH', `/prompts/${id}`, patch),
   // The caller's own Anthropic key. GET returns status only — never the key.

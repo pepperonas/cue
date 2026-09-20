@@ -909,3 +909,37 @@ export function useSetPromptModel() {
     },
   })
 }
+
+/**
+ * Den Optimierungs-Indikator von Hand übersteuern.
+ *
+ * Dreiwertig: `true` = von Hand als optimiert markiert, `false` = ausdrücklich
+ * zurückgenommen, `null` = kein Eingriff. ⚠️ `null` ist ein BEDEUTUNGSVOLLER
+ * Wert und deshalb nicht von „Feld weggelassen" zu unterscheiden — dafür gibt
+ * es den eigenen Schalter im Nutzlast-Vertrag.
+ *
+ * Optimistisch, damit das Zeichen unter dem Finger umspringt: ein Halten, das
+ * erst nach dem Netzweg wirkt, fühlt sich wie ein verschluckter Druck an.
+ */
+export function useSetOptimizeManual() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, value }: { id: number; value: boolean | null }) =>
+      api.updatePrompt(
+        id,
+        value === null ? { clear_optimized_manually: true } : { optimized_manually: value },
+      ),
+    onMutate: async ({ id, value }) => {
+      await qc.cancelQueries({ queryKey: PROMPTS_KEY })
+      const vorher = qc.getQueryData<Prompt[]>(PROMPTS_KEY)
+      qc.setQueryData<Prompt[]>(PROMPTS_KEY, (alt) =>
+        (alt ?? []).map((p) => (p.id === id ? { ...p, optimized_manually: value } : p)),
+      )
+      return { vorher }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.vorher) qc.setQueryData(PROMPTS_KEY, ctx.vorher)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: PROMPTS_KEY }),
+  })
+}

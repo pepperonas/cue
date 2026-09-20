@@ -355,6 +355,14 @@ export function DetailSheet({
                   prompt={prompt}
                   busy={optimizeBusy}
                   onOptimize={onOptimize}
+                  // Hier IST der Prompt schon offen: „öffnen" heißt, den
+                  // Vorschlag in den Blick zu holen. Ein Klick, der nichts
+                  // tut, wäre schlechter als der alte, der zu viel tat.
+                  onOpen={() =>
+                    scrollRef.current
+                      ?.querySelector('.opt-panel')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  }
                 />
               )}
               <BookmarkButton

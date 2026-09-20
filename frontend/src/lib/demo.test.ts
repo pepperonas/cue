@@ -468,3 +468,54 @@ describe('Modell-Katalog in der Demo', () => {
     expect(state.models.some((x) => x.id === m.id)).toBe(true)
   })
 })
+
+describe('Optimierungs-Liste in der Demo', () => {
+  it('liefert ohne prompt_id nur AKTIVE Jobs', () => {
+    // Sonst gilt jeder Prompt mit abgeschlossenem Lauf als „läuft gerade" und
+    // sein Knopf steht dauerhaft auf dem Spinner.
+    const state = seedDemo()
+    const aktiv = handleDemoRequest(state, 'GET', '/optimizations') as { status: string }[]
+    expect(aktiv.every((o) => o.status === 'queued' || o.status === 'running')).toBe(true)
+    expect(state.optimizations.some((o) => o.status === 'succeeded')).toBe(true)
+  })
+
+  it('liefert mit prompt_id die ganze Historie', () => {
+    const state = seedDemo()
+    const p = state.optimizations[0].prompt_id
+    const hist = handleDemoRequest(state, 'GET', `/optimizations?prompt_id=${p}`) as unknown[]
+    expect(hist.length).toBeGreaterThan(0)
+  })
+})
+
+describe('Optimierungs-Indikator in der Demo', () => {
+  it('macht aus einem übernommenen Vorschlag den grünen Zustand', () => {
+    const state = seedDemo()
+    const o = state.optimizations[0]
+    handleDemoRequest(state, 'POST', `/optimizations/${o.id}/apply`)
+    const p = state.prompts.find((x) => x.id === o.prompt_id)!
+    expect(p.optimization_applied_at).toBeTruthy()
+    expect(p.optimized).toBe(false)
+  })
+
+  it('räumt beim Übernehmen einen früheren Einwand weg', () => {
+    const state = seedDemo()
+    const o = state.optimizations[0]
+    const p = state.prompts.find((x) => x.id === o.prompt_id)!
+    p.optimized_manually = false
+    handleDemoRequest(state, 'POST', `/optimizations/${o.id}/apply`)
+    expect(p.optimized_manually).toBeNull()
+  })
+
+  it('setzt und räumt die Übersteuerung über den eigenen Schalter', () => {
+    const state = seedDemo()
+    const p = state.prompts[0]
+    handleDemoRequest(state, 'PATCH', `/prompts/${p.id}`, { optimized_manually: true })
+    expect(p.optimized_manually).toBe(true)
+    // Ein mitgeschicktes null darf NICHTS tun …
+    handleDemoRequest(state, 'PATCH', `/prompts/${p.id}`, { optimized_manually: null })
+    expect(p.optimized_manually).toBe(true)
+    // … der Schalter tut es.
+    handleDemoRequest(state, 'PATCH', `/prompts/${p.id}`, { clear_optimized_manually: true })
+    expect(p.optimized_manually).toBeNull()
+  })
+})

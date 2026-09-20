@@ -224,6 +224,21 @@ class Prompt(SQLModel, table=True):
     # looks exactly like an applied one. Written only by
     # `optimization/service.py:decide(apply=True)`.
     optimization_applied_at: datetime | None = Field(default=None)
+    #: Übersteuerung des Optimierungs-Indikators durch den Nutzer.
+    #:
+    #: DREIWERTIG mit Absicht:
+    #:   None  = kein Eingriff, der Zustand folgt den KI-Tatsachen
+    #:   True  = von Hand als optimiert markiert
+    #:   False = ausdrücklich zurückgenommen, obwohl die KI optimiert hat
+    #:
+    #: ⚠️ Warum keine einfache Bool-Markierung: der grüne Zustand kommt heute
+    #: aus `optimization_applied_at`, und das ist eine TATSACHE der Historie.
+    #: Um „zurücknehmen" in beide Richtungen zu erlauben, ohne diese Tatsache
+    #: zu löschen, sagt das Feld nicht „ist optimiert", sondern „der Nutzer
+    #: widerspricht dem Abgeleiteten" — und dieser Widerspruch ist jederzeit
+    #: wieder aufhebbar. Ein frisch übernommener Vorschlag räumt ihn weg: eine
+    #: neue Tatsache schlägt einen alten Einwand.
+    optimized_manually: bool | None = Field(default=None)
 
 
 class TagSource(str, enum.Enum):

@@ -64,6 +64,7 @@ function prompt(p: Partial<Prompt> & { id: number; title: string; body: string }
     sort_order: p.id,
     tags: '',
     ai_model_id: null,
+    optimized_manually: null,
     bookmarked: false,
     bookmark_order: 0,
     tested: false,
@@ -107,6 +108,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'documentation, gui',
       ai_model_id: null,
+      optimized_manually: null,
       priority: 'high',
       sort_order: 1,
     }),
@@ -120,6 +122,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'bugfix, testing',
       ai_model_id: null,
+      optimized_manually: null,
       priority: 'high',
       sort_order: 2,
     }),
@@ -130,6 +133,7 @@ export function seedDemo(): DemoState {
       project_id: 3,
       tags: 'infrastructure',
       ai_model_id: null,
+      optimized_manually: null,
       sort_order: 3,
       blocked: true,
     }),
@@ -140,6 +144,7 @@ export function seedDemo(): DemoState {
       project_id: 2,
       tags: 'gui, mobile',
       ai_model_id: null,
+      optimized_manually: null,
       priority: 'low',
       sort_order: 4,
     }),
@@ -152,6 +157,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'feature',
       ai_model_id: null,
+      optimized_manually: null,
       sort_order: 5,
       bookmarked: true,
       bookmark_order: 1,
@@ -163,6 +169,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'security',
       ai_model_id: null,
+      optimized_manually: null,
       status: 'running' as Status,
       sort_order: 1,
       ran_at: iso(12),
@@ -174,6 +181,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'gui',
       ai_model_id: null,
+      optimized_manually: null,
       status: 'done' as Status,
       sort_order: 1,
       tested: false,
@@ -187,6 +195,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'feature, documentation',
       ai_model_id: null,
+      optimized_manually: null,
       status: 'done' as Status,
       sort_order: 2,
       tested: true,
@@ -199,6 +208,7 @@ export function seedDemo(): DemoState {
       project_id: 1,
       tags: 'gui',
       ai_model_id: null,
+      optimized_manually: null,
       status: 'queued' as Status,
       sort_order: 6,
     }),
@@ -209,6 +219,7 @@ export function seedDemo(): DemoState {
       project_id: 2,
       tags: 'performance',
       ai_model_id: null,
+      optimized_manually: null,
       status: 'done' as Status,
       sort_order: 3,
       tested: true,
@@ -786,8 +797,14 @@ export function handleDemoRequest(
 
   if (url === '/optimizations' && method === 'GET') {
     const pid = query.get('prompt_id')
+    // ⚠️ OHNE `prompt_id` liefert der Server nur die AKTIVEN Jobs
+    // (`repo.list_active`), nicht die Historie — die Vorschau tat das nicht
+    // und hielt deshalb jeden Prompt mit abgeschlossenem Lauf für „läuft
+    // gerade": sein Knopf stand dauerhaft auf dem Spinner.
     return copies(
-      pid ? state.optimizations.filter((o) => o.prompt_id === Number(pid)) : state.optimizations,
+      pid
+        ? state.optimizations.filter((o) => o.prompt_id === Number(pid))
+        : state.optimizations.filter((o) => o.status === 'queued' || o.status === 'running'),
     )
   }
   const optDecision = /^\/optimizations\/(\d+)\/(apply|discard)$/.exec(url)
@@ -803,6 +820,12 @@ export function handleDemoRequest(
       p.body = o.optimized_text ?? p.body
       if (o.optimized_title) p.title = o.optimized_title
       if (o.optimized_tags) p.tags = o.optimized_tags
+      // ⚠️ Wie im Server (`service.decide(apply=True)`): erst DAS macht aus
+      // dem Prompt einen „von der KI optimierten". Ohne diese Zeile war der
+      // grüne Zustand in der Vorschau gar nicht erreichbar.
+      p.optimization_applied_at = new Date().toISOString()
+      // Eine neue Tatsache schlägt einen alten Einwand.
+      p.optimized_manually = null
     }
     p.optimized = false
     p.optimized_body = null
@@ -941,6 +964,13 @@ function patchPrompt(state: DemoState, p: Prompt, body: Body): Prompt {
   if (body?.bookmarked !== undefined) p.bookmarked = Boolean(body.bookmarked)
   if (body?.blocked !== undefined) p.blocked = Boolean(body.blocked)
   if (body?.priority !== undefined) p.priority = body.priority as Priority
+  // ⚠️ Dreiwertig, und `null` ist ein BEDEUTUNGSVOLLER Wert („kein Eingriff") —
+  // ein mitgeschicktes `null` darf deshalb NICHTS tun, genau wie im Server.
+  // Zurückgenommen wird über den eigenen Schalter, wie bei `unassign_model`.
+  if (body?.clear_optimized_manually) p.optimized_manually = null
+  else if (body?.optimized_manually !== undefined && body?.optimized_manually !== null) {
+    p.optimized_manually = body.optimized_manually as boolean
+  }
   if (body?.unassign_model) p.ai_model_id = null
   else if (body?.ai_model_id !== undefined) p.ai_model_id = body.ai_model_id as number | null
   if (body?.test_closely !== undefined) p.test_closely = Boolean(body.test_closely)

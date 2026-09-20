@@ -76,6 +76,8 @@ export interface Prompt {
   tags: string
   /** Verweis in den Modell-Katalog; null = noch keins zugeordnet. */
   ai_model_id: number | null
+  /** Übersteuerung des Optimierungs-Indikators: null/true/false. */
+  optimized_manually: boolean | null
   bookmarked: boolean
   bookmark_order: number
   tested: boolean

@@ -286,7 +286,7 @@ function ListRow({
         <span className="dot" style={{ background: tones.accent, width: 12, height: 12, borderRadius: '50%' }} />
       )}
       {onOptimize && isOptimizable(p) && (
-        <OptimizeButton prompt={p} busy={optimizeBusy} onOptimize={onOptimize} />
+        <OptimizeButton prompt={p} busy={optimizeBusy} onOptimize={onOptimize} onOpen={onOpen} />
       )}
       {onToggleTested && canTest && (
         <TestedButton

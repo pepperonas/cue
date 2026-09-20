@@ -27,6 +27,7 @@ function prompt(id: number, projectId: number | null, tested = false): Prompt {
     sort_order: id,
     tags: '',
     ai_model_id: null,
+    optimized_manually: null,
     bookmarked: false,
     bookmark_order: 0,
     tested,

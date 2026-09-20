@@ -3304,8 +3304,12 @@ img.logo-xl { border-radius: 18px; }
   }
 }
 
-/* Three states, addressed by the value the component actually branches on. */
-.optimize-btn[data-opt-state='applied'] {
+/* Vier Zustände, angesprochen über den Wert, auf den die Komponente wirklich
+   verzweigt. `applied` und `manual` teilen sich die Farbe mit Absicht: „ist
+   optimiert" ist dieselbe Aussage — woher, sagt das ZEICHEN
+   (`check_circle` gegen `check`), und das liest sich auch in Graustufen. */
+.optimize-btn[data-opt-state='applied'],
+.optimize-btn[data-opt-state='manual'] {
   color: var(--ok);
   background: var(--ok-container);
 }

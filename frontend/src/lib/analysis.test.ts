@@ -26,6 +26,7 @@ function prompt(id: number, priority: Prompt['priority'] = 'normal'): Prompt {
     project_id: 1,
     tags: '',
     ai_model_id: null,
+    optimized_manually: null,
   } as Prompt
 }
 

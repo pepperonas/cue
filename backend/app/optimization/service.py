@@ -437,6 +437,10 @@ class PromptOptimizationService:
             # per KI optimiert" means, as opposed to "es lag mal ein Vorschlag
             # vor". Discarding deliberately leaves it untouched.
             prompt.optimization_applied_at = now
+            # ⚠️ Eine neue Tatsache schlägt einen alten Einwand: wer den
+            # Indikator früher von Hand zurückgenommen hat, soll nach einer
+            # frisch übernommenen Optimierung wieder das sehen, was gilt.
+            prompt.optimized_manually = None
             events.record(self.session, prompt, PromptEventType.updated)
         # Pending state is cleared either way: the proposal has been reviewed.
         prompt.optimized = False

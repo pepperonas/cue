@@ -337,6 +337,11 @@ def update_prompt(
         _check_project(session, payload.project_id, uid)
         prompt.project_id = payload.project_id
 
+    if payload.clear_optimized_manually:
+        prompt.optimized_manually = None
+    elif payload.optimized_manually is not None:
+        prompt.optimized_manually = payload.optimized_manually
+
     if payload.unassign_model:
         prompt.ai_model_id = None
     elif payload.ai_model_id is not None:
