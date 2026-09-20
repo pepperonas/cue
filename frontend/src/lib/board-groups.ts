@@ -196,10 +196,22 @@ export function capToggleLabel(
 /**
  * Board order for the project chips: whatever needs attention, first.
  *
- * Projects with open prompts come first, most open first; everything else keeps
- * the order the user dragged into place (`Project.sort_order`, which is the
- * order this function receives). The manual order is also the tiebreak, so two
- * projects with the same number of open prompts still sit where they were put.
+ * Three ranks, in this order:
+ *
+ * 1. **Wie viel ist offen** — die meisten offenen Prompts zuerst. Das ist die
+ *    Hauptfrage des Chips („wie viel wartet hier auf mich"), und sie schlägt
+ *    alles andere: fünf offene ohne Lauf stehen vor einem offenen mit Lauf.
+ * 2. **Läuft dort gerade etwas** — bei GLEICHER Zahl zuerst. Von zwei gleich
+ *    vollen Projekten ist das arbeitende das, zu dem man gleich zurückkehrt.
+ * 3. **Die gezogene Reihenfolge** (`Project.sort_order`, die Reihenfolge, in
+ *    der diese Funktion die Liste bekommt) — zwei sonst gleiche Projekte
+ *    bleiben, wo der Nutzer sie hingelegt hat.
+ *
+ * ⚠️ Rang 2 kann den ZIEHBAREN Teil der Leiste nicht erreichen: ein laufender
+ * Prompt ist ein offener, ein Projekt mit Lauf hat also immer Zählung ≥ 1 —
+ * und ziehbar ist nur, was bei 0 steht. Eine Bedingung darauf wäre ein Schutz
+ * gegen einen Zustand, den es nicht gibt (dieselbe Begründung wie die fehlende
+ * `blocked`-Prüfung in `projectsWithRunning`).
  *
  * Derived from the live prompt list, so the row re-sorts itself the moment a
  * prompt is added, finished or moved — no reload, no second request.
@@ -207,12 +219,16 @@ export function capToggleLabel(
 export function sortProjectsByAttention<T extends { id: number }>(
   projects: T[],
   openCounts: Map<number | typeof NO_PROJECT, number>,
+  running: Set<GroupKey> = new Set(),
 ): T[] {
   const manual = new Map(projects.map((project, index) => [project.id, index]))
   return [...projects].sort((a, b) => {
     const openA = openCounts.get(a.id) ?? 0
     const openB = openCounts.get(b.id) ?? 0
     if (openA !== openB) return openB - openA
+    const runA = running.has(a.id)
+    const runB = running.has(b.id)
+    if (runA !== runB) return runA ? -1 : 1
     return (manual.get(a.id) ?? 0) - (manual.get(b.id) ?? 0)
   })
 }

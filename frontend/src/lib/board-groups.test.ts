@@ -284,6 +284,24 @@ describe('sortProjectsByAttention', () => {
     expect(names(out)).toEqual(['delta', 'alpha', 'beta', 'gamma'])
   })
 
+  it('stellt bei gleicher Zahl das laufende Projekt voran', () => {
+    // beta steht manuell vor gamma; gamma läuft, also zieht gamma vorbei.
+    const out = sortProjectsByAttention(manual, counts([[7, 3], [2, 3]]), new Set([2]))
+    expect(names(out)).toEqual(['gamma', 'beta', 'alpha', 'delta'])
+  })
+
+  it('lässt die Zahl schwerer wiegen als den Lauf', () => {
+    // alpha hat mehr offen, gamma läuft. Die Hauptfrage des Chips ist „wie viel
+    // wartet hier", nicht „wo rührt sich was" — alpha bleibt vorn.
+    const out = sortProjectsByAttention(manual, counts([[4, 5], [2, 1]]), new Set([2]))
+    expect(names(out)).toEqual(['alpha', 'gamma', 'beta', 'delta'])
+  })
+
+  it('behält bei gleicher Zahl und beidseitigem Lauf die gezogene Reihenfolge', () => {
+    const out = sortProjectsByAttention(manual, counts([[7, 2], [2, 2]]), new Set([2, 7]))
+    expect(names(out)).toEqual(['beta', 'gamma', 'alpha', 'delta'])
+  })
+
   it('does not mutate the list it was given', () => {
     const input = [...manual]
     sortProjectsByAttention(input, counts([[1, 9]]))

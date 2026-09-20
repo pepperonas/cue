@@ -14,6 +14,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Die Demo verarbeitet dieselbe Projekt-Reorder-Anfrage wie die API und zeigt
   die gespeicherte Reihenfolge deshalb auch nach dem Aktualisieren korrekt.
 
+## [0.66.0] - 2026-09-20
+
+### Changed
+- **Bei gleicher Zahl offener Prompts stehen die laufenden Projekte vorn.** Die
+  Chip-Reihenfolge kennt jetzt drei Ränge: erst *wie viel ist offen*, dann *läuft
+  dort gerade etwas*, dann die von Hand gezogene Reihenfolge.
+- Die **Zahl bleibt die Hauptfrage** und schlägt den Lauf: fünf offene ohne Lauf
+  stehen weiter vor einem offenen mit Lauf. Der Lauf entscheidet nur den
+  Gleichstand — von zwei gleich vollen Projekten ist das arbeitende das, zu dem
+  man gleich zurückkehrt.
+
+### Internal
+- ⚠️ Der neue Rang kann den ZIEHBAREN Teil der Leiste nicht erreichen: ein
+  laufender Prompt ist ein offener, ein Projekt mit Lauf steht also immer bei
+  ≥ 1 — und ziehbar ist nur, was bei 0 steht. Eine Bedingung darauf wäre ein
+  Schutz gegen einen Zustand, den es nicht gibt.
+- Im Board nachgewiesen: `cue 4 | website 1 | infra` → infra bekommt einen
+  offenen Prompt und bleibt hinten → infra läuft und zieht an website vorbei →
+  zurück auf queued und fällt sofort wieder zurück. `cue` bleibt durchweg vorn.
+- ⚠️ Eine Mutationsprobe meldete „grün-blind", war aber selbst kaputt: das
+  Filtermuster war ASCII (`laesst`), der Testname trägt ein `ä` — vitest fand
+  null Tests und beendete mit 0. Der Läufer prüft jetzt erst, ob überhaupt ein
+  Test lief, bevor er ein Ergebnis wertet.
+
 ## [0.65.0] - 2026-09-20
 
 ### Added

@@ -84,9 +84,10 @@ function SortableChip({ p, active, count, running, onClick }: ChipProps) {
 
 /** The project filter chips. "Alle" and "Ohne Projekt" stay fixed at the front.
  *
- * The order is DERIVED: projects with open prompts lead, most open first; the
- * manual `sort_order` is the tiebreak and governs everything with an empty
- * queue.
+ * The order is DERIVED: projects with open prompts lead, most open first; bei
+ * gleicher Zahl stehen die Projekte mit einem LAUFENDEN Prompt davor; erst
+ * danach gilt die gezogene Reihenfolge (`sort_order`), die alles mit leerer
+ * Warteschlange regiert.
  *
  * **Only the quiet tail is drag-sortable.** For a project with open prompts the
  * count decides the position, so a drop there would be undone by the next
@@ -132,8 +133,8 @@ export function ProjectChips({
   const countOf = (p: Project) => openCounts?.get(p.id) ?? 0
   const runsIn = (key: GroupKey) => runningProjects?.has(key) ?? false
   const shown = useMemo(
-    () => sortProjectsByAttention(projects, openCounts ?? new Map()),
-    [projects, openCounts],
+    () => sortProjectsByAttention(projects, openCounts ?? new Map(), runningProjects),
+    [projects, openCounts, runningProjects],
   )
   const sortableIds = shown.filter((p) => countOf(p) === 0).map((p) => p.id)
 
