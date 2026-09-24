@@ -203,6 +203,19 @@ def test_changes_rejects_a_revoked_device(client):
     assert client.get("/api/app/changes", headers=dev).status_code == 401
 
 
+def test_a_device_that_only_polls_changes_still_gets_touched(client):
+    """`/app/changes` muss durch denselben Torwächter wie die übrigen
+    App-Routen laufen — sonst bleibt `last_seen_at` für ein Gerät stehen, das
+    nie `/app/prompts` aufruft, sondern nur long-pollt."""
+    csrf, dev = _device(client)
+    cookie = client.cookies.get("cue_session")
+    client.cookies.clear()
+    client.get("/api/app/changes", headers=dev)
+    client.cookies.set("cue_session", cookie)
+    listed = client.get("/api/devices").json()
+    assert listed[0]["last_seen_at"] is not None
+
+
 def test_a_revoked_device_is_thrown_out_of_a_parked_poll(client, monkeypatch):
     """Sperren muss auch den geparkten Long-Poll beenden — beim nächsten Tick,
     nicht nach Ablauf des Budgets.

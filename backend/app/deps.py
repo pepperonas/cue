@@ -151,8 +151,31 @@ def bearer_token(authorization: str | None) -> str:
     """
     if not authorization or not authorization.startswith("Bearer "):
         return ""
-    token = authorization[len("Bearer ") :]
-    return token if token and token == token.strip() else ""
+    return authorization[len("Bearer ") :]
+
+
+def user_for(session: Session, token: str) -> int:
+    """Der Mandant hinter einem Geräte-Token — die EINE Stelle, die das prüft.
+
+    Genutzt sowohl von `device_user_id` (die fünf normalen `/app/*`-Routen,
+    über `Depends`) als auch direkt von `app_api.app_changes` (Long-Poll ohne
+    eigenen `Depends(get_session)`, deshalb kein FastAPI-Dependency hier).
+    Beide Aufrufer bekommen damit denselben Torwächter — inklusive `touch()`:
+    ein Gerät, das nur `/app/changes` long-pollt, aktualisiert `last_seen_at`
+    genau wie eines, das `/app/prompts` aufruft.
+    """
+    device = devices.resolve(session, token)
+    if device is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
+    user = session.get(User, device.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
+    if not user.approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Konto wartet auf Freischaltung"
+        )
+    devices.touch(session, device)
+    return user.id
 
 
 def device_user_id(
@@ -165,15 +188,4 @@ def device_user_id(
     gälte, öffnete stillschweigend jede bestehende Route. Diese Abhängigkeit
     hängt nur an `/api/app/`, und was dort liegt, steht in einer Liste.
     """
-    device = devices.resolve(session, bearer_token(authorization))
-    if device is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
-    user = session.get(User, device.user_id)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
-    if not user.approved:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Konto wartet auf Freischaltung"
-        )
-    devices.touch(session, device)
-    return user.id
+    return user_for(session, bearer_token(authorization))

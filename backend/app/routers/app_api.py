@@ -9,17 +9,15 @@ Tag-Vokabular, Bug-nach-oben und Statusregeln existieren genau einmal.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel
 from sqlmodel import Session
 
 from .. import changes as changes_mod
 from .. import db
-from .. import devices
 from ..db import get_session
-from ..deps import bearer_token, device_user_id
+from ..deps import bearer_token, device_user_id, user_for
 from ..longpoll import claim_with_wait
-from ..models import User
 from ..schemas import (
     AppPromptCreate,
     AppPromptUpdate,
@@ -119,18 +117,6 @@ def _app_fingerprint(session: Session, uid: int) -> dict[str, str]:
     return {k: v for k, v in full.items() if k in APP_ENTITIES}
 
 
-def _check_device(session: Session, token: str) -> int:
-    device = devices.resolve(session, token)
-    if device is None:
-        raise HTTPException(status_code=401, detail="Invalid device token")
-    user = session.get(User, device.user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid device token")
-    if not user.approved:
-        raise HTTPException(status_code=403, detail="Konto wartet auf Freischaltung")
-    return user.id
-
-
 @router.get("/changes", response_model=AppChangeFeed)
 async def app_changes(
     since: str | None = Query(None),
@@ -142,18 +128,21 @@ async def app_changes(
     ⚠️ Kein `Depends(get_session)` und kein `device_user_id`: die Anfrage kann
     bis zu 25 s geparkt sein, der Pool hat fünf Verbindungen (siehe
     `app/longpoll.py`). Das Gerät wird deshalb in JEDEM Versuch auf dessen
-    eigener Sitzung neu geprüft — was nebenbei heißt, dass Sperren einen
-    geparkten Poll beim nächsten Tick beendet.
+    eigener Sitzung neu geprüft — über `deps.user_for`, denselben Torwächter,
+    den auch `device_user_id` ruft — was nebenbei heißt, dass Sperren einen
+    geparkten Poll beim nächsten Tick beendet UND dass ein Gerät, das nur
+    long-pollt, trotzdem `last_seen_at` aktualisiert bekommt (`user_for` ruft
+    `devices.touch()`).
     """
     token = bearer_token(authorization)
     with Session(db.engine) as s:  # db.engine spät — siehe app/longpoll.py
-        uid = _check_device(s, token)
+        uid = user_for(s, token)
         before = changes_mod.decode(since)
         if not before:
             return AppChangeFeed(cursor=changes_mod.encode(_app_fingerprint(s, uid)))
 
     def attempt(session: Session) -> AppChangeFeed | None:
-        _check_device(session, token)
+        user_for(session, token)
         now = _app_fingerprint(session, uid)
         moved = changes_mod.changed(before, now)
         if not moved:

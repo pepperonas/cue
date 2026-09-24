@@ -203,6 +203,11 @@ brauchbaren Geräte-Token zurück.
   ausschließt; die SQLite-Datei liegt im Klartext auf dem Server.
 - **Prompt-Inhalte gehen an Anthropic**, sobald ein Run oder eine Optimierung
   läuft — das ist der Zweck der Funktion.
+- **Ein gestohlener Geräte-Token kann keinen Run starten, aber er kann den
+  Text wartender Prompts umschreiben.** Führt der Eigentümer einen so
+  veränderten Prompt später über die Claude-Code-CLI auf der Runner-Maschine
+  aus — möglicherweise mit übersprungenen Rechten —, läuft der eingeschleuste
+  Text dort. Zeitnah sperren; vor dem Ausführen den Prompt-Text ansehen.
 - **Kein Ausgabenlimit.** Ein hinterlegter Schlüssel begrenzt, *wessen* Konto
   belastet wird, nicht *wie viel*. Ein Kostendeckel gehört in die Anthropic-
   Konsole; die Statistik zeigt die Ausgaben, sie bremst sie nicht.
