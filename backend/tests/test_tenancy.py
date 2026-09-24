@@ -74,7 +74,11 @@ def test_every_endpoint_is_either_tenant_scoped_machine_auth_or_a_listed_excepti
     unaccounted = []
     for route in _routes():
         names = _dependency_names(route.dependant)
-        if "current_user_id" in names or "require_runner" in names:
+        # `device_user_id` scopes to a tenant exactly like `current_user_id` —
+        # it just resolves the tenant from a device Bearer token instead of a
+        # cookie session (see app/deps.py). Only `/api/app/*` may depend on it
+        # (test_app_surface.py holds that separately).
+        if "current_user_id" in names or "require_runner" in names or "device_user_id" in names:
             continue
         if _label(route) in UNSCOPED_BY_DESIGN:
             continue

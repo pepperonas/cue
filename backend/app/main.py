@@ -27,6 +27,7 @@ from .analysis.service import ProjectAnalysisService
 from .db import engine, init_db
 from .routers import (
     admin,
+    app_api,
     attachments,
     auth,
     capture,
@@ -223,6 +224,7 @@ api.include_router(aimodels.router)
 api.include_router(tags.router)
 api.include_router(changes.router)
 api.include_router(devices.router)
+api.include_router(app_api.router)
 
 
 # HEAD as well as GET: FastAPI's APIRoute — unlike Starlette's plain Route —

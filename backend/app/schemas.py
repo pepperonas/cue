@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, ConfigDict
 
 from .models import (
     OptimizationDecision,
@@ -135,6 +135,37 @@ class PromptUpdate(BaseModel):
     #: einen eigenen Schalter, um ihn zu setzen.
     optimized_manually: bool | None = None
     clear_optimized_manually: bool = False
+
+
+class AppPromptCreate(BaseModel):
+    """Was die Android-App beim Anlegen schicken darf. Unbekanntes ist 422."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = ""
+    body: str
+    project_id: int | None = None
+    status: PromptStatus = PromptStatus.queued
+    tags: str = ""
+    bookmarked: bool = False
+    priority: PromptPriority = PromptPriority.normal
+
+
+class AppPromptUpdate(BaseModel):
+    """Teilmenge von `PromptUpdate` (Entwurf § 3.1). Unbekanntes ist 422 —
+    ein Feld, das die App schickt und der Server still verwirft, wäre ein
+    Fehler, den niemand bemerkt."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = None
+    body: str | None = None
+    project_id: int | None = None
+    unassign_project: bool = False
+    status: PromptStatus | None = None
+    tags: str | None = None
+    bookmarked: bool | None = None
+    priority: PromptPriority | None = None
 
 
 class PromptRead(BaseModel):
