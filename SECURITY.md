@@ -176,10 +176,12 @@ eine kaputte Prüfung still aufhört zu prüfen.
 ### Geräte-Token
 
 Für die Android-App: ein Gerät legt sich unter Einstellungen → Geräte an und
-bekommt genau einmal einen Token angezeigt. Anders als die drei Bearer-Token
-oben ist er **nicht signiert, sondern nachgeschlagen** — gespeichert wird nur
-sein SHA-256 (`app/devices.py`), ein Diebstahl der Datenbank liefert also
-keinen brauchbaren Token zurück.
+bekommt genau einmal einen Token angezeigt. `capture_token` und
+`snippet_sync_token` liegen im Klartext in `user`, `RUNNER_TOKEN` ist ein
+statisches Geheimnis (per `hmac.compare_digest` verglichen) — der Geräte-Token
+ist der einzige der vier, von dem der Server **nur den SHA-256** speichert
+(`app/devices.py`); ein Diebstahl der Datenbank liefert also keinen
+brauchbaren Geräte-Token zurück.
 
 - **Wirkungsradius: nur Prompts.** Der Token öffnet ausschließlich `/api/app/`
   — Prompts lesen/anlegen/ändern, Projekte und Tags lesen, Änderungen
