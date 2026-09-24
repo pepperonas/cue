@@ -33,6 +33,7 @@ from .routers import (
     changes,
     aimodels,
     analysis,
+    devices,
     importexport,
     optimize,
     projects,
@@ -221,6 +222,7 @@ api.include_router(analysis.router)
 api.include_router(aimodels.router)
 api.include_router(tags.router)
 api.include_router(changes.router)
+api.include_router(devices.router)
 
 
 # HEAD as well as GET: FastAPI's APIRoute — unlike Starlette's plain Route —

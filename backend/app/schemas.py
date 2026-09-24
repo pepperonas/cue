@@ -960,3 +960,21 @@ class AiModelDeleteResult(BaseModel):
     deleted: int
     #: Wie viele Prompts auf das Ersatzmodell umgehängt wurden.
     reassigned: int = 0
+
+
+# ---- Devices (Geräte-Token für die Android-App) ----
+class DeviceCreate(BaseModel):
+    name: str
+
+
+class DeviceRead(BaseModel):
+    id: int
+    name: str
+    created_at: Utc
+    last_seen_at: Utc | None = None
+    revoked_at: Utc | None = None
+
+
+class DeviceCreated(DeviceRead):
+    #: Nur in dieser einen Antwort. Danach existiert der Token nur noch als Hash.
+    token: str
