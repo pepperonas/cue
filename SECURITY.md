@@ -173,6 +173,28 @@ vollständig negativ — manipuliert, abgeschnitten, quer signiert, abgelaufen,
 zweckentfremdet —, weil eine gültige Signatur hier **die** Autorisierung ist und
 eine kaputte Prüfung still aufhört zu prüfen.
 
+### Geräte-Token
+
+Für die Android-App: ein Gerät legt sich unter Einstellungen → Geräte an und
+bekommt genau einmal einen Token angezeigt. Anders als die drei Bearer-Token
+oben ist er **nicht signiert, sondern nachgeschlagen** — gespeichert wird nur
+sein SHA-256 (`app/devices.py`), ein Diebstahl der Datenbank liefert also
+keinen brauchbaren Token zurück.
+
+- **Wirkungsradius: nur Prompts.** Der Token öffnet ausschließlich `/api/app/`
+  — Prompts lesen/anlegen/ändern, Projekte und Tags lesen, Änderungen
+  abfragen. Bewusst **kein** Zugriff auf Runs oder CLI-Delivery: sonst wäre ein
+  verlorenes Telefon ein Zugang zu einem Terminal auf der Runner-Maschine, statt
+  nur zu einer Liste von Prompts.
+- **Sperren wirkt sofort.** `DELETE /devices/{id}` setzt `revoked_at`; die Zeile
+  bleibt stehen (damit die Einstellungen zeigen, was gesperrt wurde), aber jede
+  folgende Anfrage — auch eine bereits geparkte in `/app/changes` — schlägt
+  beim nächsten Versuch mit 401 fehl.
+- **`capture_token` und `snippet_sync_token` liegen weiterhin im Klartext** in
+  `user` (die Weiterleiter, die sie benutzen, müssen den Wert zurücklesen
+  können, um ihn erneut zu senden). Das auf denselben Hash-statt-Klartext-Weg
+  umzustellen ist offen und eine eigene Aufgabe.
+
 ## Grenzen — was hier ausdrücklich nicht behauptet wird
 
 - **Der Betreiber sieht alles.** Es gibt keine Verschlüsselung, die ihn
