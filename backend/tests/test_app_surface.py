@@ -169,3 +169,61 @@ def test_a_device_token_opens_nothing_outside_app(client, method, path):
     # Genau 401: ohne Cookie haben die Cookie-Routen keinen Mandanten. Ein 404
     # hieße „Pfad gibt es nicht" und machte die Zeile wertlos.
     assert r.status_code == 401, (path, r.status_code)
+
+
+# ---------------------------------------------------------------------------
+# GET /app/changes
+
+
+def test_changes_reports_prompt_edits_and_nothing_else(client):
+    csrf, dev = _device(client)
+    cookie = client.cookies.get("cue_session")
+    client.cookies.clear()
+    start = client.get("/api/app/changes", headers=dev).json()
+    assert start["changed"] == []
+
+    # Ein Snippet ändert sich: die App kennt keine Snippets, also keine Meldung.
+    client.cookies.set("cue_session", cookie)
+    client.post("/api/snippets", json={"abbreviation": ";x", "body": "x"}, headers={"X-CSRF-Token": csrf})
+    client.cookies.clear()
+    quiet = client.get(f"/api/app/changes?since={start['cursor']}", headers=dev).json()
+    assert quiet["changed"] == []
+
+    client.post("/api/app/prompts", json={"body": "neu"}, headers=dev)
+    moved = client.get(f"/api/app/changes?since={start['cursor']}", headers=dev).json()
+    # Ein Prompt ohne Tags bewegt das Vokabular nicht.
+    assert moved["changed"] == ["prompts"]
+
+
+def test_changes_rejects_a_revoked_device(client):
+    csrf, dev = _device(client)
+    device_id = client.get("/api/devices").json()[0]["id"]
+    client.delete(f"/api/devices/{device_id}", headers={"X-CSRF-Token": csrf})
+    client.cookies.clear()
+    assert client.get("/api/app/changes", headers=dev).status_code == 401
+
+
+def test_a_revoked_device_is_thrown_out_of_a_parked_poll(client, monkeypatch):
+    """Sperren muss auch den geparkten Long-Poll beenden — beim nächsten Tick,
+    nicht nach Ablauf des Budgets."""
+    import time
+
+    import app.db as db_module
+    from sqlmodel import Session, select
+
+    from app import longpoll
+    from app.models import Device, utcnow
+
+    monkeypatch.setattr(longpoll, "TICK_S", 0.05)
+    _, dev = _device(client)
+    client.cookies.clear()
+    cursor = client.get("/api/app/changes", headers=dev).json()["cursor"]
+    with Session(db_module.engine) as s:
+        d = s.exec(select(Device)).first()
+        d.revoked_at = utcnow()
+        s.add(d)
+        s.commit()
+    began = time.monotonic()
+    r = client.get(f"/api/app/changes?since={cursor}&wait=5", headers=dev)
+    assert r.status_code == 401
+    assert time.monotonic() - began < 2

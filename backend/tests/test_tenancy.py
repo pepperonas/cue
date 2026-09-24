@@ -37,6 +37,10 @@ UNSCOPED_BY_DESIGN: dict[str, str] = {
         "long poll: deliberately takes no pooled DB session, so it reads the signed "
         "cookie and re-checks the tenant inside every attempt (see app/longpoll.py)"
     ),
+    "GET /app/changes": (
+        "long poll per Geräte-Token: nimmt bewusst keine Pool-Sitzung und prüft das "
+        "Gerät in jedem Versuch neu (siehe routers/app_api.py)"
+    ),
 }
 
 
@@ -158,12 +162,14 @@ def _make_resources(client, headers) -> dict[str, int]:
         "/api/snippets", json={"abbreviation": ";geheim", "body": "x"}, headers=headers
     ).json()
     tag = client.get("/api/tags", headers=headers).json()["items"][0]
+    device = client.post("/api/devices", json={"name": "tel"}, headers=headers).json()
     return {
         "project": project["id"],
         "prompt": prompt["id"],
         "group": group["id"],
         "snippet": snippet["id"],
         "tag": tag["id"],
+        "device": device["id"],
     }
 
 
@@ -183,6 +189,7 @@ FOREIGN_ACCESS = [
     ("tag umbenennen", "PATCH", "/api/tags/{tag}", {"name": "uebernommen"}),
     ("tag löschen", "DELETE", "/api/tags/{tag}", None),
     ("tag-nutzung lesen", "GET", "/api/tags/{tag}/usage", None),
+    ("gerät sperren", "DELETE", "/api/devices/{device}", None),
 ]
 
 
