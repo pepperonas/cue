@@ -205,7 +205,15 @@ def test_changes_rejects_a_revoked_device(client):
 
 def test_a_revoked_device_is_thrown_out_of_a_parked_poll(client, monkeypatch):
     """Sperren muss auch den geparkten Long-Poll beenden — beim nächsten Tick,
-    nicht nach Ablauf des Budgets."""
+    nicht nach Ablauf des Budgets.
+
+    Die Sperrung muss dafür WÄHREND das Gerät schon geparkt wartet passieren
+    (eigener Thread) — sperrt man es VOR der Anfrage, greift schon der äußere,
+    unbedingte Check am Anfang von `app_changes` und `attempt` (der innere
+    Check, den dieser Test eigentlich prüfen soll) wird nie erreicht. Muster
+    wie `tests/test_changes.py::test_a_change_during_the_wait_is_picked_up_without_asking_again`.
+    """
+    import threading
     import time
 
     import app.db as db_module
@@ -218,12 +226,26 @@ def test_a_revoked_device_is_thrown_out_of_a_parked_poll(client, monkeypatch):
     _, dev = _device(client)
     client.cookies.clear()
     cursor = client.get("/api/app/changes", headers=dev).json()["cursor"]
-    with Session(db_module.engine) as s:
-        d = s.exec(select(Device)).first()
-        d.revoked_at = utcnow()
-        s.add(d)
-        s.commit()
+
+    answers: list = []
+
+    def wait_for_it():
+        answers.append(client.get(f"/api/app/changes?since={cursor}&wait=5", headers=dev))
+
+    waiter = threading.Thread(target=wait_for_it)
     began = time.monotonic()
-    r = client.get(f"/api/app/changes?since={cursor}&wait=5", headers=dev)
-    assert r.status_code == 401
-    assert time.monotonic() - began < 2
+    waiter.start()
+    try:
+        time.sleep(0.2)  # let it park — several ticks at TICK_S=0.05
+        with Session(db_module.engine) as s:
+            d = s.exec(select(Device)).first()
+            d.revoked_at = utcnow()
+            s.add(d)
+            s.commit()
+    finally:
+        waiter.join(timeout=8)
+
+    elapsed = time.monotonic() - began
+    assert answers, "poll never answered"
+    assert answers[0].status_code == 401
+    assert elapsed < 2, f"answered after {elapsed:.1f}s — waited out the budget instead"
