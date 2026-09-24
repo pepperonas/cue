@@ -110,7 +110,8 @@ export function DevicesSection() {
           onCancel={() => setNaming(false)}
           onConfirm={(name) => {
             setNaming(false)
-            create.mutate(name.trim(), {
+            // `InputDialog` trimmt bereits, bevor `onConfirm` läuft.
+            create.mutate(name, {
               onSuccess: (d) => setFresh({ name: d.name, token: d.token }),
               onError: () => toast.show('Gerät konnte nicht angelegt werden', 'error'),
             })
@@ -125,7 +126,14 @@ export function DevicesSection() {
           confirmLabel="Sperren"
           onCancel={() => setToRevoke(null)}
           onConfirm={() => {
-            revoke.mutate(toRevoke.id)
+            // Erst den Namen sichern — `toRevoke` wird gleich genullt, der
+            // Toast in onSuccess/onError braucht ihn aber noch.
+            const device = toRevoke
+            revoke.mutate(device.id, {
+              onSuccess: () => toast.show(`„${device.name}" gesperrt`, 'success'),
+              onError: (e) =>
+                toast.show(e instanceof Error ? e.message : 'Sperren fehlgeschlagen', 'error'),
+            })
             setToRevoke(null)
           }}
         />
