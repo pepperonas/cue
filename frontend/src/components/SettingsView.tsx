@@ -8,6 +8,7 @@ import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { Confirm } from './Confirm'
 import { AboutSection } from './AboutSection'
+import { DevicesSection } from './DevicesSection'
 import { Select } from './Select'
 
 const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[] = [
@@ -364,6 +365,8 @@ export function SettingsView({
           )}
         </div>
       </div>
+
+      <DevicesSection />
 
       <div className="section">
         <h3>Snippet-Sync (Inspector Rust)</h3>

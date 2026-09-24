@@ -519,3 +519,15 @@ describe('Optimierungs-Indikator in der Demo', () => {
     expect(p.optimized_manually).toBeNull()
   })
 })
+
+describe('Geräte', () => {
+  it('lists no devices and refuses to create one', () => {
+    // Geräte-Token gibt es in der Demo nicht: die Liste ist immer leer, und
+    // Anlegen fällt in die allgemeine Ablehnung (kein Server, der einen
+    // Token hashen könnte).
+    expect(handleDemoRequest(state, 'GET', '/devices')).toEqual([])
+    expect(() => handleDemoRequest(state, 'POST', '/devices', { name: 'x' })).toThrow(
+      DemoRefusal,
+    )
+  })
+})

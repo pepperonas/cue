@@ -429,6 +429,9 @@ const READ_ONLY: Record<string, unknown> = {
   '/snippets/groups': [],
   '/capture/settings': { token_set: false, project_base: '', capture_base: '' },
   '/sync/settings': { token_set: false, sync_ungrouped: false, last_sync: null },
+  // Geräte-Token gibt es in der Demo nicht; die Liste ist leer, Anlegen
+  // fällt in die allgemeine Ablehnung.
+  '/devices': [],
 }
 
 /**

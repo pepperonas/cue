@@ -13,6 +13,8 @@ import type {
   CaptureSessionDetail,
   CaptureSettings,
   Delivery,
+  Device,
+  DeviceCreated,
   Me,
   Optimization,
   AiModel,
@@ -298,6 +300,11 @@ export const api = {
   getCaptureSettings: () => request<CaptureSettings>('GET', '/capture/settings'),
   updateCaptureSettings: (patch: { project_base?: string; regenerate?: boolean }) =>
     request<CaptureSettings>('POST', '/capture/settings', patch),
+
+  // Devices (per-device tokens, e.g. the Android app)
+  listDevices: () => request<Device[]>('GET', '/devices'),
+  createDevice: (name: string) => request<DeviceCreated>('POST', '/devices', { name }),
+  revokeDevice: (id: number) => request<void>('DELETE', `/devices/${id}`),
   mergePrompts: (input: {
     source_ids: number[]
     title?: string

@@ -229,6 +229,19 @@ export interface CaptureSettings {
   token?: string | null
 }
 
+// ---- Devices (per-device tokens, e.g. the Android app) ----
+export interface Device {
+  id: number
+  name: string
+  created_at: string
+  last_seen_at: string | null
+  revoked_at: string | null
+}
+
+export interface DeviceCreated extends Device {
+  token: string
+}
+
 export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
   queued: 'Queued',
   claiming: 'Claiming',
