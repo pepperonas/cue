@@ -15,8 +15,18 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+/** Die sechs Aufrufe der App — als Interface, damit Tests einen Fake-Server einsetzen können. */
+interface AppApi {
+    suspend fun prompts(): ApiResult<List<PromptDto>>
+    suspend fun projects(): ApiResult<List<ProjectDto>>
+    suspend fun tags(): ApiResult<TagListDto>
+    suspend fun changes(since: String?, waitSeconds: Int): ApiResult<ChangeFeedDto>
+    suspend fun create(fields: JsonObject): ApiResult<PromptDto>
+    suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto>
+}
+
 /** Spricht ausschließlich mit den `/api/app`-Routen. Einen anderen Pfad kennt die App nicht. */
-class CueApi(private val client: OkHttpClient, private val store: TokenStore) {
+class CueApi(private val client: OkHttpClient, private val store: TokenStore) : AppApi {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val jsonType = "application/json".toMediaType()
 
@@ -56,16 +66,20 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) {
         }
     }
 
-    suspend fun prompts() = call("GET", "/prompts", serializer = ListSerializer(PromptDto.serializer()))
-    suspend fun projects() = call("GET", "/projects", serializer = ListSerializer(ProjectDto.serializer()))
-    suspend fun tags() = call("GET", "/tags", serializer = TagListDto.serializer())
+    override suspend fun prompts(): ApiResult<List<PromptDto>> =
+        call("GET", "/prompts", serializer = ListSerializer(PromptDto.serializer()))
+    override suspend fun projects(): ApiResult<List<ProjectDto>> =
+        call("GET", "/projects", serializer = ListSerializer(ProjectDto.serializer()))
+    override suspend fun tags(): ApiResult<TagListDto> = call("GET", "/tags", serializer = TagListDto.serializer())
 
-    suspend fun changes(since: String?, waitSeconds: Int) = call(
+    override suspend fun changes(since: String?, waitSeconds: Int): ApiResult<ChangeFeedDto> = call(
         "GET", "/changes",
         query = buildMap { if (since != null) put("since", since); put("wait", waitSeconds.toString()) },
         serializer = ChangeFeedDto.serializer(),
     )
 
-    suspend fun create(fields: JsonObject) = call("POST", "/prompts", fields, serializer = PromptDto.serializer())
-    suspend fun patch(id: Long, fields: JsonObject) = call("PATCH", "/prompts/$id", fields, serializer = PromptDto.serializer())
+    override suspend fun create(fields: JsonObject): ApiResult<PromptDto> =
+        call("POST", "/prompts", fields, serializer = PromptDto.serializer())
+    override suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto> =
+        call("PATCH", "/prompts/$id", fields, serializer = PromptDto.serializer())
 }
