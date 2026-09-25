@@ -69,6 +69,13 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     testOptions { unitTests.isIncludeAndroidResources = true }
+    lint {
+        // Der LiveData-Detektor aus androidx.lifecycle stürzt mit der Lint-Version
+        // dieses AGP ab (KaCallableMemberCall: class statt interface) und reißt
+        // lintVitalAnalyzeRelease — also jeden Release-Build — mit. Die App nutzt
+        // kein LiveData; nur dieser eine Detektor ist aus, der Rest läuft.
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }

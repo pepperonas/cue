@@ -367,6 +367,23 @@ into it. Own doc: [`android/README.md`](android/README.md); design doc:
 - Toolchain: JDK 21 (`~/Library/Java/JavaVirtualMachines/openjdk-21.0.2`, not
   the system default), `ANDROID_HOME=~/Library/Android/sdk`, `apksigner` under
   `$ANDROID_HOME/build-tools/35.0.0/` (matches `compileSdk 35`).
+- ⚠️ **The release build (R8 + lint-vital) failed from the first commit and
+  nothing noticed** — the debug build and every unit test were green, because
+  neither runs R8 or `lintVitalAnalyzeRelease`. Two fixes, both deliberate:
+  `-dontwarn com.google.errorprone.annotations.**` in `proguard-rules.pro`
+  (Tink under `EncryptedSharedPreferences` references compile-only
+  annotations) and `lint { disable += "NullSafeMutableLiveData" }` (that one
+  androidx.lifecycle detector crashes against this AGP's lint; the app uses
+  no LiveData). **Verified on the emulator with the R8 build** against a local
+  backend: pull (project name, tags, priority), push (create incl. priority),
+  live sync (server create appears within seconds) and revocation (401 →
+  notice, local copy gone, server address kept). ⚠️ The release manifest
+  allows no cleartext, so testing an R8 build against `http://10.0.2.2` needs
+  a throwaway `src/release/` copy of the debug network config — build, test,
+  delete; never commit it. ⚠️ Verification trap hit on the way: `adb shell
+  monkey` can fail to launch (result −5) and a UI-dump script that does not
+  delete the previous dump then reads the STALE one — it reported a „revoked"
+  notice on a fresh install that was really the previous run's screen.
 
 ## Deployment (live: cue.celox.io on VPS 69.62.121.168)
 
