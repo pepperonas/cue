@@ -3,6 +3,7 @@ package io.celox.cue.data.auth
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import io.celox.cue.core.normalizeDeviceToken
 
 interface TokenStore {
     val token: String?
@@ -31,7 +32,12 @@ class EncryptedTokenStore(context: Context) : TokenStore {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    override val token: String? get() = prefs.getString("token", null)
+    /**
+     * I4: ein von einer älteren Version gespeichertes Token, das nicht die Form eines
+     * Geräte-Tokens hat (etwa mit Zeilenumbruch eingefügt), gilt als „nicht verbunden":
+     * die Einstellungen öffnen sich, statt dass die App bei jedem Start abstürzt.
+     */
+    override val token: String? get() = prefs.getString("token", null)?.let(::usableStoredToken)
     override val serverUrl: String get() = prefs.getString("url", null) ?: DEFAULT_SERVER
 
     override fun save(url: String, token: String) {
@@ -46,3 +52,6 @@ class EncryptedTokenStore(context: Context) : TokenStore {
         prefs.edit().putString("url", url).apply()
     }
 }
+
+/** Ein gespeichertes Token nur dann, wenn es als Geräte-Token taugt — sonst `null` („nicht verbunden"). */
+fun usableStoredToken(raw: String): String? = normalizeDeviceToken(raw)

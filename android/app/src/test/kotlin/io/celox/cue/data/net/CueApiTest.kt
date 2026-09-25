@@ -104,4 +104,13 @@ class CueApiTest {
         assertThat(bare.prompts().code()).isEqualTo(401)
         assertThat(server.requestCount).isEqualTo(0)
     }
+
+    /** I4: vorher warf `header()` außerhalb des `try` — ein solches gespeichertes Token stürzte jeden Start ab. */
+    @Test fun `a token with header-illegal characters is a result, not a crash`() = runTest {
+        for (bad in listOf("to\nk", "tök")) {
+            val api = CueApi(OkHttpClient(), FakeStore(server.url("/").toString().trimEnd('/'), bad))
+            assertThat(api.prompts().code()).isEqualTo(400) // keine Sperre: kein Wipe
+        }
+        assertThat(server.requestCount).isEqualTo(0)
+    }
 }

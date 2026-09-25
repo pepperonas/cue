@@ -41,11 +41,19 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) : 
         val base = "${store.serverUrl}/api/app$path".toHttpUrlOrNull()
             ?: return@withContext ApiResult.Http(400, "Server-Adresse ungültig")
         val url = base.newBuilder().apply { query.forEach { (k, v) -> addQueryParameter(k, v) } }.build()
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .method(method, body?.let { it.toString().toRequestBody(jsonType) })
-            .build()
+        // ⚠️ I4: `header()` wirft `IllegalArgumentException` bei einem Zeilenumbruch oder
+        // Nicht-ASCII-Zeichen im Token. Außerhalb eines `try` stürzte das die App ab — bei
+        // JEDEM Start, solange ein solches Token gespeichert war. Ein 400 statt eines 401:
+        // ein unbrauchbares Token ist keine Sperre, die lokale Kopie bleibt unangetastet.
+        val request = try {
+            Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .method(method, body?.let { it.toString().toRequestBody(jsonType) })
+                .build()
+        } catch (e: IllegalArgumentException) {
+            return@withContext ApiResult.Http(400, "Token enthält unzulässige Zeichen")
+        }
         try {
             client.newCall(request).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()

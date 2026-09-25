@@ -82,6 +82,9 @@ class SettingsViewModel @Inject constructor(
                     _connected.trySend(Unit)
                 }
                 ConnectResult.BadUrl -> connectError = "Adresse ungültig (https:// nötig)"
+                ConnectResult.BadToken ->
+                    connectError = "Das ist kein Geräte-Token — erwartet werden 64 Zeichen (0–9, a–f), " +
+                        "zu finden in cue unter Einstellungen → Geräte"
                 ConnectResult.Rejected ->
                     connectError = "Token abgelehnt — in cue unter Einstellungen → Geräte neu anlegen"
                 ConnectResult.Offline -> connectError = "Server nicht erreichbar"

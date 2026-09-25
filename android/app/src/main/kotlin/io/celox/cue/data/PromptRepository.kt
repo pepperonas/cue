@@ -6,6 +6,7 @@ import io.celox.cue.core.OpKind
 import io.celox.cue.core.Outcome
 import io.celox.cue.core.Priority
 import io.celox.cue.core.classify
+import io.celox.cue.core.normalizeDeviceToken
 import io.celox.cue.core.normalizeServerUrl
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
@@ -32,6 +33,8 @@ import kotlinx.serialization.json.put
 sealed interface ConnectResult {
     data object Ok : ConnectResult
     data object BadUrl : ConnectResult
+    /** Nicht die Form eines Geräte-Tokens (64 Hex-Zeichen) — geprüft, BEVOR irgendetwas gespeichert wird. */
+    data object BadToken : ConnectResult
     data object Rejected : ConnectResult
     data object Offline : ConnectResult
 }
@@ -147,7 +150,9 @@ class PromptRepository @Inject constructor(
      */
     suspend fun connect(rawUrl: String, token: String): ConnectResult {
         val url = normalizeServerUrl(rawUrl) ?: return ConnectResult.BadUrl
-        val cleanToken = token.trim()
+        // I4: ein Zeilenumbruch oder Nicht-ASCII-Zeichen im gespeicherten Token ließ OkHttp beim
+        // Header-Bauen werfen — bei jedem Start. Die Form wird geprüft, bevor gespeichert wird.
+        val cleanToken = normalizeDeviceToken(token) ?: return ConnectResult.BadToken
 
         val result = withContext(NonCancellable + Dispatchers.IO) {
             engine.exclusive { wipeInside ->
