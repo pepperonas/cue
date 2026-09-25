@@ -44,9 +44,14 @@ class SyncEngineTest {
 
     class FakeStore : TokenStore {
         override var token: String? = "tok"
-        override var serverUrl = "https://cue.celox.io"
-        override fun save(url: String, token: String) { serverUrl = url; this.token = token }
+        // `val` mit eigenem Getter statt `var`: eine ECHTE `var serverUrl` erzeugt
+        // auf dem JVM einen synthetischen Setter `setServerUrl(String)`, der mit
+        // der gleichnamigen Interface-Methode (Fix-Runde 1, Regel 4) kollidiert.
+        private var urlField = "https://cue.celox.io"
+        override val serverUrl: String get() = urlField
+        override fun save(url: String, token: String) { urlField = url; this.token = token }
         override fun clear() { token = null }
+        override fun setServerUrl(url: String) { urlField = url }
     }
 
     /** Ein Server im Speicher; `down` simuliert Funkloch, `status` erzwingt Codes. */

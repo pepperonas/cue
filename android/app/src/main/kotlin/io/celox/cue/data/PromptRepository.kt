@@ -56,15 +56,20 @@ class PromptRepository @Inject constructor(
      * @return die lokale ID, oder `null`, wenn `enqueue` die Änderung verworfen
      * hat (kein Token) — dann wurde nichts geschrieben und nichts angestoßen.
      *
-     * `engine.enqueue` läuft in `NonCancellable`: es teilt sich einen Mutex mit
-     * `sync()` und kann hinter einem Netzwerk-Aufruf warten — verlässt der
-     * Aufrufer währenddessen seinen Scope (Nutzer wechselt den Bildschirm),
-     * darf die Änderung nicht verloren gehen.
+     * `engine.enqueue` UND der Worker-Anstoß laufen BEIDE in `NonCancellable`:
+     * `enqueue` teilt sich einen Mutex mit `sync()` und kann hinter einem
+     * Netzwerk-Aufruf warten — verlässt der Aufrufer währenddessen seinen
+     * Scope (Nutzer wechselt den Bildschirm), darf die Änderung nicht
+     * verloren gehen. ⚠️ Fix-Runde 1: `kick` stand vorher AUSSERHALB dieses
+     * Blocks — kam der Aufrufer beim Zurückkehren auf seinen (inzwischen
+     * abgebrochenen) Dispatcher, wurde genau diese Zeile nie erreicht, obwohl
+     * die Änderung längst geschrieben war. Jetzt ist der ganze
+     * Funktionskörper geschützt.
      */
-    suspend fun create(title: String, body: String, projectId: Long?, tags: String): Long? {
-        val (id, accepted) = withContext(NonCancellable + Dispatchers.IO) {
+    suspend fun create(title: String, body: String, projectId: Long?, tags: String): Long? =
+        withContext(NonCancellable + Dispatchers.IO) {
             val newId = db.nextLocalId()
-            val ok = engine.enqueue(
+            val accepted = engine.enqueue(
                 newId,
                 OpKind.CREATE,
                 buildJsonObject {
@@ -74,17 +79,15 @@ class PromptRepository @Inject constructor(
                     if (projectId != null) put("project_id", projectId)
                 },
             )
-            newId to ok
+            if (accepted) SyncWorker.kick(context)
+            if (accepted) newId else null
         }
-        if (accepted) SyncWorker.kick(context)
-        return if (accepted) id else null
-    }
 
-    /** @return `true`, wenn `enqueue` die Änderung angenommen hat. */
-    suspend fun update(id: Long, fields: JsonObject): Boolean {
-        val accepted = withContext(NonCancellable + Dispatchers.IO) { engine.enqueue(id, OpKind.UPDATE, fields) }
+    /** @return `true`, wenn `enqueue` die Änderung angenommen hat. Siehe [create] zum Umbau in Fix-Runde 1. */
+    suspend fun update(id: Long, fields: JsonObject): Boolean = withContext(NonCancellable + Dispatchers.IO) {
+        val accepted = engine.enqueue(id, OpKind.UPDATE, fields)
         if (accepted) SyncWorker.kick(context)
-        return accepted
+        accepted
     }
 
     suspend fun syncNow(): SyncResult = withContext(Dispatchers.IO) { engine.sync() }
@@ -93,57 +96,71 @@ class PromptRepository @Inject constructor(
      * Token prüfen, BEVOR er gespeichert wird: ein Tippfehler soll nicht erst
      * im Hintergrund auffallen.
      *
-     * ⚠️ Ein anderer Server ist IMMER ein anderes Konto — das steht schon
-     * fest, bevor überhaupt ein Netzwerk-Aufruf passiert ist, deshalb wird in
-     * diesem Fall VOR dem Speichern gelöscht (auch wenn die neue Adresse sich
-     * am Ende als nicht erreichbar erweist: die alten Zugangsdaten werden
-     * danach exakt wiederhergestellt, und der nächste erfolgreiche Abgleich
-     * füllt die Kopie ohnehin komplett neu aus dem Server). Ein anderes Token
-     * auf DEMSELBEN Server ist erst dann sicher ein anderes Konto, wenn die
-     * Anfrage damit auch tatsächlich durchkommt — vorher zu löschen hätte bei
-     * einem simplen Tippfehler die alte, gültige lokale Kopie grundlos
-     * vernichtet. Lokale Zeilen und wartende Änderungen eines fremden
-     * Servers/Kontos dürfen nie mit den neuen Zugangsdaten geschoben werden.
+     * ⚠️ Fix-Runde 1, Regel B ersetzt: läuft komplett unter `engine.exclusive`.
+     * `CueApi` liest `store.token`/`serverUrl` bei JEDEM Aufruf neu — ohne
+     * diese Sperre könnte ein GLEICHZEITIG laufender Push mitten im Schieben
+     * mit dem hier frisch gespeicherten Token eines ANDEREN Kontos
+     * weiterlaufen, und eine noch wartende Änderung des ALTEN Kontos ginge
+     * unter dem NEUEN heraus.
+     *
+     * Reihenfolge INNERHALB der Sperre: normalisieren (schon vorher erledigt)
+     * → alte Zugangsdaten merken → die KANDIDATIN speichern → Probe-Anfrage.
+     * Erst wenn die Probe durchkommt UND vorher schon ein Token gespeichert
+     * war UND (Adresse ODER Token sich geändert haben), wird gelöscht — ein
+     * Tippfehler in der Adresse ODER im Token darf die noch gültige, alte
+     * lokale Kopie nicht grundlos vernichten. Bei JEDEM Fehlschlag werden die
+     * alten Zugangsdaten EXAKT wiederhergestellt (auch die Adresse, wenn
+     * vorher noch gar kein Token gespeichert war) und keine lokale Zeile
+     * angefasst.
      */
-    suspend fun connect(rawUrl: String, token: String): ConnectResult = withContext(Dispatchers.IO) {
-        val url = normalizeServerUrl(rawUrl) ?: return@withContext ConnectResult.BadUrl
+    suspend fun connect(rawUrl: String, token: String): ConnectResult {
+        val url = normalizeServerUrl(rawUrl) ?: return ConnectResult.BadUrl
         val cleanToken = token.trim()
-        val previousToken = store.token
-        val previousUrl = store.serverUrl
-        val hadToken = previousToken != null
-        val urlChanged = hadToken && url != previousUrl
-        val tokenChanged = hadToken && cleanToken != previousToken
 
-        if (urlChanged) engine.wipe()
-        store.save(url, cleanToken)
+        val result = withContext(Dispatchers.IO) {
+            engine.exclusive { wipeInside ->
+                val previousToken = store.token
+                val previousUrl = store.serverUrl
+                store.save(url, cleanToken)
 
-        when (classify(api.changes(since = null, waitSeconds = 0).code())) {
-            Outcome.Ok -> {
-                // Erst jetzt ist bestätigt, dass das geänderte Token wirklich
-                // funktioniert — `wipe()` löscht auch das gerade gespeicherte
-                // Token wieder (`store.clear()`), deshalb muss danach erneut
-                // gespeichert werden.
-                if (!urlChanged && tokenChanged) {
-                    engine.wipe()
-                    store.save(url, cleanToken)
+                when (classify(api.changes(since = null, waitSeconds = 0).code())) {
+                    Outcome.Ok -> {
+                        if (previousToken != null && (url != previousUrl || cleanToken != previousToken)) {
+                            // `wipeInside()` löscht auch das gerade gespeicherte
+                            // Token wieder (`store.clear()`), deshalb erneut speichern.
+                            wipeInside()
+                            store.save(url, cleanToken)
+                        }
+                        ConnectResult.Ok
+                    }
+                    Outcome.Revoked, is Outcome.Rejected -> {
+                        restore(previousToken, previousUrl)
+                        ConnectResult.Rejected
+                    }
+                    Outcome.Offline -> {
+                        restore(previousToken, previousUrl)
+                        ConnectResult.Offline
+                    }
                 }
-                engine.sync()
-                SyncWorker.schedule(context)
-                ConnectResult.Ok
-            }
-            Outcome.Revoked, is Outcome.Rejected -> {
-                restore(previousToken, previousUrl)
-                ConnectResult.Rejected
-            }
-            Outcome.Offline -> {
-                restore(previousToken, previousUrl)
-                ConnectResult.Offline
             }
         }
+
+        // AUSSERHALB der Sperre: sync() nimmt sich seinen eigenen Mutex, und
+        // der ist nicht reentrant.
+        if (result == ConnectResult.Ok) {
+            engine.sync()
+            SyncWorker.schedule(context)
+        }
+        return result
     }
 
     private fun restore(token: String?, url: String) {
-        if (token != null) store.save(url, token) else store.clear()
+        if (token != null) {
+            store.save(url, token)
+        } else {
+            store.clear()
+            store.setServerUrl(url)
+        }
     }
 
     suspend fun disconnect() = withContext(Dispatchers.IO) { engine.wipe() }

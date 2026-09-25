@@ -141,6 +141,25 @@ class SyncEngine(
 
     suspend fun wipe() = mutex.withLock { wipeLocked() }
 
+    /**
+     * Führt `block` unter demselben Mutex aus wie `sync()`/`enqueue()`/`wipe()`
+     * — für `connect()` (Task 7, Fix-Runde 1): Zugangsdaten schreiben und per
+     * Probe-Anfrage prüfen darf sich mit einem laufenden Push/Pull nicht
+     * überlappen. `CueApi` liest `store.token`/`serverUrl` bei JEDEM Aufruf
+     * neu, nicht einmal beim Start — ohne diese Sperre könnte ein mitten im
+     * Schieben laufender Request nach einem `connect()` mit dem FRISCH
+     * gespeicherten Token eines ANDEREN Kontos weiterlaufen und eine noch
+     * wartende Änderung des ALTEN Kontos unter dem NEUEN verschicken.
+     *
+     * `wipeInside` löscht OHNE den Mutex erneut zu nehmen (`Mutex` ist NICHT
+     * reentrant — ein zweites `withLock` auf derselben Coroutine wäre ein
+     * Deadlock) und darf deshalb ausschließlich innerhalb von `block`
+     * aufgerufen werden.
+     */
+    suspend fun <T> exclusive(block: suspend (wipeInside: () -> Unit) -> T): T = mutex.withLock {
+        block { wipeLocked() }
+    }
+
     /** Aufrufer laufen auf Dispatchers.IO (Task 7) — `clearAllTables` verweigert den Main-Thread. */
     private fun wipeLocked() {
         db.clearAllTables()

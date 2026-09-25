@@ -9,6 +9,14 @@ interface TokenStore {
     val serverUrl: String
     fun save(url: String, token: String)
     fun clear()
+
+    /**
+     * Setzt NUR die Adresse, ohne das Token zu berühren — für den exakten
+     * Rückweg nach einem gescheiterten Verbindungsversuch, wenn vorher noch
+     * gar kein Token gespeichert war (`clear()` allein ließe die inzwischen
+     * überschriebene Adresse stehen).
+     */
+    fun setServerUrl(url: String)
 }
 
 const val DEFAULT_SERVER = "https://cue.celox.io"
@@ -32,5 +40,9 @@ class EncryptedTokenStore(context: Context) : TokenStore {
 
     override fun clear() {
         prefs.edit().remove("token").apply()
+    }
+
+    override fun setServerUrl(url: String) {
+        prefs.edit().putString("url", url).apply()
     }
 }

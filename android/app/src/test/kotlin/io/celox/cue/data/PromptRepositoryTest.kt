@@ -22,8 +22,11 @@ import io.celox.cue.data.net.PromptDto
 import io.celox.cue.data.net.TagListDto
 import io.celox.cue.data.sync.SyncEngine
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -37,10 +40,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Deckt Regel A (Rückgabewerte + Worker-Anstoß nur bei angenommener
- * Änderung), Regel B (Löschen bei Server-/Kontowechsel — der Auftrag
- * verlangt hierfür ausdrücklich einen eigenen JVM-Test, den der Plan nicht
- * vorsah) und Regel C (`liveLoop` dreht ohne Token nicht heiß) ab.
+ * Deckt Regel A (Rückgabewerte + Worker-Anstoß NUR bei angenommener Änderung,
+ * geschützt auch über einen Cancel des Aufrufers hinweg), die in Fix-Runde 1
+ * ersetzte Regel B (Löschen bei Server-/Kontowechsel — mit dem Mutex von
+ * `SyncEngine.exclusive`, statt außerhalb davon) und Regel C (`liveLoop`
+ * dreht ohne Token nicht heiß) ab — der Auftrag verlangt hierfür ausdrücklich
+ * einen eigenen JVM-Test, den der Plan nicht vorsah.
  *
  * `application = android.app.Application::class`: die echte `CueApplication`
  * initialisiert WorkManager selbst (`Configuration.Provider`) und würde mit
@@ -63,17 +68,29 @@ class PromptRepositoryTest {
 
     class FakeStore(token: String? = "tok", url: String = "https://cue.celox.io") : TokenStore {
         override var token: String? = token
-        override var serverUrl: String = url
-        override fun save(url: String, token: String) { serverUrl = url; this.token = token }
+        // `val` mit eigenem Getter statt `var`: eine ECHTE `var serverUrl` erzeugt
+        // auf dem JVM einen synthetischen Setter `setServerUrl(String)`, der mit
+        // der gleichnamigen Interface-Methode (Fix-Runde 1, Regel 4) kollidiert.
+        private var urlField: String = url
+        override val serverUrl: String get() = urlField
+        override fun save(url: String, token: String) { urlField = url; this.token = token }
         override fun clear() { token = null }
+        override fun setServerUrl(url: String) { urlField = url }
     }
 
-    /** Ein Server im Speicher; `down`/`forced` erzwingen einen Ausgang, `calls` hält jeden Versuch fest. */
+    /**
+     * Ein Server im Speicher; `down`/`forced` erzwingen einen Ausgang, `calls`
+     * hält jeden Versuch fest. `patchGate` hält `patch()` an, bis die Sperre
+     * geöffnet wird — für den Test, dass `connect()` einen laufenden Push
+     * wirklich abwartet (Regel B, Test d).
+     */
     class FakeApi : AppApi {
         var down = false
         var forced: Int? = null
         val rows = linkedMapOf<Long, PromptDto>()
         val calls = mutableListOf<String>()
+        var patchGate: CompletableDeferred<Unit>? = null
+        val patchEntered = CompletableDeferred<Unit>()
 
         private fun <T> guard(block: () -> ApiResult<T>): ApiResult<T> {
             if (down) return ApiResult.Network(IOException("offline"))
@@ -103,6 +120,7 @@ class PromptRepositoryTest {
 
         override suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto> {
             calls += "patch:$id"
+            patchGate?.let { patchEntered.complete(Unit); it.await() }
             return guard {
                 val old = rows[id] ?: PromptDto(
                     id = id, title = "x", body = "b", status = Status.queued, sortOrder = 0,
@@ -179,43 +197,94 @@ class PromptRepositoryTest {
         assertThat(kicked()).hasSize(1)
     }
 
-    // ---- Regel B: connect() löscht bei Server-/Kontowechsel, nie grundlos ----
+    /**
+     * Fix-Runde 1, Regel 3: der Worker-Anstoß hing vorher AUSSERHALB des
+     * `NonCancellable`-Blocks — kam der Aufrufer beim Rücksprung auf seinen
+     * (inzwischen abgebrochenen) Dispatcher, wurde die Zeile nie erreicht.
+     * Deterministisch nachgestellt, OHNE auf Thread-Timing zu vertrauen:
+     * `engine.exclusive` hält die echte SyncEngine-Sperre — jeder Versuch,
+     * `enqueue()` aufzurufen, MUSS dort warten (Mutex-Korrektheit, kein
+     * Zufall), also ist `create()` zum Zeitpunkt des `cancel()` garantiert
+     * noch mitten in seinem geschützten Block.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun `create finishes and kicks the worker even if the caller is cancelled while it waits for the lock`() =
+        runTest {
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val holder = launch { engine.exclusive { entered.complete(Unit); release.await() } }
+            runCurrent()
+            entered.await()
 
-    @Test fun `a different server wipes local data even when the new url is unreachable`() = runTest {
+            var result: Long? = -999L
+            val caller = launch { result = repo.create("Titel", "Text", null, "") }
+            // `create()` bis zum Dispatcher-Wechsel auf Dispatchers.IO anschieben —
+            // ab dort blockiert es garantiert am Mutex, den `holder` hält.
+            runCurrent()
+            caller.cancel()
+
+            release.complete(Unit)
+            holder.join()
+            caller.join() // wartet, bis der geschützte Block fertig ist, auch wenn `caller` abgebrochen ist
+
+            assertThat(result).isEqualTo(-999L) // der Aufrufer hat das Ergebnis NIE gesehen …
+            // … aber die Wirkung ist trotzdem da: geschrieben UND angestoßen.
+            assertThat(db.promptDao().ids()).hasSize(1)
+            assertThat(kicked()).hasSize(1)
+        }
+
+    // ---- Regel B (Fix-Runde 1): connect() löscht nur nach erfolgreicher Probe, nie grundlos ----
+
+    @Test fun `a failed probe after a url change leaves local data untouched and restores the old credentials`() =
+        runTest {
+            reconnectAs("alt-tok", "https://alt.example")
+            db.promptDao().upsert(listOf(prompt(1)))
+            db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
+            api.down = true // die neue Adresse antwortet nicht
+
+            val result = repo.connect("https://neu.example", "neu-tok")
+
+            assertThat(result).isEqualTo(ConnectResult.Offline)
+            // Ein Tippfehler in der Adresse darf die noch gültige, alte Kopie
+            // nicht vernichten — erst eine ERFOLGREICHE Probe gilt als
+            // bewiesener Kontowechsel.
+            assertThat(db.promptDao().ids()).containsExactly(1L)
+            assertThat(db.pendingOpDao().get(1)).isNotNull()
+            assertThat(store.token).isEqualTo("alt-tok")
+            assertThat(store.serverUrl).isEqualTo("https://alt.example")
+        }
+
+    @Test fun `a successful probe with a different token wipes the old pending edit before it can be pushed`() =
+        runTest {
+            reconnectAs("alt-tok", "https://cue.celox.io")
+            db.promptDao().upsert(listOf(prompt(1)))
+            // Eine noch nicht geschobene Änderung unter dem ALTEN Konto.
+            db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
+
+            val result = repo.connect("https://cue.celox.io", "neu-tok")
+
+            assertThat(result).isEqualTo(ConnectResult.Ok)
+            assertThat(store.token).isEqualTo("neu-tok")
+            // Der entscheidende Beweis: die wartende Änderung des alten Kontos
+            // hat NIE `patch` erreicht — sie wurde vor dem Abgleich gelöscht,
+            // nicht unter dem neuen Token verschickt.
+            assertThat(api.calls.none { it == "patch:1" }).isTrue()
+            assertThat(db.pendingOpDao().all()).isEmpty()
+            assertThat(db.promptDao().ids()).isEmpty()
+        }
+
+    @Test fun `a successful probe after a url change also wipes and stores the new url and token`() = runTest {
         reconnectAs("alt-tok", "https://alt.example")
         db.promptDao().upsert(listOf(prompt(1)))
-        db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, "{}", null, 0))
-        api.down = true // die neue Adresse antwortet nicht
+        db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
 
         val result = repo.connect("https://neu.example", "neu-tok")
 
-        assertThat(result).isEqualTo(ConnectResult.Offline)
-        // Trotz gescheitertem Versuch: die alten Zugangsdaten gelten weiter …
-        assertThat(store.token).isEqualTo("alt-tok")
-        assertThat(store.serverUrl).isEqualTo("https://alt.example")
-        // … aber die lokale Kopie des alten Kontos ist weg — sie durfte nicht
-        // mit den fremden Zugangsdaten geschoben werden, und der nächste
-        // erfolgreiche Abgleich füllt sie ohnehin komplett neu.
-        assertThat(db.promptDao().ids()).isEmpty()
-        assertThat(db.pendingOpDao().all()).isEmpty()
-    }
-
-    @Test fun `a different token on the same server wipes the old pending edit before it can be pushed`() = runTest {
-        reconnectAs("alt-tok", "https://cue.celox.io")
-        db.promptDao().upsert(listOf(prompt(1)))
-        // Eine noch nicht geschobene Änderung unter dem ALTEN Konto.
-        db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
-
-        val result = repo.connect("https://cue.celox.io", "neu-tok")
-
         assertThat(result).isEqualTo(ConnectResult.Ok)
         assertThat(store.token).isEqualTo("neu-tok")
-        // Der entscheidende Beweis: die wartende Änderung des alten Kontos
-        // hat NIE `patch` erreicht — sie wurde vor dem Abgleich gelöscht,
-        // nicht unter dem neuen Token verschickt.
+        assertThat(store.serverUrl).isEqualTo("https://neu.example")
         assertThat(api.calls.none { it == "patch:1" }).isTrue()
         assertThat(db.pendingOpDao().all()).isEmpty()
-        assertThat(db.promptDao().ids()).isEmpty()
     }
 
     @Test fun `a different token on the same server that fails to authenticate does not wipe anything`() = runTest {
@@ -227,9 +296,6 @@ class PromptRepositoryTest {
         val result = repo.connect("https://cue.celox.io", "falsches-tok")
 
         assertThat(result).isEqualTo(ConnectResult.Rejected)
-        // Die alte, gültige Kopie darf ein gescheiterter Verbindungsversuch
-        // nicht grundlos vernichten — erst ein ERFOLGREICHER Wechsel gilt als
-        // bewiesen anderes Konto.
         assertThat(db.promptDao().ids()).containsExactly(1L)
         assertThat(db.pendingOpDao().get(1)).isNotNull()
         assertThat(store.token).isEqualTo("alt-tok")
@@ -237,19 +303,33 @@ class PromptRepositoryTest {
         assertThat(api.calls.none { it == "patch:1" }).isTrue()
     }
 
-    @Test fun `reconnecting with the same url and the same token neither wipes nor drops the pending edit`() = runTest {
-        reconnectAs("tok", "https://cue.celox.io")
-        db.promptDao().upsert(listOf(prompt(1)))
-        db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "lokal").toString(), null, 0))
+    @Test fun `reconnecting with the same url and the same token neither wipes nor drops the pending edit`() =
+        runTest {
+            reconnectAs("tok", "https://cue.celox.io")
+            db.promptDao().upsert(listOf(prompt(1)))
+            db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "lokal").toString(), null, 0))
 
-        val result = repo.connect("https://cue.celox.io", "tok")
+            val result = repo.connect("https://cue.celox.io", "tok")
 
-        assertThat(result).isEqualTo(ConnectResult.Ok)
-        // Nichts hat sich geändert — die wartende Änderung geht ganz normal
-        // hinaus, statt von einer unnötigen Löschung verschluckt zu werden.
-        assertThat(api.calls).contains("patch:1")
-        assertThat(db.pendingOpDao().all()).isEmpty()
-    }
+            assertThat(result).isEqualTo(ConnectResult.Ok)
+            // Nichts hat sich geändert — die wartende Änderung geht ganz normal
+            // hinaus, statt von einer unnötigen Löschung verschluckt zu werden.
+            assertThat(api.calls).contains("patch:1")
+            assertThat(db.pendingOpDao().all()).isEmpty()
+        }
+
+    /** Regel 4: die Adresse muss beim Rückweg auch dann stimmen, wenn vorher noch gar kein Token gespeichert war. */
+    @Test fun `a failed first connection attempt restores the previous url even without a previous token`() =
+        runTest {
+            reconnectAs(null, "https://original.example")
+            api.down = true
+
+            val result = repo.connect("https://neu.example", "irgendein-tok")
+
+            assertThat(result).isEqualTo(ConnectResult.Offline)
+            assertThat(store.token).isNull()
+            assertThat(store.serverUrl).isEqualTo("https://original.example")
+        }
 
     @Test fun `a bad url is rejected before anything is touched`() = runTest {
         reconnectAs("alt-tok", "https://alt.example")
@@ -260,6 +340,37 @@ class PromptRepositoryTest {
         assertThat(store.token).isEqualTo("alt-tok")
         assertThat(store.serverUrl).isEqualTo("https://alt.example")
         assertThat(api.calls).isEmpty()
+    }
+
+    /**
+     * Regel 1+2, Test d: `connect()` muss einen laufenden Push abwarten,
+     * bevor es Zugangsdaten anfasst. `patchGate` hält den Push mitten im
+     * EINEN laufenden `api.patch(1, …)`-Aufruf an — solange die Sperre nicht
+     * freigegeben ist, darf `connect()` nichts geschrieben haben.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun `connect waits for a sync in progress before it touches the store`() = runTest {
+        reconnectAs("alt-tok", "https://cue.celox.io")
+        db.promptDao().upsert(listOf(prompt(1)))
+        db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
+
+        val gate = CompletableDeferred<Unit>()
+        api.patchGate = gate
+        val syncJob = launch { engine.sync() }
+        api.patchEntered.await() // push() haelt jetzt den Mutex und wartet in patch(1, …)
+
+        val connectJob = launch { repo.connect("https://cue.celox.io", "neu-tok") }
+        runCurrent() // so weit anschieben, wie es ohne den Mutex geht — dort blockiert es garantiert
+
+        // Solange der Push blockiert: exakt EIN Versuch, und das Token ist unveraendert.
+        assertThat(api.calls.count { it == "patch:1" }).isEqualTo(1)
+        assertThat(store.token).isEqualTo("alt-tok")
+
+        gate.complete(Unit)
+        syncJob.join()
+        connectJob.join()
+
+        assertThat(store.token).isEqualTo("neu-tok")
     }
 
     // ---- Regel C: liveLoop dreht ohne Token nicht heiß ----

@@ -18,9 +18,15 @@ class CueApiTest {
     private val server = MockWebServer()
     private lateinit var api: CueApi
 
-    private class FakeStore(override var serverUrl: String, override var token: String?) : TokenStore {
-        override fun save(url: String, token: String) { serverUrl = url; this.token = token }
+    private class FakeStore(url: String, override var token: String?) : TokenStore {
+        // `val` mit eigenem Getter statt `var`: eine ECHTE `var serverUrl` erzeugt
+        // auf dem JVM einen synthetischen Setter `setServerUrl(String)`, der mit
+        // der gleichnamigen Interface-Methode (Fix-Runde 1, Regel 4) kollidiert.
+        private var urlField: String = url
+        override val serverUrl: String get() = urlField
+        override fun save(url: String, token: String) { urlField = url; this.token = token }
         override fun clear() { token = null }
+        override fun setServerUrl(url: String) { urlField = url }
     }
 
     @Before fun start() {
