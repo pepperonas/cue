@@ -66,6 +66,12 @@ class SyncEngineTest {
         var failPrompts = false
         var forced: Int? = null
         val rejectPatchFor = mutableSetOf<Long>()
+        /** Diese PATCHes antworten 503 — der Server hängt an genau dieser Zeile. */
+        val serverErrorPatchFor = mutableSetOf<Long>()
+        /** Der Server legt an, aber die Antwort ist nicht lesbar. */
+        var unreadableCreate = false
+        /** false: der Änderungs-Feed verschweigt eine Neuanlage (die Wahrheit muss trotzdem ankommen). */
+        var createBumpsCursor = true
         val calls = mutableListOf<String>()
         val created = mutableListOf<JsonObject>()
         /** Gesetzt: `patch` meldet sich über `patchEntered` und hält an, bis `patchGate` fertig ist. */
@@ -99,9 +105,9 @@ class SyncEngineTest {
             created += fields
             val id = nextId++
             val d = dto(id, fields["title"]?.jsonPrimitive?.content.orEmpty(), fields["body"]!!.jsonPrimitive.content)
-            rows[id] = d; cursor++
+            rows[id] = d; if (createBumpsCursor) cursor++
             afterCreate?.invoke()
-            ApiResult.Ok(d)
+            if (unreadableCreate) ApiResult.Unreadable(200) else ApiResult.Ok(d)
         }
         override suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto> {
             patchGate?.let { patchEntered.complete(Unit); it.await() }
@@ -109,6 +115,7 @@ class SyncEngineTest {
         }
         private fun patchNow(id: Long, fields: JsonObject) = guard("patch:$id") {
             if (id in rejectPatchFor) return@guard ApiResult.Http(422, "nein")
+            if (id in serverErrorPatchFor) return@guard ApiResult.Http(503, "")
             val old = rows[id] ?: return@guard ApiResult.Http(404, "")
             val d = old.copy(title = fields["title"]?.jsonPrimitive?.content ?: old.title)
             rows[id] = d; cursor++
@@ -422,5 +429,53 @@ class SyncEngineTest {
         // Der nächste Lauf legt NICHTS ein zweites Mal an.
         engine.sync()
         assertThat(api.calls.count { it == "create" }).isEqualTo(1)
+    }
+
+    // ---- I3: eine hängende Operation sperrt das Ziehen nicht, eine unlesbare Antwort wird nicht wiederholt ----
+
+    @Test fun `a 5xx on one op does not stop the other ops nor the pull`() = runTest {
+        api.rows[1] = api.dto(1, "a"); api.rows[2] = api.dto(2, "b"); engine.sync()
+        api.serverErrorPatchFor += 1
+        engine.enqueue(1, OpKind.UPDATE, f("title" to "hängt"))
+        engine.enqueue(2, OpKind.UPDATE, f("title" to "geht durch"))
+        api.rows[3] = api.dto(3, "neu am Rechner"); api.cursor++
+
+        val result = engine.sync()
+
+        assertThat(api.rows[2]!!.title).isEqualTo("geht durch")
+        assertThat(db.promptDao().get(3)!!.title).isEqualTo("neu am Rechner") // gezogen trotz des 503
+        val stuck = db.pendingOpDao().get(1)!!
+        assertThat(stuck.lastError).isNull() // vorübergehend, keine Ablehnung
+        assertThat(db.promptDao().get(1)!!.title).isEqualTo("hängt")
+        // Nicht fertig: der Worker soll es nochmal versuchen.
+        assertThat(result).isEqualTo(SyncResult.Offline)
+    }
+
+    @Test fun `an unreadable answer to a create is not re-sent, the full pull adopts the server row`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        val local = db.nextLocalId()
+        engine.enqueue(local, OpKind.CREATE, f("body" to "Text", "title" to "einmal"))
+        api.unreadableCreate = true
+        // Selbst wenn der Feed die Neuanlage nicht meldet: der zurückgesetzte Cursor erzwingt
+        // einen VOLLEN Zug, sonst käme die Server-Zeile nie aufs Telefon.
+        api.createBumpsCursor = false
+
+        engine.sync()
+        engine.sync()
+
+        assertThat(api.calls.count { it == "create" }).isEqualTo(1)
+        assertThat(db.pendingOpDao().all()).isEmpty()
+        // Keine lokale Doppelung: die negative Zeile ist weg, die Server-Zeile gezogen.
+        assertThat(db.promptDao().ids()).containsExactlyElementsIn(api.rows.keys)
+        assertThat(db.promptDao().ids().none { it < 0 }).isTrue()
+        assertThat(db.promptDao().ids()).hasSize(2)
+    }
+
+    @Test fun `a network failure still aborts the push and skips the pull`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        engine.enqueue(1, OpKind.UPDATE, f("title" to "lokal"))
+        api.down = true
+        assertThat(engine.sync()).isEqualTo(SyncResult.Offline)
+        assertThat(api.calls.takeLast(1)).containsExactly("patch:1") // danach nichts mehr versucht
     }
 }

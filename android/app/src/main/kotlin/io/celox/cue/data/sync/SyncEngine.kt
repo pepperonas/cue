@@ -50,7 +50,7 @@ sealed interface SyncResult {
  * ⚠️ Gefangen wird ausschließlich das eigene Sperr-Signal. Ein Programmierfehler
  * (falsche Annahme über eine Antwort, kaputtes JSON in der Warteschlange) soll
  * laut abstürzen, statt als stilles „offline" in eine endlose Wiederholung
- * zu laufen. Unlesbare Server-Antworten kommen von `CueApi` bereits als 502.
+ * zu laufen. Unlesbare Server-Antworten kommen von `CueApi` als `ApiResult.Unreadable`.
  */
 class SyncEngine(
     private val db: CueDatabase,
@@ -167,8 +167,16 @@ class SyncEngine(
     suspend fun sync(): SyncResult = mutex.withLock {
         if (store.token == null) return SyncResult.NotConfigured
         try {
-            if (!push()) return SyncResult.Offline
-            return pull()
+            val pushed = push()
+            // Nur ein echtes Funkloch überspringt das Ziehen — dann scheitert es ohnehin.
+            // Ein einzelner 5xx auf EINER Operation darf die Änderungen vom Rechner nicht
+            // aussperren: sonst rückt der Cursor nie vor, `changes(since=alt)` antwortet
+            // sofort, und `liveLoop` dreht heiß (I3).
+            if (pushed == Pushed.NO_NETWORK) return SyncResult.Offline
+            val pulled = pull()
+            // Hing eine Operation vorübergehend, ist der Lauf NICHT fertig: `Offline`
+            // lässt den Worker es erneut versuchen und `liveLoop` zurückweichen.
+            return if (pulled == SyncResult.Done && pushed == Pushed.SOME_PENDING) SyncResult.Offline else pulled
         } catch (_: RevokedSignal) {
             wipeLocked()
             // Regel D (Fix-Runde 1): das Flag wird HIER gesetzt — der EINE Ort, der den
@@ -210,8 +218,15 @@ class SyncEngine(
         store.clear()
     }
 
+    private enum class Pushed { ALL, SOME_PENDING, NO_NETWORK }
+    private enum class OpOutcome { SENT, TRANSIENT, NO_NETWORK }
+
     /**
-     * false = offline, Rest später. Wirft RevokedSignal bei 401/403.
+     * Schiebt die Warteschlange. Wirft RevokedSignal bei 401/403.
+     *
+     * - Ein Funkloch (keine Antwort) bricht ab: alles Weitere scheiterte genauso.
+     * - Ein 408/429/5xx auf EINER Operation lässt sie stehen und geht zur nächsten —
+     *   eine einzelne Zeile, an der der Server hängt, blockiert nicht die übrigen.
      *
      * ⚠️ Jede Operation läuft als Ganzes `NonCancellable`: Netzaufruf, Einordnung und
      * DB-Schreiben. Ein Abbruch (Worker ersetzt, Bildschirm verlassen) zwischen „der Server
@@ -219,15 +234,19 @@ class SyncEngine(
      * nächste Lauf legte denselben Prompt ein ZWEITES Mal an. Zwischen zwei Operationen
      * darf der Abbruch greifen; dort ist nichts halb.
      */
-    private suspend fun push(): Boolean {
+    private suspend fun push(): Pushed {
+        var somePending = false
         for (op in db.pendingOpDao().all()) {
-            val goOn = withContext(NonCancellable) { pushOne(op) }
-            if (!goOn) return false
+            when (withContext(NonCancellable) { pushOne(op) }) {
+                OpOutcome.SENT -> Unit
+                OpOutcome.TRANSIENT -> somePending = true
+                OpOutcome.NO_NETWORK -> return Pushed.NO_NETWORK
+            }
         }
-        return true
+        return if (somePending) Pushed.SOME_PENDING else Pushed.ALL
     }
 
-    private suspend fun pushOne(op: PendingOpEntity): Boolean {
+    private suspend fun pushOne(op: PendingOpEntity): OpOutcome {
         val ops = db.pendingOpDao()
         val fields = Json.parseToJsonElement(op.fieldsJson).jsonObject
         var created = op.kind == OpKind.CREATE
@@ -244,6 +263,21 @@ class SyncEngine(
             }
         }
 
+        // 2xx, aber unlesbar: der Server HAT geschrieben. Erneut schicken hieße bei einem
+        // CREATE, denselben Prompt bei jedem Lauf wieder anzulegen. Stattdessen: Operation
+        // verwerfen, eine offline vergebene Zeile räumen (sie kommt unter ihrer echten ID
+        // zurück) und den Cursor zurücksetzen — der nächste Zug holt ALLES und übernimmt
+        // die Wahrheit des Servers.
+        if (result is ApiResult.Unreadable) {
+            db.withTransaction {
+                ops.remove(op.promptId)
+                if (created && op.promptId < 0) db.promptDao().delete(listOf(op.promptId))
+                val st = db.syncStateDao().get()
+                db.syncStateDao().updateCursor(null, st?.lastSyncAt, st?.lastError)
+            }
+            return OpOutcome.SENT
+        }
+
         when (val outcome = classify(result.code())) {
             Outcome.Ok -> {
                 val row = (result as ApiResult.Ok<PromptDto>).value.toEntity()
@@ -253,14 +287,14 @@ class SyncEngine(
                     ops.remove(op.promptId)
                 }
             }
-            Outcome.Offline -> return false
+            Outcome.Offline -> return if (result is ApiResult.Network) OpOutcome.NO_NETWORK else OpOutcome.TRANSIENT
             Outcome.Revoked -> throw RevokedSignal()
             is Outcome.Rejected -> {
                 val msg = (result as? ApiResult.Http)?.message.orEmpty()
                 ops.setError(op.promptId, "${outcome.code} $msg".trim())
             }
         }
-        return true
+        return OpOutcome.SENT
     }
 
     private suspend fun pull(): SyncResult {

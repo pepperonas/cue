@@ -70,9 +70,11 @@ class CueApiTest {
         assertThat(api.prompts()).isInstanceOf(ApiResult.Network::class.java)
     }
 
-    @Test fun `a malformed success body becomes an http 502, not a crash`() = runTest {
+    @Test fun `a malformed success body becomes an unreadable result that reads like a 502, not a crash`() = runTest {
         server.enqueue(MockResponse().setBody("""{"not":"a list"}"""))
-        assertThat(api.prompts().code()).isEqualTo(502)
+        val r = api.prompts()
+        assertThat(r).isEqualTo(ApiResult.Unreadable(200))
+        assertThat(r.code()).isEqualTo(502) // für LESENDE Aufrufe: wie offline, später nochmal
     }
 
     @Test fun `an unknown status value becomes an http 502, not a crash`() = runTest {

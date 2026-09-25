@@ -98,19 +98,26 @@ class PromptRepositoryTest {
         var changesGate: CompletableDeferred<Unit>? = null
         val changesEntered = CompletableDeferred<Unit>()
 
+        /** I3: was `changes()` als geändert meldet, ob `prompts()` scheitert, und ein Zähler je Aufruf. */
+        var changed: List<String> = emptyList()
+        var promptsDown = false
+        var onChanges: (() -> Unit)? = null
+
         private fun <T> guard(block: () -> ApiResult<T>): ApiResult<T> {
             if (down) return ApiResult.Network(IOException("offline"))
             forced?.let { return ApiResult.Http(it, "") }
             return block()
         }
 
-        override suspend fun prompts() = guard { ApiResult.Ok(rows.values.toList()) }
+        override suspend fun prompts(): ApiResult<List<PromptDto>> =
+            if (promptsDown) ApiResult.Network(IOException("Funkloch")) else guard { ApiResult.Ok(rows.values.toList()) }
         override suspend fun projects() = guard { ApiResult.Ok(emptyList<ProjectDto>()) }
         override suspend fun tags() = guard { ApiResult.Ok(TagListDto(emptyList())) }
 
         override suspend fun changes(since: String?, waitSeconds: Int): ApiResult<ChangeFeedDto> {
             changesGate?.let { changesEntered.complete(Unit); it.await() }
-            return guard { ApiResult.Ok(ChangeFeedDto("c1")) }
+            onChanges?.invoke()
+            return guard { ApiResult.Ok(ChangeFeedDto("c1", changed)) }
         }
 
         override suspend fun create(fields: JsonObject): ApiResult<PromptDto> {
@@ -469,5 +476,26 @@ class PromptRepositoryTest {
         // aufrufender Dauerlauf (`while (isActive) repo.liveLoop()`) beliebig
         // oft in der Sekunde wiederholen könnte.
         assertThat(currentTime).isAtLeast(1_000L)
+    }
+
+    /**
+     * I3: `liveLoop` ignorierte das Ergebnis von `syncNow()`. Scheitert der Abgleich, rückt
+     * der Cursor nie vor, `changes(since=alt)` antwortet am echten Server sofort — und die
+     * Schleife drehte heiß. Ohne Zurückweichen stünde die virtuelle Uhr nach allen Runden auf 0.
+     * Gezählt werden `changes()`-Aufrufe — je Schleifenrunde zwei (der Long-Poll und das
+     * `changes` des Abgleichs selbst), 12 Aufrufe sind also 6 Runden.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun `liveLoop backs off while the sync keeps failing`() = runTest {
+        api.changed = listOf("prompts")
+        api.promptsDown = true
+        var rounds = 0
+        api.onChanges = { if (++rounds >= 12) store.token = null }
+
+        repo.liveLoop()
+
+        assertThat(rounds).isEqualTo(12)
+        // 1 + 2 + 4 + 8 + 16 + 30 s zwischen den 6 Runden — wachsend, gedeckelt, nie null.
+        assertThat(currentTime).isEqualTo(61_000L)
     }
 }

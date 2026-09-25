@@ -214,16 +214,32 @@ class PromptRepository @Inject constructor(
             return
         }
         var backoff = 1_000L
+        suspend fun backOff() {
+            delay(backoff)
+            backoff = (backoff * 2).coerceAtMost(30_000L)
+        }
         while (coroutineContext.isActive && store.token != null) {
             val since = withContext(Dispatchers.IO) { db.syncStateDao().get()?.cursor }
             val feed = withContext(Dispatchers.IO) { api.changes(since, AppModule.LIVE_WAIT_S) }
             when (classify(feed.code())) {
                 Outcome.Ok -> {
-                    backoff = 1_000L
-                    if (since == null || (feed as ApiResult.Ok).value.changed.isNotEmpty()) syncNow()
+                    if (since == null || (feed as ApiResult.Ok).value.changed.isNotEmpty()) {
+                        // ⚠️ I3: das Ergebnis zählt. Scheitert der Abgleich, rückt der Cursor
+                        // nicht vor — `changes(since=alt)` antwortet dann SOFORT wieder, und
+                        // ohne Zurückweichen drehte diese Schleife heiß (schieben, ziehen,
+                        // schieben …, bei einem CREATE mit unlesbarer Antwort sogar mit
+                        // einer Neuanlage je Runde).
+                        when (syncNow()) {
+                            SyncResult.Done -> backoff = 1_000L
+                            SyncResult.Revoked -> return // die Engine hat schon abgeräumt
+                            else -> backOff()
+                        }
+                    } else {
+                        backoff = 1_000L
+                    }
                 }
                 Outcome.Revoked -> { syncNow(); return } // die Engine räumt ab
-                else -> { delay(backoff); backoff = (backoff * 2).coerceAtMost(30_000L) }
+                else -> backOff()
             }
         }
     }

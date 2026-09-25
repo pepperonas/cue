@@ -51,14 +51,14 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) : 
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) return@use ApiResult.Http(resp.code, text.take(300))
                 // Eine 2xx-Antwort, die nicht zur DTO-Form passt (falsche Struktur, unbekannter
-                // Enum-Wert), ist kein Absturz wert — classify() behandelt 502 wie „offline":
-                // später erneut versuchen, nie löschen, nie crashen.
+                // Enum-Wert), ist kein Absturz wert — aber auch kein gewöhnlicher Fehler: der
+                // Server hat die Anfrage ausgeführt. Siehe `ApiResult.Unreadable`.
                 try {
                     ApiResult.Ok(json.decodeFromString(serializer, text))
                 } catch (e: SerializationException) {
-                    ApiResult.Http(502, "Antwort nicht lesbar")
+                    ApiResult.Unreadable(resp.code)
                 } catch (e: IllegalArgumentException) {
-                    ApiResult.Http(502, "Antwort nicht lesbar")
+                    ApiResult.Unreadable(resp.code)
                 }
             }
         } catch (e: IOException) {
