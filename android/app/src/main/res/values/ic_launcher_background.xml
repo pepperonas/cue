@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hintergrund des adaptiven Symbols — dieselbe Kachelfarbe wie
+  `frontend/public/favicon.svg` (`#0d1117`, near-black). Das Vordergrund-
+  Motiv (`ic_launcher_foreground.xml`) trägt die Lampen/Blitz-Zeichnung,
+  die Maskierung (rund/eckig/Themed Icon) übernimmt das System.
+-->
+<resources>
+    <color name="ic_launcher_background">#0D1117</color>
+</resources>

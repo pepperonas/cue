@@ -125,6 +125,16 @@ Claude-Code-CLI kopieren. Löst lose `.txt`-Sammlungen ab.
 Wer lieber selbst hostet: die komplette Anleitung steht unter
 [Deployment](#deployment-vps-cuecelox-io) und in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
+## Android
+
+Eine kleine native App (`android/`) zum Lesen, Suchen, Kopieren, Anlegen und
+Bearbeiten von Prompts unterwegs — offline benutzbar, Room ist die Quelle, aus
+der die Oberfläche liest. Sie spricht ausschließlich die eigene, schmale
+Fläche `/api/app/*` (Geräte-Token statt Cookie-Session) und kennt bewusst
+keine Läufe, kein Tippen in eine CLI-Sitzung, keine KI-Optimierung, keine
+Statistik und keine Snippets. Einrichtung, Bauen, Tests und Release stehen in
+[`android/README.md`](android/README.md).
+
 ## Dokumentation
 
 | Dokument | Inhalt |
@@ -138,6 +148,7 @@ Wer lieber selbst hostet: die komplette Anleitung steht unter
 | **[CHANGELOG.md](CHANGELOG.md)** | Alle Versionen |
 | **[CLAUDE.md](CLAUDE.md)** | Die Fallstricke im Detail — Arbeitsgrundlage am Code |
 | **[cue-runner/README.md](cue-runner/README.md)** | Der Mac-Daemon |
+| **[android/README.md](android/README.md)** | Die native Android-App |
 
 ## Screenshots
 
@@ -412,6 +423,7 @@ frontend/     React + TS + Vite, MD3-Expressive-UI, dnd-kit Board, PWA
   src/lib/    die reinen Module — hier liegt die getestete Logik
   src/components/  Komponenten (bewusst ungetestet)
 cue-runner/   Mac-Daemon: führt Prompts über die Claude-Code-CLI aus (eigenes README)
+android/      native Android-App, spricht nur /api/app/* (eigenes README)
 scripts/      update-badges.mjs + badges-lib.mjs (die getesteten Parser)
   tests/      node --test, ohne Abhängigkeiten
 contracts/    sprachübergreifende Verträge (column-order.json)

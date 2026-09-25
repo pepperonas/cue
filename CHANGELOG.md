@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Android-App 0.1.0** (`android/`): eine kleine native App zum Lesen,
+  Suchen, Kopieren, Anlegen und Bearbeiten von Prompts unterwegs — offline
+  benutzbar, Room ist die Quelle, aus der die Oberfläche liest. Sie spricht
+  ausschließlich `/api/app/*` über einen Geräte-Token (kein Cookie) und kennt
+  bewusst keine Läufe, kein CLI-Senden, keine KI-Optimierung, keine
+  Statistik, keine Snippets. Launcher-Symbol aus `frontend/public/favicon.svg`
+  übertragen (adaptives Icon + PNG-Fallbacks, gerendert mit Chrome headless).
+  Release ausschließlich über `.github/workflows/android-release.yml`
+  (Tag `android-v<version>` → signiertes APK als GitHub-Release-Anhang, nie
+  im Baum). Details: [`android/README.md`](android/README.md). Ändert die
+  Server-Version nicht (die App hat ihre eigene Versionsnummer,
+  `android/app/build.gradle.kts`).
+
 ## [0.74.0] - 2026-09-25
 
 ### Added

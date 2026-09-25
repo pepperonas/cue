@@ -1,0 +1,44 @@
+name: android-release
+
+# Baut, testet, signiert und veröffentlicht die Android-App bei jedem
+# `android-v*`-Tag. `actions/checkout@v4` holt das GANZE Repo (nicht nur
+# `android/`), daher stimmt der relative Pfad, den der Contract-Test aus
+# Task 2 verwendet (`../../contracts/column-order.json`, von der Gradle-
+# Working-Directory `android/app` aus zwei Ebenen hoch = Repo-Wurzel).
+on:
+  push:
+    tags: ["android-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: android-actions/setup-android@v3
+      - name: Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.jks
+      - name: Tests
+        run: ./gradlew :app:testDebugUnitTest
+      - name: Build
+        env:
+          KEYSTORE_FILE: release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+      - name: Signatur pruefen
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          cp "$APK" "cue-${GITHUB_REF_NAME#android-v}.apk"
+      - name: Release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release create "$GITHUB_REF_NAME" "cue-${GITHUB_REF_NAME#android-v}.apk" --title "cue für Android ${GITHUB_REF_NAME#android-v}" --notes "Siehe CHANGELOG.md."

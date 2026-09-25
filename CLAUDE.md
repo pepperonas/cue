@@ -295,6 +295,79 @@ separately and Vite proxies `/api` to `:8000`.
 - **Statistics ranges** persist in `localStorage` (`cue-stats-range`, the whole `{range, from, to}` object). The KI section is hidden entirely when the tenant has no runs (`ai: null`), and `session_minutes_median` is a **median** on purpose — one CLI session left open for days would wreck the mean.
 - **Conventional Commits**. Persist app state lives entirely in the SQLite file (`/data/cue.db` in the container volume).
 
+## Android-App (`android/`)
+
+A small native app (Compose + Material 3 Expressive, Hilt, Room, OkHttp — no
+Retrofit) that reads, searches, copies, creates and edits prompts on the go,
+offline-first: Room is the source the UI reads from, sync only ever writes
+into it. Own doc: [`android/README.md`](android/README.md); design doc:
+[`docs/superpowers/specs/2026-09-24-android-app-design.md`](docs/superpowers/specs/2026-09-24-android-app-design.md).
+
+- **It speaks ONLY `/api/app/*`** (`data/net/CueApi.kt`) — a device token, not
+  a cookie, and a deliberately separate FastAPI router (`app_api.py`) from
+  every other route the web app uses. No runs, no CLI-send, no optimization,
+  no stats, no snippets: not blocked by a check, but because those routes
+  simply do not exist under `/api/app/`.
+- ⚠️ **401/403 and "no network" must never be confused** (`core/SyncRules.kt:classify`).
+  **401/403 ⇒ Revoked**: delete the local copy, discard the token, show
+  "Gerät gesperrt" — the price of storing anything locally at all is that a
+  revoked device holds nothing afterwards. **Timeout/DNS/5xx ⇒ Offline**:
+  touch nothing, retry silently. A revoke check that a timeout could trigger
+  would wipe a phone that is merely stuck behind a bad tunnel.
+- **One queue row per prompt** (`pending_op.promptId` is the `@PrimaryKey` in
+  `data/db/Entities.kt`) — repeated offline edits `coalesce()` into the same
+  row instead of piling up, and only the whitelisted PATCH fields
+  (`core/SyncRules.kt:ALLOWED_PATCH_FIELDS` — must mirror the backend's
+  `AppPromptUpdate`) ever leave the device.
+- **Offline-created prompts get negative local IDs**, minted by
+  `CueDatabase.nextLocalId()` and counted in `sync_state.nextLocalId` — not
+  derived from `min(id)`, because after the ID is adopted from the server
+  response the negative row is gone and a fresh `min()` would hand out an ID
+  a still-queued edit already points at.
+- **The pull cursor advances only after a successful fetch**
+  (`SyncEngine.pull()` calls `syncStateDao().updateCursor(...)` at the very
+  end, never `.put()` mid-way) — an interrupted pull must not silently
+  swallow a change forever, and `.put()` would also reset `nextLocalId`.
+- **`android:allowBackup="false"`** on the `<application>` — the encrypted
+  token store (`data/auth/TokenStore.kt`, `EncryptedSharedPreferences`) must
+  never end up in an Auto Backup snapshot that could be restored onto another
+  device.
+- **Column order is mirrored THREE times, not two**: backend
+  `app/ordering.py:display_key`, web `lib/order.ts:columnComparator`, and
+  Android `core/ColumnOrder.kt:columnComparator`. All three are pinned
+  against the one shared contract `contracts/column-order.json`
+  (`ColumnOrderContractTest` on the Android side) — changing the rule in one
+  place without the contract drifts silently, exactly the failure mode the
+  contract exists to catch.
+- **Release ships only through CI, never from a laptop keystore into the
+  tree**: pushing a tag `android-v<version>` runs
+  `.github/workflows/android-release.yml`, which builds, signs from GitHub
+  Secrets (`KEYSTORE_BASE64`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD`),
+  verifies the result with `apksigner verify`, and attaches the APK to a
+  GitHub Release — cue is a **public** repo, and a binary once committed to
+  its history stays there forever. `*.jks`, `keystore.properties`,
+  `local.properties` and `secrets.txt` are gitignored; check `git status`
+  before every commit under `android/`.
+- **Launcher icon is transferred from `frontend/public/favicon.svg`**, not
+  redrawn: `res/drawable/ic_launcher_foreground.xml` holds the same paths
+  inside a `<group android:scaleX="2.25" android:scaleY="2.25"
+  android:translateX="18" android:translateY="18">` — the SVG's 32-unit
+  motif scaled by 72/32 and shifted to the inner 72×72 safe zone of the
+  108×108 adaptive-icon viewport (the group transform also scales
+  `strokeWidth`, same as SVG, so proportions match the original exactly).
+  PNG fallbacks for `minSdk 24` (`mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher*.png`,
+  48/72/96/144/192 px) are rendered with **headless Chrome, never
+  ImageMagick** — house rule, IM renders gradients/SVG groups black.
+- **Sync rules live as pure Kotlin under `core/`**, device-free
+  (`SyncRules.kt`, `ColumnOrder.kt`, `SearchQuery.kt`, `ServerUrl.kt`,
+  `Model.kt`) — the same posture as the web frontend's `src/lib/`: logic
+  lifted out of the UI so it is testable without an emulator. Every new
+  assertion gets mutation-tested (commit first, then mutate — `git checkout`
+  after a mutation probe throws away any *uncommitted* fix along with it).
+- Toolchain: JDK 21 (`~/Library/Java/JavaVirtualMachines/openjdk-21.0.2`, not
+  the system default), `ANDROID_HOME=~/Library/Android/sdk`, `apksigner` under
+  `$ANDROID_HOME/build-tools/35.0.0/` (matches `compileSdk 35`).
+
 ## Deployment (live: cue.celox.io on VPS 69.62.121.168)
 
 - Code at `/opt/cue` (rsync'd, no git clone). Container `cue` via `docker compose`, binds `127.0.0.1:8791`. nginx block `/etc/nginx/sites-enabled/cue.celox.io` (certbot-managed cert + HTTP→HTTPS redirect). Update: `rsync ./ root@69.62.121.168:/opt/cue/` then `ssh ... 'cd /opt/cue && docker compose up -d --build'`.
