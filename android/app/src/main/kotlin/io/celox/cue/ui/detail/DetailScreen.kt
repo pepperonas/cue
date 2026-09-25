@@ -56,7 +56,11 @@ class DetailViewModel @Inject constructor(
     repo: PromptRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val promptId: Long = savedStateHandle.get<String>("id")?.toLongOrNull() ?: -1L
+    // `CueApp` deklariert die Route "detail/{id}" mit `NavType.LongType` — im
+    // `SavedStateHandle` steht dort ein echter `Long`, kein `String`. Als
+    // String gelesen wirft das eine `ClassCastException` (live gefunden:
+    // jedes Antippen einer Zeile stürzte die App ab).
+    val promptId: Long = savedStateHandle.get<Long>("id") ?: -1L
 
     val prompt = repo.prompt(promptId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val projects = repo.projects.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

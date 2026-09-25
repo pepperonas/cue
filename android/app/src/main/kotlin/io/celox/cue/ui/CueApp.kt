@@ -74,7 +74,22 @@ fun CueApp(startupViewModel: StartupViewModel = hiltViewModel()) {
             EditScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen()
+            SettingsScreen(
+                onConnected = {
+                    navController.navigate(Routes.LIST) {
+                        popUpTo(Routes.SETTINGS) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                // Nur ein Pfeil, wenn diese Route wirklich einen Vorgänger hat (von der Liste
+                // aus über das Zahnrad geöffnet) — als Startroute (Ersteinrichtung/Sperre) gibt
+                // es nichts, zu dem er zurückführen könnte.
+                onBack = if (navController.previousBackStackEntry != null) {
+                    { navController.popBackStack() }
+                } else {
+                    null
+                },
+            )
         }
     }
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nur im Debug-Build: erlaubt Klartext-HTTP, damit `SettingsScreen` gegen einen
+  lokalen Dev-Server (z. B. `http://10.0.2.2:8010` im Emulator) verbinden kann.
+  `core/ServerUrl.kt:normalizeServerUrl` lässt http:// ohnehin nur für lokale
+  Adressen zu — ohne diese Konfiguration blockt Android das trotzdem auf
+  Netzwerk-Ebene (Cleartext standardmäßig verboten seit API 28), unabhängig
+  von der App-eigenen Prüfung. Release-Builds bekommen diese Datei NIE
+  (source set `debug`), Produktion bleibt auf https:// beschränkt.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -13,6 +15,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -21,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +42,8 @@ import io.celox.cue.data.db.SyncStateEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onConnected: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val configured by viewModel.configured.collectAsStateWithLifecycle()
@@ -44,6 +51,11 @@ fun SettingsScreen(
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var showDisconnectDialog by remember { mutableStateOf(false) }
+
+    // Settings ist die Startroute ohne Vorgänger (Ersteinrichtung, oder nach
+    // einer erkannten Sperre — s. `CueApp`s `AppNavTarget.DEVICE_REVOKED`);
+    // ohne diesen Sprung gäbe es nach dem Verbinden keinen Weg zur Liste.
+    LaunchedEffect(Unit) { viewModel.connectedEvents.collect { onConnected() } }
 
     if (showDisconnectDialog) {
         DisconnectDialog(
@@ -53,7 +65,23 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Einstellungen") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Einstellungen") },
+                navigationIcon = {
+                    // Nur, wenn diese Route einen Vorgänger im Stack hat (von der Liste aus über
+                    // das Zahnrad geöffnet) — als Startroute (Ersteinrichtung/Sperre) gäbe es
+                    // nichts, zu dem der Pfeil zurückführen könnte.
+                    onBack?.let { back ->
+                        IconButton(onClick = back) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
+                        }
+                    }
+                },
+            )
+        },
+    ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
