@@ -41,11 +41,26 @@ const VECTORS: [string, string, string][] = [
   ['split across lines', '<img\nsrc=x\nonerror=alert(1)>', 'onerror=alert(1)'],
   ['carrying a null byte', `<img ${NUL} src=x onerror=alert(1)>`, 'onerror=alert(1)'],
   ['mixed with markdown', '## **bold** <script>x</script> `code`', 'script'],
+  // Every block type the renderer grew later has to hold the same line.
+  ['inside a table cell', '| a |\n|---|\n| <img src=x onerror=alert(1)> |', 'onerror=alert(1)'],
+  ['inside a table header', '| <script>alert(1)</script> |\n|---|', 'alert(1)'],
+  ['escaped pipe in a cell', '| `<img src=x onerror=alert(1)>\\|x` |\n|---|', 'onerror=alert(1)'],
+  ['inside an ordered item', '1. <img src=x onerror=alert(1)>', 'onerror=alert(1)'],
+  ['inside a nested item', '- a\n  - <svg/onload=alert(1)>', 'onload=alert(1)'],
+  ['inside a blockquote', '> <iframe src="javascript:alert(1)">', 'javascript:alert(1)'],
+  ['inside a task item', '- [ ] <script>alert(1)</script>', 'alert(1)'],
+  ['inside strikethrough', '~~<img src=x onerror=alert(1)>~~', 'onerror=alert(1)'],
+  ['a link', '[klick](javascript:alert(1))', 'javascript:alert(1)'],
+  ['an image', '![x](https://evil.example/pixel.gif)', 'evil.example'],
+  ['fence info string', '```<script>alert(1)</script>\nx\n```', 'x'],
 ]
 
 
 // The complete set of tags this renderer is allowed to produce.
-const ALLOWED = new Set(['p', 'br', 'h1', 'h2', 'h3', 'strong', 'em', 'code', 'pre', 'ul', 'li'])
+const ALLOWED = new Set([
+  'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'del', 'code', 'pre',
+  'ul', 'ol', 'li', 'span', 'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+])
 
 /**
  * Parse the output the way the browser will and return every element in it.

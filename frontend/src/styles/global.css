@@ -1342,33 +1342,150 @@ a {
   background: var(--md-on-primary);
 }
 
-/* ---- Markdown preview ---- */
+/* ---- Markdown preview ----
+   Renders the output of lib/markdown.ts. The renderer emits NO attributes, so
+   everything here hangs off plain element selectors inside .md-preview.
+   ⚠️ The detail sheet paints the preview on --md-surface-container-lowest —
+   code used the SAME token and disappeared into it. Code sits one step up
+   (--md-surface-container-high) and carries a hairline, on every host. */
 .md-preview {
   font: var(--body-m);
   line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.md-preview > :first-child {
+  margin-top: 0;
+}
+.md-preview > :last-child {
+  margin-bottom: 0;
+}
+.md-preview p,
+.md-preview ul,
+.md-preview ol,
+.md-preview pre,
+.md-preview table,
+.md-preview blockquote {
+  margin: 0 0 0.75em;
+}
+.md-preview h1,
+.md-preview h2,
+.md-preview h3,
+.md-preview h4,
+.md-preview h5,
+.md-preview h6 {
+  margin: 1em 0 0.4em;
+  line-height: 1.3;
+}
+.md-preview h1 { font-size: 1.35em; }
+.md-preview h2 { font-size: 1.2em; }
+.md-preview h3 { font-size: 1.08em; }
+.md-preview h4,
+.md-preview h5,
+.md-preview h6 { font-size: 1em; }
+
+.md-preview code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  padding: 0 5px;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
 }
 .md-preview pre {
-  background: var(--md-surface-container-lowest);
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
   padding: var(--gap-3);
   border-radius: var(--shape-s);
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 0.8rem;
-}
-.md-preview code {
-  font-family: var(--font-mono);
-  background: var(--md-surface-container-lowest);
-  padding: 1px 5px;
-  border-radius: 5px;
+  line-height: 1.5;
+  tab-size: 2;
 }
 .md-preview pre code {
   padding: 0;
+  border: 0;
   background: none;
+  font-size: inherit;
+  overflow-wrap: normal;
 }
-.md-preview h1,
-.md-preview h2,
-.md-preview h3 {
-  margin: 0.6em 0 0.3em;
+
+/* Lists. Ordered numbers are written by the renderer (a `start` attribute
+   would be the only other way to begin at "3."), so the browser's own
+   numbering is switched off and the <span> is hung into the gutter. */
+.md-preview ul,
+.md-preview ol {
+  padding-left: 1.5em;
+}
+.md-preview ol {
+  list-style: none;
+}
+.md-preview ol > li {
+  position: relative;
+}
+.md-preview ol > li > span:first-child,
+.md-preview ol > li > p:first-child > span:first-child {
+  position: absolute;
+  right: calc(100% + 0.45em);
+  /* Absolutely placed against the right edge, the span shrinks to its
+     min-content — and "2." then broke between digit and dot. */
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface-variant);
+}
+.md-preview li + li {
+  margin-top: 0.2em;
+}
+.md-preview li > ul,
+.md-preview li > ol {
+  margin: 0.2em 0 0;
+}
+
+.md-preview blockquote {
+  padding: 0.1em 0 0.1em 0.9em;
+  border-left: 3px solid var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
+}
+.md-preview hr {
+  border: 0;
+  border-top: 1px solid var(--md-outline-variant);
+  margin: 1em 0;
+}
+
+/* Tables: `display: block` lets a wide table scroll inside the preview
+   instead of pushing the dialog wider than the screen. */
+.md-preview table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+.md-preview th,
+.md-preview td {
+  border: 1px solid var(--md-outline-variant);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 4em;
+  /* `anywhere` (inherited from .md-preview) lets a narrow column cut words
+     mid-letter ("Katego|rie"). In a table it is better to break at spaces
+     only and let the table scroll sideways. */
+  overflow-wrap: normal;
+}
+.md-preview th code,
+.md-preview td code {
+  overflow-wrap: normal;
+}
+.md-preview th {
+  background: var(--md-surface-container-high);
+  font-weight: 600;
+}
+.md-preview tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--md-on-surface) 4%, transparent);
 }
 
 /* ---- Empty / skeleton ---- */

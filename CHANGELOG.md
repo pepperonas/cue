@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.73.1] - 2026-09-25
+
+### Fixed
+- **Markdown-Tabellen werden jetzt als Tabellen dargestellt.** Die Vorschau
+  kannte keine Tabellen — eine GFM-Tabelle erschien als Absatz voller `|`.
+  `\|` in einer Zelle ist ein wörtlicher Strich, auch in Inline-Code.
+  Breite Tabellen scrollen innerhalb der Vorschau statt den Dialog zu sprengen.
+- **Inline-Code war im Ansichtsdialog unsichtbar**: er hatte dieselbe
+  Hintergrundfarbe wie die Vorschau. Code sitzt jetzt eine Stufe höher und hat
+  eine feine Kontur.
+- Die Sprachangabe eines Codeblocks (```` ```ts ````) erscheint nicht mehr als
+  erste Codezeile.
+- `snake_case` bleibt ein Wort statt halbe Sätze kursiv zu machen, und `#tag`
+  am Zeilenanfang wird keine Überschrift mehr.
+
+### Added
+- Die Vorschau versteht jetzt nummerierte und verschachtelte Listen,
+  Aufgabenlisten (☐/☑), Zitate, Trennlinien, Überschriften bis h6,
+  `~~durchgestrichen~~`, `_kursiv_`/`__fett__`, `~~~`-Codeblöcke und
+  Backslash-Escapes. Links und Bilder bleiben bewusst als getippter Text
+  stehen — die Vorschau erzeugt keine Attribute, und das ist ihr Schutz.
+
 ## [0.73.0] - 2026-09-21
 
 ### Added
