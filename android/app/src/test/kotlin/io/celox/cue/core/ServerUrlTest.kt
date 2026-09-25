@@ -15,10 +15,17 @@ class ServerUrlTest {
     }
 
     @Test fun `plain http is only allowed for local development`() {
-        assertThat(normalizeServerUrl("http://cue.celox.io")).isNull()
-        assertThat(normalizeServerUrl("http://10.0.2.2:8000")).isEqualTo("http://10.0.2.2:8000")
-        assertThat(normalizeServerUrl("http://localhost:8000/")).isEqualTo("http://localhost:8000")
-        assertThat(normalizeServerUrl("http://192.168.178.20:8000")).isEqualTo("http://192.168.178.20:8000")
+        assertThat(normalizeServerUrl("http://cue.celox.io", allowLocalHttp = true)).isNull()
+        assertThat(normalizeServerUrl("http://10.0.2.2:8000", allowLocalHttp = true)).isEqualTo("http://10.0.2.2:8000")
+        assertThat(normalizeServerUrl("http://localhost:8000/", allowLocalHttp = true)).isEqualTo("http://localhost:8000")
+        assertThat(normalizeServerUrl("http://192.168.178.20:8000", allowLocalHttp = true))
+            .isEqualTo("http://192.168.178.20:8000")
+    }
+
+    @Test fun `a release build refuses plain http even to a local address`() {
+        for (raw in listOf("http://10.0.2.2:8000", "http://localhost:8000", "http://192.168.178.20:8000"))
+            assertWithMessage(raw).that(normalizeServerUrl(raw, allowLocalHttp = false)).isNull()
+        assertThat(normalizeServerUrl("https://cue.celox.io", allowLocalHttp = false)).isEqualTo("https://cue.celox.io")
     }
 
     @Test fun `garbage is rejected, not crashed on`() {

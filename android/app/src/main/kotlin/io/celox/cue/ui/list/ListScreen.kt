@@ -95,8 +95,7 @@ fun ListScreen(
     // Regel 2 (Fix-Runde 1): der Brief verlangt „Projektname + Tags" — vorher stand hier
     // `#<projectId>`. Einmal id→name gemappt statt je Zeile die Liste zu durchsuchen.
     val projectNames = remember(projects) { projects.associate { it.id to it.name } }
-    val showOffline = pending.isNotEmpty() &&
-        (syncState?.lastSyncAt == null || System.currentTimeMillis() - syncState!!.lastSyncAt!! > 60_000L)
+    val showOffline = showOfflineBanner(pending, syncState?.lastSyncAt, System.currentTimeMillis())
 
     Scaffold(
         topBar = {

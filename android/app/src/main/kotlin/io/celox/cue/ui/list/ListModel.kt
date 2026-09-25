@@ -32,3 +32,12 @@ fun buildSections(
         hits.filter { it.status == status }.sortedWith(cmp).takeIf { it.isNotEmpty() }?.let { Section(status, it) }
     }
 }
+
+/**
+ * Der „offline"-Hinweis: es wartet etwas, und der letzte gelungene Abgleich ist über eine
+ * Minute her. ⚠️ Nur Änderungen OHNE `lastError` zählen — eine vom Server ABGELEHNTE
+ * (400/422) wartet nicht auf Netz, sie wartet auf den Nutzer, und würde den Hinweis sonst
+ * für immer stehen lassen, obwohl die Verbindung einwandfrei ist.
+ */
+fun showOfflineBanner(pending: List<io.celox.cue.data.db.PendingOpEntity>, lastSyncAt: Long?, now: Long): Boolean =
+    pending.any { it.lastError == null } && (lastSyncAt == null || now - lastSyncAt > 60_000L)

@@ -33,4 +33,12 @@ class ListModelTest {
         val s = buildSections(listOf(p(1, Status.queued), p(-1, Status.queued, sort = Int.MIN_VALUE)), emptyList(), "", setOf(-1))
         assertThat(s.single().prompts.first().id).isEqualTo(-1L)
     }
+
+    @Test fun `a rejected change alone never shows the offline banner`() {
+        val rejected = io.celox.cue.data.db.PendingOpEntity(1, io.celox.cue.core.OpKind.UPDATE, "{}", "422 nein", 0)
+        val waiting = rejected.copy(promptId = 2, lastError = null)
+        assertThat(showOfflineBanner(listOf(rejected), lastSyncAt = null, now = 100_000)).isFalse()
+        assertThat(showOfflineBanner(listOf(rejected, waiting), lastSyncAt = null, now = 100_000)).isTrue()
+        assertThat(showOfflineBanner(listOf(waiting), lastSyncAt = 90_000, now = 100_000)).isFalse()
+    }
 }

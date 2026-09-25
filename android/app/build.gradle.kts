@@ -19,6 +19,8 @@ val hasSigning = keystorePropsFile.exists() || System.getenv("KEYSTORE_PASSWORD"
 android {
     namespace = "io.celox.cue"
     compileSdk = 35
+    // Fest gepinnt: die Release-Pipeline ruft `build-tools/35.0.0/apksigner` beim Namen auf.
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "io.celox.cue"

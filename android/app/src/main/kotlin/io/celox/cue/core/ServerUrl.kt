@@ -1,11 +1,20 @@
 package io.celox.cue.core
 
+import io.celox.cue.BuildConfig
 import java.net.URI
 
 private val LOCAL_HOST = Regex("""^(localhost|10\.0\.2\.2|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$""")
 
-/** Eine eingegebene Server-Adresse in die Form bringen, die der Client voranstellt. */
-fun normalizeServerUrl(raw: String): String? {
+/**
+ * Eine eingegebene Server-Adresse in die Form bringen, die der Client voranstellt.
+ *
+ * `allowLocalHttp`: nur ein Debug-Build darf `http://` (und auch dann nur zu einer
+ * lokalen Adresse, für den Dev-Server). Ein Release-Build verlangt IMMER https —
+ * das Geräte-Token reist im Header und darf nie im Klartext über ein WLAN gehen;
+ * die Release-Netzwerkkonfiguration verbietet Klartext ohnehin, die Prüfung hier
+ * sagt es dem Nutzer, statt einen stummen Verbindungsfehler zu liefern.
+ */
+fun normalizeServerUrl(raw: String, allowLocalHttp: Boolean = BuildConfig.DEBUG): String? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
     // Schema-Erkennung ZUERST am ungekürzten Text — sonst frisst trimEnd('/') das "//"
@@ -26,7 +35,7 @@ fun normalizeServerUrl(raw: String): String? {
     val normalized = scheme + text.substring(text.indexOf("://"))
     return when (scheme) {
         "https" -> normalized
-        "http" -> if (LOCAL_HOST.matches(host)) normalized else null
+        "http" -> if (allowLocalHttp && LOCAL_HOST.matches(host)) normalized else null
         else -> null
     }
 }

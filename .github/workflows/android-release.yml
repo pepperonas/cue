@@ -23,8 +23,23 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
       - uses: android-actions/setup-android@v3
+      - name: Tag und versionName stimmen ueberein
+        # Ein Tag, der eine andere Version nennt als die gebaute APK, veroeffentlicht eine
+        # Datei, deren Name luegt (`cue-0.2.0.apk` mit versionName 0.1.0).
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#android-v}"
+          APP_VERSION=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          echo "Tag: $TAG_VERSION  versionName: $APP_VERSION"
+          if [ -z "$APP_VERSION" ] || [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "::error::Tag android-v$TAG_VERSION passt nicht zu versionName \"$APP_VERSION\" in app/build.gradle.kts"
+            exit 1
+          fi
       - name: Keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.jks
+        # Ueber env statt als Ausdruck im Skript: ein `${{ }}` im run-Text wird VOR der
+        # Shell eingesetzt — Sonderzeichen im Geheimnis wuerden zu Shell-Syntax.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 -d > release.jks
       - name: Tests
         run: ./gradlew :app:testDebugUnitTest
       - name: Build
@@ -37,6 +52,8 @@ jobs:
       - name: Signatur pruefen
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
+          # Pfad passt zu `buildToolsVersion = "35.0.0"` in app/build.gradle.kts — AGP laedt genau
+          # diese Version, der Pfad existiert also garantiert.
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
           cp "$APK" "cue-${GITHUB_REF_NAME#android-v}.apk"
       - name: Release
