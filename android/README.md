@@ -54,8 +54,11 @@ cd android
 ./gradlew assembleDebug          # unsigniertes Debug-APK
 ```
 
-`compileSdk`/`targetSdk` sind 35, `minSdk` 24 (Android 7.0) — `apksigner`
-liegt entsprechend unter `$ANDROID_HOME/build-tools/35.0.0/`.
+`compileSdk`/`targetSdk` sind 35, `minSdk` 24 (Android 7.0). `buildToolsVersion`
+ist in `app/build.gradle.kts` fest auf `35.0.0` gesetzt — nicht aus `compileSdk`
+abgeleitet —, damit `apksigner` garantiert unter
+`$ANDROID_HOME/build-tools/35.0.0/` liegt (die Release-Pipeline ruft ihn beim
+Namen auf).
 
 ## Tests
 
@@ -67,7 +70,9 @@ cd android
 Die Abgleich-Regeln (Warteschlange, Konfliktregel, 401-vs-Netzfehler,
 Spaltenreihenfolge, Server-URL-Normalisierung, Suche) sind reine Kotlin-
 Funktionen ohne Gerät — sie liegen unter `core/` und laufen als reine JVM-
-Unit-Tests. Die Spaltenreihenfolge ist zusätzlich gegen den gemeinsamen
+Unit-Tests. Status-/Prioritätswerte und die Form des Geräte-Tokens sind gegen
+[`contracts/app-api.json`](../contracts/app-api.json) gepinnt
+(`AppApiContractTest`, Backend: `test_app_api_contract.py`). Die Spaltenreihenfolge ist zusätzlich gegen den gemeinsamen
 Vertrag [`contracts/column-order.json`](../contracts/column-order.json)
 gepinnt (`ColumnOrderContractTest`), denselben, den auch das Backend und das
 Web-Frontend lesen — ein Web-Zusatz, der die Reihenfolge ändert, ohne den
@@ -76,11 +81,13 @@ Vertrag anzupassen, fällt hier automatisch auf.
 ## Release
 
 Ein signiertes Release entsteht ausschließlich über CI: ein Tag `android-v*`
-löst `.github/workflows/android-release.yml` aus, das App-Bundle wird gebaut,
+löst `.github/workflows/android-release.yml` aus, das APK wird gebaut,
 mit `apksigner verify` geprüft und als Anhang an ein GitHub-Release gehängt
 — **nicht** in den Baum. `cue` ist ein öffentliches Repo: Keystore und
 Passwörter leben ausschließlich in GitHub-Secrets (`KEYSTORE_BASE64`,
-`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), niemals im Code.
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), niemals im Code. Der Lauf
+bricht ab, wenn die Version im Tag (`android-v0.2.0`) nicht dem `versionName`
+in `app/build.gradle.kts` entspricht.
 
 Lokal (mit einer `keystore.properties`, die niemals committet wird):
 
@@ -99,9 +106,12 @@ das.
 
 | Lage | Verhalten |
 | --- | --- |
-| Zeitablauf, DNS, 5xx | lokale Kopie bleibt, Warteschlange bleibt, stiller Wiederversuch |
+| Zeitablauf, DNS (kein Netz) | lokale Kopie bleibt, Warteschlange bleibt, stiller Wiederversuch |
+| 408/429/5xx auf einer Änderung | diese Änderung bleibt stehen, die übrigen gehen raus, gezogen wird trotzdem; Wiederversuch mit Zurückweichen |
 | **401 / 403** | lokale Kopie **wird gelöscht**, Token verworfen, Hinweis „Gerät gesperrt" |
-| 409/422 beim Schieben | Eintrag bleibt in der Warteschlange, Fehler wird angezeigt — nie stillschweigend verworfen |
+| 400 beim Schieben (z. B. `Unknown project`, `Prompt is blocked`) oder 422 (Schema) | Eintrag bleibt in der Warteschlange, Fehler wird angezeigt — nie stillschweigend verworfen |
+| 404 beim Schieben (am Rechner gelöscht) | die lokale Änderung gewinnt: aus der vollen lokalen Zeile neu angelegt |
+| 2xx, aber unlesbare Antwort | nicht wiederholt (der Server hat geschrieben) — die Änderung wird verworfen und ein vollständiger Zug übernimmt den Serverstand |
 
 Das Löschen bei 401/403 ist der Gegenwert dafür, dass überhaupt lokal
 gespeichert wird: ein gesperrtes Gerät hält danach keine Prompts mehr.
@@ -109,10 +119,13 @@ gespeichert wird: ein gesperrtes Gerät hält danach keine Prompts mehr.
 ## Konfliktregel beim Abgleich
 
 Eine lokale Änderung gewinnt beim Hochschieben. Beim Herunterziehen werden
-nur Zeilen überschrieben, die **keine** offene lokale Änderung tragen. Wer
-denselben Prompt am Rechner ändert, während das Telefon offline eine Änderung
-hält, verliert damit die Rechner-Fassung — bewusst in Kauf genommen für ein
-Ein-Personen-Werkzeug (Details: Entwurf § 5).
+nur Zeilen überschrieben, die **keine** offene lokale Änderung tragen. Das
+PATCH trägt nur die am Telefon geänderten Felder: wird derselbe Prompt am
+Rechner geändert, während das Telefon offline eine Änderung hält, verlieren
+nur die **auf beiden Seiten** geänderten Felder die Rechner-Fassung — alles,
+was nur am Rechner geändert wurde, bleibt erhalten (die Server-Antwort wird
+danach übernommen). Bewusst in Kauf genommen für ein Ein-Personen-Werkzeug
+(Details: Entwurf § 5).
 
 ## Projektstruktur
 

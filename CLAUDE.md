@@ -328,6 +328,8 @@ into it. Own doc: [`android/README.md`](android/README.md); design doc:
   (`SyncEngine.pull()` calls `syncStateDao().updateCursor(...)` at the very
   end, never `.put()` mid-way) — an interrupted pull must not silently
   swallow a change forever, and `.put()` would also reset `nextLocalId`.
+  (The one deliberate exception resets it to null: an unreadable write
+  response, see below.)
 - **`android:allowBackup="false"`** on the `<application>` — the encrypted
   token store (`data/auth/TokenStore.kt`, `EncryptedSharedPreferences`) must
   never end up in an Auto Backup snapshot that could be restored onto another
@@ -366,7 +368,61 @@ into it. Own doc: [`android/README.md`](android/README.md); design doc:
   after a mutation probe throws away any *uncommitted* fix along with it).
 - Toolchain: JDK 21 (`~/Library/Java/JavaVirtualMachines/openjdk-21.0.2`, not
   the system default), `ANDROID_HOME=~/Library/Android/sdk`, `apksigner` under
-  `$ANDROID_HOME/build-tools/35.0.0/` (matches `compileSdk 35`).
+  `$ANDROID_HOME/build-tools/35.0.0/` — **because `buildToolsVersion = "35.0.0"`
+  is pinned in `app/build.gradle.kts`**, not because it follows `compileSdk`
+  (AGP picks its own default otherwise, and the release workflow calls that
+  exact path). The workflow also fails when the tag's version differs from
+  `versionName`, and takes `KEYSTORE_BASE64` via `env:` (a `${{ }}` inside
+  `run:` is substituted before the shell parses it).
+- ⚠️ **An offline-created prompt keeps its negative id alive via `id_alias`
+  (DB v2, `MIGRATION_1_2`)**. `adoptServerId` records old→new (and retargets
+  older aliases, so it is always ONE hop); `SyncEngine.enqueue` and
+  `PromptDao.observe` resolve through it — the latter as one query over both
+  tables, so there is no frame where the old row is gone and the alias not
+  yet there. Without it an editor or detail still holding the negative id lost
+  the row the moment a sync adopted it: „Prompt existiert nicht mehr", edit
+  gone. And **an edit on a row a pull deleted is re-created**, not refused:
+  `EditViewModel` passes its full state as `fallback`, `enqueue` turns it into
+  a CREATE under a fresh local id plus an alias — the same „local change
+  wins" rule as the PATCH-404 path. Without a fallback, and without a token,
+  enqueue still refuses. `MigrationTest` validates against the exported
+  schema (the schemas are `debug` assets because Robolectric reads the APP's
+  assets, not the test source set's).
+- ⚠️ **`SyncWorker.kick` appends (`APPEND_OR_REPLACE`), never `REPLACE`**:
+  `REPLACE` cancels a RUNNING sync, and a POST the server already applied then
+  threw on return before `adoptServerId` — the CREATE stayed queued and the
+  prompt was created twice. `KEEP` is the other trap: a save made during a
+  run waits on the mutex, lands AFTER the push, and its kick would be dropped
+  until the 15-min periodic run. Belt and braces: each op in `push()` runs
+  network call + classification + DB commit inside `NonCancellable`.
+- ⚠️ **One failing op must not block the pull, and a failed sync must back
+  off.** `push()` keeps a 408/429/5xx op queued and moves on; only a real
+  network failure (`ApiResult.Network`) aborts, and `pull()` still runs —
+  otherwise the cursor never advances, `changes(since=stale)` answers at once
+  and `liveLoop` spun hot. `sync()` then reports `Offline` (worker retries),
+  and `liveLoop` backs off 1→30 s whenever `syncNow()` is not `Done`.
+  **`ApiResult.Unreadable` = a 2xx whose body does not decode** — for reads it
+  still counts as 502/offline, but for a WRITE it means the server DID write:
+  retrying re-created the prompt on every spin. The op is dropped, an offline
+  row cleared and the pull cursor reset to null (the one place the cursor
+  moves backwards), so the next pull adopts the server's truth. Only 401/403
+  mean Revoked, unchanged.
+- ⚠️ **The device token is validated before it is stored**
+  (`core/DeviceToken.kt`): paste noise (whitespace, line breaks, NBSP,
+  zero-width, BOM) is stripped, case lowered, and anything but the backend's
+  `secrets.token_hex(32)` form (64 hex, pinned in `contracts/app-api.json`
+  together with the Status/Priority enums) is `ConnectResult.BadToken`.
+  OkHttp's `header()` throws `IllegalArgumentException` on `\n`/non-ASCII,
+  and it used to sit OUTSIDE the `try` while `connect()` had already saved the
+  candidate — every launch crashed. The request is now built inside the try
+  (→ 400, deliberately not 401: an unusable token is no revocation and must
+  not wipe), and `EncryptedTokenStore` treats a stored token of the wrong
+  form as absent, so an older install opens Settings instead of crashing.
+- `normalizeServerUrl` accepts `http://` (to a local address) **only in debug
+  builds** (`allowLocalHttp = BuildConfig.DEBUG`, a parameter so the rule
+  stays unit-testable); a release build requires https. The offline banner
+  (`ListModel.showOfflineBanner`) ignores ops with a `lastError` — a rejected
+  change waits for the user, not for the network.
 - ⚠️ **The release build (R8 + lint-vital) failed from the first commit and
   nothing noticed** — the debug build and every unit test were green, because
   neither runs R8 or `lintVitalAnalyzeRelease`. Two fixes, both deliberate:
