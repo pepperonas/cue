@@ -24,6 +24,7 @@ import io.celox.cue.data.sync.SyncEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -159,5 +160,22 @@ class DetailViewModelTest {
 
         vm.loaded.first { it }
         assertThat(vm.prompt.value).isNull() // bestätigt: es gibt diese Zeile nicht — kein Ladezustand mehr
+    }
+    /**
+     * Regel 8, der Übergang selbst: mit einem `StandardTestDispatcher` läuft die Eagerly-Kollektion
+     * erst, wenn der Dispatcher Arbeit ausführt — direkt nach der Konstruktion ist `loaded` also
+     * deterministisch `false`. Ohne diesen Pin könnte `_loaded` mit `true` starten (der alte
+     * „Nicht gefunden."-Blitz), und keiner der anderen Tests würde rot.
+     */
+    @Test fun `loaded starts false and turns true once Room has answered`() {
+        val standard = StandardTestDispatcher()
+        Dispatchers.setMain(standard)
+        runTest(standard) {
+            val vm = DetailViewModel(repo, SavedStateHandle(mapOf("id" to 999L)))
+
+            assertThat(vm.loaded.value).isFalse()
+            vm.loaded.first { it }
+            assertThat(vm.prompt.value).isNull()
+        }
     }
 }
