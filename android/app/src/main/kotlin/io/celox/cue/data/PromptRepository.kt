@@ -112,12 +112,24 @@ class PromptRepository @Inject constructor(
      * alten Zugangsdaten EXAKT wiederhergestellt (auch die Adresse, wenn
      * vorher noch gar kein Token gespeichert war) und keine lokale Zeile
      * angefasst.
+     *
+     * ⚠️ Fix-Runde 2: der `engine.exclusive`-Teil läuft zusätzlich in
+     * `NonCancellable` — OHNE das war `connect()` selbst noch abbrechbar:
+     * verließ der Aufrufer seinen Scope (Bildschirm verlassen), NACHDEM die
+     * Kandidatin gespeichert war, ABER BEVOR die Probe entschieden war
+     * (`api.changes(...)` hängt selbst mitten im Warten), brach die ganze
+     * `withContext`-Kette sofort ab — `restore()`/`wipeInside()` liefen NIE,
+     * und die Kandidatin blieb unentschieden im Speicher stehen: das ALTE
+     * Konto hätte seine wartenden Änderungen später unter dem NEUEN Token
+     * geschoben. `sync()`/`schedule()` NACH der Sperre bleiben bewusst
+     * abbrechbar — die holt der nächste `liveLoop()`-Tick bzw. der periodische
+     * Worker ohnehin nach.
      */
     suspend fun connect(rawUrl: String, token: String): ConnectResult {
         val url = normalizeServerUrl(rawUrl) ?: return ConnectResult.BadUrl
         val cleanToken = token.trim()
 
-        val result = withContext(Dispatchers.IO) {
+        val result = withContext(NonCancellable + Dispatchers.IO) {
             engine.exclusive { wipeInside ->
                 val previousToken = store.token
                 val previousUrl = store.serverUrl
@@ -145,8 +157,9 @@ class PromptRepository @Inject constructor(
             }
         }
 
-        // AUSSERHALB der Sperre: sync() nimmt sich seinen eigenen Mutex, und
-        // der ist nicht reentrant.
+        // AUSSERHALB der Sperre UND der NonCancellable-Deckung: sync() nimmt
+        // sich seinen eigenen Mutex (nicht reentrant), und darf hier
+        // abgebrochen werden — der nächste Tick holt es nach.
         if (result == ConnectResult.Ok) {
             engine.sync()
             SyncWorker.schedule(context)

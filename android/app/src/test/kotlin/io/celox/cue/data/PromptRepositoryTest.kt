@@ -92,6 +92,10 @@ class PromptRepositoryTest {
         var patchGate: CompletableDeferred<Unit>? = null
         val patchEntered = CompletableDeferred<Unit>()
 
+        /** Hält `changes()` an, bis die Sperre geöffnet wird — für den Cancel-mitten-in-der-Probe-Test (Fix-Runde 2). */
+        var changesGate: CompletableDeferred<Unit>? = null
+        val changesEntered = CompletableDeferred<Unit>()
+
         private fun <T> guard(block: () -> ApiResult<T>): ApiResult<T> {
             if (down) return ApiResult.Network(IOException("offline"))
             forced?.let { return ApiResult.Http(it, "") }
@@ -101,7 +105,11 @@ class PromptRepositoryTest {
         override suspend fun prompts() = guard { ApiResult.Ok(rows.values.toList()) }
         override suspend fun projects() = guard { ApiResult.Ok(emptyList<ProjectDto>()) }
         override suspend fun tags() = guard { ApiResult.Ok(TagListDto(emptyList())) }
-        override suspend fun changes(since: String?, waitSeconds: Int) = guard { ApiResult.Ok(ChangeFeedDto("c1")) }
+
+        override suspend fun changes(since: String?, waitSeconds: Int): ApiResult<ChangeFeedDto> {
+            changesGate?.let { changesEntered.complete(Unit); it.await() }
+            return guard { ApiResult.Ok(ChangeFeedDto("c1")) }
+        }
 
         override suspend fun create(fields: JsonObject): ApiResult<PromptDto> {
             calls += "create"
@@ -201,11 +209,22 @@ class PromptRepositoryTest {
      * Fix-Runde 1, Regel 3: der Worker-Anstoß hing vorher AUSSERHALB des
      * `NonCancellable`-Blocks — kam der Aufrufer beim Rücksprung auf seinen
      * (inzwischen abgebrochenen) Dispatcher, wurde die Zeile nie erreicht.
-     * Deterministisch nachgestellt, OHNE auf Thread-Timing zu vertrauen:
-     * `engine.exclusive` hält die echte SyncEngine-Sperre — jeder Versuch,
-     * `enqueue()` aufzurufen, MUSS dort warten (Mutex-Korrektheit, kein
-     * Zufall), also ist `create()` zum Zeitpunkt des `cancel()` garantiert
-     * noch mitten in seinem geschützten Block.
+     *
+     * ⚠️ Was diesen Test wirklich sicher macht (NICHT: „`runCurrent()`
+     * garantiert, dass der Mutex erreicht wurde" — `Dispatchers.IO` liegt
+     * AUSSERHALB des Test-Schedulers, `runCurrent()` kann dort nichts mehr
+     * steuern). Zwei getrennte Tatsachen tragen den Test: (a) `runCurrent()`
+     * schiebt die Coroutine nur so weit an, wie der virtuelle Scheduler kann
+     * — bis zum Dispatch-Wechsel auf `Dispatchers.IO` INNERHALB des
+     * `NonCancellable`-Blocks; ab da läuft sie auf einem echten Thread
+     * weiter, und WIE WEIT sie bis zum `cancel()` real gekommen ist, bleibt
+     * offen. (b) Das ist egal, weil ab genau diesem Dispatch-Wechsel der
+     * gesamte restliche Code unter `NonCancellable` steht — `cancel()` kann
+     * darin an KEINER Stelle mehr beobachtet werden, egal ob die Coroutine
+     * gerade `enqueue()` aufruft, am Mutex hängt oder die Schreibarbeit
+     * selbst ausführt. `runCurrent()` schließt nur den einen Fall aus, den es
+     * ausschließen muss: dass `cancel()` VOR dem Start der Coroutine feuert
+     * und der Körper nie läuft.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test fun `create finishes and kicks the worker even if the caller is cancelled while it waits for the lock`() =
@@ -218,8 +237,10 @@ class PromptRepositoryTest {
 
             var result: Long? = -999L
             val caller = launch { result = repo.create("Titel", "Text", null, "") }
-            // `create()` bis zum Dispatcher-Wechsel auf Dispatchers.IO anschieben —
-            // ab dort blockiert es garantiert am Mutex, den `holder` hält.
+            // `runCurrent()` schiebt nur bis zum Dispatch auf Dispatchers.IO an
+            // (danach real unbekannt, wie weit) — das reicht: ab dort ist der
+            // restliche Code in NonCancellable gehüllt und für `cancel()`
+            // unerreichbar, egal wo genau er real gerade steht.
             runCurrent()
             caller.cancel()
 
@@ -360,7 +381,13 @@ class PromptRepositoryTest {
         api.patchEntered.await() // push() haelt jetzt den Mutex und wartet in patch(1, …)
 
         val connectJob = launch { repo.connect("https://cue.celox.io", "neu-tok") }
-        runCurrent() // so weit anschieben, wie es ohne den Mutex geht — dort blockiert es garantiert
+        // `runCurrent()` schiebt `connectJob` nur bis zum Dispatch auf
+        // Dispatchers.IO an (real danach unbekannt, wie weit). Das genügt
+        // hier trotzdem: solange `gate` nicht freigegeben ist, hält `syncJob`
+        // den Mutex — `connect()` kann `store.save(...)` also unter GAR
+        // keinen Umständen schon ausgeführt haben, egal ob es noch dispatcht
+        // wird, vor dem Mutex wartet oder gerade erst hineinruft.
+        runCurrent()
 
         // Solange der Push blockiert: exakt EIN Versuch, und das Token ist unveraendert.
         assertThat(api.calls.count { it == "patch:1" }).isEqualTo(1)
@@ -372,6 +399,44 @@ class PromptRepositoryTest {
 
         assertThat(store.token).isEqualTo("neu-tok")
     }
+
+    /**
+     * Fix-Runde 2: `connect()` selbst war noch abbrechbar. Verließ der
+     * Aufrufer seinen Scope, NACHDEM die Kandidatin gespeichert war, ABER
+     * BEVOR die Probe entschieden war (`api.changes(...)` hängt selbst mitten
+     * im Warten), brach die ganze `withContext`-Kette sofort ab —
+     * `restore()` lief NIE, und die Kandidatin blieb unentschieden im
+     * Speicher stehen: das alte Konto hätte seine wartenden Änderungen
+     * später unter dem neuen Token geschoben. `changesGate` hält die Probe
+     * mitten im Warten an, `changesEntered` beweist, dass sie dort wirklich
+     * angekommen ist (kein Rätselraten über Thread-Timing); danach wird
+     * abgebrochen UND erst dann ein 5xx freigegeben.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun `a connect cancelled mid-probe still restores exactly instead of leaving the candidate stuck`() =
+        runTest {
+            reconnectAs("alt-tok", "https://cue.celox.io")
+            db.promptDao().upsert(listOf(prompt(1)))
+            db.pendingOpDao().put(PendingOpEntity(1, OpKind.UPDATE, f("title" to "unterwegs").toString(), null, 0))
+
+            val gate = CompletableDeferred<Unit>()
+            api.changesGate = gate
+            val connectJob = launch { repo.connect("https://cue.celox.io", "neu-tok") }
+            runCurrent()
+            api.changesEntered.await() // die Probe läuft, hängt jetzt im Gate — die Kandidatin ist schon gespeichert
+
+            connectJob.cancel() // der Aufrufer verlässt seinen Scope, während die Probe noch offen ist
+
+            api.forced = 503 // Fehlschlag, sobald das Gate gleich freigegeben wird
+            gate.complete(Unit)
+            connectJob.join() // wartet, bis der NonCancellable-Block trotz Cancel fertig ist (restore() inklusive)
+
+            // Die Kandidatin darf NIE unentschieden stehen bleiben.
+            assertThat(store.token).isEqualTo("alt-tok")
+            assertThat(store.serverUrl).isEqualTo("https://cue.celox.io")
+            assertThat(db.promptDao().ids()).containsExactly(1L)
+            assertThat(db.pendingOpDao().get(1)).isNotNull()
+        }
 
     // ---- Regel C: liveLoop dreht ohne Token nicht heiß ----
 
