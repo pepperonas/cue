@@ -1,0 +1,6 @@
+# Gradle wrapper scripts: force the line ending each platform needs,
+# independent of any clone's core.autocrlf — otherwise a CRLF gradlew.bat
+# gets silently downgraded to LF on `git add` (autocrlf=input) and breaks on
+# Windows, or a checkout on Windows corrupts the Unix gradlew shell script.
+android/gradlew text eol=lf
+android/gradlew.bat text eol=crlf

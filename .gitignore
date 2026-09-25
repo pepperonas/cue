@@ -47,3 +47,17 @@ frontend/vite.config.d.ts
 # Coverage artifacts
 .coverage
 coverage/
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
+keystore.properties
+secrets.txt
+android/.idea/
+*.apk
+*.aab

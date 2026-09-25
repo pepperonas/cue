@@ -141,3 +141,25 @@ def test_a_placeholder_is_not_a_finding(tmp_path: Path):
         encoding="utf-8",
     )
     assert scan([tmp_path / ".env.example"]) == []
+
+
+FORBIDDEN_FILES = re.compile(r"(^|/)(.+\.jks|.+\.keystore|keystore\.properties|secrets\.txt|local\.properties)$")
+
+
+def test_no_signing_material_is_tracked():
+    """cue ist öffentlich. Ein einmal gepushter Keystore bleibt für immer in der
+    Historie — der Schlüssel wäre verbrannt, jedes spätere Update müsste mit
+    einem neuen signiert werden und ließe sich nicht mehr über die alte App
+    installieren."""
+    tracked = [str(p.relative_to(REPO)) for p in tracked_files()]
+    hits = [f for f in tracked if FORBIDDEN_FILES.search(f)]
+    assert not hits, f"Signier-Material im Repo: {hits}"
+
+
+def test_the_signing_guard_can_see_a_keystore(tmp_path: Path):
+    """Gegenprobe: ein Wächter, der 0 meldet, ist erst glaubwürdig, wenn er
+    etwas finden kann."""
+    for name in ["android/release.jks", "android/keystore.properties", "x/upload.keystore"]:
+        assert FORBIDDEN_FILES.search(name), name
+    for name in ["android/app/build.gradle.kts", "docs/keystore.md"]:
+        assert not FORBIDDEN_FILES.search(name), name
