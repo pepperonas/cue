@@ -25,7 +25,7 @@ class CueApiTest {
 
     @Before fun start() {
         server.start()
-        val client = OkHttpClient.Builder().readTimeout(2, TimeUnit.SECONDS).build()
+        val client = OkHttpClient.Builder().readTimeout(1, TimeUnit.SECONDS).build()
         api = CueApi(client, FakeStore(server.url("/").toString().trimEnd('/'), "tok"))
     }
 
@@ -57,8 +57,22 @@ class CueApiTest {
     }
 
     @Test fun `a timeout is a network result, never a 401`() = runTest {
-        server.enqueue(MockResponse().setBody("[]").setBodyDelay(5, TimeUnit.SECONDS))
+        // Body-Delay 2 s > readTimeout 1 s hält die Zusicherung; MockWebServer.shutdown() im
+        // @After wartet trotzdem, bis der Schreib-Thread mit dem Delay fertig ist — daher 2 s
+        // statt der früheren 5 s, damit der Test nicht unnötig lange läuft.
+        server.enqueue(MockResponse().setBody("[]").setBodyDelay(2, TimeUnit.SECONDS))
         assertThat(api.prompts()).isInstanceOf(ApiResult.Network::class.java)
+    }
+
+    @Test fun `a malformed success body becomes an http 502, not a crash`() = runTest {
+        server.enqueue(MockResponse().setBody("""{"not":"a list"}"""))
+        assertThat(api.prompts().code()).isEqualTo(502)
+    }
+
+    @Test fun `an unknown status value becomes an http 502, not a crash`() = runTest {
+        server.enqueue(MockResponse().setBody("""[{"id":7,"title":"T","body":"B","project_id":null,
+            "status":"paused","sort_order":1,"updated_at":"2026-09-24T10:00:00Z"}]"""))
+        assertThat(api.prompts().code()).isEqualTo(502)
     }
 
     @Test fun `patch sends exactly the given fields`() = runTest {

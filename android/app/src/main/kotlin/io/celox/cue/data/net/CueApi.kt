@@ -5,6 +5,7 @@ import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -39,7 +40,16 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) {
             client.newCall(request).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) return@use ApiResult.Http(resp.code, text.take(300))
-                ApiResult.Ok(json.decodeFromString(serializer, text))
+                // Eine 2xx-Antwort, die nicht zur DTO-Form passt (falsche Struktur, unbekannter
+                // Enum-Wert), ist kein Absturz wert — classify() behandelt 502 wie „offline":
+                // später erneut versuchen, nie löschen, nie crashen.
+                try {
+                    ApiResult.Ok(json.decodeFromString(serializer, text))
+                } catch (e: SerializationException) {
+                    ApiResult.Http(502, "Antwort nicht lesbar")
+                } catch (e: IllegalArgumentException) {
+                    ApiResult.Http(502, "Antwort nicht lesbar")
+                }
             }
         } catch (e: IOException) {
             ApiResult.Network(e)

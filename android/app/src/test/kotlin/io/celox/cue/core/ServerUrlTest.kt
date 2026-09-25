@@ -10,6 +10,10 @@ class ServerUrlTest {
         assertThat(normalizeServerUrl(" https://cue.celox.io/// ")).isEqualTo("https://cue.celox.io")
     }
 
+    @Test fun `the scheme is compared case-insensitively and normalized to lowercase`() {
+        assertThat(normalizeServerUrl("HTTPS://cue.celox.io")).isEqualTo("https://cue.celox.io")
+    }
+
     @Test fun `plain http is only allowed for local development`() {
         assertThat(normalizeServerUrl("http://cue.celox.io")).isNull()
         assertThat(normalizeServerUrl("http://10.0.2.2:8000")).isEqualTo("http://10.0.2.2:8000")
@@ -18,7 +22,11 @@ class ServerUrlTest {
     }
 
     @Test fun `garbage is rejected, not crashed on`() {
-        for (raw in listOf("", "   ", "https://", "ftp://x", "https://cue.celox.io/api", "https://a b"))
+        for (raw in listOf(
+            "", "   ", "https://", "ftp://x", "https://cue.celox.io/api", "https://a b",
+            "https://cue.celox.io@evil.example", "https://user:pw@cue.celox.io",
+            "https://cue.celox.io?x=1", "https://cue.celox.io#a",
+        ))
             assertWithMessage(raw).that(normalizeServerUrl(raw)).isNull()
     }
 }

@@ -17,9 +17,16 @@ fun normalizeServerUrl(raw: String): String? {
     val uri = runCatching { URI(text) }.getOrNull() ?: return null
     val host = uri.host ?: return null
     if (!uri.path.isNullOrEmpty()) return null  // die App hängt /api/app/… selbst an
-    return when (uri.scheme) {
-        "https" -> text
-        "http" -> if (LOCAL_HOST.matches(host)) text else null
+    if (uri.rawQuery != null || uri.rawFragment != null) return null  // dito
+    // "user@evil.example" lässt den Host-Teil auf ein anderes Ziel zeigen, als es scheint
+    // ("https://cue.celox.io@evil.example" hat den REALEN Host evil.example) — das Geräte-
+    // Token darf niemals an ein derart verschleiertes Ziel gehen.
+    if (uri.userInfo != null) return null
+    val scheme = uri.scheme?.lowercase() ?: return null
+    val normalized = scheme + text.substring(text.indexOf("://"))
+    return when (scheme) {
+        "https" -> normalized
+        "http" -> if (LOCAL_HOST.matches(host)) normalized else null
         else -> null
     }
 }
