@@ -17,7 +17,6 @@ backend/static/
 *.db-wal
 *.db-shm
 backend/data/
-data/
 uploads/
 
 # Caches
