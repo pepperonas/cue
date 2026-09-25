@@ -9,7 +9,7 @@ Alle Endpunkte liegen unter **`/api`** (FastAPI-Sub-App). Interaktiv:
 
 ## Wer darf was
 
-Fünf Zugangsarten, sichtbar an der Abhängigkeit im Router:
+Sechs Zugangsarten, sichtbar an der Abhängigkeit im Router:
 
 | Gate | Wer | Wie |
 | --- | --- | --- |
@@ -18,6 +18,7 @@ Fünf Zugangsarten, sichtbar an der Abhängigkeit im Router:
 | `require_optimizer` | Besitzer **oder** wer einen eigenen API-Key hinterlegt hat | eine Optimierung *anstoßen* — sie kostet Geld, also braucht sie ein Konto, das dafür geradesteht |
 | `require_runner` | der Mac-Daemon | `Authorization: Bearer $RUNNER_TOKEN` — **kein** Cookie, kein CSRF |
 | Bearer-Token je Nutzer | Capture-Weiterleiter, Inspector Rust | eigenes Token pro Konto |
+| `device_user_id` | ein nicht gesperrtes Gerät eines freigeschalteten Kontos | `Authorization: Bearer <Geräte-Token>` — **nur** unter `/app/`, kein Cookie, kein CSRF |
 
 **Ausgeben und Lesen sind getrennt.** Eine Optimierung *einreihen* braucht
 `require_optimizer`; einen fertigen Vorschlag lesen, übernehmen oder verwerfen
@@ -279,6 +280,37 @@ Katalog kostet nichts und gehört zum eigenen Konto.
 | `POST` | `/sync/snippets` | **Inspector Rust**: Änderungen zurückschreiben. |
 | `GET` | `/sync/settings` | Sync-Token und Geltungsbereich. |
 | `POST` | `/sync/settings` | Token neu erzeugen bzw. Geltungsbereich setzen. |
+
+### Geräte
+
+<sub>`backend/app/routers/devices.py`</sub>
+
+Verwaltet per Cookie aus den Web-Einstellungen; das Gerät selbst benutzt diese
+Routen nie, es spricht nur `/app/` (siehe unten).
+
+| Methode | Pfad | Beschreibung |
+| --- | --- | --- |
+| `GET` | `/devices` | Geräte des Kontos, auch gesperrte. |
+| `POST` | `/devices` | Gerät anlegen. Die Antwort trägt den Token — **einmal**; gespeichert wird nur sein SHA-256. |
+| `DELETE` | `/devices/{device_id}` | Gerät sperren (die Zeile bleibt stehen). Wirkt bei der nächsten Anfrage, auch in einem geparkten `/app/changes`. |
+
+### App (Geräte-Token)
+
+<sub>`backend/app/routers/app_api.py`</sub>
+
+Die einzige Fläche, die ein Geräte-Token öffnet. Was hier fehlt — Runs, CLI,
+Optimierung, Statistik, Snippets, Anhänge, Export —, erreicht ein Telefon nicht,
+weil es die Route dafür nicht gibt (Soll-Liste `app_api.APP_ROUTES`,
+testgepinnt gegen den tatsächlichen Router).
+
+| Methode | Pfad | Beschreibung |
+| --- | --- | --- |
+| `GET` | `/app/prompts` | Alle Prompts des Kontos, in derselben Form wie `/prompts`. |
+| `POST` | `/app/prompts` | Anlegen; dieselben Regeln wie `POST /prompts`. Unbekannte Felder → 422. |
+| `PATCH` | `/app/prompts/{prompt_id}` | Ändern: nur `title`, `body`, `project_id`, `unassign_project`, `status`, `tags`, `bookmarked`, `priority`. Alles andere → 422. |
+| `GET` | `/app/projects` | Projekte, nur lesen. |
+| `GET` | `/app/tags` | Tag-Vokabular, nur lesen. |
+| `GET` | `/app/changes` | Wie `/changes`, aber nur für `prompts`, `projects`, `tags` — und ohne `Depends(get_session)`: das Gerät wird bei jedem Versuch neu geprüft, ein Sperren beendet einen geparkten Poll beim nächsten Tick. |
 
 ### Live-Aktualisierung
 

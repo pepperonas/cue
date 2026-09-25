@@ -173,12 +173,41 @@ vollständig negativ — manipuliert, abgeschnitten, quer signiert, abgelaufen,
 zweckentfremdet —, weil eine gültige Signatur hier **die** Autorisierung ist und
 eine kaputte Prüfung still aufhört zu prüfen.
 
+### Geräte-Token
+
+Für die Android-App: ein Gerät legt sich unter Einstellungen → Geräte an und
+bekommt genau einmal einen Token angezeigt. `capture_token` und
+`snippet_sync_token` liegen im Klartext in `user`, `RUNNER_TOKEN` ist ein
+statisches Geheimnis (per `hmac.compare_digest` verglichen) — der Geräte-Token
+ist der einzige der vier, von dem der Server **nur den SHA-256** speichert
+(`app/devices.py`); ein Diebstahl der Datenbank liefert also keinen
+brauchbaren Geräte-Token zurück.
+
+- **Wirkungsradius: nur Prompts.** Der Token öffnet ausschließlich `/api/app/`
+  — Prompts lesen/anlegen/ändern, Projekte und Tags lesen, Änderungen
+  abfragen. Bewusst **kein** Zugriff auf Runs oder CLI-Delivery: sonst wäre ein
+  verlorenes Telefon ein Zugang zu einem Terminal auf der Runner-Maschine, statt
+  nur zu einer Liste von Prompts.
+- **Sperren wirkt sofort.** `DELETE /devices/{id}` setzt `revoked_at`; die Zeile
+  bleibt stehen (damit die Einstellungen zeigen, was gesperrt wurde), aber jede
+  folgende Anfrage — auch eine bereits geparkte in `/app/changes` — schlägt
+  beim nächsten Versuch mit 401 fehl.
+- **`capture_token` und `snippet_sync_token` liegen weiterhin im Klartext** in
+  `user` (die Weiterleiter, die sie benutzen, müssen den Wert zurücklesen
+  können, um ihn erneut zu senden). Das auf denselben Hash-statt-Klartext-Weg
+  umzustellen ist offen und eine eigene Aufgabe.
+
 ## Grenzen — was hier ausdrücklich nicht behauptet wird
 
 - **Der Betreiber sieht alles.** Es gibt keine Verschlüsselung, die ihn
   ausschließt; die SQLite-Datei liegt im Klartext auf dem Server.
 - **Prompt-Inhalte gehen an Anthropic**, sobald ein Run oder eine Optimierung
   läuft — das ist der Zweck der Funktion.
+- **Ein gestohlener Geräte-Token kann keinen Run starten, aber er kann den
+  Text wartender Prompts umschreiben.** Führt der Eigentümer einen so
+  veränderten Prompt später über die Claude-Code-CLI auf der Runner-Maschine
+  aus — möglicherweise mit übersprungenen Rechten —, läuft der eingeschleuste
+  Text dort. Zeitnah sperren; vor dem Ausführen den Prompt-Text ansehen.
 - **Kein Ausgabenlimit.** Ein hinterlegter Schlüssel begrenzt, *wessen* Konto
   belastet wird, nicht *wie viel*. Ein Kostendeckel gehört in die Anthropic-
   Konsole; die Statistik zeigt die Ausgaben, sie bremst sie nicht.

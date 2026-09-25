@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-09-25
+
+### Added
+- **Geräte-Token** für die kommende Android-App: unter Einstellungen → Geräte
+  lässt sich ein Gerät anlegen und jederzeit sperren. Der Token wird genau
+  einmal angezeigt; auf dem Server liegt nur sein SHA-256.
+- **`/api/app/`** — die einzige Fläche, die ein Geräte-Token öffnet: Prompts
+  lesen, anlegen, bearbeiten; Projekte und Tags lesen; Änderungen abfragen.
+  Runs, CLI-Senden, Optimierung und alles Übrige sind für ein Telefon nicht
+  erreichbar, weil es die Routen dort nicht gibt.
+
 ## [0.73.1] - 2026-09-25
 
 ### Fixed

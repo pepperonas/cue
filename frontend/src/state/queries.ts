@@ -280,6 +280,26 @@ export function useUpdateCaptureSettings() {
   })
 }
 
+export function useDevices() {
+  return useQuery({ queryKey: ['devices'], queryFn: () => api.listDevices() })
+}
+
+export function useCreateDevice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => api.createDevice(name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
+  })
+}
+
+export function useRevokeDevice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.revokeDevice(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
+  })
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({

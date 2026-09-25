@@ -6,6 +6,7 @@ import hmac
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlmodel import Session
 
+from . import devices
 from .config import get_settings
 from .db import get_session
 from .models import User
@@ -140,3 +141,51 @@ def require_csrf(
     origin = request.headers.get("origin")
     if origin and origin != _settings.allowed_origin and not _settings.dev_mode:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin not allowed")
+
+
+def bearer_token(authorization: str | None) -> str:
+    """Der Token aus `Authorization: Bearer <token>`, sonst ``""``.
+
+    Streng: genau ein Leerzeichen, genau das Wort `Bearer`. Alles andere ist
+    kein Token — und damit 401, nie eine Ausnahme.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return ""
+    return authorization[len("Bearer ") :]
+
+
+def user_for(session: Session, token: str) -> int:
+    """Der Mandant hinter einem Geräte-Token — die EINE Stelle, die das prüft.
+
+    Genutzt sowohl von `device_user_id` (die fünf normalen `/app/*`-Routen,
+    über `Depends`) als auch direkt von `app_api.app_changes` (Long-Poll ohne
+    eigenen `Depends(get_session)`, deshalb kein FastAPI-Dependency hier).
+    Beide Aufrufer bekommen damit denselben Torwächter — inklusive `touch()`:
+    ein Gerät, das nur `/app/changes` long-pollt, aktualisiert `last_seen_at`
+    genau wie eines, das `/app/prompts` aufruft.
+    """
+    device = devices.resolve(session, token)
+    if device is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
+    user = session.get(User, device.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device token")
+    if not user.approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Konto wartet auf Freischaltung"
+        )
+    devices.touch(session, device)
+    return user.id
+
+
+def device_user_id(
+    authorization: str | None = Header(default=None),
+    session: Session = Depends(get_session),
+) -> int:
+    """Der Mandant hinter einem Geräte-Token.
+
+    ⚠️ Bewusst KEINE Erweiterung von `current_user_id`: ein Bearer, der dort
+    gälte, öffnete stillschweigend jede bestehende Route. Diese Abhängigkeit
+    hängt nur an `/api/app/`, und was dort liegt, steht in einer Liste.
+    """
+    return user_for(session, bearer_token(authorization))

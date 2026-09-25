@@ -74,6 +74,25 @@ class User(SQLModel, table=True):
     ai_models_seeded: bool = Field(default=False)
 
 
+class Device(SQLModel, table=True):
+    """Ein Telefon, das auf die Prompts eines Kontos zugreifen darf.
+
+    Gespeichert wird nur der SHA-256 des Tokens: die nächtliche Sicherung trägt
+    diese Datenbank vom Server herunter. Gesperrt = `revoked_at` gesetzt; die
+    Zeile bleibt stehen, damit die Einstellungen zeigen, WAS gesperrt wurde.
+    """
+
+    __tablename__ = "device"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    name: str = Field(default="")
+    token_hash: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    last_seen_at: datetime | None = Field(default=None)
+    revoked_at: datetime | None = Field(default=None)
+
+
 class Project(SQLModel, table=True):
     __tablename__ = "project"
 
