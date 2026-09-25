@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.celox.cue.data.PromptRepository
-import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.sync.SyncResult
 import io.celox.cue.ui.AppNavTarget
 import io.celox.cue.ui.AppNavigator
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ListViewModel @Inject constructor(
     private val repo: PromptRepository,
-    private val revokedNotice: RevokedNotice,
     private val navigator: AppNavigator,
 ) : ViewModel() {
     val query = MutableStateFlow("")
@@ -33,13 +31,19 @@ class ListViewModel @Inject constructor(
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing
 
-    /** Pull-to-Refresh — feuert `syncNow()` einmal und meldet eine Sperre sofort (Regel D). */
+    /**
+     * Pull-to-Refresh — feuert `syncNow()` einmal und weckt bei einer Sperre SOFORT die
+     * Navigation (Regel D). Das persistierte Flag selbst setzt seit Fix-Runde 1
+     * `SyncEngine.sync()` — der EINE Ort, der den Sperr-Wipe wirklich ausführt (trifft auch den
+     * Hintergrund-`SyncWorker`, der hier gar nicht vorbeikommt). Diese Funktion kümmert sich nur
+     * noch um die LIVE-Navigation, während die App offen ist.
+     */
     fun refresh() {
         if (_refreshing.value) return
         viewModelScope.launch {
             _refreshing.value = true
             try {
-                if (repo.syncNow() is SyncResult.Revoked) markRevoked()
+                if (repo.syncNow() is SyncResult.Revoked) notifyRevoked()
             } finally {
                 _refreshing.value = false
             }
@@ -55,11 +59,10 @@ class ListViewModel @Inject constructor(
     suspend fun live() {
         val wasConfigured = repo.isConfigured
         repo.liveLoop()
-        if (wasConfigured && !repo.isConfigured) markRevoked()
+        if (wasConfigured && !repo.isConfigured) notifyRevoked()
     }
 
-    private fun markRevoked() {
-        revokedNotice.mark()
+    private fun notifyRevoked() {
         navigator.notify(AppNavTarget.DEVICE_REVOKED)
     }
 }

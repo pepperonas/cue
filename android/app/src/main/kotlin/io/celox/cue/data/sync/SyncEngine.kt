@@ -9,6 +9,7 @@ import io.celox.cue.core.Status
 import io.celox.cue.core.classify
 import io.celox.cue.core.coalesce
 import io.celox.cue.core.planMerge
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
 import io.celox.cue.data.db.PendingOpEntity
@@ -52,6 +53,7 @@ class SyncEngine(
     private val db: CueDatabase,
     private val api: AppApi,
     private val store: TokenStore,
+    private val revokedNotice: RevokedNotice,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val mutex = Mutex()
@@ -135,6 +137,14 @@ class SyncEngine(
             return pull()
         } catch (_: RevokedSignal) {
             wipeLocked()
+            // Regel D (Fix-Runde 1): das Flag wird HIER gesetzt — der EINE Ort, der den
+            // Sperr-Wipe tatsächlich ausführt, egal ob der Aufrufer ein Vordergrund-Poll
+            // (`ListViewModel.live()`), ein manuelles „Jetzt abgleichen" (`SettingsViewModel`)
+            // oder der Hintergrund-`SyncWorker` ist. Vorher stand `revokedNotice.mark()` an
+            // DREI UI-Stellen verstreut — der Hintergrundfall (SyncWorker trifft auf 401/403,
+            // während die App gar nicht offen ist) hatte GAR KEINE. `wipe()` (manueller
+            // Abmelden-Knopf) läuft NIE durch diesen Zweig und setzt das Flag folgerichtig nie.
+            revokedNotice.mark()
             return SyncResult.Revoked
         }
     }

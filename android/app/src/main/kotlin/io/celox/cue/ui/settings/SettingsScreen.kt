@@ -49,6 +49,7 @@ fun SettingsScreen(
     val configured by viewModel.configured.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val showedRevokedNotice by viewModel.showedRevokedNotice.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var showDisconnectDialog by remember { mutableStateOf(false) }
 
@@ -86,7 +87,7 @@ fun SettingsScreen(
             Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (viewModel.showedRevokedNotice) {
+            if (showedRevokedNotice) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     modifier = Modifier.fillMaxWidth(),

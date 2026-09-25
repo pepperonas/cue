@@ -27,6 +27,15 @@ sealed interface SaveResult {
     data object NoOp : SaveResult
     data object BodyRequired : SaveResult
     data object NotConnected : SaveResult
+
+    /**
+     * Fix-Runde 1, Regel 7: `update()` liefert `false` in ZWEI Fällen — kein Token, ODER die
+     * Zeile existiert lokal nicht mehr (z. B. ein offline angelegter Prompt, der während dieser
+     * Bearbeitung von einem Abgleich auf seine echte Server-ID umgeschlüsselt wurde). Beides als
+     * „Nicht verbunden" zu melden wäre irreführend, wenn ein Token längst wieder da ist —
+     * unterschieden über `repo.isConfigured` GENAU in dem Moment, in dem `update()` scheitert.
+     */
+    data object PromptGone : SaveResult
 }
 
 /**
@@ -56,6 +65,9 @@ class EditViewModel @Inject constructor(
     var status by mutableStateOf(Status.queued)
     var priority by mutableStateOf(Priority.normal)
     var bodyError by mutableStateOf<String?>(null)
+
+    /** Fix-Runde 1, Regel 6: Sperre gegen einen Doppel-Tipp auf ✓ — s. [save]. */
+    var saving by mutableStateOf(false)
 
     private val _loaded = MutableStateFlow(isNew) // neu anlegen: sofort „geladen" (kein Server-Stand zu holen)
     val loaded: StateFlow<Boolean> = _loaded
@@ -90,7 +102,8 @@ class EditViewModel @Inject constructor(
     fun hasChanges(): Boolean {
         val o = original
         return if (isNew) {
-            title.isNotBlank() || body.isNotBlank() || tagsText.isNotBlank() || projectId != null
+            title.isNotBlank() || body.isNotBlank() || tagsText.isNotBlank() || projectId != null ||
+                priority != Priority.normal
         } else if (o == null) {
             false // noch nicht geladen — es gibt nichts, das man verwerfen könnte
         } else {
@@ -99,22 +112,40 @@ class EditViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Fix-Runde 1, Regel 6: `saving` wird SYNCHRON gesetzt, bevor der erste `suspend`-Aufruf
+     * unterbricht — zwei fast gleichzeitig gestartete Coroutinen auf demselben (Compose-)
+     * Dispatcher laufen strikt nacheinander bis zur ersten echten Unterbrechung, die zweite sieht
+     * `saving == true` deshalb zuverlässig, unabhängig davon, wie schnell die Oberfläche den
+     * Knopf tatsächlich deaktiviert. `NoOp` bei einem solchen Doppel-Tipp ist unschädlich — der
+     * Aufrufer geht dann einfach zurück, genau wie beim „echten" `NoOp` ohne Änderungen.
+     */
     suspend fun save(): SaveResult {
-        if (body.isBlank()) {
-            bodyError = "Text darf nicht leer sein"
-            return SaveResult.BodyRequired
-        }
-        bodyError = null
-        return if (isNew) {
-            val newId = repo.create(title, body, projectId, tagsText)
-            if (newId == null) SaveResult.NotConnected else SaveResult.Saved
-        } else {
-            val id = editId ?: return SaveResult.NoOp
-            val o = original ?: return SaveResult.NoOp
-            val fields = changedFields(o)
-            if (fields.isEmpty()) return SaveResult.NoOp
-            val ok = repo.update(id, fields)
-            if (!ok) SaveResult.NotConnected else SaveResult.Saved
+        if (saving) return SaveResult.NoOp
+        saving = true
+        try {
+            if (body.isBlank()) {
+                bodyError = "Text darf nicht leer sein"
+                return SaveResult.BodyRequired
+            }
+            bodyError = null
+            return if (isNew) {
+                val newId = repo.create(title, body, projectId, tagsText, priority)
+                if (newId == null) SaveResult.NotConnected else SaveResult.Saved
+            } else {
+                val id = editId ?: return SaveResult.NoOp
+                val o = original ?: return SaveResult.NoOp
+                val fields = changedFields(o)
+                if (fields.isEmpty()) return SaveResult.NoOp
+                val ok = repo.update(id, fields)
+                when {
+                    ok -> SaveResult.Saved
+                    repo.isConfigured -> SaveResult.PromptGone
+                    else -> SaveResult.NotConnected
+                }
+            }
+        } finally {
+            saving = false
         }
     }
 

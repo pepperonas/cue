@@ -67,12 +67,20 @@ fun EditScreen(
     BackHandler(onBack = attemptBack)
 
     val doSave: () -> Unit = {
-        scope.launch {
-            when (viewModel.save()) {
-                SaveResult.Saved, SaveResult.NoOp -> onBack()
-                SaveResult.BodyRequired -> Unit // Fehler steht am Feld
-                SaveResult.NotConnected ->
-                    scope.launch { snackbarHost.showSnackbar("Nicht verbunden — in den Einstellungen verbinden") }
+        // `!viewModel.saving`-Wächter zusätzlich zur deaktivierten Schaltfläche (s. unten) —
+        // Regel 6: die Schaltfläche braucht bis zur nächsten Neuzeichnung einen Moment, um
+        // WIRKLICH deaktiviert zu erscheinen; `EditViewModel.save()` selbst ist die tragende
+        // Sperre (synchron gesetzt), hier ist es nur die zweite, billige Verteidigungslinie.
+        if (!viewModel.saving) {
+            scope.launch {
+                when (viewModel.save()) {
+                    SaveResult.Saved, SaveResult.NoOp -> onBack()
+                    SaveResult.BodyRequired -> Unit // Fehler steht am Feld
+                    SaveResult.NotConnected ->
+                        scope.launch { snackbarHost.showSnackbar("Nicht verbunden — in den Einstellungen verbinden") }
+                    SaveResult.PromptGone ->
+                        scope.launch { snackbarHost.showSnackbar("Prompt existiert nicht mehr") }
+                }
             }
         }
     }
@@ -99,7 +107,9 @@ fun EditScreen(
                     IconButton(onClick = attemptBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück") }
                 },
                 actions = {
-                    IconButton(onClick = doSave) { Icon(Icons.Filled.Check, contentDescription = "Speichern") }
+                    IconButton(onClick = doSave, enabled = !viewModel.saving) {
+                        Icon(Icons.Filled.Check, contentDescription = "Speichern")
+                    }
                 },
             )
         },

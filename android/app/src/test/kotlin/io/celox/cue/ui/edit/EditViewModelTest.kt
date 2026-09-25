@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
 import io.celox.cue.data.PromptRepository
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
 import io.celox.cue.data.db.ProjectEntity
@@ -121,7 +122,7 @@ class EditViewModelTest {
         db = Room.inMemoryDatabaseBuilder(context, CueDatabase::class.java).allowMainThreadQueries().build()
         api = FakeApi()
         store = FakeStore()
-        val engine = SyncEngine(db, api, store)
+        val engine = SyncEngine(db, api, store, RevokedNotice(context))
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
             Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build(),
@@ -226,5 +227,64 @@ class EditViewModelTest {
         assertThat(result).isEqualTo(SaveResult.BodyRequired)
         assertThat(vm.bodyError).isNotNull()
         assertThat(api.lastCreateFields).isNull()
+    }
+
+    // ---- Fix-Runde 1 (Task 8), Regel 1: die Priorität eines NEUEN Prompts ----
+
+    @Test fun `a chosen priority for a new prompt is not dropped`() = runTest(testDispatcher) {
+        val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "new")))
+        vm.body = "Text"
+        vm.priority = Priority.high
+
+        val result = vm.save()
+
+        assertThat(result).isEqualTo(SaveResult.Saved)
+        // Lokal steht sie SOFORT, unabhängig vom (Fake-)Server — `applyLocally` in `SyncEngine`.
+        val id = db.promptDao().ids().single()
+        assertThat(db.promptDao().get(id)!!.priority).isEqualTo(Priority.high)
+    }
+
+    @Test fun `choosing a non-normal priority alone counts as a change on a new prompt`() = runTest(testDispatcher) {
+        val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "new")))
+        assertThat(vm.hasChanges()).isFalse()
+
+        vm.priority = Priority.high
+
+        assertThat(vm.hasChanges()).isTrue()
+    }
+
+    // ---- Fix-Runde 1 (Task 8), Regel 7: "Prompt existiert nicht mehr" statt "Nicht verbunden" ----
+
+    /**
+     * `update()` liefert `false` auch dann, wenn die Zeile lokal nicht mehr existiert (z. B.
+     * während dieser Bearbeitung von einem Abgleich auf ihre echte Server-ID umgeschlüsselt) —
+     * mit Token bleibt das ein ANDERER Fall als "nicht verbunden".
+     */
+    @Test fun `an update on a row that no longer exists locally reports PromptGone, not NotConnected`() =
+        runTest(testDispatcher) {
+            db.promptDao().upsert(listOf(prompt(1)))
+            val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "1")))
+            vm.loaded.first { it }
+            vm.title = "Geändert"
+
+            db.promptDao().delete(listOf(1L)) // z. B. durch einen Abgleich verschwunden
+            assertThat(store.token).isNotNull() // weiterhin verbunden
+
+            val result = vm.save()
+
+            assertThat(result).isEqualTo(SaveResult.PromptGone)
+        }
+
+    // ---- Fix-Runde 1 (Task 8), Regel 6: Doppel-Tipp auf ✓ ----
+
+    @Test fun `save is re-entrant safe — a second call while one is in flight is a no-op`() = runTest(testDispatcher) {
+        val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "new")))
+        vm.body = "Text"
+        vm.saving = true // simuliert: der erste Aufruf hängt noch (Doppel-Tipp)
+
+        val result = vm.save()
+
+        assertThat(result).isEqualTo(SaveResult.NoOp)
+        assertThat(db.promptDao().ids()).isEmpty() // KEIN zweites CREATE
     }
 }

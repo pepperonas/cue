@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertWithMessage
 import io.celox.cue.core.OpKind
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
 import io.celox.cue.data.net.ApiResult
@@ -41,6 +42,7 @@ class SyncEngineTest {
     private lateinit var api: FakeApi
     private lateinit var store: FakeStore
     private lateinit var engine: SyncEngine
+    private lateinit var revokedNotice: RevokedNotice
 
     class FakeStore : TokenStore {
         override var token: String? = "tok"
@@ -110,11 +112,13 @@ class SyncEngineTest {
     }
 
     @Before fun setUp() {
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), CueDatabase::class.java)
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        db = Room.inMemoryDatabaseBuilder(context, CueDatabase::class.java)
             .allowMainThreadQueries().build()
         api = FakeApi()
         store = FakeStore()
-        engine = SyncEngine(db, api, store)
+        revokedNotice = RevokedNotice(context)
+        engine = SyncEngine(db, api, store, revokedNotice)
     }
 
     @After fun tearDown() = db.close()
@@ -155,10 +159,15 @@ class SyncEngineTest {
         api.rows[1] = api.dto(1, "a"); engine.sync()
         engine.enqueue(1, OpKind.UPDATE, f("title" to "unterwegs"))
         api.forced = 401
+        assertThat(revokedNotice.isSet()).isFalse()
         assertThat(engine.sync()).isEqualTo(SyncResult.Revoked)
         assertThat(db.promptDao().ids()).isEmpty()
         assertThat(db.pendingOpDao().all()).isEmpty()
         assertThat(store.token).isNull()
+        // Fix-Runde 1 (Task 8), Regel 3: das persistierte Flag wird HIER gesetzt — dem einen Ort,
+        // der den Sperr-Wipe wirklich ausführt (trifft damit auch den Hintergrund-`SyncWorker`,
+        // der `sync()` genauso aufruft, aber nie über eine der UI-ViewModels läuft).
+        assertThat(revokedNotice.isSet()).isTrue()
     }
 
     @Test fun `403 is treated like 401`() = runTest {
@@ -166,6 +175,15 @@ class SyncEngineTest {
         api.forced = 403
         assertThat(engine.sync()).isEqualTo(SyncResult.Revoked)
         assertThat(db.promptDao().ids()).isEmpty()
+        assertThat(revokedNotice.isSet()).isTrue()
+    }
+
+    /** Ein manuelles Abmelden ist KEINE Sperre — `wipe()` läuft nie durch den Revoke-Zweig. */
+    @Test fun `a manual disconnect never marks the revoked notice`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        engine.wipe()
+        assertThat(store.token).isNull()
+        assertThat(revokedNotice.isSet()).isFalse()
     }
 
     @Test fun `a 5xx is never mistaken for revoked`() = runTest {

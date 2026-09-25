@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.celox.cue.core.OpKind
 import io.celox.cue.core.Outcome
+import io.celox.cue.core.Priority
 import io.celox.cue.core.classify
 import io.celox.cue.core.normalizeServerUrl
 import io.celox.cue.data.auth.TokenStore
@@ -66,7 +67,13 @@ class PromptRepository @Inject constructor(
      * die Änderung längst geschrieben war. Jetzt ist der ganze
      * Funktionskörper geschützt.
      */
-    suspend fun create(title: String, body: String, projectId: Long?, tags: String): Long? =
+    suspend fun create(
+        title: String,
+        body: String,
+        projectId: Long?,
+        tags: String,
+        priority: Priority = Priority.normal,
+    ): Long? =
         withContext(NonCancellable + Dispatchers.IO) {
             val newId = db.nextLocalId()
             val accepted = engine.enqueue(
@@ -77,6 +84,10 @@ class PromptRepository @Inject constructor(
                     put("body", body)
                     put("tags", tags)
                     if (projectId != null) put("project_id", projectId)
+                    // `normal` ist der Server-Default (`AppPromptCreate.priority`) — ihn trotzdem
+                    // mitzuschicken wäre kein Fehler, aber "nur was wirklich gewählt wurde"
+                    // reist auch hier mit, statt jedes Mal denselben Default zu wiederholen.
+                    if (priority != Priority.normal) put("priority", priority.name)
                 },
             )
             if (accepted) SyncWorker.kick(context)

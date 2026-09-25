@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import io.celox.cue.core.OpKind
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
 import io.celox.cue.data.db.PendingOpEntity
@@ -62,6 +63,7 @@ class PromptRepositoryTest {
     private lateinit var workManager: WorkManager
     private lateinit var context: Context
     private lateinit var repo: PromptRepository
+    private lateinit var revokedNotice: RevokedNotice
 
     /** Unique-Work-Name aus `SyncWorker` — dort bewusst `private`, hier als Literal gespiegelt. */
     private val kickTag = "cue-sync-now"
@@ -146,7 +148,8 @@ class PromptRepositoryTest {
         db = Room.inMemoryDatabaseBuilder(context, CueDatabase::class.java).allowMainThreadQueries().build()
         api = FakeApi()
         store = FakeStore()
-        engine = SyncEngine(db, api, store)
+        revokedNotice = RevokedNotice(context)
+        engine = SyncEngine(db, api, store, revokedNotice)
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
             Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build(),
@@ -169,7 +172,7 @@ class PromptRepositoryTest {
     /** Baut store/engine/repo mit anderen Ausgangs-Zugangsdaten neu — `store` startet sonst immer frisch. */
     private fun reconnectAs(token: String?, url: String) {
         store = FakeStore(token, url)
-        engine = SyncEngine(db, api, store)
+        engine = SyncEngine(db, api, store, revokedNotice)
         repo = PromptRepository(db, engine, api, store, context)
     }
 
@@ -189,6 +192,23 @@ class PromptRepositoryTest {
         assertThat(id!!).isLessThan(0L) // lokale ID, negativ
         assertThat(db.promptDao().get(id)!!.title).isEqualTo("Titel")
         assertThat(kicked()).hasSize(1)
+    }
+
+    /**
+     * Fix-Runde 1 (Task 8): eine gewählte Priorität ging beim Anlegen bisher verloren —
+     * `create()` hatte gar keinen Parameter dafür. Lokal muss sie SOFORT stehen, damit die Liste
+     * (die nur aus Room liest) sie zeigt, bevor überhaupt geschoben wurde.
+     */
+    @Test fun `create with a non-normal priority stores it locally at once`() = runTest {
+        val id = repo.create("Titel", "Text", null, "", Priority.high)!!
+        assertThat(db.promptDao().get(id)!!.priority).isEqualTo(Priority.high)
+    }
+
+    /** Der Server-Default ist `normal` — ihn zu wiederholen wäre kein Fehler, aber unnötig. */
+    @Test fun `create with the default priority sends no priority field at all`() = runTest {
+        val id = repo.create("Titel", "Text", null, "")!!
+        val op = db.pendingOpDao().get(id)!!
+        assertThat(op.fieldsJson).doesNotContain("priority")
     }
 
     @Test fun `update returns false and kicks nothing for a missing row`() = runTest {

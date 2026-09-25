@@ -96,13 +96,13 @@ class ListViewModelTest {
         db = Room.inMemoryDatabaseBuilder(context, CueDatabase::class.java).allowMainThreadQueries().build()
         api = FakeApi()
         store = FakeStore()
-        val engine = SyncEngine(db, api, store)
+        revokedNotice = RevokedNotice(context)
+        val engine = SyncEngine(db, api, store, revokedNotice)
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
             Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build(),
         )
         repo = PromptRepository(db, engine, api, store, context)
-        revokedNotice = RevokedNotice(context)
         navigator = AppNavigator()
     }
 
@@ -111,19 +111,23 @@ class ListViewModelTest {
         Dispatchers.resetMain()
     }
 
-    @Test fun `a revoked refresh marks the notice and wakes the navigator`() = runTest(testDispatcher) {
-        assertThat(revokedNotice.isSet()).isFalse()
-        api.forced = 401
+    @Test fun `a revoked refresh wakes the navigator, and the notice is already set by the engine`() =
+        runTest(testDispatcher) {
+            assertThat(revokedNotice.isSet()).isFalse()
+            api.forced = 401
 
-        val vm = ListViewModel(repo, revokedNotice, navigator)
-        vm.refresh()
+            val vm = ListViewModel(repo, navigator)
+            vm.refresh()
 
-        assertThat(navigator.events.first()).isEqualTo(AppNavTarget.DEVICE_REVOKED)
-        assertThat(revokedNotice.isSet()).isTrue()
-    }
+            assertThat(navigator.events.first()).isEqualTo(AppNavTarget.DEVICE_REVOKED)
+            // Fix-Runde 1 (Task 8), Regel 3: `ListViewModel` setzt das Flag seit diesem Umbau NICHT
+            // mehr selbst — das übernimmt `SyncEngine.sync()` (s. `SyncEngineTest`). Hier wird nur
+            // noch geprüft, dass es TATSÄCHLICH gesetzt ist, wenn der Weg über `refresh()` läuft.
+            assertThat(revokedNotice.isSet()).isTrue()
+        }
 
     @Test fun `a successful refresh never marks the notice`() = runTest(testDispatcher) {
-        val vm = ListViewModel(repo, revokedNotice, navigator)
+        val vm = ListViewModel(repo, navigator)
         vm.refresh()
 
         repo.syncState.first { it?.lastSyncAt != null } // wartet auf den ECHTEN Abschluss von syncNow()
@@ -133,7 +137,7 @@ class ListViewModelTest {
 
     @Test fun `an already-set notice is cleared only by a successful connect, never by refresh`() = runTest(testDispatcher) {
         revokedNotice.mark()
-        val vm = ListViewModel(repo, revokedNotice, navigator)
+        val vm = ListViewModel(repo, navigator)
         vm.refresh() // erfolgreich — Regel D nennt nur „nächstes ERFOLGREICHES connect()" als Löschweg
 
         repo.syncState.first { it?.lastSyncAt != null }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,6 +74,7 @@ fun ListScreen(
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -88,6 +92,9 @@ fun ListScreen(
     }
 
     val pendingByPrompt = remember(pending) { pending.associateBy { it.promptId } }
+    // Regel 2 (Fix-Runde 1): der Brief verlangt „Projektname + Tags" — vorher stand hier
+    // `#<projectId>`. Einmal id→name gemappt statt je Zeile die Liste zu durchsuchen.
+    val projectNames = remember(projects) { projects.associate { it.id to it.name } }
     val showOffline = pending.isNotEmpty() &&
         (syncState?.lastSyncAt == null || System.currentTimeMillis() - syncState!!.lastSyncAt!! > 60_000L)
 
@@ -147,6 +154,7 @@ fun ListScreen(
                             items(section.prompts, key = { it.id }) { prompt ->
                                 PromptRow(
                                     prompt = prompt,
+                                    projectName = prompt.projectId?.let { projectNames[it] },
                                     pendingOp = pendingByPrompt[prompt.id],
                                     onClick = { onOpenPrompt(prompt.id) },
                                     onCopy = {
@@ -182,6 +190,7 @@ private fun SectionHeader(section: Section, collapsed: androidx.compose.runtime.
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp) // Regel 9: Kopfzeilen sind Tippziele (Zuklappen) — Mindestgröße
             .combinedClickable(onClick = { collapsed.value = !collapsed.value })
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,6 +212,7 @@ private fun SectionHeader(section: Section, collapsed: androidx.compose.runtime.
 @Composable
 private fun PromptRow(
     prompt: PromptEntity,
+    projectName: String?,
     pendingOp: PendingOpEntity?,
     onClick: () -> Unit,
     onCopy: () -> Unit,
@@ -210,7 +220,10 @@ private fun PromptRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onCopy)
+            // Regel 9: eine eigene Beschriftung fürs Lange-Drücken — sonst kündigt ein
+            // Bedienungshilfen-Dienst nur „Doppeltippen zum Aktivieren, Drücken und Halten"
+            // an, ohne zu sagen, WAS das Halten bewirkt.
+            .combinedClickable(onClick = onClick, onLongClick = onCopy, onLongClickLabel = "Kopieren")
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -221,8 +234,11 @@ private fun PromptRow(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
             )
+            // Regel 2: Projektname statt `#<id>` — "Kein Projekt", wenn keins gesetzt ist ODER
+            // die id (noch) in keiner geladenen Projektliste steckt (z. B. während des allerersten
+            // Abgleichs), NIE die rohe Zahl.
             val subtitle = buildString {
-                append(if (prompt.projectId == null) "Kein Projekt" else "#${prompt.projectId}")
+                append(projectName ?: "Kein Projekt")
                 if (prompt.tags.isNotBlank()) append(" · ${prompt.tags}")
             }
             Text(
@@ -238,7 +254,8 @@ private fun PromptRow(
                 "!",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                // Regel 9: "!" allein sagt einem Screenreader nichts.
+                modifier = Modifier.padding(horizontal = 4.dp).semantics { contentDescription = "Hohe Priorität" },
             )
         }
         if (pendingOp != null) {

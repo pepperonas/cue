@@ -7,6 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.EncryptedTokenStore
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
@@ -40,5 +41,6 @@ object AppModule {
     fun api(client: OkHttpClient, store: TokenStore): AppApi = CueApi(client, store)
 
     @Provides @Singleton
-    fun engine(db: CueDatabase, api: AppApi, store: TokenStore) = SyncEngine(db, api, store)
+    fun engine(db: CueDatabase, api: AppApi, store: TokenStore, revokedNotice: RevokedNotice) =
+        SyncEngine(db, api, store, revokedNotice)
 }

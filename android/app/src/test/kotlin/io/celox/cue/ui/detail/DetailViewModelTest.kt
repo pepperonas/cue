@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
 import io.celox.cue.data.PromptRepository
+import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
 import io.celox.cue.data.db.PromptEntity
@@ -20,7 +21,13 @@ import io.celox.cue.data.net.ProjectDto
 import io.celox.cue.data.net.PromptDto
 import io.celox.cue.data.net.TagListDto
 import io.celox.cue.data.sync.SyncEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
 import org.junit.After
 import org.junit.Before
@@ -36,10 +43,20 @@ import org.robolectric.annotation.Config
  * `EditViewModel` liest an derselben Stelle bewusst einen `String` ("edit/{id}" ist
  * `NavType.StringType`, wegen `Routes.NEW_ID`="new") — beide Typen sind also richtig,
  * nur an unterschiedlichen Routen.
+ *
+ * Fix-Runde 1 (Task 8): `Dispatchers.setMain(UnconfinedTestDispatcher())` musste dazukommen,
+ * sobald ein Test `vm.loaded`/`vm.prompt` tatsächlich ABWARTET (Regeln 8+11) — `viewModelScope`
+ * hängt an `Dispatchers.Main`, und ohne ein gesetztes Main scheiterte `runTest` mit
+ * `UncompletedCoroutinesError` (dieselbe Lehre wie in `EditViewModelTest`/`ListViewModelTest`).
+ * Der ursprüngliche, rein synchrone Test (`reads the id as the Long…`) brauchte das nie, weil er
+ * nie auf die Coroutine wartet — lief also live GRÜN, ohne dass diese Lücke auffiel.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], application = android.app.Application::class)
 class DetailViewModelTest {
+    private val testDispatcher = UnconfinedTestDispatcher()
+
     private lateinit var db: CueDatabase
     private lateinit var repo: PromptRepository
 
@@ -62,11 +79,12 @@ class DetailViewModelTest {
     }
 
     @Before fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         val context: Context = ApplicationProvider.getApplicationContext()
         db = Room.inMemoryDatabaseBuilder(context, CueDatabase::class.java).allowMainThreadQueries().build()
         val api = FakeApi()
         val store = FakeStore()
-        val engine = SyncEngine(db, api, store)
+        val engine = SyncEngine(db, api, store, RevokedNotice(context))
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
             Configuration.Builder().setMinimumLoggingLevel(android.util.Log.DEBUG).build(),
@@ -74,9 +92,12 @@ class DetailViewModelTest {
         repo = PromptRepository(db, engine, api, store, context)
     }
 
-    @After fun tearDown() = db.close()
+    @After fun tearDown() {
+        db.close()
+        Dispatchers.resetMain()
+    }
 
-    @Test fun `reads the id as the Long the LongType route argument really is`() = runTest {
+    @Test fun `reads the id as the Long the LongType route argument really is`() = runTest(testDispatcher) {
         db.promptDao().upsert(
             listOf(
                 PromptEntity(
@@ -91,5 +112,52 @@ class DetailViewModelTest {
         val vm = DetailViewModel(repo, SavedStateHandle(mapOf("id" to 7L)))
 
         assertThat(vm.promptId).isEqualTo(7L)
+    }
+
+    /**
+     * Fix-Runde 1 (Task 8), Regel 11: eine negative ID ist kein Sonderfall — ein offline
+     * angelegter, noch nicht geschobener Prompt trägt genau so eine (`SyncEngine.applyLocally`,
+     * `sortOrder = Int.MIN_VALUE`). Öffnet man ihn (z. B. aus der Liste), muss `DetailViewModel`
+     * ihn genauso finden wie eine echte Server-ID.
+     */
+    @Test fun `a negative, offline-created id resolves the same as a real server id`() = runTest(testDispatcher) {
+        db.promptDao().upsert(
+            listOf(
+                PromptEntity(
+                    id = -3, title = "Offline angelegt", body = "B", projectId = null, status = Status.queued,
+                    sortOrder = Int.MIN_VALUE, tags = "", bookmarked = false, priority = Priority.normal,
+                    blocked = false, tested = false, testClosely = false, updatedAt = "",
+                ),
+            ),
+        )
+
+        val vm = DetailViewModel(repo, SavedStateHandle(mapOf("id" to -3L)))
+
+        assertThat(vm.promptId).isEqualTo(-3L)
+        vm.loaded.first { it }
+        assertThat(vm.prompt.value?.title).isEqualTo("Offline angelegt")
+    }
+
+    /**
+     * Fix-Runde 1 (Task 8), Regel 8: `loaded` wird auch für eine WIRKLICH fehlende Zeile wahr —
+     * ein `null` in `prompt` heißt erst dann „nicht gefunden", nicht schon vor der ersten Antwort.
+     *
+     * Fix-Runde 1 (Nacharbeit): `SharingStarted.Eagerly` (s. `DetailViewModel.prompt`) + der
+     * `UnconfinedTestDispatcher` lassen den Room-Collect hier SOFORT beim Anlegen des ViewModels
+     * bis zu seiner ersten Emission durchlaufen — anders als in der echten App (dort liegt
+     * zwischen Konstruktion und erster Antwort eine echte Festplatten-Rundreise) gibt es unter
+     * Robolectrics In-Memory-Room + Unconfined keine beobachtbare Lücke mehr, in der `loaded`
+     * noch `false` wäre; ein `assertThat(vm.loaded.value).isFalse()` direkt nach der Konstruktion
+     * bestand deshalb nicht mehr zuverlässig (in der ersten Fassung sogar nie mehr — die
+     * Kollektion war zu diesem Zeitpunkt bereits durchgelaufen). Geprüft wird darum nur die
+     * ZUSICHERUNG, die die Oberfläche tatsächlich braucht: `loaded` wird `true`, UND danach ist
+     * `prompt` bestätigt `null` — nicht die genaue Zwischenlage, die dieser Testaufbau nicht mehr
+     * beobachten kann.
+     */
+    @Test fun `loaded becomes true even for a truly missing id, distinct from still-loading`() = runTest(testDispatcher) {
+        val vm = DetailViewModel(repo, SavedStateHandle(mapOf("id" to 999L)))
+
+        vm.loaded.first { it }
+        assertThat(vm.prompt.value).isNull() // bestätigt: es gibt diese Zeile nicht — kein Ladezustand mehr
     }
 }
