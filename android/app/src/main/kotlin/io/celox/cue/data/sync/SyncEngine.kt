@@ -20,8 +20,10 @@ import io.celox.cue.data.net.AppApi
 import io.celox.cue.data.net.PromptDto
 import io.celox.cue.data.net.code
 import io.celox.cue.data.net.toEntity
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -208,40 +210,54 @@ class SyncEngine(
         store.clear()
     }
 
-    /** false = offline, Rest später. Wirft RevokedSignal bei 401/403. */
+    /**
+     * false = offline, Rest später. Wirft RevokedSignal bei 401/403.
+     *
+     * ⚠️ Jede Operation läuft als Ganzes `NonCancellable`: Netzaufruf, Einordnung und
+     * DB-Schreiben. Ein Abbruch (Worker ersetzt, Bildschirm verlassen) zwischen „der Server
+     * hat angelegt" und „die ID ist übernommen" ließe die CREATE-Operation stehen — der
+     * nächste Lauf legte denselben Prompt ein ZWEITES Mal an. Zwischen zwei Operationen
+     * darf der Abbruch greifen; dort ist nichts halb.
+     */
     private suspend fun push(): Boolean {
-        val ops = db.pendingOpDao()
-        for (op in ops.all()) {
-            val fields = Json.parseToJsonElement(op.fieldsJson).jsonObject
-            var created = op.kind == OpKind.CREATE
-            var result = if (created) api.create(fields) else api.patch(op.promptId, fields)
+        for (op in db.pendingOpDao().all()) {
+            val goOn = withContext(NonCancellable) { pushOne(op) }
+            if (!goOn) return false
+        }
+        return true
+    }
 
-            // Am Rechner gelöscht, während das Telefon eine Änderung hielt: die
-            // lokale Änderung gewinnt — neu anlegen aus der VOLLEN lokalen Zeile,
-            // denn dieser Text existiert sonst nirgends mehr.
-            if (!created && result is ApiResult.Http && result.code == 404) {
-                val local = db.promptDao().get(op.promptId)
-                if (local != null) {
-                    created = true
-                    result = api.create(createFieldsFrom(local))
+    private suspend fun pushOne(op: PendingOpEntity): Boolean {
+        val ops = db.pendingOpDao()
+        val fields = Json.parseToJsonElement(op.fieldsJson).jsonObject
+        var created = op.kind == OpKind.CREATE
+        var result = if (created) api.create(fields) else api.patch(op.promptId, fields)
+
+        // Am Rechner gelöscht, während das Telefon eine Änderung hielt: die
+        // lokale Änderung gewinnt — neu anlegen aus der VOLLEN lokalen Zeile,
+        // denn dieser Text existiert sonst nirgends mehr.
+        if (!created && result is ApiResult.Http && result.code == 404) {
+            val local = db.promptDao().get(op.promptId)
+            if (local != null) {
+                created = true
+                result = api.create(createFieldsFrom(local))
+            }
+        }
+
+        when (val outcome = classify(result.code())) {
+            Outcome.Ok -> {
+                val row = (result as ApiResult.Ok<PromptDto>).value.toEntity()
+                db.withTransaction {
+                    if (created) db.adoptServerId(op.promptId, row) else db.promptDao().upsert(listOf(row))
+                    ops.remove(row.id)
+                    ops.remove(op.promptId)
                 }
             }
-
-            when (val outcome = classify(result.code())) {
-                Outcome.Ok -> {
-                    val row = (result as ApiResult.Ok<PromptDto>).value.toEntity()
-                    db.withTransaction {
-                        if (created) db.adoptServerId(op.promptId, row) else db.promptDao().upsert(listOf(row))
-                        ops.remove(row.id)
-                        ops.remove(op.promptId)
-                    }
-                }
-                Outcome.Offline -> return false
-                Outcome.Revoked -> throw RevokedSignal()
-                is Outcome.Rejected -> {
-                    val msg = (result as? ApiResult.Http)?.message.orEmpty()
-                    ops.setError(op.promptId, "${outcome.code} $msg".trim())
-                }
+            Outcome.Offline -> return false
+            Outcome.Revoked -> throw RevokedSignal()
+            is Outcome.Rejected -> {
+                val msg = (result as? ApiResult.Http)?.message.orEmpty()
+                ops.setError(op.promptId, "${outcome.code} $msg".trim())
             }
         }
         return true

@@ -18,6 +18,8 @@ import io.celox.cue.data.net.PromptDto
 import io.celox.cue.data.net.TagListDto
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
@@ -70,6 +72,8 @@ class SyncEngineTest {
         var patchGate: CompletableDeferred<Unit>? = null
         val patchEntered = CompletableDeferred<Unit>()
         var cursor = 0
+        /** Läuft, NACHDEM der Server angelegt hat, und bevor die Antwort zurückkommt. */
+        var afterCreate: (() -> Unit)? = null
 
         private fun <T> guard(label: String, block: () -> ApiResult<T>): ApiResult<T> {
             calls += label
@@ -96,6 +100,7 @@ class SyncEngineTest {
             val id = nextId++
             val d = dto(id, fields["title"]?.jsonPrimitive?.content.orEmpty(), fields["body"]!!.jsonPrimitive.content)
             rows[id] = d; cursor++
+            afterCreate?.invoke()
             ApiResult.Ok(d)
         }
         override suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto> {
@@ -398,5 +403,24 @@ class SyncEngineTest {
         api.rows.remove(1); api.cursor++; engine.sync()
         assertThat(engine.enqueue(1, OpKind.UPDATE, f("title" to "x"))).isFalse()
         assertThat(db.pendingOpDao().all()).isEmpty()
+    }
+
+    // ---- I2: ein Abbruch nach der Server-Antwort darf kein Duplikat erzeugen ----
+
+    @Test fun `a cancellation after the server created the prompt still adopts it and clears the op`() = runTest {
+        val local = db.nextLocalId()
+        engine.enqueue(local, OpKind.CREATE, f("body" to "Text", "title" to "einmal"))
+        lateinit var job: Job
+        api.afterCreate = { job.cancel() } // der Server HAT angelegt, dann bricht der Aufrufer ab
+        job = launch { engine.sync() }
+        job.join()
+        api.afterCreate = null
+
+        val serverId = api.rows.keys.single()
+        assertThat(db.pendingOpDao().all()).isEmpty()
+        assertThat(db.promptDao().ids()).containsExactly(serverId)
+        // Der nächste Lauf legt NICHTS ein zweites Mal an.
+        engine.sync()
+        assertThat(api.calls.count { it == "create" }).isEqualTo(1)
     }
 }

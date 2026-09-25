@@ -37,6 +37,8 @@ class SyncWorker @AssistedInject constructor(
     companion object {
         private const val PERIODIC = "cue-sync"
         private const val ONCE = "cue-sync-now"
+        /** Sichtbar für den Test — s. [kick]. */
+        internal val KICK_POLICY = ExistingWorkPolicy.APPEND_OR_REPLACE
         private val online = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
         /**
@@ -52,13 +54,25 @@ class SyncWorker @AssistedInject constructor(
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP, req)
         }
 
-        /** Nach jeder lokalen Änderung: sobald Netz da ist, raus damit. */
+        /**
+         * Nach jeder lokalen Änderung: sobald Netz da ist, raus damit.
+         *
+         * ⚠️ `APPEND_OR_REPLACE`, NIE `REPLACE`: `REPLACE` bricht einen LAUFENDEN Abgleich ab.
+         * Ein `POST` kann dann am Server längst angelegt sein, während die Antwort beim Rücksprung
+         * am Abbruch zerbricht — die CREATE-Operation bleibt stehen und legt beim nächsten Lauf ein
+         * Duplikat an. `KEEP` wäre die andere Falle: eine Änderung, die während des Laufs
+         * gespeichert wird, wartet am Mutex und steht erst NACH dem Schieben in der Warteschlange —
+         * ihr Anstoß ginge verloren, bis der periodische Lauf kommt (bis zu 15 min). Angehängt
+         * läuft der neue Abgleich hinter dem laufenden und nimmt genau diese Änderung mit. Eine
+         * gescheiterte/abgebrochene Kette wird ersetzt statt blockiert (das „_OR_REPLACE").
+         * `SyncEngine.push()` ist zusätzlich je Operation `NonCancellable`.
+         */
         fun kick(context: Context) {
             val req = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setConstraints(online)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(ONCE, ExistingWorkPolicy.REPLACE, req)
+            WorkManager.getInstance(context).enqueueUniqueWork(ONCE, KICK_POLICY, req)
         }
     }
 }
