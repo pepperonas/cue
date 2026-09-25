@@ -1,0 +1,7 @@
+{
+  "$comment": "Shared contract between the backend (app/models.py enums, app/devices.py token issuing) and the Android app (core/Model.kt, core/DeviceToken.kt). Consumed by backend/tests/test_app_api_contract.py and android/app/src/test/.../core/AppApiContractTest.kt — neither owns it.",
+  "why": "The app decodes every prompt with kotlinx.serialization: a status or priority value it does not know makes the WHOLE response unreadable, and a sync that cannot read the list stops pulling. The token pattern is what the app checks before it stores a pasted token; a backend that starts issuing a different format would otherwise lock every new device out with 'Das ist kein Geräte-Token'.",
+  "prompt_status": ["queued", "running", "done", "failed", "archived"],
+  "prompt_priority": ["low", "normal", "high"],
+  "device_token_pattern": "^[0-9a-f]{64}$"
+}
