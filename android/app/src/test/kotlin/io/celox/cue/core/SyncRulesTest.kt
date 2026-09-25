@@ -50,6 +50,17 @@ class SyncRulesTest {
         assertThat(plan.delete).isEmpty()
     }
 
+    // Isoliert den `it > 0`-Schutz von der Absicherung über `pendingIds`: bei
+    // -1 in pendingIds greift der Schutz für negative ids nie eigenständig,
+    // deshalb hier eine negative id AUSSERHALB von pendingIds. Ein offline
+    // angelegter Prompt, dessen Warteschlangen-Eintrag gerade fehlt (z. B.
+    // nach einem App-Neustart, bevor die Queue geladen ist), darf ein Pull
+    // niemals löschen — sein Text existiert sonst nirgends.
+    @Test fun `an offline-created id absent from the queue is still never deleted`() {
+        val plan = planMerge(serverIds = setOf(1), localIds = setOf(1, -5), pendingIds = emptySet())
+        assertThat(plan.delete).isEmpty()
+    }
+
     // --- coalesce: die Warteschlange hält je Prompt EINEN Eintrag.
 
     private fun fields(vararg pairs: Pair<String, String>) =
