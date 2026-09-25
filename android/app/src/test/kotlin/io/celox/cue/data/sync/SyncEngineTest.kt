@@ -16,7 +16,10 @@ import io.celox.cue.data.net.ProjectDto
 import io.celox.cue.data.net.PromptDto
 import io.celox.cue.data.net.TagListDto
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -56,6 +59,9 @@ class SyncEngineTest {
         val rejectPatchFor = mutableSetOf<Long>()
         val calls = mutableListOf<String>()
         val created = mutableListOf<JsonObject>()
+        /** Gesetzt: `patch` meldet sich über `patchEntered` und hält an, bis `patchGate` fertig ist. */
+        var patchGate: CompletableDeferred<Unit>? = null
+        val patchEntered = CompletableDeferred<Unit>()
         var cursor = 0
 
         private fun <T> guard(label: String, block: () -> ApiResult<T>): ApiResult<T> {
@@ -85,7 +91,11 @@ class SyncEngineTest {
             rows[id] = d; cursor++
             ApiResult.Ok(d)
         }
-        override suspend fun patch(id: Long, fields: JsonObject) = guard("patch:$id") {
+        override suspend fun patch(id: Long, fields: JsonObject): ApiResult<PromptDto> {
+            patchGate?.let { patchEntered.complete(Unit); it.await() }
+            return patchNow(id, fields)
+        }
+        private fun patchNow(id: Long, fields: JsonObject) = guard("patch:$id") {
             if (id in rejectPatchFor) return@guard ApiResult.Http(422, "nein")
             val old = rows[id] ?: return@guard ApiResult.Http(404, "")
             val d = old.copy(title = fields["title"]?.jsonPrimitive?.content ?: old.title)
@@ -265,5 +275,45 @@ class SyncEngineTest {
         val first = db.nextLocalId()
         api.rows[1] = api.dto(1, "a"); engine.sync()
         assertThat(db.nextLocalId()).isLessThan(first)
+    }
+
+    /** Sync hält den Mutex und bekommt gleich 401; eine Bearbeitung wartet dahinter. */
+    private suspend fun kotlinx.coroutines.test.TestScope.revokeWhile(waiting: suspend () -> Boolean): Boolean {
+        val gate = CompletableDeferred<Unit>()
+        api.patchGate = gate
+        val sync = async { engine.sync() }
+        api.patchEntered.await()
+        val edit = async { waiting() }
+        runCurrent() // die Bearbeitung hängt jetzt am Mutex
+        assertWithMessage("die Bearbeitung darf vor der Sperre nicht durchkommen").that(edit.isCompleted).isFalse()
+        api.forced = 401
+        gate.complete(Unit)
+        assertThat(sync.await()).isEqualTo(SyncResult.Revoked)
+        return edit.await()
+    }
+
+    @Test fun `an edit waiting behind a revoke writes nothing`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        engine.enqueue(1, OpKind.UPDATE, f("title" to "unterwegs"))
+        val accepted = revokeWhile { engine.enqueue(1, OpKind.UPDATE, f("title" to "danach")) }
+        assertThat(accepted).isFalse()
+        assertThat(db.pendingOpDao().all()).isEmpty()
+        assertThat(db.promptDao().ids()).isEmpty()
+    }
+
+    @Test fun `a create waiting behind a revoke writes nothing`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        engine.enqueue(1, OpKind.UPDATE, f("title" to "unterwegs"))
+        val local = db.nextLocalId()
+        val accepted = revokeWhile { engine.enqueue(local, OpKind.CREATE, f("body" to "neu")) }
+        assertThat(accepted).isFalse()
+        assertThat(db.pendingOpDao().all()).isEmpty()
+        assertThat(db.promptDao().ids()).isEmpty()
+    }
+
+    @Test fun `an update for a missing row writes nothing`() = runTest {
+        assertThat(engine.enqueue(7, OpKind.UPDATE, f("title" to "erfunden"))).isFalse()
+        assertThat(db.pendingOpDao().all()).isEmpty()
+        assertThat(db.promptDao().ids()).isEmpty()
     }
 }

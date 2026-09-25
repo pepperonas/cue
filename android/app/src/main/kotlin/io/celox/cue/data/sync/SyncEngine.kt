@@ -58,7 +58,21 @@ class SyncEngine(
 
     private class RevokedSignal : RuntimeException()
 
-    suspend fun enqueue(promptId: Long, kind: OpKind, fields: JsonObject) = mutex.withLock {
+    /**
+     * Legt eine Änderung in die Warteschlange und schreibt sie sofort lokal.
+     *
+     * @return `true`, wenn die Änderung angenommen wurde; `false`, wenn sie
+     * verworfen wurde — dann steht NICHTS in `pending_op` und nichts in `prompt`:
+     * - kein Token (die Kopie wurde gerade wegen einer Sperre gelöscht, während
+     *   diese Änderung auf den Mutex wartete — sie gehört zu einem Konto, das
+     *   das Telefon nicht mehr hat; mit einem neuen Token ginge sie sonst per
+     *   404-Neuanlage in ein womöglich FREMDES Konto),
+     * - ein UPDATE für eine Zeile, die lokal nicht (mehr) existiert — nur ein
+     *   CREATE darf eine Zeile erfinden.
+     */
+    suspend fun enqueue(promptId: Long, kind: OpKind, fields: JsonObject): Boolean = mutex.withLock {
+        if (store.token == null) return false
+        if (kind == OpKind.UPDATE && db.promptDao().get(promptId) == null) return false
         val clean = normalize(fields)
         val dao = db.pendingOpDao()
         val stored = dao.get(promptId)
@@ -70,6 +84,7 @@ class SyncEngine(
             dao.put(PendingOpEntity(promptId, merged.kind, merged.fields.toString(), null, stored?.queuedAt ?: now()))
             applyLocally(promptId, clean)
         }
+        true
     }
 
     /**
