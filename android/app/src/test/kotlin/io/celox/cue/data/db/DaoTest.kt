@@ -42,11 +42,21 @@ class DaoTest {
     @Test fun replaceIdSwapsTheOfflineRowForTheServerRow() = runTest {
         db.promptDao().upsert(listOf(prompt(-1)))
         db.pendingOpDao().put(PendingOpEntity(-1, OpKind.CREATE, "{}", null, 0))
-        db.promptDao().replaceId(-1, prompt(42))
-        db.pendingOpDao().moveTo(-1, 42)
+        db.adoptServerId(-1, prompt(42))
         assertThat(db.promptDao().ids()).containsExactly(42L)
         assertThat(db.pendingOpDao().get(42)).isNotNull()
         assertThat(db.pendingOpDao().get(-1)).isNull()
+    }
+
+    @Test fun updateCursorLeavesNextLocalIdAlone() = runTest {
+        val a = db.nextLocalId()
+        val b = db.nextLocalId()
+        db.syncStateDao().updateCursor("cursor-1", 123L, null)
+        val c = db.nextLocalId()
+        assertThat(c).isLessThan(b)
+        assertThat(c).isLessThan(a)
+        assertThat(setOf(a, b, c)).hasSize(3)
+        assertThat(db.syncStateDao().get()?.cursor).isEqualTo("cursor-1")
     }
 
     @Test fun localIdsAreNegativeAndNeverRepeat() {

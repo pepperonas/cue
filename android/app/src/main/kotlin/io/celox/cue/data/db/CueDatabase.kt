@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.withTransaction
 import io.celox.cue.core.OpKind
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
@@ -43,5 +44,17 @@ abstract class CueDatabase : RoomDatabase() {
         val id = cursor.use { it.moveToFirst(); it.getLong(0) }
         stmt.execSQL("UPDATE sync_state SET nextLocalId = nextLocalId - 1 WHERE `key` = 0")
         id
+    }
+
+    /**
+     * Schiebt einen offline angelegten Prompt (negative ID) auf seine
+     * echte Server-ID hoch: Prompt-Zeile UND Pending-Op in EINER
+     * Transaktion, sonst könnte ein Absturz dazwischen die Zeile schon
+     * verschieben, während die Warteschlange noch auf der alten ID hängt
+     * (oder umgekehrt) — beides muss zusammen gelten oder gar nicht.
+     */
+    suspend fun adoptServerId(old: Long, row: PromptEntity) = withTransaction {
+        promptDao().replaceId(old, row)
+        pendingOpDao().moveTo(old, row.id)
     }
 }

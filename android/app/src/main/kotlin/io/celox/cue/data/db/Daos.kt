@@ -55,5 +55,29 @@ interface PendingOpDao {
 interface SyncStateDao {
     @Query("SELECT * FROM sync_state WHERE `key` = 0") suspend fun get(): SyncStateEntity?
     @Query("SELECT * FROM sync_state WHERE `key` = 0") fun observe(): Flow<SyncStateEntity?>
+
+    /**
+     * ⚠️ NICHT für Cursor/Zeit/Fehler-Schreibvorgänge verwenden — `@Upsert`
+     * schreibt ALLE Spalten inkl. `nextLocalId` und setzt den fallenden
+     * Zähler dabei auf den Default (-1) zurück. Ein danach offline angelegter
+     * Prompt bekäme dieselbe negative ID wie ein schon wartender,
+     * unsynchronisierter Prompt — dessen Zeile UND dessen Pending-Op würden
+     * stillschweigend überschrieben. Für Cursor/Zeit/Fehler: `updateCursor`.
+     */
     @Upsert suspend fun put(state: SyncStateEntity)
+
+    @Query(
+        "INSERT OR IGNORE INTO sync_state(`key`, cursor, lastSyncAt, lastError, nextLocalId) VALUES (0, NULL, NULL, NULL, -1)",
+    )
+    suspend fun ensureRow()
+
+    @Query("UPDATE sync_state SET cursor = :cursor, lastSyncAt = :lastSyncAt, lastError = :lastError WHERE `key` = 0")
+    suspend fun updateCursorRow(cursor: String?, lastSyncAt: Long?, lastError: String?)
+
+    /** Schreibt Cursor/Zeit/Fehler, lässt `nextLocalId` unberührt — sicher auch, wenn die Zeile noch fehlt. */
+    @Transaction
+    suspend fun updateCursor(cursor: String?, lastSyncAt: Long?, lastError: String?) {
+        ensureRow()
+        updateCursorRow(cursor, lastSyncAt, lastError)
+    }
 }
