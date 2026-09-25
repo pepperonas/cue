@@ -9,6 +9,7 @@ import io.celox.cue.core.classify
 import io.celox.cue.core.normalizeServerUrl
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
+import io.celox.cue.data.db.PromptEntity
 import io.celox.cue.data.net.ApiResult
 import io.celox.cue.data.net.AppApi
 import io.celox.cue.data.net.code
@@ -51,6 +52,7 @@ class PromptRepository @Inject constructor(
     val isConfigured: Boolean get() = store.token != null
     val serverUrl: String get() = store.serverUrl
 
+    /** Folgt einem Alias — eine offline vergebene ID bleibt nach dem Hochschieben gültig. */
     fun prompt(id: Long) = db.promptDao().observe(id)
 
     /**
@@ -94,12 +96,19 @@ class PromptRepository @Inject constructor(
             if (accepted) newId else null
         }
 
-    /** @return `true`, wenn `enqueue` die Änderung angenommen hat. Siehe [create] zum Umbau in Fix-Runde 1. */
-    suspend fun update(id: Long, fields: JsonObject): Boolean = withContext(NonCancellable + Dispatchers.IO) {
-        val accepted = engine.enqueue(id, OpKind.UPDATE, fields)
-        if (accepted) SyncWorker.kick(context)
-        accepted
-    }
+    /**
+     * @return `true`, wenn `enqueue` die Änderung angenommen hat. Siehe [create] zum Umbau in Fix-Runde 1.
+     *
+     * `fallback` ist der VOLLE Stand des Editors: ist die Zeile inzwischen am
+     * Rechner gelöscht worden, wird daraus neu angelegt, statt die Bearbeitung
+     * zu verwerfen (s. `SyncEngine.enqueue`).
+     */
+    suspend fun update(id: Long, fields: JsonObject, fallback: PromptEntity? = null): Boolean =
+        withContext(NonCancellable + Dispatchers.IO) {
+            val accepted = engine.enqueue(id, OpKind.UPDATE, fields, fallback)
+            if (accepted) SyncWorker.kick(context)
+            accepted
+        }
 
     suspend fun syncNow(): SyncResult = withContext(Dispatchers.IO) { engine.sync() }
 

@@ -27,15 +27,6 @@ sealed interface SaveResult {
     data object NoOp : SaveResult
     data object BodyRequired : SaveResult
     data object NotConnected : SaveResult
-
-    /**
-     * Fix-Runde 1, Regel 7: `update()` liefert `false` in ZWEI Fällen — kein Token, ODER die
-     * Zeile existiert lokal nicht mehr (z. B. ein offline angelegter Prompt, der während dieser
-     * Bearbeitung von einem Abgleich auf seine echte Server-ID umgeschlüsselt wurde). Beides als
-     * „Nicht verbunden" zu melden wäre irreführend, wenn ein Token längst wieder da ist —
-     * unterschieden über `repo.isConfigured` GENAU in dem Moment, in dem `update()` scheitert.
-     */
-    data object PromptGone : SaveResult
 }
 
 /**
@@ -137,12 +128,15 @@ class EditViewModel @Inject constructor(
                 val o = original ?: return SaveResult.NoOp
                 val fields = changedFields(o)
                 if (fields.isEmpty()) return SaveResult.NoOp
-                val ok = repo.update(id, fields)
-                when {
-                    ok -> SaveResult.Saved
-                    repo.isConfigured -> SaveResult.PromptGone
-                    else -> SaveResult.NotConnected
-                }
+                // Der volle Stand reist mit: ist die Zeile inzwischen am Rechner gelöscht
+                // worden, legt `enqueue` sie daraus neu an — die Bearbeitung gewinnt,
+                // statt mit „existiert nicht mehr" verworfen zu werden. `false` heißt
+                // damit nur noch: kein Token.
+                val fullState = o.copy(
+                    title = title, body = body, tags = tagsText, status = status,
+                    priority = priority, projectId = projectId,
+                )
+                if (repo.update(id, fields, fullState)) SaveResult.Saved else SaveResult.NotConnected
             }
         } finally {
             saving = false

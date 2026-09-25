@@ -4,7 +4,9 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import io.celox.cue.core.OpKind
 import io.celox.cue.core.Priority
 import io.celox.cue.core.Status
@@ -19,8 +21,11 @@ class Converters {
 }
 
 @Database(
-    entities = [PromptEntity::class, ProjectEntity::class, TagEntity::class, PendingOpEntity::class, SyncStateEntity::class],
-    version = 1,
+    entities = [
+        PromptEntity::class, ProjectEntity::class, TagEntity::class, PendingOpEntity::class,
+        SyncStateEntity::class, IdAliasEntity::class,
+    ],
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -30,6 +35,7 @@ abstract class CueDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun pendingOpDao(): PendingOpDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun idAliasDao(): IdAliasDao
 
     /**
      * Nächste lokale (negative) ID. Im sync_state gezählt statt aus `min(id)`
@@ -56,5 +62,22 @@ abstract class CueDatabase : RoomDatabase() {
     suspend fun adoptServerId(old: Long, row: PromptEntity) = withTransaction {
         promptDao().replaceId(old, row)
         pendingOpDao().moveTo(old, row.id)
+        // Ein offener Editor / eine Detailansicht hält noch `old` — ohne den
+        // Alias meldete ein Speichern dort „existiert nicht mehr" und die
+        // Bearbeitung ginge verloren.
+        idAliasDao().retarget(old, row.id)
+        idAliasDao().put(IdAliasEntity(old, row.id))
+    }
+
+    /** Die ID, unter der ein Prompt HEUTE steht (ein Sprung über `id_alias`, sonst sie selbst). */
+    suspend fun resolveId(id: Long): Long = idAliasDao().resolve(id) ?: id
+
+    companion object {
+        /** 1 → 2: `id_alias` (Fix-Runde nach dem Gesamt-Review, I1). */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `id_alias` (`oldId` INTEGER NOT NULL, `newId` INTEGER NOT NULL, PRIMARY KEY(`oldId`))")
+            }
+        }
     }
 }

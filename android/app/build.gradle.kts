@@ -69,6 +69,10 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     testOptions { unitTests.isIncludeAndroidResources = true }
+    // Die exportierten Room-Schemata für `MigrationTestHelper`, der daraus die alte Version baut.
+    // Unter Robolectric liest er die Assets der APP (nicht des Test-Sourcesets) — deshalb `debug`;
+    // die Release-APK trägt sie nicht.
+    sourceSets { getByName("debug").assets.srcDir("$projectDir/schemas") }
     lint {
         // Der LiveData-Detektor aus androidx.lifecycle stürzt mit der Lint-Version
         // dieses AGP ab (KaCallableMemberCall: class statt interface) und reißt

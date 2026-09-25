@@ -26,7 +26,7 @@ object AppModule {
 
     @Provides @Singleton
     fun db(@ApplicationContext c: Context): CueDatabase =
-        Room.databaseBuilder(c, CueDatabase::class.java, "cue.db").build()
+        Room.databaseBuilder(c, CueDatabase::class.java, "cue.db").addMigrations(CueDatabase.MIGRATION_1_2).build()
 
     @Provides @Singleton
     fun store(@ApplicationContext c: Context): TokenStore = EncryptedTokenStore(c)

@@ -339,4 +339,64 @@ class SyncEngineTest {
         assertThat(db.pendingOpDao().all()).isEmpty()
         assertThat(db.promptDao().ids()).isEmpty()
     }
+
+    // ---- I1 (Fix-Runde nach dem Gesamt-Review): Alias statt „existiert nicht mehr" ----
+
+    /** Ein Editor hält noch die negative ID, während ein Abgleich den Prompt umschlüsselt. */
+    @Test fun `an edit on an offline id after its adoption follows the alias`() = runTest {
+        val local = db.nextLocalId()
+        engine.enqueue(local, OpKind.CREATE, f("body" to "Text", "title" to "offline"))
+        assertThat(engine.sync()).isEqualTo(SyncResult.Done)
+        val serverId = api.rows.keys.single()
+
+        val accepted = engine.enqueue(local, OpKind.UPDATE, f("title" to "danach bearbeitet"))
+
+        assertThat(accepted).isTrue()
+        assertThat(db.pendingOpDao().get(serverId)!!.kind).isEqualTo(OpKind.UPDATE)
+        assertThat(db.pendingOpDao().get(local)).isNull()
+        assertThat(db.promptDao().ids()).containsExactly(serverId) // keine Geisterzeile unter der alten ID
+        assertThat(engine.sync()).isEqualTo(SyncResult.Done)
+        assertThat(api.rows[serverId]!!.title).isEqualTo("danach bearbeitet")
+        assertThat(api.calls.count { it == "create" }).isEqualTo(1)
+    }
+
+    @Test fun `observing the old offline id shows the adopted row`() = runTest {
+        val local = db.nextLocalId()
+        engine.enqueue(local, OpKind.CREATE, f("body" to "Text", "title" to "offline"))
+        engine.sync()
+        val seen = db.promptDao().observe(local).first()
+        assertThat(seen).isNotNull()
+        assertThat(seen!!.id).isEqualTo(api.rows.keys.single())
+    }
+
+    /** Am Rechner gelöscht, vom Ziehen entfernt, während der Editor offen war: die Bearbeitung gewinnt. */
+    @Test fun `an edit on a row a pull deleted is re-created from the editor's full state`() = runTest {
+        api.rows[1] = api.dto(1, "alt", body = "Text vom Rechner"); engine.sync()
+        val editorState = db.promptDao().get(1)!!.copy(title = "im Editor", priority = Priority.high)
+        api.rows.remove(1); api.cursor++
+        engine.sync()
+        assertThat(db.promptDao().get(1)).isNull()
+
+        val accepted = engine.enqueue(1, OpKind.UPDATE, f("title" to "im Editor"), fallback = editorState)
+
+        assertThat(accepted).isTrue()
+        val op = db.pendingOpDao().all().single()
+        assertThat(op.kind).isEqualTo(OpKind.CREATE)
+        assertThat(op.promptId).isLessThan(0L)
+        // Detail/Editor mit der alten ID sehen die neu angelegte Zeile.
+        assertThat(db.promptDao().observe(1).first()!!.title).isEqualTo("im Editor")
+        assertThat(engine.sync()).isEqualTo(SyncResult.Done)
+        val sent = api.created.single()
+        assertThat(sent["body"]!!.jsonPrimitive.content).isEqualTo("Text vom Rechner")
+        assertThat(sent["priority"]!!.jsonPrimitive.content).isEqualTo("high")
+        // Nach dem Hochschieben zeigt der Alias der ALTEN ID direkt auf die Server-ID.
+        assertThat(db.promptDao().observe(1).first()!!.id).isEqualTo(api.rows.keys.single())
+    }
+
+    @Test fun `without a fallback an update for a vanished row is still refused`() = runTest {
+        api.rows[1] = api.dto(1, "a"); engine.sync()
+        api.rows.remove(1); api.cursor++; engine.sync()
+        assertThat(engine.enqueue(1, OpKind.UPDATE, f("title" to "x"))).isFalse()
+        assertThat(db.pendingOpDao().all()).isEmpty()
+    }
 }

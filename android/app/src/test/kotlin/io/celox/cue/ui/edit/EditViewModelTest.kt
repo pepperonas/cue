@@ -253,27 +253,44 @@ class EditViewModelTest {
         assertThat(vm.hasChanges()).isTrue()
     }
 
-    // ---- Fix-Runde 1 (Task 8), Regel 7: "Prompt existiert nicht mehr" statt "Nicht verbunden" ----
+    // ---- I1 (Fix-Runde nach dem Gesamt-Review): der Editor verliert keine Bearbeitung mehr ----
 
     /**
-     * `update()` liefert `false` auch dann, wenn die Zeile lokal nicht mehr existiert (z. B.
-     * während dieser Bearbeitung von einem Abgleich auf ihre echte Server-ID umgeschlüsselt) —
-     * mit Token bleibt das ein ANDERER Fall als "nicht verbunden".
+     * Vorher: der Editor hielt die negative ID, ein Abgleich schlüsselte den Prompt um, und
+     * „Speichern" meldete „Prompt existiert nicht mehr" — die Bearbeitung war weg.
      */
-    @Test fun `an update on a row that no longer exists locally reports PromptGone, not NotConnected`() =
+    @Test fun `saving an edit on an offline prompt that was adopted meanwhile still saves`() =
         runTest(testDispatcher) {
-            db.promptDao().upsert(listOf(prompt(1)))
-            val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "1")))
+            val local = repo.create("Offline", "Text", null, "")!!
+            val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to local.toString())))
             vm.loaded.first { it }
+            assertThat(repo.syncNow()).isEqualTo(io.celox.cue.data.sync.SyncResult.Done) // → Server-ID 100
+
             vm.title = "Geändert"
-
-            db.promptDao().delete(listOf(1L)) // z. B. durch einen Abgleich verschwunden
-            assertThat(store.token).isNotNull() // weiterhin verbunden
-
             val result = vm.save()
+            repo.syncNow()
 
-            assertThat(result).isEqualTo(SaveResult.PromptGone)
+            assertThat(result).isEqualTo(SaveResult.Saved)
+            assertThat(api.rows[100L]!!.title).isEqualTo("Geändert")
         }
+
+    @Test fun `an edit on a row deleted meanwhile is re-created, not refused`() = runTest(testDispatcher) {
+        db.promptDao().upsert(listOf(prompt(1, title = "Alt")))
+        val vm = EditViewModel(repo, SavedStateHandle(mapOf("id" to "1")))
+        vm.loaded.first { it }
+        vm.title = "Geändert"
+
+        db.promptDao().delete(listOf(1L)) // z. B. am Rechner gelöscht, vom Ziehen entfernt
+
+        val result = vm.save()
+        repo.syncNow()
+
+        assertThat(result).isEqualTo(SaveResult.Saved)
+        val sent = api.lastCreateFields!!
+        assertThat(sent["title"]!!.jsonPrimitive.content).isEqualTo("Geändert")
+        assertThat(sent["body"]!!.jsonPrimitive.content).isEqualTo("Text")
+        assertThat(sent["tags"]!!.jsonPrimitive.content).isEqualTo("a, b")
+    }
 
     // ---- Fix-Runde 1 (Task 8), Regel 6: Doppel-Tipp auf ✓ ----
 

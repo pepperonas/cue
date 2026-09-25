@@ -28,6 +28,8 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
 import org.junit.After
@@ -177,5 +179,22 @@ class DetailViewModelTest {
             vm.loaded.first { it }
             assertThat(vm.prompt.value).isNull()
         }
+    }
+
+    /** I1: die Detailansicht einer offline angelegten Zeile überlebt deren Umschlüsseln. */
+    @Test fun `the detail of an offline prompt follows it to its server id`() = runTest(testDispatcher) {
+        val offline = PromptEntity(
+            id = -3, title = "Offline angelegt", body = "B", projectId = null, status = Status.queued,
+            sortOrder = Int.MIN_VALUE, tags = "", bookmarked = false, priority = Priority.normal,
+            blocked = false, tested = false, testClosely = false, updatedAt = "",
+        )
+        db.promptDao().upsert(listOf(offline))
+        val vm = DetailViewModel(repo, SavedStateHandle(mapOf("id" to -3L)))
+        vm.loaded.first { it }
+
+        db.adoptServerId(-3, offline.copy(id = 42))
+
+        val seen = withContext(Dispatchers.Default) { withTimeout(5_000) { vm.prompt.first { it?.id == 42L } } }
+        assertThat(seen!!.title).isEqualTo("Offline angelegt")
     }
 }

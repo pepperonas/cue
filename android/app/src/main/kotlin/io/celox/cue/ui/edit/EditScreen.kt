@@ -78,8 +78,6 @@ fun EditScreen(
                     SaveResult.BodyRequired -> Unit // Fehler steht am Feld
                     SaveResult.NotConnected ->
                         scope.launch { snackbarHost.showSnackbar("Nicht verbunden — in den Einstellungen verbinden") }
-                    SaveResult.PromptGone ->
-                        scope.launch { snackbarHost.showSnackbar("Prompt existiert nicht mehr") }
                 }
             }
         }

@@ -11,7 +11,14 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PromptDao {
     @Query("SELECT * FROM prompt") fun observeAll(): Flow<List<PromptEntity>>
-    @Query("SELECT * FROM prompt WHERE id = :id") fun observe(id: Long): Flow<PromptEntity?>
+    /**
+     * Folgt einem Alias (`id_alias`): wer noch die alte, offline vergebene ID
+     * hält, sieht nach dem Umschlüsseln die neue Zeile. EINE Abfrage über
+     * beide Tabellen — Room beobachtet dann beide, und es gibt keinen
+     * Zwischenstand, in dem die alte Zeile weg und der Alias noch nicht da ist.
+     */
+    @Query("SELECT * FROM prompt WHERE id = COALESCE((SELECT newId FROM id_alias WHERE oldId = :id), :id)")
+    fun observe(id: Long): Flow<PromptEntity?>
     @Query("SELECT * FROM prompt WHERE id = :id") suspend fun get(id: Long): PromptEntity?
     @Query("SELECT id FROM prompt") suspend fun ids(): List<Long>
     @Upsert suspend fun upsert(rows: List<PromptEntity>)
@@ -80,4 +87,13 @@ interface SyncStateDao {
         ensureRow()
         updateCursorRow(cursor, lastSyncAt, lastError)
     }
+}
+
+@Dao
+interface IdAliasDao {
+    @Query("SELECT newId FROM id_alias WHERE oldId = :oldId") suspend fun resolve(oldId: Long): Long?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(alias: IdAliasEntity)
+
+    /** Bestehende Verweise auf `old` auf `newId` umbiegen — so bleibt es bei genau einem Sprung. */
+    @Query("UPDATE id_alias SET newId = :newId WHERE newId = :old") suspend fun retarget(old: Long, newId: Long)
 }

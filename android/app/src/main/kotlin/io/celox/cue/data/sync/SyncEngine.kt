@@ -12,6 +12,7 @@ import io.celox.cue.core.planMerge
 import io.celox.cue.data.RevokedNotice
 import io.celox.cue.data.auth.TokenStore
 import io.celox.cue.data.db.CueDatabase
+import io.celox.cue.data.db.IdAliasEntity
 import io.celox.cue.data.db.PendingOpEntity
 import io.celox.cue.data.db.PromptEntity
 import io.celox.cue.data.net.ApiResult
@@ -63,28 +64,59 @@ class SyncEngine(
     /**
      * Legt eine Änderung in die Warteschlange und schreibt sie sofort lokal.
      *
+     * Ein UPDATE folgt zuerst einem Alias (`id_alias`): ein Editor, der noch
+     * die negative ID eines inzwischen hochgeschobenen Prompts hält, trifft so
+     * die umgeschlüsselte Zeile, statt verworfen zu werden.
+     *
+     * Fehlt die Zeile auch danach (am Rechner gelöscht, vom Ziehen entfernt),
+     * gewinnt die lokale Änderung — dieselbe Regel wie beim PATCH-404 in
+     * [push]: mit `fallback` (dem VOLLEN Stand des Editors) wird sie als
+     * CREATE unter einer frischen lokalen ID neu angelegt, und ein Alias
+     * alte → neue ID hält Detail und Editor an der Zeile.
+     *
      * @return `true`, wenn die Änderung angenommen wurde; `false`, wenn sie
      * verworfen wurde — dann steht NICHTS in `pending_op` und nichts in `prompt`:
      * - kein Token (die Kopie wurde gerade wegen einer Sperre gelöscht, während
      *   diese Änderung auf den Mutex wartete — sie gehört zu einem Konto, das
      *   das Telefon nicht mehr hat; mit einem neuen Token ginge sie sonst per
      *   404-Neuanlage in ein womöglich FREMDES Konto),
-     * - ein UPDATE für eine Zeile, die lokal nicht (mehr) existiert — nur ein
-     *   CREATE darf eine Zeile erfinden.
+     * - ein UPDATE ohne `fallback` für eine Zeile, die lokal nicht (mehr)
+     *   existiert — nur ein CREATE darf eine Zeile erfinden.
      */
-    suspend fun enqueue(promptId: Long, kind: OpKind, fields: JsonObject): Boolean = mutex.withLock {
+    suspend fun enqueue(
+        promptId: Long,
+        kind: OpKind,
+        fields: JsonObject,
+        fallback: PromptEntity? = null,
+    ): Boolean = mutex.withLock {
         if (store.token == null) return false
-        if (kind == OpKind.UPDATE && db.promptDao().get(promptId) == null) return false
-        val clean = normalize(fields)
+        var id = promptId
+        var opKind = kind
+        var clean = normalize(fields)
+        var aliasFrom: Long? = null
+        if (kind == OpKind.UPDATE) {
+            id = db.resolveId(promptId)
+            if (db.promptDao().get(id) == null) {
+                if (fallback == null) return false
+                aliasFrom = promptId
+                id = db.nextLocalId()
+                opKind = OpKind.CREATE
+                clean = normalize(createFieldsFrom(fallback))
+            }
+        }
         val dao = db.pendingOpDao()
-        val stored = dao.get(promptId)
+        val stored = dao.get(id)
         val existing = stored?.let { QueuedOp(it.promptId, it.kind, Json.parseToJsonElement(it.fieldsJson).jsonObject) }
-        val merged = coalesce(existing, QueuedOp(promptId, kind, clean))
+        val merged = coalesce(existing, QueuedOp(id, opKind, clean))
         db.withTransaction {
             // queuedAt vom ersten Eintrag übernehmen: die Warteschlange behält
             // die Reihenfolge der ERSTEN Änderung je Prompt.
-            dao.put(PendingOpEntity(promptId, merged.kind, merged.fields.toString(), null, stored?.queuedAt ?: now()))
-            applyLocally(promptId, clean)
+            dao.put(PendingOpEntity(id, merged.kind, merged.fields.toString(), null, stored?.queuedAt ?: now()))
+            applyLocally(id, clean)
+            aliasFrom?.let {
+                db.idAliasDao().retarget(it, id)
+                db.idAliasDao().put(IdAliasEntity(it, id))
+            }
         }
         true
     }
@@ -191,7 +223,7 @@ class SyncEngine(
                 val local = db.promptDao().get(op.promptId)
                 if (local != null) {
                     created = true
-                    result = api.create(createFrom(local))
+                    result = api.create(createFieldsFrom(local))
                 }
             }
 
@@ -213,16 +245,6 @@ class SyncEngine(
             }
         }
         return true
-    }
-
-    private fun createFrom(p: PromptEntity): JsonObject = buildJsonObject {
-        put("title", p.title)
-        put("body", p.body)
-        put("tags", p.tags)
-        p.projectId?.let { put("project_id", it) }
-        put("status", p.status.name)
-        put("priority", p.priority.name)
-        put("bookmarked", p.bookmarked)
     }
 
     private suspend fun pull(): SyncResult {
@@ -265,4 +287,15 @@ class SyncEngine(
         db.syncStateDao().updateCursor(body.cursor, now(), null)
         return SyncResult.Done
     }
+}
+
+/** Der VOLLE Stand eines Prompts als CREATE — für jede Neuanlage einer lokal gewonnenen Änderung. */
+fun createFieldsFrom(p: PromptEntity): JsonObject = buildJsonObject {
+    put("title", p.title)
+    put("body", p.body)
+    put("tags", p.tags)
+    p.projectId?.let { put("project_id", it) }
+    put("status", p.status.name)
+    put("priority", p.priority.name)
+    put("bookmarked", p.bookmarked)
 }

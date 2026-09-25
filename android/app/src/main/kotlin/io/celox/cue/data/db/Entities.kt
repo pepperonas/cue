@@ -53,3 +53,14 @@ data class SyncStateEntity(
     val lastError: String?,
     val nextLocalId: Long = -1,
 )
+
+/**
+ * Alte (negative, offline vergebene) ID → echte Server-ID. Geschrieben, wenn
+ * `adoptServerId` einen offline angelegten Prompt umschlüsselt, und wenn eine
+ * Bearbeitung einen am Rechner gelöschten Prompt neu anlegt. Ein Editor oder
+ * eine Detailansicht, die noch die ALTE ID hält, folgt darüber der Zeile,
+ * statt „existiert nicht mehr" zu melden. Immer genau EIN Sprung: beim
+ * Umschlüsseln werden bestehende Verweise auf die alte ID mitgezogen.
+ */
+@Entity(tableName = "id_alias")
+data class IdAliasEntity(@PrimaryKey val oldId: Long, val newId: Long)
