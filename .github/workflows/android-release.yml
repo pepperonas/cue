@@ -22,7 +22,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "21" }
-      - uses: android-actions/setup-android@v3
+      # Kein android-actions/setup-android: der Runner bringt ein SDK mit (ANDROID_HOME
+      # gesetzt, Lizenzen akzeptiert), und AGP lädt die festgenagelten build-tools 35.0.0
+      # selbst nach. setup-android@v3 wollte zusätzlich das Paket `tools` installieren,
+      # das der aktuelle sdkmanager nicht mehr kennt — der erste Release-Lauf brach daran ab.
+      - uses: gradle/actions/setup-gradle@v4
       - name: Tag und versionName stimmen ueberein
         # Ein Tag, der eine andere Version nennt als die gebaute APK, veroeffentlicht eine
         # Datei, deren Name luegt (`cue-0.2.0.apk` mit versionName 0.1.0).
