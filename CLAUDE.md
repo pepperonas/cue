@@ -406,7 +406,12 @@ into it. Own doc: [`android/README.md`](android/README.md); design doc:
   retrying re-created the prompt on every spin. The op is dropped, an offline
   row cleared and the pull cursor reset to null (the one place the cursor
   moves backwards), so the next pull adopts the server's truth. Only 401/403
-  mean Revoked, unchanged.
+  mean Revoked, unchanged. ⚠️ **`Unreadable` requires a JSON body, and
+  redirects are never followed** (`CueApi.http` forces it on whatever client
+  is injected): a 200 HTML page from an SSO proxy or captive portal would
+  otherwise count as "the server wrote it" and delete an offline-created
+  prompt the server never saw. Non-JSON 2xx and every 3xx are a transient
+  `Http(502)` instead.
 - ⚠️ **The device token is validated before it is stored**
   (`core/DeviceToken.kt`): paste noise (whitespace, line breaks, NBSP,
   zero-width, BOM) is stripped, case lowered, and anything but the backend's
