@@ -297,6 +297,15 @@ separately and Vite proxies `/api` to `:8000`.
 
 ## Android-App (`android/`)
 
+**Released: `android-v0.1.0` (2026-09-26)**, APK on the GitHub release, signed with
+the cue keystore (backup in the private `pepperonas/keystore` → `cue-keystore/`,
+certificate SHA-256 `8b94fc80…45e38121`, DN `CN=Martin Pfeffer, O=celox.io, L=Munich,
+C=DE`). Next release: bump `versionCode` (+1) and `versionName` in
+`android/app/build.gradle.kts`, commit, tag `android-vX.Y.Z` — the workflow refuses a
+tag that does not match `versionName`. ⚠️ The first run failed in
+`android-actions/setup-android@v3` (it installs the `tools` package the current
+sdkmanager no longer has); the workflow now relies on the runner's own SDK.
+
 A small native app (Compose + Material 3 Expressive, Hilt, Room, OkHttp — no
 Retrofit) that reads, searches, copies, creates and edits prompts on the go,
 offline-first: Room is the source the UI reads from, sync only ever writes
