@@ -71,14 +71,14 @@ class CueApiTest {
     }
 
     @Test fun `a malformed success body becomes an unreadable result that reads like a 502, not a crash`() = runTest {
-        server.enqueue(MockResponse().setBody("""{"not":"a list"}"""))
+        server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody("""{"not":"a list"}"""))
         val r = api.prompts()
         assertThat(r).isEqualTo(ApiResult.Unreadable(200))
         assertThat(r.code()).isEqualTo(502) // für LESENDE Aufrufe: wie offline, später nochmal
     }
 
     @Test fun `an unknown status value becomes an http 502, not a crash`() = runTest {
-        server.enqueue(MockResponse().setBody("""[{"id":7,"title":"T","body":"B","project_id":null,
+        server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody("""[{"id":7,"title":"T","body":"B","project_id":null,
             "status":"paused","sort_order":1,"updated_at":"2026-09-24T10:00:00Z"}]"""))
         assertThat(api.prompts().code()).isEqualTo(502)
     }
@@ -112,5 +112,20 @@ class CueApiTest {
             assertThat(api.prompts().code()).isEqualTo(400) // keine Sperre: kein Wipe
         }
         assertThat(server.requestCount).isEqualTo(0)
+    }
+    /** Nur JSON gilt als „ausgeführt, aber unlesbar" — eine HTML-Seite mit 200 ist keine cue-Antwort. */
+    @Test fun `a 2xx that is not json is transient, never unreadable`() = runTest {
+        server.enqueue(MockResponse().setHeader("Content-Type", "text/html").setBody("<html>Login</html>"))
+        val r = api.create(buildJsonObject { put("body", "x") })
+        assertThat(r).isEqualTo(ApiResult.Http(502, "Keine cue-Antwort"))
+    }
+
+    /** Eine Weiterleitung wird nicht verfolgt — auch nicht, wenn der Client es von sich aus täte. */
+    @Test fun `a redirect is not followed and counts as transient`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(302).setHeader("Location", server.url("/login")))
+        server.enqueue(MockResponse().setHeader("Content-Type", "text/html").setBody("<html>Login</html>"))
+        val r = api.create(buildJsonObject { put("body", "x") })
+        assertThat(r).isEqualTo(ApiResult.Http(502, "Weiterleitung statt cue-Antwort"))
+        assertThat(server.requestCount).isEqualTo(1)
     }
 }

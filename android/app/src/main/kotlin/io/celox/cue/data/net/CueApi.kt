@@ -27,6 +27,13 @@ interface AppApi {
 
 /** Spricht ausschließlich mit den `/api/app`-Routen. Einen anderen Pfad kennt die App nicht. */
 class CueApi(private val client: OkHttpClient, private val store: TokenStore) : AppApi {
+    /**
+     * Weiterleitungen werden NIE verfolgt — hier erzwungen statt in `AppModule`, damit es für
+     * jeden hineingereichten Client gilt. Ein Redirect führt nie zu cue (nginx beantwortet
+     * `/api/` mit nacktem Statuscode), sondern zu einer SSO-/Captive-Portal-Seite, deren 200
+     * sonst als „der Server hat geschrieben" gegolten hätte (s. `ApiResult.Unreadable`).
+     */
+    private val http: OkHttpClient = client.newBuilder().followRedirects(false).followSslRedirects(false).build()
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val jsonType = "application/json".toMediaType()
 
@@ -55,8 +62,10 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) : 
             return@withContext ApiResult.Http(400, "Token enthält unzulässige Zeichen")
         }
         try {
-            client.newCall(request).execute().use { resp ->
+            http.newCall(request).execute().use { resp ->
+                val isJson = resp.body?.contentType()?.subtype?.contains("json") == true
                 val text = resp.body?.string().orEmpty()
+                if (resp.code in 300..399) return@use ApiResult.Http(502, "Weiterleitung statt cue-Antwort")
                 if (!resp.isSuccessful) return@use ApiResult.Http(resp.code, text.take(300))
                 // Eine 2xx-Antwort, die nicht zur DTO-Form passt (falsche Struktur, unbekannter
                 // Enum-Wert), ist kein Absturz wert — aber auch kein gewöhnlicher Fehler: der
@@ -64,15 +73,25 @@ class CueApi(private val client: OkHttpClient, private val store: TokenStore) : 
                 try {
                     ApiResult.Ok(json.decodeFromString(serializer, text))
                 } catch (e: SerializationException) {
-                    ApiResult.Unreadable(resp.code)
+                    unreadable(resp.code, isJson)
                 } catch (e: IllegalArgumentException) {
-                    ApiResult.Unreadable(resp.code)
+                    unreadable(resp.code, isJson)
                 }
             }
         } catch (e: IOException) {
             ApiResult.Network(e)
         }
     }
+
+    /**
+     * `Unreadable` heißt „der Server hat die Anfrage AUSGEFÜHRT, nur die Antwort passt nicht"
+     * — und für Schreibzugriffe folgt daraus: Op verwerfen, Serverstand holen. Das darf nur
+     * gelten, wenn die Antwort wirklich von cue stammt, also JSON ist. Eine HTML-Seite (Proxy-
+     * Login, Captive Portal) mit 200 ist keine Ausführung; als `Unreadable` gewertet, würde
+     * ein offline angelegter Prompt lokal gelöscht, den der Server nie gesehen hat.
+     */
+    private fun unreadable(code: Int, isJson: Boolean): ApiResult<Nothing> =
+        if (isJson) ApiResult.Unreadable(code) else ApiResult.Http(502, "Keine cue-Antwort")
 
     override suspend fun prompts(): ApiResult<List<PromptDto>> =
         call("GET", "/prompts", serializer = ListSerializer(PromptDto.serializer()))
