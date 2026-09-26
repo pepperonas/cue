@@ -6,6 +6,34 @@ der die Oberfläche liest, der Abgleich schreibt nur hinein. Kein Cookie, kein
 Browser, kein WebView: die App spricht ausschließlich die eigene, schmale
 Fläche `/api/app/*` des cue-Backends (Entwurf: [`docs/superpowers/specs/2026-09-24-android-app-design.md`](../docs/superpowers/specs/2026-09-24-android-app-design.md)).
 
+## Installieren
+
+1. Die APK vom neuesten Release laden:
+   [`android-v*`-Releases](https://github.com/pepperonas/cue/releases?q=android-v&expanded=true)
+   (`cue-<version>.apk`) und installieren — Android fragt einmalig nach der
+   Erlaubnis, Apps aus dieser Quelle zu installieren.
+2. In der cue-Web-App **Einstellungen → Geräte → Gerät anlegen**. Der Token
+   wird **genau einmal** angezeigt (gespeichert wird nur sein Hash).
+3. In der App unter Einstellungen Server-Adresse (`https://cue.celox.io`) und
+   Token einfügen („Einfügen" nimmt die Zwischenablage; Leerzeichen und
+   Zeilenumbrüche aus dem Kopieren werden entfernt), „Verbinden".
+
+Ein Gerät lässt sich in der Web-App jederzeit sperren — die App löscht dann
+beim nächsten Abgleich ihre lokale Kopie und meldet „Gerät gesperrt".
+
+**Echtheit prüfen** (optional): jede Release-APK ist mit demselben Schlüssel
+signiert.
+
+```bash
+apksigner verify --print-certs cue-0.1.0.apk
+# Signer #1 certificate DN: CN=Martin Pfeffer, O=celox.io, L=Munich, C=DE
+# Signer #1 certificate SHA-256 digest:
+#   8b94fc80686e1090e87c4f5904cd3432bdbe60649198a073a096bbf345e38121
+```
+
+Die Debug-Variante (`io.celox.cue.debug`) ist ein eigenes Paket und steht
+neben der Release-App; ein Update über sie hinweg geht nicht.
+
 ## Was die App kann
 
 - **Liste** — alle Prompts, nach Status gruppiert, Suche über Titel, Text,
@@ -88,6 +116,21 @@ Passwörter leben ausschließlich in GitHub-Secrets (`KEYSTORE_BASE64`,
 `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), niemals im Code. Der Lauf
 bricht ab, wenn die Version im Tag (`android-v0.2.0`) nicht dem `versionName`
 in `app/build.gradle.kts` entspricht.
+
+Nächstes Release:
+
+1. In `app/build.gradle.kts` `versionCode` um 1 erhöhen und `versionName`
+   setzen, Eintrag im `CHANGELOG.md` der Wurzel.
+2. Vorher den R8-Build auf dem Emulator gegen ein lokales Backend
+   durchspielen — Debug-Build und Unit-Tests sehen R8 nicht. Dafür eine
+   **wegwerfbare** Kopie der Debug-Netzwerkkonfiguration nach `src/release/`
+   legen (das Release erlaubt kein `http://`), bauen, testen, **löschen**.
+3. Committen, pushen, `git tag -a android-vX.Y.Z -m "…" && git push origin android-vX.Y.Z`,
+   dann `gh run watch` und die heruntergeladene APK mit `apksigner` prüfen.
+
+Der Schlüssel liegt gesichert im privaten Repo `pepperonas/keystore`
+(`cue-keystore/`); ohne ihn lässt sich kein Update über eine bestehende
+Installation einspielen.
 
 Lokal (mit einer `keystore.properties`, die niemals committet wird):
 

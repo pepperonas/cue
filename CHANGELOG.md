@@ -7,7 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- **Android-App 0.1.0** (`android/`): eine kleine native App zum Lesen,
+- **Android-App 0.1.0 — veröffentlicht als `android-v0.1.0` (2026-09-26)**,
+  signierte APK am GitHub-Release (`android/`): eine kleine native App zum Lesen,
   Suchen, Kopieren, Anlegen und Bearbeiten von Prompts unterwegs — offline
   benutzbar, Room ist die Quelle, aus der die Oberfläche liest. Sie spricht
   ausschließlich `/api/app/*` über einen Geräte-Token (kein Cookie) und kennt
@@ -19,6 +20,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   im Baum). Details: [`android/README.md`](android/README.md). Ändert die
   Server-Version nicht (die App hat ihre eigene Versionsnummer,
   `android/app/build.gradle.kts`).
+- **`contracts/app-api.json`**: die Status-/Prioritätswerte und das Format des
+  Geräte-Tokens als gemeinsamer Vertrag, geprüft von
+  `backend/tests/test_app_api_contract.py` und `AppApiContractTest.kt` —
+  ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
+  jeden Abruf als unlesbar verwirft.
 
 ## [0.74.0] - 2026-09-25
 

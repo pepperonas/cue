@@ -80,7 +80,7 @@ noch nicht in der Hauptdatei stehen).
 
 ### Datenmodell
 
-18 Tabellen. Der Kern:
+23 Tabellen. Der Kern:
 
 ```
 User ──┬── Project ──┐
@@ -187,10 +187,10 @@ App. Ein vollständiges Abbild gibt es längst unter `GET /api/export`. Was es
 nicht gibt, bekommt kein Feld; `"project": null` behauptete eine leere
 Zuordnung, wo schlicht keine getroffen wurde.
 
-## Eine Regel, drei Spiegel: die Spaltenordnung
+## Eine Regel, vier Spiegel: die Spaltenordnung
 
-In welcher Reihenfolge Karten in einer Spalte stehen, ist an **drei** Stellen
-formuliert — und das ist kein Versehen, sondern die Konsequenz aus drei
+In welcher Reihenfolge Karten in einer Spalte stehen, ist an **vier** Stellen
+formuliert — und das ist kein Versehen, sondern die Konsequenz aus
 verschiedenen Laufzeiten:
 
 | Ort | Wofür |
@@ -198,12 +198,14 @@ verschiedenen Laufzeiten:
 | `backend/app/ordering.py` → `display_key` | wo eine gezogene Karte einsortiert wird (der Anker ist eine *sichtbare* Nachbarkarte) |
 | `frontend/src/lib/order.ts` → `columnComparator` | was der Browser malt |
 | `ordering.py` → `BOARD_ORDER_SQL` | das `ORDER BY`, mit dem `db._repair_sort_order` beim Start durchnummeriert |
+| `android/…/core/ColumnOrder.kt` → `columnComparator` | was die Android-App malt |
 
 Driften sie auseinander, wird ein Drag **gespeichert und tut trotzdem nichts** —
 genau das ist hier schon passiert. Deshalb liegt der Vertrag als Datei vor:
 `contracts/column-order.json` beschreibt 18 Fälle, und dieselben Fälle laufen in
 `backend/tests/test_ordering_contract.py`, in
-`frontend/src/lib/order.contract.test.ts` und zusätzlich einmal durch echtes
+`frontend/src/lib/order.contract.test.ts`, in
+`android/…/core/ColumnOrderContractTest.kt` und zusätzlich einmal durch echtes
 SQLite. Wer eine Regel ändert, ändert den Vertrag; wer nur eine Sprache anfasst,
 bekommt zwei rote Suiten.
 
@@ -359,6 +361,26 @@ Ausdruck über eine Werkzeugausgabe, jede Ableitung aus einem Manifest) liegen i
 noch Holen und Schreiben. Der Grund ist der Fehlermodus: ein Muster, das
 lautlos nicht mehr greift, macht aus jedem Badge eine selbstbewusste Lüge — und
 Badges sind das Erste, was jemand liest.
+
+## Die Android-App (`android/`)
+
+Ein zweiter Client neben dem Browser, mit Absicht schmal. Er spricht
+**ausschließlich** `/api/app/*` — sechs Routen hinter einem Geräte-Token
+(`app/devices.py`, gespeichert wird nur der SHA-256), auf einem eigenen Router
+(`routers/app_api.py`), dessen Handler die Cookie-Handler direkt aufrufen: jede
+Regel (Titel ableiten, Tags, Bug-nach-oben, Statusregeln) gibt es damit genau
+einmal. `deps.user_for` ist das eine Tor für alle sechs; `/app/changes` ist
+derselbe Long-Poll wie `/api/changes`, prüft das Gerät aber bei jedem Takt neu,
+damit ein Sperren eine parkende Anfrage sofort beendet.
+
+Auf dem Telefon ist **Room die Quelle, aus der die Oberfläche liest**; der
+Abgleich schreibt nur hinein. Änderungen gehen durch eine Warteschlange mit
+genau einem Eintrag je Prompt, offline angelegte Prompts tragen negative
+lokale IDs, die beim Übernehmen der Server-ID über eine Alias-Tabelle weiter
+auffindbar bleiben. Nur 401/403 heißen „gesperrt" (lokale Kopie löschen) —
+Zeitablauf und 5xx heißen „später nochmal". Details:
+[`../android/README.md`](../android/README.md) und der Abschnitt
+„Android-App" in [`../CLAUDE.md`](../CLAUDE.md).
 
 ## Weiterlesen
 

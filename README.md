@@ -25,27 +25,27 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 
 <!-- hero:dynamic -->
 [![version](https://img.shields.io/badge/version-v0.74.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-39%20362-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-39%20725-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1685%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-733-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-1747%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-739-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-760-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-816-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
-[![test files](https://img.shields.io/badge/test%20files-83-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-84-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-17%20138-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-17%20363-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-12%20961-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20417-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-4%20984-663399.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20667-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20097-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-184-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-42-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-56-61DAFB.svg)](frontend/src/components/)
@@ -57,8 +57,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-106-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-93-blue.svg)](CHANGELOG.md)
-[![last release](https://img.shields.io/badge/last%20release-2026--09--24-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-94-blue.svg)](CHANGELOG.md)
+[![last release](https://img.shields.io/badge/last%20release-2026--09--25-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -134,6 +134,12 @@ Fläche `/api/app/*` (Geräte-Token statt Cookie-Session) und kennt bewusst
 keine Läufe, kein Tippen in eine CLI-Sitzung, keine KI-Optimierung, keine
 Statistik und keine Snippets. Einrichtung, Bauen, Tests und Release stehen in
 [`android/README.md`](android/README.md).
+
+**Download:** die signierte APK hängt am jeweils neuesten
+[`android-v*`-Release](https://github.com/pepperonas/cue/releases?q=android-v&expanded=true)
+(aktuell 0.1.0). Nach der Installation in der Web-App unter
+**Einstellungen → Geräte** ein Gerät anlegen und Server-Adresse + Token in der
+App einfügen.
 
 ## Dokumentation
 
@@ -274,11 +280,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 733 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 739 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 760 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 816 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1685** | | |
+| **Gesamt** | | **1747** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

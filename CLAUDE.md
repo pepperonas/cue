@@ -343,9 +343,10 @@ into it. Own doc: [`android/README.md`](android/README.md); design doc:
   token store (`data/auth/TokenStore.kt`, `EncryptedSharedPreferences`) must
   never end up in an Auto Backup snapshot that could be restored onto another
   device.
-- **Column order is mirrored THREE times, not two**: backend
-  `app/ordering.py:display_key`, web `lib/order.ts:columnComparator`, and
-  Android `core/ColumnOrder.kt:columnComparator`. All three are pinned
+- **Column order is mirrored FOUR times**: backend
+  `app/ordering.py:display_key` + `BOARD_ORDER_SQL`, web
+  `lib/order.ts:columnComparator`, and Android
+  `core/ColumnOrder.kt:columnComparator`. All of them are pinned
   against the one shared contract `contracts/column-order.json`
   (`ColumnOrderContractTest` on the Android side) — changing the rule in one
   place without the contract drifts silently, exactly the failure mode the
