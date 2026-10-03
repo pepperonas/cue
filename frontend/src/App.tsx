@@ -899,6 +899,16 @@ function Shell({
     setDetail(p)
   }
 
+  // Double click on a board card: the detail sheet opens straight in edit
+  // mode — the same sheet and form "e"/„Bearbeiten" lead to, just one step
+  // shorter. Copying stays one click away on the card's copy button.
+  function editFromBoard(p: Prompt) {
+    if (selectMode) return
+    setSelectedId(p.id)
+    setDetail(p)
+    setEditDetailId(p.id)
+  }
+
   return (
     <div className="app">
       {demo && <DemoBanner />}
@@ -1050,6 +1060,7 @@ function Shell({
                 selectedId={selectedId}
                 onOpen={openDetail}
                 onCopy={handleCopy}
+                onEdit={editFromBoard}
                 onDuplicate={handleDuplicate}
                 onToggleBookmark={handleToggleBookmark}
                 onToggleTested={handleToggleTested}

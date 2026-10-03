@@ -27,6 +27,8 @@ interface Props {
   index: number
   onOpen: (p: Prompt) => void
   onCopy: (p: Prompt) => void
+  /** Double click opens the prompt straight in edit mode; without it a double click copies. */
+  onEdit?: (p: Prompt) => void
   onDuplicate?: (p: Prompt) => void
   onToggleBookmark?: (p: Prompt) => void
   onToggleTested?: (p: Prompt) => void
@@ -52,6 +54,7 @@ export function PromptCard({
   index,
   onOpen,
   onCopy,
+  onEdit,
   onDuplicate,
   onToggleBookmark,
   onToggleTested,
@@ -91,7 +94,7 @@ export function PromptCard({
 
   const tones = project ? projectTones(project.color, dark) : null
 
-  // Single click opens the detail; double click copies. A short timer
+  // Single click opens the detail; double click edits (board) or copies. A short timer
   // discriminates the two so a double click never flashes the detail open.
   const clickTimer = useRef<number | null>(null)
   useEffect(
@@ -122,12 +125,13 @@ export function PromptCard({
     }, 200)
   }
   function handleDoubleClick(e: React.MouseEvent) {
-    if (e.metaKey || e.ctrlKey) return // two fast mod+clicks are selection toggles, not a copy
+    if (e.metaKey || e.ctrlKey) return // two fast mod+clicks are selection toggles, not an edit/copy
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current)
       clickTimer.current = null
     }
-    onCopy(prompt)
+    if (onEdit) onEdit(prompt)
+    else onCopy(prompt)
   }
 
   return (
@@ -147,7 +151,13 @@ export function PromptCard({
           carried ? 'carried' : ''
         }`}
         data-prompt-id={prompt.id}
-        title={selectMode ? undefined : 'Doppelklick kopiert den Prompt'}
+        title={
+          selectMode
+            ? undefined
+            : onEdit
+              ? 'Doppelklick öffnet den Prompt zum Bearbeiten'
+              : 'Doppelklick kopiert den Prompt'
+        }
         {...(draggable ? attributes : {})}
         {...(draggable ? listeners : {})}
         onClick={handleClick}

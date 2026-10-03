@@ -197,7 +197,7 @@ const vitestCount = () => parseVitestList(run('frontend', 'pnpm', ['-s', 'vitest
  *  throw — the output is on the error, so read it from there. */
 function scriptTestCount() {
   try {
-    return parseNodeTestCount(run('.', 'node', ['--test', 'scripts/tests/']))
+    return parseNodeTestCount(run('.', 'node', ['--test', 'scripts/tests/*.test.mjs']))
   } catch (err) {
     return parseNodeTestCount(err.stdout ?? '')
   }

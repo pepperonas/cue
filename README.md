@@ -24,8 +24,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.74.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-39%20725-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.75.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-39%20749-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
@@ -44,7 +44,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-12%20961-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20667-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20691-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20097-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-184-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-42-3178C6.svg)](frontend/src/lib/)
@@ -57,8 +57,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-106-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-94-blue.svg)](CHANGELOG.md)
-[![last release](https://img.shields.io/badge/last%20release-2026--09--25-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-95-blue.svg)](CHANGELOG.md)
+[![last release](https://img.shields.io/badge/last%20release-2026--10--04-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -205,7 +205,7 @@ App einfügen.
 - **Landing Page** unter `/willkommen`: erklärt die App und ist teilbar. Eingeloggt landest du auf `/` **direkt** in der App — ohne Zwischenschritt; Besucher sehen die Landing Page mit Google-Login als CTA. Zurück geht es jederzeit über den **„Startseite"-Knopf** in der Kopfleiste (oder den Klick auf den Schriftzug); wer eingeloggt zurückkommt, sieht dieselbe Seite mit „Zur App". Kein Router-Paket — 50 Zeilen History-API, Theme und Komponenten kommen aus der App.
 - **Über cue** (Einstellungen, letzter Abschnitt): Version, Entwickler, Spenden-Knopf, „Auf Google Maps bewerten" und der **aufklappbare Changelog** — und zwar die Datei `CHANGELOG.md` selbst, beim Bauen eingebettet statt als zweite, gepflegte Liste. Der Eintrag der laufenden Version ist als „installiert" markiert. Geladen wird der Verlauf erst beim Aufklappen (eigener Chunk, bewusst nicht im PWA-Precache).
 - **Statistiken**: eigener Tab mit Analytics-Dashboard — KPI-Kacheln mit Sparkline und Vergleich zur Vorperiode (erstellt / erledigt / bearbeitet / gelöscht / CLI-Prompts / Serie / Durchlaufzeit / Backlog) und Sektionen für **Prompts** (Zeitverlauf, Statusverteilung, Längen), **Nutzung** (Aktivitätskalender, Wochentag×Stunde-Heatmap, Wochentags-Radar, Tageszeiten, Streaks), **Projekte** (Top-Listen, Treemap, zuletzt verwendet), **Tags** (Top, Wolke, Vokabular-Wachstum) **KI-Runs** (Kostenverlauf, Erfolgsquote, Laufzeit) und **Prompt-Optimierung** (wie viele Prompts die KI umgeschrieben hat, Kosten gesamt / je Prompt / je Versuch, Einzelwerte je Prompt, Erfolgs- und Übernahmequote, Kosten je Modell, Median-Längenfaktor). ⚠️ Auf dem CLI-Weg sind die Kosten die von der **Claude-CLI gemeldeten** Werte, keine Hochrechnung aus Tokenpreisen — die gespeicherten Input-Tokens enthalten keine Cache-Eingaben (live: 68 Tokens für 14 125 Zeichen), eine Preis-mal-Tokens-Rechnung wäre schlicht falsch. Versuche ohne Kostenmeldung werden als „nicht erfasst" ausgewiesen statt als 0 mitgemittelt. Auf dem **API-Weg** ist es umgekehrt: dort meldet die API vollständige Token-Zahlen und gar keinen Preis, also wird aus der Preistabelle gerechnet — eine Schätzung mit Stand-Datum. Zeitraum umschaltbar von **Heute bis Gesamt** inkl. **benutzerdefiniertem** Bereich; Tages-/Stundenraster in der **Zeitzone des Browsers**. Charts mit Recharts, nur in diesem Tab nachgeladen.
-- **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf Karte/Listenzeile kopiert ebenfalls.
+- **1-Klick-Copy** auf jeder Karte + im Detail, mit Toast (optional Status `queued → running`); **Doppelklick** auf eine Listenzeile oder Bookmark-Karte kopiert ebenfalls; **auf dem Board öffnet ein Doppelklick die Karte direkt zum Bearbeiten**.
 - **Im Dialog** selektiert `Cmd/Ctrl+A` nur den Prompt (nicht die Seite dahinter); `Cmd/Ctrl+C` kopiert ihn — direkt auch ohne Auswahl. **Doppelklick auf den Inhalt** (oder `e`, oder „Bearbeiten“) schaltet **denselben Dialog** ins Formular um, statt einen zweiten zu öffnen: Kopf, Felder und Aktionszeile blenden versetzt um, das Formular steigt von unten, die zurückkehrende Ansicht senkt sich von oben. `Cmd/Ctrl+Enter` speichert — egal, wo der Fokus liegt — und **schließt den Dialog**, genau wie beim Anlegen: die Karte dahinter trägt den neuen Text bereits. Escape verlässt erst das Formular, beim zweiten Druck den Dialog.
 - **Projekt/Repo-Gruppierung** mit farbcodierten Badges + Filter-Chips. Jeder Chip zeigt, **wie viel dort offen ist** — Queued plus Running, **ohne blockierte** Prompts; wo nichts offen ist, steht auch keine Zahl. Projekte mit offenen Prompts stehen dynamisch nach ihrer Anzahl vorn. Die Badges ohne Zahl sind direkt im Board per Drag & Drop sortierbar; ihre Position wird als unsichtbare Prioritätenliste gespeichert und bleibt nach Reload erhalten. Ein neuer Prompt übernimmt das zuletzt genutzte Projekt. Im Prompt-Detail öffnet der **Projekt-Badge ein Menü**: Prompt in ein anderes Projekt **verschieben** oder als **Kopie** (inkl. Screenshots, landet als Queued) dorthin **duplizieren**.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft und **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
@@ -273,7 +273,7 @@ npm test                 # alle vier Suiten + Lint, danach die Badges (posttest)
 npm run test:backend     # cd backend    && uv run pytest -q
 npm run test:runner      # cd cue-runner && .venv/bin/python -m pytest -q
 npm run test:frontend    # cd frontend   && pnpm vitest run
-npm run test:scripts     # node --test scripts/tests/
+npm run test:scripts     # node --test "scripts/tests/*.test.mjs"
 cd frontend && pnpm typecheck
 ```
 

@@ -26,6 +26,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.75.0] - 2026-10-04
+
+### Changed
+- **Doppelklick auf eine Board-Karte öffnet den Prompt direkt im
+  Bearbeitungsmodus** statt ihn zu kopieren — derselbe Detail-Dialog mit
+  demselben Formular, das auch `e` oder „Bearbeiten“ öffnen. Kopieren bleibt
+  einen Klick entfernt (Kopier-Knopf auf der Karte). Listenansicht und
+  Bookmarks kopieren beim Doppelklick weiterhin.
+
 ## [0.74.0] - 2026-09-25
 
 ### Added

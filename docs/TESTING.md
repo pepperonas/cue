@@ -10,7 +10,7 @@ npm test          # Lint, Typecheck, alle vier Suiten, danach die Badges (postte
 npm run test:backend     # cd backend    && uv run pytest -q
 npm run test:runner      # cd cue-runner && .venv/bin/python -m pytest -q
 npm run test:frontend    # cd frontend   && pnpm vitest run
-npm run test:scripts     # node --test scripts/tests/
+npm run test:scripts     # node --test "scripts/tests/*.test.mjs"
 npm run lint             # eslint (Fehler blockieren, Warnungen sind ein geprüfter Rückstand)
 npm run typecheck        # tsc -b — ⚠️ vitest transpiliert nur, es prüft KEINE Typen:
                          #   ein Testaufruf mit falscher Signatur läuft grün durch

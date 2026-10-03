@@ -6,7 +6,7 @@
     "test:backend": "cd backend && uv run pytest -q",
     "test:runner": "cd cue-runner && .venv/bin/python -m pytest -q",
     "test:frontend": "cd frontend && pnpm vitest run",
-    "test:scripts": "node --test scripts/tests/",
+    "test:scripts": "node --test \"scripts/tests/*.test.mjs\"",
     "posttest": "npm run update-badges",
     "update-badges": "node scripts/update-badges.mjs",
     "lint": "cd frontend && pnpm lint",
