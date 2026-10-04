@@ -46,6 +46,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Bewusst gelöschte Modelle bleiben gelöscht, ein gewählter (oder bewusst
   aufgehobener) Standard bleibt unangetastet, und ein gleichnamiger oder
   gleich kennzeichneter Eintrag wird nicht verdoppelt.
+- Neue Tests: `test_ai_catalog.py` hält den Start-Katalog an seine
+  Invarianten (eindeutig, ein Standard, bekannte Anbieter, Preis je
+  Claude-Modell, gleicher Standard wie die Preistabelle, Auflösung der von der
+  Optimierung gemeldeten Modellnamen); weitere Fälle für die Tag-Erkennung
+  (deutsche Wortformen, „ui“ nur als ganzes Wort, Titel vor Text, Grenze) und
+  für die Standard-Anzeige im Editor. Alle neuen Prüfungen mit Mutationsprobe.
 - Die Preistabelle der serverseitigen Optimierung kennt Opus 5.5, Fable 5.1
   und Sonnet 5.5; Standard dort ist jetzt Opus 5.5 ($4/$20 je Mio. Tokens).
   Opus 5 und Sonnet 5 bleiben als Legacy bepreist, und eine Optimierung, die

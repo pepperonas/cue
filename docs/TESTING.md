@@ -138,6 +138,22 @@ ohne sie hoch, und der Fehler landete beim Import in Produktion — nachdem der
 Health-Check den Container bereits getauscht hatte. Die Mutationsprobe war
 derselbe Ausfall, absichtlich wiederholt.
 
+## Handgepflegte Tabellen bekommen Invarianten
+
+Zwei Dateien sind keine Logik, sondern Daten, die bei jeder Auffrischung von
+Hand angefasst werden: der Modell-Katalog (`backend/app/aimodels/catalog.py`)
+und die Tag-Regeln (`frontend/src/lib/tag-rules.ts`). Für sie gibt es keine
+HTTP-Sicht, die einen Tippfehler zeigen würde — deshalb prüfen
+`backend/tests/test_ai_catalog.py` und `tag-rules.test.ts` die Tabellen
+**direkt**, als Ausnahme von der Black-Box-Regel: eindeutige Namen und
+Kennungen, genau ein Standard, nur bekannte Anbieter, eine gültige
+Fassungsnummer je Eintrag, ein Preis für jedes Claude-Modell, derselbe Standard
+in Katalog und Preistabelle; bei den Tags, dass jedes Regelziel im kuratierten
+Katalog steht und typische deutsche Formulierungen den richtigen Tag treffen.
+Das Nachreichen neuer Katalog-Einträge an bestehende Konten ist dagegen
+Verhalten und wird über die API geprüft (`test_ai_models.py`: nur Neues, nichts
+Gelöschtes zurück, Standard unangetastet, auch ein bewusst aufgehobener).
+
 ## Zwei weitere grün-blinde Tests (Herkunft der Regel oben)
 
 Beide stammen aus dem Ausbau der Statistik und der Optimierung und sind gute

@@ -96,3 +96,57 @@ describe('rule table', () => {
     expect(new Set(targets).size).toBe(targets.length)
   })
 })
+
+describe('autoTags — German word forms and edge cases', () => {
+  it.each([
+    ['Fehlerbehebung im Export', 'bugfix'],
+    ['Absturz beim Start', 'bugfix'],
+    ['Speichern klappt nicht', 'bugfix'],
+    ['Verbesserungen am Board', 'improvement'],
+    ['Dialog überarbeiten', 'improvement'],
+    ['Performance optimieren', 'optimization'],
+    ['Export implementieren', 'feature'],
+    ['Neue Funktion: Archiv', 'feature'],
+    ['README ergänzen', 'documentation'],
+    ['Code aufräumen', 'refactor'],
+    ['Seite lädt zu langsam', 'performance'],
+    ['Übersetzung für Englisch', 'i18n'],
+    ['UI der Einstellungen', 'gui'],
+  ])('%s → %s', (titel, tag) => {
+    expect(autoTags(titel)).toContain(tag)
+  })
+
+  it('is case-insensitive', () => {
+    expect(autoTags('BEHEBE FEHLER')).toEqual(autoTags('behebe fehler'))
+  })
+
+  it('matches "ui" only as a whole word', () => {
+    expect(autoTags('build pipeline')).not.toContain('gui')
+    expect(autoTags('quiet mode')).not.toContain('gui')
+  })
+
+  it('a tag found in both title and body appears once', () => {
+    expect(autoTags('Fehler im Login', 'der Fehler tritt beim Login auf')).toEqual(['bugfix'])
+  })
+
+  it('the title fills the limit before the body is read', () => {
+    const tags = autoTags('doku fehler animation', 'bitte auch schneller machen')
+    expect(tags).toEqual(['documentation', 'bugfix', 'animation'])
+  })
+
+  it('an explicit limit is honoured', () => {
+    expect(autoTags('doku fehler animation', '', 1)).toEqual(['documentation'])
+  })
+
+  it('an empty title with a body still yields the safe body tags', () => {
+    expect(autoTags('', 'behebe den Absturz')).toEqual(['bugfix'])
+    expect(autoTags('', 'neuer Button im Dialog')).toEqual([])
+  })
+
+  it('deriveTags marks body mode by skipping title-only rules', () => {
+    expect(deriveTags('teste den export').map((d) => d.tag)).toContain('testing')
+    expect(deriveTags('teste den export', { body: true }).map((d) => d.tag)).not.toContain(
+      'testing',
+    )
+  })
+})

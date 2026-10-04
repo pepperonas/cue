@@ -224,7 +224,7 @@ Katalog kostet nichts und gehört zum eigenen Konto.
 
 | Methode | Pfad | Beschreibung |
 | --- | --- | --- |
-| `GET` | `/models` | Katalog mit Nutzungszahl je Modell, die bekannten Anbieter und der Stand der hinterlegten Recherche. Legt beim ersten Aufruf die recherchierten Start-Modelle an — genau einmal je Mandant (Merker `User.ai_models_seeded`). `?include_disabled=false` blendet Deaktiviertes aus. |
+| `GET` | `/models` | Katalog mit Nutzungszahl je Modell, die bekannten Anbieter und der Stand der hinterlegten Recherche. Legt beim ersten Aufruf die recherchierten Start-Modelle an (Claude, OpenAI Codex, Google Antigravity · Gemini) — genau einmal je Mandant (Merker `User.ai_models_seeded`). Bringt eine neue Katalog-Fassung Modelle mit, reicht derselbe Aufruf **nur die neuen** nach (`User.ai_models_catalog`); Gelöschtes und der gewählte Standard bleiben unangetastet. `?include_disabled=false` blendet Deaktiviertes aus. |
 | `POST` | `/models` | Eigenes Modell anlegen. Name eindeutig je Mandant (ohne Rücksicht auf Groß-/Kleinschreibung), 409 bei Dopplung. |
 | `PATCH` | `/models/{model_id}` | Umbenennen, Anbieter/API-Kennung/Beschreibung/Farbe ändern, deaktivieren (`enabled`), zum Standard machen (`is_default`). |
 | `POST` | `/models/reorder` | Reihenfolge setzen (`{ids}`), wie bei den Projekten. |

@@ -32,6 +32,12 @@ describe('tagsReadyForInput', () => {
     expect(tagsReadyForInput('documentation, gui')).toBe('documentation, gui, ')
     expect(tagsReadyForInput('a,A , b')).toBe('a, b, ')
   })
+  it('drops duplicates and blanks before closing', () => {
+    expect(tagsReadyForInput('GUI, gui ,, feature')).toBe('GUI, feature, ')
+  })
+  it('is idempotent on an already closed value', () => {
+    expect(tagsReadyForInput(tagsReadyForInput('a, b'))).toBe('a, b, ')
+  })
   it('leaves an empty field empty', () => {
     expect(tagsReadyForInput('')).toBe('')
     expect(tagsReadyForInput(null)).toBe('')

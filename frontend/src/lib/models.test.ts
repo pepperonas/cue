@@ -136,6 +136,16 @@ describe('default model', () => {
     expect(defaultModel([m(1, { is_default: true, enabled: false })])).toBeUndefined()
   })
 
+  it('a default that has been disabled offers nothing', () => {
+    // The server refuses a disabled default — offering it would end in an error.
+    expect(defaultAction([m(1, { is_default: true, enabled: false })], 1)).toBe('none')
+  })
+
+  it('with no default a new prompt shows "no model"', () => {
+    expect(shownModelId([m(1), m(2)], undefined)).toBeNull()
+    expect(defaultAction([m(1), m(2)], shownModelId([m(1), m(2)], undefined))).toBe('none')
+  })
+
   it('offers "set as default" only for an active non-default model', () => {
     expect(defaultAction(liste, 1)).toBe('set')
     expect(defaultAction(liste, 2)).toBe('is')

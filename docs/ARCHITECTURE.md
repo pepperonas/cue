@@ -85,6 +85,7 @@ noch nicht in der Hauptdatei stehen).
 ```
 User ──┬── Project ──┐
        ├── Prompt ───┴── PromptTag ── Tag
+       │     ├── AiModel     (Modell je Prompt, Katalog je Mandant)
        │     ├── PromptOptimization ── OptimizationBatch
        │     ├── PromptEvent   (überlebt seinen Prompt bewusst)
        │     └── Attachment
@@ -186,6 +187,32 @@ im Klartext, und `sort_order`, `bookmark_order`, `merged_from` oder
 App. Ein vollständiges Abbild gibt es längst unter `GET /api/export`. Was es
 nicht gibt, bekommt kein Feld; `"project": null` behauptete eine leere
 Zuordnung, wo schlicht keine getroffen wurde.
+
+## Was cue von sich aus ausfüllt: Tags und Modell
+
+**Tags** leitet `frontend/src/lib/tag-rules.ts` aus dem Geschriebenen ab — rein
+im Browser, ohne Server-Aufruf. Der **Titel** spricht zuerst, der **Prompt-Text**
+ergänzt nur, was der Titel nicht schon sagt. Jede Regel ist eine Liste von
+Wortstämmen („behe“, „fehler“, „funktioniert nicht“ → `bugfix`); ein Stamm
+greift am Wortanfang, mit `*` auch mitten im Wort (deutsche Komposita), mit `!`
+nur als ganzes Wort (`gui!` nicht in „guide“). Regeln mit `titleOnly` zählen im
+Text nicht, weil diese Wörter dort beiläufig fallen („teste das danach“). Zwei
+Stufen: `high` wird eingetragen (höchstens drei), `hint` hebt den Tag nur im
+Vorschlagsmenü nach oben. Eingetragen wird nur, solange das Feld unberührt ist —
+und beim Bearbeiten eines bestehenden Prompts nie.
+
+**Das Modell** kommt aus dem Katalog des Mandanten (`backend/app/aimodels/`).
+Der Start-Katalog in `catalog.py` ist recherchiert, mit Quelle und Stand je
+Anbieter, und trägt eine Fassungsnummer (`KATALOG_VERSION`); jeder Eintrag sagt,
+seit welcher Fassung er dazugehört. Ein Konto merkt sich, welche Fassung es
+bekommen hat (`User.ai_models_catalog`), und erhält bei einer neueren nur die
+neuen Einträge — beim Start und beim nächsten Abruf des Katalogs. So bleibt
+Gelöschtes gelöscht, und das Standardmodell wird nur bei der allerersten
+Belegung gesetzt. Ein neuer Prompt bekommt den Standard serverseitig; der
+Editor zeigt ihn vorab an und bietet „Als Standard für neue Prompts setzen“
+direkt unter der Auswahl. Die Preistabelle der Optimierung
+(`optimization/pricing.py`) meint dasselbe Claude-Modell als Standard — ein
+Test hält beide zusammen.
 
 ## Eine Regel, vier Spiegel: die Spaltenordnung
 

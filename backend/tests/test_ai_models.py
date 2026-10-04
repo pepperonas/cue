@@ -474,3 +474,35 @@ def test_the_catch_up_does_not_set_a_default_the_user_cleared(client):
     _auf_fassung_1()
     namen(client)
     assert [m for m in katalog(client)["models"] if m["is_default"]] == []
+
+
+def test_first_seeding_records_the_catalogue_version(client):
+    from sqlmodel import Session, select
+
+    from app import db
+    from app.aimodels import catalog
+    from app.models import User
+
+    auth(client)
+    namen(client)
+    with Session(db.engine) as s:
+        nutzer = s.exec(select(User).where(User.email == "owner@example.com")).one()
+        assert nutzer.ai_models_seeded is True
+        assert nutzer.ai_models_catalog == catalog.KATALOG_VERSION
+
+
+def test_the_startup_pass_catches_up_an_older_account(client):
+    """Nicht erst beim Blick in den Katalog: die Empfehlung nach einer
+    Optimierung braucht die Einträge schon vorher."""
+    from sqlmodel import Session, select
+
+    from app import db
+    from app.models import AiModel
+
+    auth(client)
+    namen(client)
+    uid = _auf_fassung_1()
+    db._seed_ai_models()
+    with Session(db.engine) as s:
+        kennungen = {m.api_id for m in s.exec(select(AiModel).where(AiModel.user_id == uid))}
+    assert "gemini-3.8-flash" in kennungen
