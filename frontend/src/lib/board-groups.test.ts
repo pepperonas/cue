@@ -11,6 +11,7 @@ import {
   withReorderedTail,
   defaultGroupsOpen,
   groupByProject,
+  shouldGroupByProject,
   isOpen,
   splitTested,
   visibleCards,
@@ -56,6 +57,26 @@ function build(ids: number[], mapping: Record<number, number | null>) {
   const byId = new Map(ids.map((id) => [id, prompt(id, mapping[id] ?? null)]))
   return groupByProject(ids, byId, projects, 'queued')
 }
+
+describe('shouldGroupByProject', () => {
+  it('does not group a column that holds a single project', () => {
+    // The project is picked in the chips — a header plus fold would only repeat it.
+    expect(shouldGroupByProject(build([1, 2, 3], { 1: 1, 2: 1, 3: 1 }))).toBe(false)
+  })
+
+  it('does not group a column that holds only unassigned prompts', () => {
+    expect(shouldGroupByProject(build([1, 2], { 1: null, 2: null }))).toBe(false)
+  })
+
+  it('does not group an empty column', () => {
+    expect(shouldGroupByProject(build([], {}))).toBe(false)
+  })
+
+  it('groups as soon as two projects share a column', () => {
+    expect(shouldGroupByProject(build([1, 2], { 1: 1, 2: 2 }))).toBe(true)
+    expect(shouldGroupByProject(build([1, 2], { 1: 1, 2: null }))).toBe(true)
+  })
+})
 
 describe('groupByProject', () => {
   it('keeps card order and names the group after its project', () => {

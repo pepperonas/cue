@@ -61,6 +61,20 @@ export function groupByProject(
 }
 
 /**
+ * Whether a part of a mobile column should be split into project groups.
+ *
+ * Only when there is something to tell apart: with a single project — because
+ * one is picked in the chips above, or because the column simply holds only
+ * one — a group header repeats what the board already says and adds a second
+ * fold under the status fold, which is exactly the "why do I open this
+ * project again?" a user reported (0.78.0). The cards then sit directly in the
+ * status section.
+ */
+export function shouldGroupByProject(groups: readonly ProjectGroup[]): boolean {
+  return groups.length > 1
+}
+
+/**
  * Should a column's groups start expanded?
  *
  * Short columns stay open (collapsing three cards helps nobody); long ones

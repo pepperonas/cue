@@ -26,6 +26,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.78.0] - 2026-10-04
+
+### Changed
+- **Mobiles Board ohne doppeltes Aufklappen**: Ist oben ein Projekt gewählt,
+  stehen die Karten direkt unter Queued / Running / Done — die zusätzliche,
+  einklappbare Projekt-Gruppe darunter wiederholte nur, was die Chips schon
+  sagen. Dasselbe gilt für jede Spalte, in der nur ein Projekt vorkommt.
+  Gruppiert wird erst, wenn eine Spalte mindestens zwei Projekte enthält
+  (`lib/board-groups.ts:shouldGroupByProject`, mit Tests). Lange Spalten
+  bleiben auf 10 Karten begrenzt, „+N weitere anzeigen" darunter.
+
 ## [0.77.0] - 2026-10-04
 
 ### Added

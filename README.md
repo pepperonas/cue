@@ -24,27 +24,27 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.77.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-40%20030-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.78.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-40%20058-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1807%20passing-brightgreen.svg)](docs/TESTING.md)
+[![tests](https://img.shields.io/badge/tests-1811%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-766-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-849-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-853-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
 [![test files](https://img.shields.io/badge/test%20files-85-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-17%20642-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-17%20659-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-13%20068-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20854-3178C6.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20882-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20108-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-184-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-42-3178C6.svg)](frontend/src/lib/)
@@ -57,7 +57,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-106-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-97-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-98-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--10--04-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
@@ -196,7 +196,7 @@ App einfügen.
 - **Prompt-Capture**: ein `UserPromptSubmit`-Hook protokolliert **jeden** in der Claude-Code-CLI eingegebenen Prompt in cue (Ansicht „Verlauf": eine Karte je Projekt, Sessions als aufklappbare Untergruppen → Prompt-Timeline (neueste zuerst), „in Queue übernehmen"). Projekt-Ableitung übers **Git-Root** des cwd (Gruppierungsordner wie `_customers/` werden übersprungen — jedes Repo wird ein eigenes Projekt), Fallback aufs erste Nicht-`_`-Pfadsegment; per-User Token + Basis-Pfad (multi-tenant).
 - **An CLI-Session senden** (Gegenrichtung, owner-only): einen Prompt aus cue direkt in eine **laufende** Claude-Code-Session tippen — nur einfügen oder gleich ausführen. Über den Mac-Runner via iTerm2 (AppleScript) bzw. tmux (bracketed paste); der Capture-Hook liefert den Terminal-Kontext.
 - **Zentrale Tag-Verwaltung**: Tags sind eine eigene Entität mit ID statt bloßer Textliste — eigener **Tags-Tab** mit Suche, Sortierung (Verwendung/Name/Neueste/Zuletzt genutzt), Verwendungszähler, Herkunft (System/Benutzer) und Anlagedatum. **Umbenennen wirkt global** (alle Prompts ziehen automatisch nach; ein bereits existierender Name führt beide Tags zusammen, ohne Duplikate), **Löschen** zeigt vorher, welche Prompts betroffen sind, und bietet an, den Tag durch einen anderen zu **ersetzen** statt ihn ersatzlos zu entfernen. Neu angelegte Tags stehen sofort projekt- und promptübergreifend im **Autocomplete**, das nach Relevanz sortiert (exakt → Präfix → Wortanfang → Teiltreffer, dann Häufigkeit und letzte Nutzung) und Verwendungszahl bzw. Herkunft direkt anzeigt. Groß-/Kleinschreibung und Leerzeichen werden serverseitig normalisiert, bestehende Tags wurden automatisch migriert. **Bug-Tags priorisieren**: ein neuer Prompt mit Tag `bug` / `bugfix` / `bug-…` landet **oben in der Queued-Spalte** (nur beim Anlegen).
-- **Mobile-Board**: auf dem Smartphone werden die Status-Bereiche zu **einklappbaren Sektionen**, deren Karten nach **Projekt gruppiert** sind — eingeklappt bleiben Projektname, Farbe und Kartenanzahl sichtbar, lange Spalten starten zusammengeklappt und der Zustand hält die Sitzung über. Dazu: Projektfilter als eine scrollbare Zeile statt sechs, 40-px-Touch-Ziele, kompaktere Karten.
+- **Mobile-Board**: auf dem Smartphone werden die Status-Bereiche zu **einklappbaren Sektionen**, deren Karten nach **Projekt gruppiert** sind — eingeklappt bleiben Projektname, Farbe und Kartenanzahl sichtbar, lange Spalten starten zusammengeklappt und der Zustand hält die Sitzung über. Dazu: Projektfilter als eine scrollbare Zeile statt sechs, 40-px-Touch-Ziele, kompaktere Karten. Ist oben ein Projekt gewählt (oder steht in einer Spalte nur ein Projekt), entfällt die Projekt-Gruppe: die Karten stehen dann direkt unter Queued / Running / Done, ohne zweites Auf-/Zuklappen.
 - **Live-Aktualisierung zwischen Geräten**: was auf dem Telefon entsteht, erscheint am Rechner ohne Neuladen — und umgekehrt. Jeder Browser hält dafür genau **eine** Anfrage offen, die antwortet, sobald sich etwas ändert (gemessen: 0,18 s), und bis dahin nichts kostet. Aktualisiert wird nur, was die Änderung wirklich betrifft. Im Hintergrund ruht die Schleife und holt beim Zurückkehren in einer einzigen Anfrage auf.
 - **Dialoge auf dem Telefon** sind **Bottom-Sheets**: volle Breite, an der Unterkante verankert, oben abgerundet, Safe-Area berücksichtigt. **Die Tastatur verdeckt die Knöpfe nicht mehr** — die Dialoge messen den tatsächlich sichtbaren Bereich (Android über den Viewport-Hinweis, iOS über `visualViewport`), und Eingabefelder lösen kein Hineinzoomen auf iOS mehr aus.
 - **Zurück-Geste schließt Dialoge** statt die App: jedes Overlay registriert sich in einem History-Stack, verschachtelte Dialoge werden nacheinander abgebaut, und erst der leere Stack verlässt die App. Escape nutzt exakt dieselbe Reihenfolge.
@@ -283,9 +283,9 @@ cd frontend && pnpm typecheck
 | --- | --- | --: | --: | --- |
 | Backend | `backend/tests/` | 766 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 849 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 853 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1807** | | |
+| **Gesamt** | | **1811** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragOverlay, MeasuringStrategy } from '@dnd-kit/core'
 import type { Announcements, DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -14,6 +14,7 @@ import {
   columnKey,
   defaultGroupsOpen,
   groupByProject,
+  shouldGroupByProject,
   isOpen,
   splitTested,
   visibleCards,
@@ -474,8 +475,22 @@ export function Board({
             // The default follows the PART, not the whole column: a short list
             // of unchecked prompts stays open even when hundreds of tested ones
             // sit folded below it.
+            const groups = groupByProject(ids, byId, projects, keyPrefix)
+            if (!shouldGroupByProject(groups)) {
+              // One project only: no group header, no second fold — the cards
+              // sit directly in the status section, capped like on desktop.
+              const capKey = `${keyPrefix}:flat`
+              const { shown, hidden } = visibleCards(ids, { expanded: expanded[capKey] })
+              if (collect) visibleIds.push(...shown)
+              return [
+                <Fragment key={capKey}>
+                  {shown.map(renderCard)}
+                  {capToggle(capKey, ids.length, hidden)}
+                </Fragment>,
+              ]
+            }
             const groupsOpenByDefault = defaultGroupsOpen(ids.length)
-            return groupByProject(ids, byId, projects, keyPrefix).map((g) => {
+            return groups.map((g) => {
               const groupOpen = isOpen(sections, g.id, groupsOpenByDefault)
               const { shown, hidden } = visibleCards(g.ids, {
                 open: groupOpen,
