@@ -20,6 +20,20 @@ export function normalizeTags(raw: string | null | undefined): string {
   return dedupeTags(raw).join(', ')
 }
 
+/**
+ * Stored tags as the field must show them: closed with ", ".
+ *
+ * Without the separator the last saved tag is still the "current" token, so
+ * whatever the user types next is glued onto it — "documentation, gui" plus
+ * typing "test" became "documentation, guitest" (seen in the edit dialog).
+ * The trailing separator is what `commit()` leaves behind too, and
+ * `normalizeTags` drops it again on save.
+ */
+export function tagsReadyForInput(raw: string | null | undefined): string {
+  const clean = normalizeTags(raw)
+  return clean ? `${clean}, ` : ''
+}
+
 // ---- Suggestion ranking (central vocabulary + curated catalogue) ----------
 
 /** One entry of the autocomplete pool. */

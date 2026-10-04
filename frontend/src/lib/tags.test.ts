@@ -5,6 +5,7 @@ import {
   inlineCompletion,
   mergeSuggestionPool,
   normalizeTags,
+  tagsReadyForInput,
   rankSuggestions,
   relatedTags,
   type TagSuggestion,
@@ -23,6 +24,18 @@ describe('dedupeTags', () => {
     expect(dedupeTags(null)).toEqual([])
     expect(dedupeTags(undefined)).toEqual([])
     expect(dedupeTags('')).toEqual([])
+  })
+})
+
+describe('tagsReadyForInput', () => {
+  it('closes stored tags with a separator so typing starts a new tag', () => {
+    expect(tagsReadyForInput('documentation, gui')).toBe('documentation, gui, ')
+    expect(tagsReadyForInput('a,A , b')).toBe('a, b, ')
+  })
+  it('leaves an empty field empty', () => {
+    expect(tagsReadyForInput('')).toBe('')
+    expect(tagsReadyForInput(null)).toBe('')
+    expect(tagsReadyForInput(' , ')).toBe('')
   })
 })
 

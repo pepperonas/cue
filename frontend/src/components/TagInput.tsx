@@ -27,7 +27,7 @@ interface Props {
 const MAX_SUGGESTIONS = 8
 
 const REASON_HINT = {
-  title: 'Passt zum Titel',
+  title: 'Passt zum Prompt',
   related: 'Wird oft zusammen verwendet',
 } as const
 
@@ -174,6 +174,11 @@ export function TagInput({ id, value, placeholder, suggestions, context, onChang
         value={value}
         placeholder={placeholder}
         autoComplete="off"
+        // Phone keyboards would otherwise "correct" a deliberate "gui" into
+        // "guide" behind the field's back — a tag is a token, not prose.
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         role="combobox"
         aria-expanded={open && matches.length > 0}
         // Both, now: a list below and a completion inside the field.

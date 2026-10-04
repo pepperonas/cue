@@ -19,6 +19,7 @@ import {
   dedupeTags,
   mergeSuggestionPool,
   normalizeTags,
+  tagsReadyForInput,
   relatedTags,
   type RankContext,
   type TagSuggestion,
@@ -146,7 +147,7 @@ export function PromptEditor({
     editing ? editing.ai_model_id : undefined,
   )
   const modelle = useModels().data?.models ?? []
-  const [tags, setTags] = useState(editing?.tags ?? '')
+  const [tags, setTags] = useState(() => tagsReadyForInput(editing?.tags))
   // Tags derived from the title fill the field until the user takes it over.
   // Editing counts as taken over from the start: the tags on an existing prompt
   // are its author's decision, and an unrelated edit must not rewrite them.
@@ -176,7 +177,10 @@ export function PromptEditor({
     () => (title.trim() ? title : (body.split('\n').find((l) => l.trim()) ?? '')),
     [title, body],
   )
-  const derived = useMemo(() => autoTags(tagSource), [tagSource])
+  // The body is the second source (0.76.0): "behebe den Fehler im Dialog" in
+  // the text names a bugfix just as clearly as a title would. It only ever adds
+  // to what the title said, through the rules that are safe in running text.
+  const derived = useMemo(() => autoTags(tagSource, body), [tagSource, body])
   // The field shows exactly what will be saved: the derived tags until the user
   // edits it, their own text from then on. No effect, no state to keep in sync.
   // The trailing ", " is what `commit()` leaves behind after picking a tag too:
@@ -185,10 +189,12 @@ export function PromptEditor({
   const effectiveTags = tagsTouched ? tags : derived.length ? `${derived.join(', ')}, ` : ''
   const tagContext = useMemo<RankContext>(
     () => ({
-      derived: new Set(deriveTags(tagSource).map((d) => d.tag)),
+      derived: new Set(
+        [...deriveTags(tagSource), ...deriveTags(body, { body: true })].map((d) => d.tag),
+      ),
       related: relatedTags(prompts ?? [], dedupeTags(effectiveTags)),
     }),
-    [tagSource, prompts, effectiveTags],
+    [tagSource, body, prompts, effectiveTags],
   )
 
   // Voice dictation (Web Speech API): finalized phrases are appended to the
@@ -630,7 +636,7 @@ export function PromptEditor({
           {!tagsTouched && derived.length > 0 && (
             <div className="auto-tags" aria-live="polite">
               <Icon name="auto_awesome" />
-              <span>Aus dem Titel ergänzt: {derived.map((t) => `#${t}`).join(', ')}</span>
+              <span>Automatisch erkannt: {derived.map((t) => `#${t}`).join(', ')}</span>
               <button
                 className="link-btn"
                 onClick={() => {

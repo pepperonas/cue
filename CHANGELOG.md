@@ -26,6 +26,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.76.0] - 2026-10-04
+
+### Changed
+- **Tags werden deutlich besser erkannt.** Neben dem Titel liest die
+  Erkennung jetzt auch den **Prompt-Text**: „behebe Fehler", „repariere",
+  „funktioniert nicht", „geht nicht" → `bugfix`; „Verbesserung", „überarbeiten",
+  „schöner" → `improvement`; „optimieren" → `optimization`; „füge … hinzu",
+  „implementiere" → `feature`; „Dialog", „Button", „Oberfläche" → `gui`.
+  `improvement`, `optimization`, `feature` und `gui` werden damit
+  automatisch gesetzt statt nur vorgeschlagen. Wörter, die in Fließtext
+  ständig nebenbei fallen („teste das danach", „füge einen Button hinzu"),
+  zählen nur im Titel. Bis zu drei Tags statt zwei.
+
+### Fixed
+- **Tippen hinter vorhandene Tags klebte am letzten Tag fest.** Beim
+  Bearbeiten stand „documentation, gui" ohne abschließendes Komma im Feld;
+  wer „test" tippte, bekam „guitest". Gespeicherte Tags enden jetzt mit „, ",
+  wie nach jedem übernommenen Tag.
+- `gui` feuert nicht mehr auf „guide", und das Tag-Feld schaltet die
+  Autokorrektur des Handys ab, die ein bewusst getipptes „gui" sonst selbst
+  zu „guide" machen kann. Enter übernimmt das Getippte, Tab den Vorschlag.
+
 ## [0.75.0] - 2026-10-04
 
 ### Changed
