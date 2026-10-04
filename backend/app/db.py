@@ -99,6 +99,7 @@ def _migrate(engine: Engine) -> None:
         # ⚠️ Eigener Merker statt „hat der Nutzer Modelle?": wer alle Modelle
         # bewusst gelöscht hat, bekäme sie sonst beim nächsten Start zurück.
         "ai_models_seeded": "ALTER TABLE user ADD COLUMN ai_models_seeded BOOLEAN NOT NULL DEFAULT 0",
+        "ai_models_catalog": "ALTER TABLE user ADD COLUMN ai_models_catalog INTEGER NOT NULL DEFAULT 0",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).
@@ -288,12 +289,20 @@ def _seed_ai_models() -> None:
     """
     from sqlmodel import Session, select
 
+    from sqlalchemy import or_
+
     from .aimodels import AiModelService
+    from .aimodels.catalog import KATALOG_VERSION
     from .models import User
 
     with Session(engine) as session:
         offen = session.exec(
-            select(User.id).where(User.ai_models_seeded == False)  # noqa: E712
+            select(User.id).where(
+                or_(
+                    User.ai_models_seeded == False,  # noqa: E712
+                    User.ai_models_catalog < KATALOG_VERSION,
+                )
+            )
         ).all()
         if not offen:
             return

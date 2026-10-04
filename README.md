@@ -24,28 +24,28 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.76.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-39%20853-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.77.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-40%20030-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1753%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-739-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-1761%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-744-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-822-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-825-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
 [![test files](https://img.shields.io/badge/test%20files-84-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-17%20398-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-17%20489-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-12%20961-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20795-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20097-663399.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-13%20068-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-21%20854-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20108-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-184-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-42-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-56-61DAFB.svg)](frontend/src/components/)
@@ -53,11 +53,11 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-116-8A2BE2.svg)](docs/API.md)
 [![routers](https://img.shields.io/badge/routers-18-8A2BE2.svg)](backend/app/routers/)
 [![DB tables](https://img.shields.io/badge/DB%20tables-23-003B57.svg)](docs/ARCHITECTURE.md)
-[![migrations](https://img.shields.io/badge/migrations-41-003B57.svg)](backend/app/db.py)
+[![migrations](https://img.shields.io/badge/migrations-42-003B57.svg)](backend/app/db.py)
 [![schemas](https://img.shields.io/badge/schemas-106-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-28-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-96-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-97-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--10--04-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
@@ -211,6 +211,7 @@ App einfügen.
 - **Composer** (FAB → Container-Transform) mit Markdown-Editor, Live-Preview, Autosave-Draft und **Tag-Autocomplete** (~1100 kuratierte EN-Dev-Tags + bereits verwendete Tags, dublettenfrei, amerikanische Schreibweise).
 - **Titel vervollständigt sich Wort für Wort**: das Feld zeigt den nächsten Wortvorschlag als graue Fortsetzung hinter dem Cursor, **Enter** übernimmt **genau ein Wort**, danach steht sofort der nächste Vorschlag da; `→` am Feldende tut dasselbe, Escape blendet ihn aus, ohne den Dialog zu schließen. Die Vorschläge stammen aus den **eigenen bisherigen Titeln**, nicht aus einer Wortliste. Die Schwellen sind gemessen, nicht geschätzt: auf leerem Feld trifft ein Rateversuch nur zu 2 % — deshalb kommt dort nie einer; beim Vervollständigen des getippten Wortes sind es 25 / 36 / 51 % bei 1 / 2 / 3 Zeichen, also beginnt der Vorschlag ab dem zweiten Zeichen.
 - **Tags entstehen aus Titel und Text**: „Verbesserung der Suche" trägt `improvement` ein, „behebe Fehler beim Speichern" oder „Login funktioniert nicht" trägt `bugfix` ein, „doku updaten" `documentation`. Das Feld füllt sich, solange man es nicht selbst anfasst, und eine Zeile darunter sagt, was erkannt wurde. Der **Titel** spricht zuerst, der **Prompt-Text** ergänzt — aber nur über Regeln, die in Fließtext nicht fehlzünden („teste das danach" macht keinen `testing`-Prompt). Höchstens drei automatisch, beim **Bearbeiten** eines bestehenden Prompts nie. Im Tag-Feld nimmt **Enter** das Getippte wörtlich („gui"), **Tab** oder → den Vorschlag („guide"); das Komma setzt sich jeweils selbst.
+- **Modell je Prompt**: jeder Prompt hält fest, mit welchem Modell er abgearbeitet werden soll — Badge auf der Karte, Auswahl im Editor, Verwaltung im Tab **Modelle**. Der Start-Katalog ist recherchiert (Quelle und Stand in `backend/app/aimodels/catalog.py`): **Claude** (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 4.5), **OpenAI Codex** (Astra, 6.1 Sol, 6 Luna) und **Google Antigravity · Gemini** (3.8 Flash, 3.1 Pro Preview, 3.7 Flash, 3.5 Flash-Lite). Ein **Standardmodell** bekommt jeder neue Prompt; gesetzt wird es im Tab Modelle (☆) oder direkt unter der Auswahl im Editor („Als Standard für neue Prompts setzen“), und ein neuer Prompt zeigt dort von Anfang an, welches Modell er bekommen wird. Kommen Modelle neu in den Katalog, erhalten bestehende Konten **nur die neuen Einträge** — selbst gelöschte bleiben gelöscht, das eigene Standardmodell bleibt unangetastet.
 - **Zwei Wege, ein Tag zu beenden**: `→` und `Tab` übernehmen den **Vorschlag** (graue Ergänzung bzw. markierte Zeile), **Enter, Leertaste und Komma** speichern **das Getippte wörtlich**. Danach ist das Feld sofort für das nächste Tag bereit und die Liste öffnet wieder — neu sortiert nach dem, was mit dem gerade gesetzten Tag zusammen auftritt. Die Vorschlagstasten greifen nur, solange getippt wird: bei leerem Token trägt `Tab` den Fokus weiter, statt die Tastatur im Feld einzusperren.
 - **Diktat**: Prompts per **Sprachaufzeichnung** erstellen — Mikro-Button am Prompt-Feld (Web Speech API, browser-nativ, kein Server-Roundtrip); erkannte Sätze werden angehängt, Zwischenergebnis läuft live mit. In Browsern ohne Support (Firefox) ausgeblendet.
 - **Snippet-Bibliothek**: Bearbeitungs-Werkbank für die AI-Prompt-Snippets aus **Inspector Rust** — IR-Backup-JSON importieren, in cue gruppieren/bearbeiten (Drag & Drop mit Griffen, sichtbarer Auswahl-Modus mit Gruppen-Select-All, Suche, 1-Klick-Copy des Bodys, Live-Duplikat-Check der Abkürzung, Markdown-Vorschau, **Versionsnummer pro Snippet** (v1 aufwärts, zählt bei inhaltlichen Änderungen hoch)), wieder als IR-Backup exportieren und in IR über „Settings → Backup & restore" zurückspielen. **Verlustfreier Roundtrip** (Merge-Key = Abkürzung, Gruppen reisen per Name, auch leere Gruppen überleben); verschlüsselte Backups werden mit klarer Meldung abgelehnt.
@@ -280,11 +281,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 739 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 744 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 822 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 825 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1753** | | |
+| **Gesamt** | | **1761** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

@@ -213,20 +213,34 @@ class AiModelService:
     # ------------------------------------------------------- Erstbelegung
 
     def seed_defaults(self, user_id: int) -> int:
-        """Die recherchierten Start-Modelle anlegen — genau einmal je Mandant.
+        """Die recherchierten Start-Modelle anlegen — und neue nachreichen.
 
-        Gibt zurück, wie viele angelegt wurden. Der Merker sitzt am Nutzer:
-        „hat keine Modelle" wäre nicht von „hat alle gelöscht" zu unterscheiden.
+        Gibt zurück, wie viele angelegt wurden. Zwei Merker am Nutzer:
+        `ai_models_seeded` (hat überhaupt eine Erstbelegung bekommen — „hat
+        keine Modelle" wäre nicht von „hat alle gelöscht" zu unterscheiden) und
+        `ai_models_catalog` (welche Fassung). Ein Konto mit älterer Fassung
+        bekommt NUR die Einträge, die seitdem dazugekommen sind: Gelöschtes
+        bleibt gelöscht, und das Standardmodell wird nicht umgestellt — das ist
+        die Entscheidung des Nutzers, nicht die eines Katalog-Updates.
         """
         nutzer = self.session.get(User, user_id)
-        if nutzer is None or nutzer.ai_models_seeded:
+        if nutzer is None:
             return 0
+        # Konten aus der Zeit vor dem Fassungs-Zähler haben Fassung 1 bekommen.
+        stand = nutzer.ai_models_catalog or (1 if nutzer.ai_models_seeded else 0)
+        if stand >= catalog.KATALOG_VERSION:
+            return 0
+        erstbelegung = stand == 0
         angelegt = 0
         standard: AiModel | None = None
         for eintrag in catalog.DEFAULTS:
-            # Doppelte überspringen statt abbrechen: ein Nutzer könnte einen
-            # Namen bereits von Hand vergeben haben.
+            if eintrag.seit <= stand:
+                continue
+            # Doppelte überspringen statt abbrechen: ein Nutzer könnte Namen oder
+            # Kennung bereits von Hand vergeben haben.
             if self.repo.by_name_ci(user_id, eintrag.name.lower()):
+                continue
+            if eintrag.api_id and self.repo.by_api_id(user_id, eintrag.api_id):
                 continue
             modell = AiModel(
                 user_id=user_id,
@@ -245,11 +259,18 @@ class AiModelService:
             if eintrag.default:
                 standard = modell
         nutzer.ai_models_seeded = True
+        nutzer.ai_models_catalog = catalog.KATALOG_VERSION
         self.session.add(nutzer)
         self.session.commit()
-        if standard is not None and self.repo.default_for(user_id) is None:
+        if erstbelegung and standard is not None and self.repo.default_for(user_id) is None:
             self.set_default(user_id, standard.id)
-        log.info("ai models seeded user=%s created=%s", user_id, angelegt)
+        log.info(
+            "ai models seeded user=%s from=%s to=%s created=%s",
+            user_id,
+            stand,
+            catalog.KATALOG_VERSION,
+            angelegt,
+        )
         return angelegt
 
     # -------------------------------------------- Empfehlung der Optimierung

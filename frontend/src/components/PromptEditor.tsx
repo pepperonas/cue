@@ -13,7 +13,8 @@ import {
   STATUS_LABEL,
   STATUSES,
 } from '../lib/types'
-import { useCreatePrompt, usePrompts, useTags, useUpdatePrompt } from '../state/queries'
+import { useCreatePrompt, usePrompts, useTags, useUpdateModel, useUpdatePrompt } from '../state/queries'
+import { defaultAction, shownModelId } from '../lib/models'
 import { useToast } from '../state/toast'
 import {
   dedupeTags,
@@ -147,6 +148,8 @@ export function PromptEditor({
     editing ? editing.ai_model_id : undefined,
   )
   const modelle = useModels().data?.models ?? []
+  const setzeStandard = useUpdateModel()
+  const defaultAktion = defaultAction(modelle, shownModelId(modelle, modelId))
   const [tags, setTags] = useState(() => tagsReadyForInput(editing?.tags))
   // Tags derived from the title fill the field until the user takes it over.
   // Editing counts as taken over from the start: the tags on an existing prompt
@@ -611,12 +614,35 @@ export function PromptEditor({
           <ModelBadge
             id={id('model')}
             models={modelle}
-            value={modelId ?? null}
+            value={shownModelId(modelle, modelId)}
             onChange={setModelId}
           />
-          <p className="muted field-note">
-            Mit welchem Modell dieser Prompt abgearbeitet werden soll. Verwaltet
-            wird die Liste unter „Modelle“.
+          <p className="muted field-note model-default-note">
+            {defaultAktion === 'is' ? (
+              <>
+                <Icon name="star" /> Standard für neue Prompts.{' '}
+              </>
+            ) : null}
+            {defaultAktion === 'set' ? (
+              <button
+                type="button"
+                className="link-btn"
+                disabled={setzeStandard.isPending}
+                onClick={() => {
+                  const mid = shownModelId(modelle, modelId)
+                  if (mid == null) return
+                  setzeStandard.mutate(
+                    { id: mid, patch: { is_default: true } },
+                    {
+                      onSuccess: () => toast.show('Als Standard für neue Prompts gesetzt'),
+                    },
+                  )
+                }}
+              >
+                <Icon name="star" /> Als Standard für neue Prompts setzen
+              </button>
+            ) : null}{' '}
+            Verwaltet wird die Liste unter „Modelle“.
           </p>
         </div>
 

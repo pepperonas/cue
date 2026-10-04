@@ -27,7 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: When the rates below were last checked against Anthropic's price list.
-STATE = "2026-06-24"
+STATE = "2026-10-04"
 
 CACHE_WRITE_MULTIPLIER = 1.25
 CACHE_READ_MULTIPLIER = 0.1
@@ -46,9 +46,14 @@ class ModelPrice:
 # constraint-following, not creative range, so the list spans the price scale
 # rather than trying to be complete.
 MODELS: tuple[ModelPrice, ...] = (
+    # https://platform.claude.com/docs/en/about-claude/models/overview (2026-10-04)
+    ModelPrice("claude-opus-5-5", "Claude Opus 5.5", 4.00, 20.00),
+    ModelPrice("claude-fable-5-1", "Claude Fable 5.1", 10.00, 50.00),
+    ModelPrice("claude-sonnet-5-5", "Claude Sonnet 5.5", 2.00, 10.00),
+    ModelPrice("claude-haiku-4-5", "Claude Haiku 4.5", 1.00, 5.00),
+    # Legacy, still served — kept so a stored choice keeps its price.
     ModelPrice("claude-opus-5", "Claude Opus 5", 5.00, 25.00),
     ModelPrice("claude-sonnet-5", "Claude Sonnet 5", 2.00, 10.00),
-    ModelPrice("claude-haiku-4-5", "Claude Haiku 4.5", 1.00, 5.00),
 )
 
 DEFAULT_MODEL = MODELS[0].id

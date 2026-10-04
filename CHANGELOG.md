@@ -26,6 +26,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.77.0] - 2026-10-04
+
+### Added
+- **Google Antigravity · Gemini als Anbieter im Modell-Katalog**: Gemini 3.8
+  Flash (Standard in Antigravity), Gemini 3.1 Pro (Preview), Gemini 3.7 Flash
+  und Gemini 3.5 Flash-Lite — Kennungen von ai.google.dev, Stand 2026-10-04.
+- **Neueste Claude- und OpenAI-Modelle**: Claude Opus 5.5 und Sonnet 5.5
+  (platform.claude.com), Codex 6.1 Sol und Codex 6 Luna (learn.chatgpt.com).
+  Opus 5.5 ist der Standard für neue Konten.
+- **Standardmodell direkt in der Auswahl setzen**: unter der Modell-Auswahl
+  im Editor steht „Als Standard für neue Prompts setzen“ bzw. der Hinweis,
+  dass das gewählte Modell der Standard ist. Ein neuer Prompt zeigt dort
+  sofort das Modell, das er bekommen wird, statt „Kein Modell“.
+
+### Changed
+- **Bestehende Konten bekommen neue Katalog-Einträge nachgereicht** — nur die
+  neuen (Fassungs-Zähler `User.ai_models_catalog`, Katalog-Fassung 2).
+  Bewusst gelöschte Modelle bleiben gelöscht, ein gewählter (oder bewusst
+  aufgehobener) Standard bleibt unangetastet, und ein gleichnamiger oder
+  gleich kennzeichneter Eintrag wird nicht verdoppelt.
+- Die Preistabelle der serverseitigen Optimierung kennt Opus 5.5, Fable 5.1
+  und Sonnet 5.5; Standard dort ist jetzt Opus 5.5 ($4/$20 je Mio. Tokens).
+  Opus 5 und Sonnet 5 bleiben als Legacy bepreist, und eine Optimierung, die
+  noch `claude-opus-5` meldet, findet ihren Katalog-Eintrag weiterhin.
+
 ## [0.76.0] - 2026-10-04
 
 ### Changed

@@ -34,6 +34,15 @@ import type {
 } from './types'
 
 /** Fehler, den die App wie jeden Server-Fehler anzeigt. */
+
+/** Dieselben Anbieter wie `app/aimodels/catalog.py:PROVIDERS`. */
+const DEMO_PROVIDERS: Record<string, { label: string; short: string; color: string }> = {
+  anthropic: { label: 'Claude Code', short: 'CC', color: '#c96442' },
+  openai: { label: 'OpenAI Codex', short: 'CX', color: '#10a37f' },
+  google: { label: 'Antigravity · Gemini', short: 'AG', color: '#4285f4' },
+  custom: { label: 'Eigenes', short: '··', color: '#7d7d8a' },
+}
+
 export class DemoRefusal extends Error {
   readonly status = 400
 }
@@ -365,19 +374,21 @@ export function seedDemo(): DemoState {
   // Derselbe recherchierte Satz wie im Server (`app/aimodels/catalog.py`),
   // damit die Vorschau zeigt, was ein frisches Konto wirklich bekommt.
   const models: AiModel[] = [
-    ['Claude Opus 5', 'claude-opus-5', 'Für komplexe agentische Arbeit. CLI-Alias: opus.', true],
-    ['Claude Fable 5.1', 'claude-fable-5-1', 'Für langes Schlussfolgern. CLI-Alias: fable.', false],
-    ['Claude Sonnet 5', 'claude-sonnet-5', 'Tempo und Tiefe. CLI-Alias: sonnet.', false],
-    ['Claude Haiku 4.5', 'claude-haiku-4-5', 'Das schnellste Modell. CLI-Alias: haiku.', false],
-    ['Codex Astra', 'gpt-6-astra', 'Empfohlen für Codex.', false],
-    ['Codex 5.6 Sol', 'gpt-5.6-sol', '', false],
-  ].map(([name, api, desc, std], i) => ({
+    ['Claude Opus 5.5', 'claude-opus-5-5', 'Für lange agentische Arbeit. CLI-Alias: opus.', true, 'anthropic'],
+    ['Claude Fable 5.1', 'claude-fable-5-1', 'Für langes Schlussfolgern. CLI-Alias: fable.', false, 'anthropic'],
+    ['Claude Sonnet 5.5', 'claude-sonnet-5-5', 'Tempo und Tiefe. CLI-Alias: sonnet.', false, 'anthropic'],
+    ['Claude Haiku 4.5', 'claude-haiku-4-5', 'Das schnellste Modell. CLI-Alias: haiku.', false, 'anthropic'],
+    ['Codex Astra', 'gpt-6-astra', 'Das stärkste Codex-Modell.', false, 'openai'],
+    ['Codex 6.1 Sol', 'gpt-6.1-sol', 'Nahe an Astra, deutlich günstiger.', false, 'openai'],
+    ['Gemini 3.8 Flash', 'gemini-3.8-flash', 'Standard in Antigravity.', false, 'google'],
+    ['Gemini 3.1 Pro (Preview)', 'gemini-3.1-pro-preview', 'Neuestes Pro-Modell.', false, 'google'],
+  ].map(([name, api, desc, std, prov], i) => ({
     id: i + 1,
     name: name as string,
-    provider: i < 4 ? 'anthropic' : 'openai',
-    provider_label: i < 4 ? 'Claude Code' : 'OpenAI Codex',
-    provider_short: i < 4 ? 'CC' : 'CX',
-    color: i < 4 ? '#c96442' : '#10a37f',
+    provider: prov as string,
+    provider_label: DEMO_PROVIDERS[prov as string].label,
+    provider_short: DEMO_PROVIDERS[prov as string].short,
+    color: DEMO_PROVIDERS[prov as string].color,
     api_id: api as string,
     description: desc as string,
     enabled: true,
@@ -671,12 +682,8 @@ export function handleDemoRequest(
     const nutzung = (id: number) => state.prompts.filter((p) => p.ai_model_id === id).length
     return {
       models: state.models.map((m) => ({ ...m, usage: nutzung(m.id) })),
-      providers: [
-        { id: 'anthropic', label: 'Claude Code', short: 'CC', color: '#c96442' },
-        { id: 'openai', label: 'OpenAI Codex', short: 'CX', color: '#10a37f' },
-        { id: 'custom', label: 'Eigenes', short: '··', color: '#7d7d8a' },
-      ],
-      catalog_state: '2026-09-20',
+      providers: Object.entries(DEMO_PROVIDERS).map(([id, p]) => ({ id, ...p })),
+      catalog_state: '2026-10-04',
     }
   }
   if (url === '/models' && method === 'POST') {
@@ -686,18 +693,13 @@ export function handleDemoRequest(
       throw new DemoRefusal(`„${name}“ gibt es bereits`)
     }
     const provider = String(body?.provider ?? 'custom')
-    const farben: Record<string, string> = {
-      anthropic: '#c96442',
-      openai: '#10a37f',
-      custom: '#7d7d8a',
-    }
     const neu: AiModel = {
       id: state.nextId++,
       name,
       provider,
-      provider_label: provider === 'anthropic' ? 'Claude Code' : provider === 'openai' ? 'OpenAI Codex' : 'Eigenes',
-      provider_short: provider === 'anthropic' ? 'CC' : provider === 'openai' ? 'CX' : '··',
-      color: farben[provider] ?? farben.custom,
+      provider_label: (DEMO_PROVIDERS[provider] ?? DEMO_PROVIDERS.custom).label,
+      provider_short: (DEMO_PROVIDERS[provider] ?? DEMO_PROVIDERS.custom).short,
+      color: (DEMO_PROVIDERS[provider] ?? DEMO_PROVIDERS.custom).color,
       api_id: String(body?.api_id ?? ''),
       description: String(body?.description ?? ''),
       enabled: true,

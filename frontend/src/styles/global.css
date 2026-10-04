@@ -5143,3 +5143,15 @@ img.logo-xl { border-radius: 18px; }
 .input.mono {
   font-family: var(--font-mono);
 }
+
+/* Default marker / action beside the model picker (0.77.0). The icon sits on
+   the text baseline instead of pushing the line height up. */
+.model-default-note .material-symbols-rounded {
+  font-size: 1.05em;
+  vertical-align: -0.15em;
+}
+.model-default-note .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

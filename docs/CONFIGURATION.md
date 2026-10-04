@@ -95,7 +95,9 @@ der **Datenbank** (`ai_model`, je Mandant) — dieselbe Begründung wie beim
 API-Schlüssel oben: eine Umgebungsvariable ist eine Aussage des Betreibers über
 die Instanz, der Katalog eine Aussage des Nutzers über seine Arbeit. Die
 Start-Modelle stehen recherchiert in `app/aimodels/catalog.py` (mit Quelle und
-Stand) und werden je Mandant genau einmal angelegt.
+Stand) und werden je Mandant genau einmal angelegt. Kommen in einer neuen
+Katalog-Fassung (Konstante im Code, keine Variable) Modelle hinzu, bekommen bestehende Konten
+genau diese nachgereicht — beim Start und beim nächsten Blick in den Katalog.
 
 ⚠️ `OPTIMIZE_MODEL` ist davon unberührt: es bestimmt, womit **optimiert** wird,
 nicht, womit ein Prompt abgearbeitet werden soll. Nach einer Optimierung setzt

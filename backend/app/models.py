@@ -72,6 +72,8 @@ class User(SQLModel, table=True):
     #: Ob die Modell-Erstbelegung für diesen Mandanten schon gelaufen ist.
     #: Ein Merker, damit ein bewusst leer geräumter Katalog leer bleibt.
     ai_models_seeded: bool = Field(default=False)
+    #: Welche `catalog.KATALOG_VERSION` dieses Konto bekommen hat (0 = alt/unbekannt).
+    ai_models_catalog: int = Field(default=0)
 
 
 class Device(SQLModel, table=True):

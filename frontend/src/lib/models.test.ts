@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   KEIN_MODELL,
   badgeLabel,
+  defaultAction,
+  defaultModel,
+  shownModelId,
   groupByProvider,
   isStale,
   modelOf,
@@ -115,5 +118,29 @@ describe('groupByProvider', () => {
     const g = groupByProvider([m(1, { provider: 'ollama', provider_label: '' })])
     expect(g[0].provider).toBe('ollama')
     expect(g[0].label).toBe('ollama')
+  })
+})
+
+describe('default model', () => {
+  const liste = [m(1), m(2, { is_default: true }), m(3, { enabled: false })]
+
+  it('a new prompt shows the model it is going to get', () => {
+    expect(shownModelId(liste, undefined)).toBe(2)
+    // A deliberate choice — including "none" — is shown as it is.
+    expect(shownModelId(liste, null)).toBeNull()
+    expect(shownModelId(liste, 1)).toBe(1)
+    expect(shownModelId([m(1)], undefined)).toBeNull()
+  })
+
+  it('a disabled default does not count', () => {
+    expect(defaultModel([m(1, { is_default: true, enabled: false })])).toBeUndefined()
+  })
+
+  it('offers "set as default" only for an active non-default model', () => {
+    expect(defaultAction(liste, 1)).toBe('set')
+    expect(defaultAction(liste, 2)).toBe('is')
+    expect(defaultAction(liste, 3)).toBe('none')
+    expect(defaultAction(liste, null)).toBe('none')
+    expect(defaultAction(liste, 99)).toBe('none')
   })
 })

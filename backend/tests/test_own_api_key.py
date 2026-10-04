@@ -288,8 +288,8 @@ def test_the_server_executor_runs_a_job_and_prices_it(client, monkeypatch):
     assert done["status"] == "succeeded"
     assert done["optimized_text"] == "Die umgeschriebene Fassung."
     assert done["input_tokens"] == 1500 and done["output_tokens"] == 1500
-    # 1500 in at $5/Mio + 1500 out at $25/Mio = $0.045.
-    assert done["cost_usd"] == 0.045
+    # Default model Opus 5.5: 1500 in at $4/Mio + 1500 out at $20/Mio = $0.036.
+    assert done["cost_usd"] == 0.036
     # The prompt itself carries the proposal, exactly as on the CLI path.
     assert client.get(f"/api/prompts/{job['prompt_id']}").json()["optimized"] is True
 

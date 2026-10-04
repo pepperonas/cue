@@ -397,7 +397,7 @@ describe('Modell-Katalog in der Demo', () => {
       providers: { id: string }[]
       catalog_state: string
     }
-    expect(k.models.map((m) => m.name)).toContain('Claude Opus 5')
+    expect(k.models.map((m) => m.name)).toContain('Claude Opus 5.5')
     expect(k.models.map((m) => m.name)).toContain('Codex Astra')
     expect(k.models.filter((m) => m.is_default)).toHaveLength(1)
     expect(k.providers.map((p) => p.id)).toContain('openai')
@@ -453,7 +453,7 @@ describe('Modell-Katalog in der Demo', () => {
 
   it('lehnt einen doppelten Namen ab', () => {
     const state = seedDemo()
-    expect(() => handleDemoRequest(state, 'POST', '/models', { name: 'claude opus 5' })).toThrow(
+    expect(() => handleDemoRequest(state, 'POST', '/models', { name: 'claude opus 5.5' })).toThrow(
       /gibt es bereits/,
     )
   })

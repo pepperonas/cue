@@ -43,10 +43,10 @@ def test_the_researched_defaults_are_seeded_on_first_look(client):
     daten = katalog(client)
     liste = [m["name"] for m in daten["models"]]
     # Die Namen stammen aus `aimodels/catalog.py` — Quelle und Stand stehen dort.
-    assert "Claude Opus 5" in liste
+    assert "Claude Opus 5.5" in liste
     assert "Codex Astra" in liste
     assert daten["catalog_state"], "der Stand der Recherche gehört in die Antwort"
-    assert {p["id"] for p in daten["providers"]} >= {"anthropic", "openai", "custom"}
+    assert {p["id"] for p in daten["providers"]} >= {"anthropic", "openai", "google", "custom"}
 
 
 def test_seeding_runs_exactly_once(client):
@@ -65,7 +65,7 @@ def test_exactly_one_model_is_the_default(client):
     auth(client)
     standard = [m for m in katalog(client)["models"] if m["is_default"]]
     assert len(standard) == 1
-    assert standard[0]["name"] == "Claude Opus 5"
+    assert standard[0]["name"] == "Claude Opus 5.5"
 
 
 def test_every_seeded_model_carries_its_api_id(client):
@@ -73,7 +73,7 @@ def test_every_seeded_model_carries_its_api_id(client):
     auth(client)
     for m in katalog(client)["models"]:
         assert m["api_id"], m["name"]
-        assert m["provider"] in ("anthropic", "openai")
+        assert m["provider"] in ("anthropic", "openai", "google")
 
 
 # ------------------------------------------------------------------- CRUD
@@ -100,7 +100,7 @@ def test_names_are_unique_per_tenant_regardless_of_case(client):
 
 def test_renaming_works_and_keeps_the_assignment(client):
     csrf = auth(client)
-    m = modell(client, "Claude Opus 5")
+    m = modell(client, "Claude Opus 5.5")
     p = prompt(client, csrf, ai_model_id=m["id"])
     r = client.patch(f"/api/models/{m['id']}", json={"name": "Opus"}, headers=hdr(csrf))
     assert r.status_code == 200, r.text
@@ -114,18 +114,18 @@ def test_renaming_works_and_keeps_the_assignment(client):
 def test_only_the_case_may_be_corrected(client):
     """Sonst ließe sich „claude opus“ nicht zu „Claude Opus“ berichtigen."""
     csrf = auth(client)
-    m = modell(client, "Claude Opus 5")
+    m = modell(client, "Claude Opus 5.5")
     r = client.patch(f"/api/models/{m['id']}", json={"name": "CLAUDE OPUS 5"}, headers=hdr(csrf))
     assert r.status_code == 200, r.text
 
 
 def test_disabling_keeps_the_model_and_its_assignments(client):
     csrf = auth(client)
-    m = modell(client, "Claude Sonnet 5")
+    m = modell(client, "Claude Sonnet 5.5")
     p = prompt(client, csrf, ai_model_id=m["id"])
     client.patch(f"/api/models/{m['id']}", json={"enabled": False}, headers=hdr(csrf))
 
-    assert modell(client, "Claude Sonnet 5")["enabled"] is False
+    assert modell(client, "Claude Sonnet 5.5")["enabled"] is False
     # Die Zuordnung bleibt — genau darum geht es beim Deaktivieren.
     assert client.get(f"/api/prompts/{p['id']}").json()["ai_model_id"] == m["id"]
     # Angeboten wird es nicht mehr.
@@ -136,9 +136,9 @@ def test_disabling_keeps_the_model_and_its_assignments(client):
 def test_disabling_the_default_clears_the_default(client):
     """Sonst bekäme jeder neue Prompt etwas, das nirgends auswählbar ist."""
     csrf = auth(client)
-    m = modell(client, "Claude Opus 5")
+    m = modell(client, "Claude Opus 5.5")
     client.patch(f"/api/models/{m['id']}", json={"enabled": False}, headers=hdr(csrf))
-    assert modell(client, "Claude Opus 5")["is_default"] is False
+    assert modell(client, "Claude Opus 5.5")["is_default"] is False
 
 
 def test_a_disabled_model_cannot_become_the_default(client):
@@ -172,10 +172,10 @@ def test_models_can_be_reordered(client):
 
 def test_deleting_an_unused_model_is_plain(client):
     csrf = auth(client)
-    m = modell(client, "Codex 5.6 Luna")
+    m = modell(client, "Codex 6 Luna")
     r = client.delete(f"/api/models/{m['id']}", headers=hdr(csrf))
     assert r.status_code == 200
-    assert "Codex 5.6 Luna" not in namen(client)
+    assert "Codex 6 Luna" not in namen(client)
 
 
 def test_deleting_a_used_model_is_refused_and_names_the_way_out(client):
@@ -192,7 +192,7 @@ def test_deleting_a_used_model_is_refused_and_names_the_way_out(client):
 def test_a_used_model_can_be_deleted_with_a_replacement(client):
     csrf = auth(client)
     alt = modell(client, "Claude Fable 5.1")
-    neu = modell(client, "Claude Sonnet 5")
+    neu = modell(client, "Claude Sonnet 5.5")
     p = prompt(client, csrf, ai_model_id=alt["id"])
 
     r = client.delete(f"/api/models/{alt['id']}?replace_with={neu['id']}", headers=hdr(csrf))
@@ -203,7 +203,7 @@ def test_a_used_model_can_be_deleted_with_a_replacement(client):
 
 def test_a_model_cannot_replace_itself(client):
     csrf = auth(client)
-    m = modell(client, "Claude Sonnet 5")
+    m = modell(client, "Claude Sonnet 5.5")
     prompt(client, csrf, ai_model_id=m["id"])
     r = client.delete(f"/api/models/{m['id']}?replace_with={m['id']}", headers=hdr(csrf))
     assert r.status_code == 400
@@ -214,7 +214,7 @@ def test_a_model_cannot_replace_itself(client):
 
 def test_a_new_prompt_gets_the_default_model(client):
     csrf = auth(client)
-    standard = modell(client, "Claude Opus 5")
+    standard = modell(client, "Claude Opus 5.5")
     assert prompt(client, csrf)["ai_model_id"] == standard["id"]
 
 
@@ -230,7 +230,7 @@ def test_an_explicit_null_means_deliberately_none(client):
 
 def test_without_a_default_a_new_prompt_has_none(client):
     csrf = auth(client)
-    standard = modell(client, "Claude Opus 5")
+    standard = modell(client, "Claude Opus 5.5")
     client.patch(f"/api/models/{standard['id']}", json={"is_default": False}, headers=hdr(csrf))
     assert prompt(client, csrf)["ai_model_id"] is None
 
@@ -250,7 +250,7 @@ def test_the_model_can_be_changed_and_cleared(client):
 
 def test_a_disabled_model_cannot_be_assigned(client):
     csrf = auth(client)
-    m = modell(client, "Codex 5.6 Sol")
+    m = modell(client, "Codex 6.1 Sol")
     client.patch(f"/api/models/{m['id']}", json={"enabled": False}, headers=hdr(csrf))
     p = prompt(client, csrf)
     r = client.patch(f"/api/prompts/{p['id']}", json={"ai_model_id": m["id"]}, headers=hdr(csrf))
@@ -333,10 +333,10 @@ def test_a_merged_prompt_keeps_a_model_through_unmerge(client):
 @pytest.mark.parametrize(
     "gemeldet,erwartet",
     [
-        ("claude-opus-5", "Claude Opus 5"),
-        ("opus", "Claude Opus 5"),
-        ("claude-opus-5[1m]", "Claude Opus 5"),
-        ("sonnet", "Claude Sonnet 5"),
+        ("claude-opus-5-5", "Claude Opus 5.5"),
+        ("opus", "Claude Opus 5.5"),
+        ("claude-opus-5-5[1m]", "Claude Opus 5.5"),
+        ("sonnet", "Claude Sonnet 5.5"),
     ],
 )
 def test_the_optimizer_sets_the_model_it_used(client, gemeldet, erwartet):
@@ -374,7 +374,7 @@ def test_a_codex_model_is_no_claude_code_recommendation(client):
 def test_the_recommendation_never_invents_a_catalog_entry(client):
     csrf = auth(client)
     vorher = namen(client)
-    m = modell(client, "Claude Opus 5")
+    m = modell(client, "Claude Opus 5.5")
     client.delete(f"/api/models/{m['id']}", headers=hdr(csrf))
 
     from app.aimodels import AiModelService
@@ -386,5 +386,91 @@ def test_the_recommendation_never_invents_a_catalog_entry(client):
     p = prompt(client, csrf, ai_model_id=None)
     with Session(db_module.engine) as s:
         assert AiModelService(s).apply_recommendation(s.get(Prompt, p["id"]), "opus") is False
-    assert "Claude Opus 5" not in namen(client)
+    assert "Claude Opus 5.5" not in namen(client)
     assert len(namen(client)) == len(vorher) - 1
+
+
+# ---------------------------------------------------------------- Fassung 2
+
+
+def _auf_fassung_1(user_email: str = "owner@example.com") -> int:
+    """Ein Konto so zurückstellen, als hätte es nur die Fassung 1 bekommen."""
+    from sqlmodel import Session, select
+
+    from app import db
+    from app.aimodels import catalog
+    from app.models import AiModel, User
+
+    with Session(db.engine) as s:
+        nutzer = s.exec(select(User).where(User.email == user_email)).one()
+        neu = {e.api_id for e in catalog.DEFAULTS if e.seit > 1}
+        for m in s.exec(select(AiModel).where(AiModel.user_id == nutzer.id)).all():
+            if m.api_id in neu:
+                s.delete(m)
+        nutzer.ai_models_catalog = 0  # vor dem Fassungs-Zähler angelegt
+        s.add(nutzer)
+        s.commit()
+        return nutzer.id
+
+
+def test_a_fresh_account_gets_gemini_and_the_newest_models(client):
+    auth(client)
+    liste = namen(client)
+    for name in ("Claude Opus 5.5", "Claude Sonnet 5.5", "Codex 6.1 Sol", "Gemini 3.8 Flash"):
+        assert name in liste
+    gemini = [m for m in katalog(client)["models"] if m["provider"] == "google"]
+    assert gemini and all(m["provider_label"] == "Antigravity · Gemini" for m in gemini)
+    assert modell(client, "Claude Opus 5.5")["is_default"] is True
+
+
+def test_an_older_account_gets_only_the_new_entries(client):
+    csrf = auth(client)
+    namen(client)  # Erstbelegung
+    # Der Nutzer hat ein Modell gelöscht und einen anderen Standard gewählt.
+    weg = modell(client, "Claude Haiku 4.5")
+    client.delete(f"/api/models/{weg['id']}", headers=hdr(csrf))
+    astra = modell(client, "Codex Astra")
+    client.patch(f"/api/models/{astra['id']}", json={"is_default": True}, headers=hdr(csrf))
+    _auf_fassung_1()
+
+    liste = namen(client)  # stößt das Nachreichen an
+    assert "Gemini 3.8 Flash" in liste and "Claude Opus 5.5" in liste
+    # Gelöschtes bleibt gelöscht — es gehört zur Fassung 1.
+    assert "Claude Haiku 4.5" not in liste
+    # Der Standard bleibt die Entscheidung des Nutzers.
+    standard = [m["name"] for m in katalog(client)["models"] if m["is_default"]]
+    assert standard == ["Codex Astra"]
+    # Und es passiert genau einmal.
+    vorher = len(liste)
+    assert len(namen(client)) == vorher
+
+
+def test_the_catch_up_does_not_duplicate_a_hand_made_entry(client):
+    csrf = auth(client)
+    namen(client)
+    _auf_fassung_1()
+    client.post(
+        "/api/models",
+        json={"name": "Mein Gemini", "provider": "google", "api_id": "gemini-3.8-flash"},
+        headers=hdr(csrf),
+    )
+    liste = namen(client)
+    assert "Mein Gemini" in liste
+    assert "Gemini 3.8 Flash" not in liste
+
+
+def test_a_legacy_opus_still_resolves_for_an_old_account():
+    from app.aimodels import catalog
+
+    assert catalog.claude_code_empfehlung("claude-opus-5[1m]") == "claude-opus-5"
+    assert catalog.claude_code_empfehlung("opus") == "claude-opus-5-5"
+
+
+def test_the_catch_up_does_not_set_a_default_the_user_cleared(client):
+    csrf = auth(client)
+    namen(client)
+    standard = modell(client, "Claude Opus 5.5")
+    client.patch(f"/api/models/{standard['id']}", json={"is_default": False}, headers=hdr(csrf))
+    _auf_fassung_1()
+    namen(client)
+    assert [m for m in katalog(client)["models"] if m["is_default"]] == []

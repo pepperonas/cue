@@ -80,3 +80,39 @@ export function groupByProvider(models: AiModel[]): { provider: string; label: s
   }
   return [...gruppen.values()]
 }
+
+/** Das Standardmodell — was ein neuer Prompt bekommt, wenn nichts gewählt ist. */
+export function defaultModel(models: AiModel[]): AiModel | undefined {
+  return models.find((m) => m.is_default && m.enabled)
+}
+
+/**
+ * Was die Auswahl im Editor anzeigt.
+ *
+ * Ein NEUER Prompt hält `undefined` („nichts entschieden — der Server setzt den
+ * Standard"). Angezeigt wird dann das Standardmodell, denn genau das wird er
+ * bekommen; „Kein Modell" stünde dort, obwohl gleich eines zugewiesen wird.
+ */
+export function shownModelId(
+  models: AiModel[],
+  chosen: number | null | undefined,
+): number | null {
+  if (chosen === undefined) return defaultModel(models)?.id ?? null
+  return chosen
+}
+
+/**
+ * Ob neben der Auswahl „Als Standard" angeboten wird.
+ *
+ * `'set'`: ein aktives Modell, das noch nicht Standard ist · `'is'`: es ist es
+ * schon (der Hinweis sagt das) · `'none'`: nichts gewählt oder deaktiviert —
+ * ein abgeschaltetes Modell kann nicht Standard sein (der Server lehnt es ab).
+ */
+export function defaultAction(
+  models: AiModel[],
+  id: number | null | undefined,
+): 'set' | 'is' | 'none' {
+  const m = modelOf(models, id)
+  if (!m || !m.enabled) return 'none'
+  return m.is_default ? 'is' : 'set'
+}
