@@ -13,10 +13,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
-from .. import secrets_store
 from ..config import get_settings
 from ..models import Project, ProjectContext, User
-from . import fetch, github
+from . import fetch, github, tokens
 
 log = logging.getLogger("cue.projectcontext")
 
@@ -94,13 +93,12 @@ class ProjectContextService:
         if row is None:
             row = ProjectContext(project_id=project_id, user_id=user_id)
         user = self.session.get(User, user_id)
-        token = secrets_store.decrypt(user.github_token_enc) if user else None
-        if not token:
-            row.repo = project.github_repo
-            row.error = "GitHub ist nicht verbunden"
-            return self._save(row)
-
         try:
+            token = tokens.access_token(self.session, user)
+            if not token:
+                row.repo = project.github_repo
+                row.error = "GitHub ist nicht verbunden"
+                return self._save(row)
             ref, sha = fetch.resolve(token, project.github_repo, project.github_ref or "")
             if same_target and row.text and row.head_sha == sha and row.ref == ref:
                 row.fetched_at = _now()
@@ -113,8 +111,7 @@ class ProjectContextService:
                 # The token is dead (revoked at GitHub, expired). Forget it, so
                 # the settings page says "not connected" instead of failing on
                 # every run — the same rule as an unreadable Anthropic key.
-                user.github_token_enc = None
-                user.github_login = None
+                tokens.clear(user)
                 self.session.add(user)
                 row.error = "GitHub-Zugang ist abgelaufen — bitte neu verbinden"
             elif exc.status == 404:

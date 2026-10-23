@@ -12,6 +12,7 @@ import json
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -117,24 +118,51 @@ def authorize_url(state: str) -> str:
     return f"{AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
 
 
-def exchange_code(code: str) -> str:
-    """The access token for an OAuth code. GitHub reports errors with 200."""
-    settings = get_settings()
-    answer = request(
-        "POST",
-        TOKEN_URL,
-        accept="application/json",
-        form={
-            "client_id": settings.github_client_id,
-            "client_secret": settings.github_client_secret,
-            "code": code,
-            "redirect_uri": settings.github_redirect_uri,
-        },
+@dataclass(frozen=True)
+class Credentials:
+    access_token: str
+    refresh_token: str | None = None
+    expires_in: int | None = None
+
+
+def _credentials(form: dict) -> Credentials:
+    answer = request("POST", TOKEN_URL, accept="application/json", form=form)
+    if not isinstance(answer, dict) or not isinstance(answer.get("access_token"), str) or not answer["access_token"]:
+        error = answer.get("error") if isinstance(answer, dict) else None
+        if error in {"bad_refresh_token", "invalid_grant"}:
+            raise GitHubError(401, "GitHub-Zugang ist abgelaufen — bitte neu verbinden")
+        raise GitHubError(400, "GitHub-Verbindung konnte nicht bestätigt werden")
+    expires = answer.get("expires_in")
+    return Credentials(
+        access_token=answer["access_token"],
+        refresh_token=answer.get("refresh_token") or None,
+        expires_in=int(expires) if expires is not None else None,
     )
-    token = (answer or {}).get("access_token") if isinstance(answer, dict) else None
-    if not token:
-        raise GitHubError(400, (answer or {}).get("error_description", "Kein Token erhalten"))
-    return token
+
+
+def exchange_credentials(code: str) -> Credentials:
+    settings = get_settings()
+    return _credentials({
+        "client_id": settings.github_client_id,
+        "client_secret": settings.github_client_secret,
+        "code": code,
+        "redirect_uri": settings.github_redirect_uri,
+    })
+
+
+def exchange_code(code: str) -> str:
+    """Access-token-only convenience for callers that do not store a connection."""
+    return exchange_credentials(code).access_token
+
+
+def refresh_credentials(refresh_token: str) -> Credentials:
+    settings = get_settings()
+    return _credentials({
+        "client_id": settings.github_client_id,
+        "client_secret": settings.github_client_secret,
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    })
 
 
 def current_login(token: str) -> str:

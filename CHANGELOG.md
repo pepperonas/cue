@@ -26,6 +26,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.80.0] - 2026-10-24
+
+### Added
+- **Geführte KI-Einrichtung**: „KI einrichten“ im Board führt zu einem gemeinsamen
+  Bereich für eigenen Anthropic-Key, GitHub-Verbindung und Repository-Auswahl.
+  Drei Schritte zeigen den Fortschritt; der Betreiber behält seinen CLI-Zugang.
+  Nutzer brauchen weder eine eigene OAuth-App noch Zugang zum Server.
+- Direktes GitHub-Verbinden am Projekt mit Rückkehr zum selben Repository-Editor,
+  auch nach Abbruch. Leere Suchergebnisse, ungültige URLs und Ladefehler haben
+  verständliche Hinweise und nächste Schritte. „Speichern & Kontext laden“ holt
+  den Kontext automatisch; im Board ist der verwendbare Kontext sichtbar.
+- **Automatische GitHub-Token-Erneuerung** für OAuth-Apps mit kurzlebigen Tokens.
+  Refresh-Tokens werden pro Nutzer verschlüsselt gespeichert und vor Ablauf rotiert.
+  Ein vorübergehender Netzausfall behält die Verbindung; ein widerrufener Zugang
+  fordert eine neue Anmeldung. Parallele Anfragen lesen rotierte Zugangsdaten neu.
+
 ## [0.79.0] - 2026-10-23
 
 ### Added

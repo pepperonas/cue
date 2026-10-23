@@ -5167,3 +5167,28 @@ img.logo-xl { border-radius: 18px; }
 @media (max-width: 600px) {
   .project-repository { padding-left: 0; }
 }
+
+.ai-setup > .row h2 { margin: 0; font: var(--headline-m); }
+.setup-progress { border-radius: var(--shape-full); padding: 6px 12px; font: var(--label-l); background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.setup-checklist { display: flex; flex-wrap: wrap; gap: 12px 24px; list-style: none; padding: 0; margin: 20px 0; }
+.setup-checklist li { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--md-on-surface-variant); }
+.setup-checklist li[data-done="true"] { color: var(--md-primary); }
+.ai-setup-step { scroll-margin-top: 100px; border-top: 1px solid var(--md-outline-variant); padding-top: 20px; margin-top: 20px; }
+.ai-setup-step h3 { display: flex; align-items: center; gap: 10px; }
+.setup-number { display: inline-grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--md-primary-container); color: var(--md-on-primary-container); font-size: .9rem; }
+.setup-success { display: flex; align-items: center; gap: 6px; color: var(--md-primary); font-size: .85rem; }
+.setup-note { font-size: .8rem; margin-bottom: 0; }
+.project-context-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.project-context-intro > div { flex: 1; min-width: 200px; }
+.project-context-intro h3 { margin-top: 0; }
+.project-context-intro p { font-size: .85rem; margin-bottom: 0; }
+.project-repository { scroll-margin-top: 100px; }
+@media (max-width: 600px) {
+  .setup-checklist { flex-direction: column; gap: 8px; }
+  .ai-setup .row { flex-wrap: wrap; }
+  .ai-setup .field .input { min-width: 0; }
+}
+
+.ai-project-notice { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0 16px; padding: 8px 14px; border-radius: var(--shape-m); background: var(--md-surface-container); }
+.ai-project-notice > div { display: flex; gap: 8px; align-items: center; min-width: 0; font-size: .8rem; color: var(--md-on-surface-variant); }
+.ai-project-notice > div > span:last-child { overflow-wrap: anywhere; }

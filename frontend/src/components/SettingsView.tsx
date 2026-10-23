@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { PRESET_SEEDS } from '../lib/color'
 import type { Project } from '../lib/types'
-import { useAdminUsers, useApiKey, useCaptureSettings, useMe, useSaveApiKey, useSetUserApproval, useSyncSettings, useUpdateCaptureSettings, useUpdateSyncSettings } from '../state/queries'
+import { useAdminUsers, useCaptureSettings, useMe, useSetUserApproval, useSyncSettings, useUpdateCaptureSettings, useUpdateSyncSettings } from '../state/queries'
 import { useSettings } from '../state/settings'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { Confirm } from './Confirm'
 import { AboutSection } from './AboutSection'
-import { GitHubSection } from './GitHubSection'
+import { AiSetupSection } from './AiSetupSection'
 import { DevicesSection } from './DevicesSection'
 import { Select } from './Select'
 
@@ -21,10 +21,12 @@ const THEMES: { key: 'light' | 'dark' | 'system'; icon: string; label: string }[
 export function SettingsView({
   projects,
   onImported,
+  onProjects,
   onLogout,
 }: {
   projects: Project[]
   onImported: () => void
+  onProjects: () => void
   onLogout: () => void
 }) {
   const s = useSettings()
@@ -37,9 +39,6 @@ export function SettingsView({
 
   const { data: capture } = useCaptureSettings()
   const updateCapture = useUpdateCaptureSettings()
-  const { data: apiKey } = useApiKey()
-  const saveApiKey = useSaveApiKey()
-  const [keyInput, setKeyInput] = useState('')
   const [captureBase, setCaptureBase] = useState('')
   const [newToken, setNewToken] = useState<string | null>(null)
   useEffect(() => {
@@ -64,6 +63,7 @@ export function SettingsView({
 
   return (
     <div>
+      <AiSetupSection projects={projects} onProjects={onProjects} />
       <div className="section">
         <h3>Erscheinungsbild</h3>
         <div className="row" style={{ gap: 'var(--gap-2)' }}>
@@ -178,105 +178,6 @@ export function SettingsView({
       </div>
 
       <div className="section">
-        <h3>KI-Optimierung — eigener API-Key</h3>
-        <p className="muted" style={{ fontSize: '0.85rem', marginTop: -4 }}>
-          Mit einem eigenen Anthropic-API-Key laufen deine Prompt-Optimierungen über
-          diesen Key — abgerechnet auf dein Konto, nicht auf das des Betreibers. Ohne
-          Key ist die Funktion nur für den Betreiber verfügbar, dessen Optimierungen
-          über die Claude-Code-CLI auf seinem Rechner laufen.
-        </p>
-        <div className="field">
-          <label htmlFor="anthropic-key">
-            API-Key {apiKey?.configured ? `(hinterlegt: ${apiKey.preview})` : '(keiner hinterlegt)'}
-          </label>
-          <div className="row">
-            <input
-              id="anthropic-key"
-              className="input grow"
-              type="password"
-              autoComplete="off"
-              value={keyInput}
-              placeholder={apiKey?.configured ? 'Neuen Key eingeben zum Ersetzen' : 'sk-ant-…'}
-              onChange={(e) => setKeyInput(e.target.value)}
-            />
-            <Button
-              variant="tonal"
-              icon="key"
-              disabled={!keyInput.trim() || saveApiKey.isPending}
-              onClick={() =>
-                saveApiKey.mutate(
-                  { key: keyInput.trim() },
-                  {
-                    onSuccess: () => {
-                      // Never keep the plaintext in a React state that a crash
-                      // report or a devtools snapshot could carry off.
-                      setKeyInput('')
-                      toast.show('API-Key gespeichert und geprüft', 'success')
-                    },
-                    onError: (err: unknown) =>
-                      toast.show(
-                        err instanceof Error ? err.message : 'Key wurde abgelehnt',
-                        'error',
-                      ),
-                  },
-                )
-              }
-            >
-              {apiKey?.configured ? 'Ersetzen' : 'Speichern'}
-            </Button>
-            {apiKey?.configured && (
-              <Button
-                variant="text"
-                icon="delete"
-                onClick={() =>
-                  saveApiKey.mutate(
-                    { key: '' },
-                    { onSuccess: () => toast.show('API-Key entfernt', 'success') },
-                  )
-                }
-              >
-                Entfernen
-              </Button>
-            )}
-          </div>
-          <div className="muted" style={{ fontSize: '0.78rem' }}>
-            Der Key wird vor dem Speichern gegen die API geprüft, verschlüsselt abgelegt
-            und nie wieder ausgegeben — auch nicht an dich.
-          </div>
-        </div>
-
-        {apiKey?.configured && apiKey.models.length > 0 && (
-          <div className="field">
-            <label htmlFor="anthropic-model">Modell</label>
-            <div className="row">
-              <Select
-                id="anthropic-model"
-                className="grow"
-                value={apiKey.model}
-                onChange={(v) =>
-                  saveApiKey.mutate(
-                    { model: v },
-                    { onSuccess: () => toast.show('Modell gespeichert', 'success') },
-                  )
-                }
-                /* Der Preis gehört in die Zeile: er ist der Grund, aus dem
-                   man hier überhaupt wählt. */
-                options={apiKey.models.map((m) => ({
-                  value: m.id,
-                  label: `${m.label} — $${m.input_per_mtok}/$${m.output_per_mtok} je Mio. Tokens`,
-                }))}
-              />
-            </div>
-            <div className="muted" style={{ fontSize: '0.78rem' }}>
-              Preise als Schätzung: Listenpreise pro Million Tokens (Eingabe/Ausgabe),
-              Stand {apiKey.pricing_state}. Die Kosten in den Statistiken werden daraus
-              berechnet — die API meldet selbst keinen Preis.
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="section">
         <h3>Prompt-Capture</h3>
         <p className="muted" style={{ fontSize: '0.85rem', marginTop: -4 }}>
           Jeder Prompt, den du in der Claude-Code-CLI eingibst, wird in cue protokolliert
@@ -367,7 +268,6 @@ export function SettingsView({
         </div>
       </div>
 
-      <GitHubSection />
       <DevicesSection />
 
       <div className="section">

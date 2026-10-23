@@ -4,7 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { api } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import type { BookmarkMovePayload, MovePayload } from '../lib/api'
 import { pendingProposal, succeededVersions } from '../lib/optimization'
 import type { AiModel, AnalysisDecisionResult, OptimizationDecisionResult } from '../lib/types'
@@ -970,7 +970,14 @@ export function useGitHubStatus() {
 }
 
 export function useGitHubRepos(enabled: boolean) {
-  return useQuery({ queryKey: ['github', 'repos'], queryFn: api.githubRepos, enabled, staleTime: 60_000 })
+  const qc = useQueryClient()
+  const query = useQuery({ queryKey: ['github', 'repos'], queryFn: api.githubRepos, enabled, staleTime: 60_000, retry: false })
+  useEffect(() => {
+    if (query.error instanceof ApiError && query.error.status === 400) {
+      qc.invalidateQueries({ queryKey: ['github'], exact: true })
+    }
+  }, [query.error, qc])
+  return query
 }
 
 export function useDisconnectGitHub() {

@@ -1,3 +1,5 @@
+import { GITHUB_RETURN_KEY, githubDestination } from './lib/ai-setup'
+import { savedGitHubDestination } from './lib/github-connect'
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { api, enableDemo } from './lib/api'
@@ -83,6 +85,7 @@ import { ProjectChips } from './components/ProjectChips'
 import { AnalysisDialog } from './components/analysis/AnalysisDialog'
 import { ModelsView } from './components/ModelsView'
 import { wartetAufEntscheidung } from './lib/analysis'
+import { AiProjectNotice } from './components/AiProjectNotice'
 import { ProjectsView } from './components/ProjectsView'
 import { SettingsView } from './components/SettingsView'
 import { TagsView } from './components/TagsView'
@@ -249,9 +252,11 @@ function Shell({
   // A finished job means a prompt now carries a proposal — pull it in.
   useRefreshOnOptimizationFinish(optimizingIds)
 
+  const [oauthReturn] = useState(() => githubDestination(savedGitHubDestination()))
+  const [repositoryProjectId, setRepositoryProjectId] = useState(oauthReturn.projectId)
   const [view, setView] = useState<View>(() => {
     const query = new URLSearchParams(window.location.search)
-    if (query.has('github') || query.has('github_error')) return 'settings'
+    if (query.has('github') || query.has('github_error')) return oauthReturn.view
     const saved = localStorage.getItem('cue-view')
     return saved === 'board' ||
       saved === 'list' ||
@@ -278,11 +283,13 @@ function Shell({
         exchange: 'GitHub-Verbindung fehlgeschlagen — bitte erneut versuchen',
       }
       toast.show(error ? messages[error] || 'GitHub-Verbindung fehlgeschlagen' : 'GitHub verbunden', error ? 'error' : 'success')
+      try { sessionStorage.removeItem(GITHUB_RETURN_KEY) } catch { /* storage is optional */ }
       url.searchParams.delete('github')
       url.searchParams.delete('github_error')
+      if (oauthReturn.view === 'settings') document.getElementById('ai-github')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       window.history.replaceState(null, '', url.pathname + url.search + url.hash)
     }
-  }, [toast])
+  }, [toast, oauthReturn.view])
   useEffect(() => {
     localStorage.setItem('cue-view', view)
   }, [view])
@@ -1003,6 +1010,11 @@ function Shell({
                   <Icon name={showExtra ? 'unfold_less' : 'unfold_more'} /> Failed / Archived
                 </button>
               )}
+              {(view === 'board' || view === 'list') && (
+                <button className="chip" onClick={() => setView('settings')} title="Eigener API-Key, GitHub-Verbindung und Projektkontext">
+                  <Icon name="settings_suggest" /> {canOptimize ? 'KI & GitHub' : 'KI einrichten'}
+                </button>
+              )}
               {canOptimize && (view === 'board' || view === 'list') && (
                 <button
                   className="chip chip--optimize"
@@ -1055,6 +1067,16 @@ function Shell({
               setFilter={setProjectFilter}
               openCounts={openCounts}
               runningProjects={runningProjects}
+            />
+
+            <AiProjectNotice
+              project={typeof projectFilter === 'number' ? projects?.find((p) => p.id === projectFilter) : undefined}
+              aiReady={canOptimize}
+              onSetup={() => setView('settings')}
+              onRepository={() => {
+                setRepositoryProjectId(typeof projectFilter === 'number' ? projectFilter : undefined)
+                setView('projects')
+              }}
             />
 
             {isLoading ? (
@@ -1140,7 +1162,7 @@ function Shell({
         {view === 'snippets' && <SnippetsView />}
         {view === 'sessions' && <SessionsView dark={settings.resolvedDark} />}
 
-        {view === 'projects' && <ProjectsView dark={settings.resolvedDark} />}
+        {view === 'projects' && <ProjectsView dark={settings.resolvedDark} onSetup={() => setView('settings')} onOpenProject={(id) => { setProjectFilter(id); setView('board') }} focusProjectId={repositoryProjectId} />}
         {view === 'tags' && <TagsView />}
         {view === 'models' && <ModelsView />}
         {view === 'stats' && (
@@ -1152,6 +1174,7 @@ function Shell({
           <SettingsView
             projects={projects ?? []}
             onImported={() => setView('board')}
+            onProjects={() => setView('projects')}
             onLogout={async () => {
               try {
                 await api.logout()

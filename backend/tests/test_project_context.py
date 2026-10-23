@@ -25,6 +25,8 @@ class FakeRepo:
     def __init__(self) -> None:
         self.sha = SHA1
         self.calls: list[str] = []
+        self.expiring = False
+        self.refresh_calls = 0
         self.fail: github.GitHubError | None = None
         self.files = {
             "CLAUDE.md": "# Regeln\nImmer Tests schreiben.",
@@ -46,6 +48,11 @@ class FakeRepo:
         if self.fail is not None:
             raise self.fail
         if url == github.TOKEN_URL:
+            if form.get("grant_type") == "refresh_token":
+                self.refresh_calls += 1
+                return {"access_token": "context-rotated-attrappe", "refresh_token": "context-refresh-rotated-attrappe", "expires_in": 28800}
+            if self.expiring:
+                return {"access_token": "token-attrappe-0002", "refresh_token": "context-refresh-attrappe", "expires_in": 28800}
             return {"access_token": "token-attrappe-0002"}  # attrappe: erfunden
         if "/applications/" in url:
             return None

@@ -78,6 +78,8 @@ class User(SQLModel, table=True):
     #: belongs to. Read-only use: cue fetches repository context, never writes.
     github_token_enc: str | None = Field(default=None)
     github_login: str | None = Field(default=None)
+    github_refresh_token_enc: str | None = Field(default=None)
+    github_token_expires_at: datetime | None = Field(default=None)
 
 
 class Device(SQLModel, table=True):

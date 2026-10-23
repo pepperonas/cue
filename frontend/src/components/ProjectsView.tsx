@@ -35,9 +35,11 @@ interface RowProps {
   setEditing: (p: Project | null) => void
   onSave: (p: Project) => void
   onDelete: (p: Project) => void
+  initiallyOpen: boolean
+  onOpenProject: (id: number) => void
 }
 
-function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps) {
+function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete, initiallyOpen, onOpenProject }: RowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: p.id,
   })
@@ -98,12 +100,12 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
           </>
         )}
       </div>
-      <ProjectRepository project={p} />
+      <ProjectRepository project={p} initiallyOpen={initiallyOpen} onOpenBoard={() => onOpenProject(p.id)} />
     </div>
   )
 }
 
-export function ProjectsView({ dark }: { dark: boolean }) {
+export function ProjectsView({ dark, onSetup, onOpenProject, focusProjectId }: { dark: boolean; onSetup: () => void; onOpenProject: (id: number) => void; focusProjectId?: number }) {
   const { data: projects } = useProjects()
   const create = useCreateProject()
   const update = useUpdateProject()
@@ -148,6 +150,10 @@ export function ProjectsView({ dark }: { dark: boolean }) {
 
   return (
     <div>
+      <div className="section project-context-intro">
+        <div><h3>KI mit Projektkontext</h3><p className="muted">Verbinde GitHub und wähle pro Projekt ein Repository. cue lädt den Kontext automatisch; Analysen und Optimierungen berücksichtigen dann den vorhandenen Code.</p></div>
+        <Button variant="tonal" icon="settings_suggest" onClick={onSetup}>KI & GitHub einrichten</Button>
+      </div>
       <div className="section">
         <h3>Neues Projekt</h3>
         <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -209,6 +215,8 @@ export function ProjectsView({ dark }: { dark: boolean }) {
                   setEditing={setEditing}
                   onSave={save}
                   onDelete={setConfirm}
+                  initiallyOpen={focusProjectId === p.id}
+                  onOpenProject={onOpenProject}
                 />
               ))}
             </SortableContext>

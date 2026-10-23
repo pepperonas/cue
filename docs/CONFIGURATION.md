@@ -33,6 +33,29 @@ bewusst nicht.
 | `GITHUB_CLIENT_ID` | Client-ID einer GitHub-OAuth-App. Callback-URL: `<ALLOWED_ORIGIN>/api/github/callback`. |
 | `GITHUB_CLIENT_SECRET` | Zugehöriges Secret. Nur serverseitig. Der Scope ist `repo` (GitHub kennt für private Repos keinen reinen Lese-Scope); cue liest nur, speichert das Token verschlüsselt und widerruft es beim Trennen. |
 
+### Einrichtung für Nutzer
+
+Die OAuth-App wird **einmal vom Betreiber** eingerichtet. Danach braucht ein
+freigeschalteter Nutzer nur „KI einrichten“ im Board zu öffnen:
+
+1. Eigenen Anthropic-API-Key eingeben; cue prüft und verschlüsselt ihn.
+   Der Betreiber kann seinen bestehenden CLI-Zugang behalten.
+2. „Mit GitHub verbinden“ wählen und auf GitHub freigeben. Bei GitHub-Abbruch
+   kommt man zum Ausgangspunkt zurück und kann es erneut versuchen.
+3. Unter Projekte ein Repository auswählen (oder eine GitHub-URL einfügen).
+   „Speichern & Kontext laden“ lädt den Kontext automatisch. Anschließend im
+   Board das Projekt wählen und analysieren oder Prompts optimieren.
+
+GitHub ist optional. Ohne Repository bleibt die KI mit dem eigenen API-Key nutzbar.
+Kein Nutzer muss Client-ID, Client-Secret oder Servereinstellungen eingeben.
+Einrichtungsfortschritt und Fehler werden im selben Ablauf angezeigt.
+
+Apps mit aktivierter Token-Expiration werden unterstützt: Access- und Refresh-Token
+bleiben serverseitig verschlüsselt, und cue erneuert den Zugang vor Ablauf automatisch.
+Der genaue Ablauf ist in der [GitHub-Dokumentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#refreshing-an-access-token-with-a-refresh-token)
+beschrieben. Alte Verbindungen ohne gespeichertes Refresh-Token werden einmal neu
+verbunden. Ein GitHub-Ausfall entfernt die gespeicherte Verbindung nicht.
+
 ## Zugang und Sitzung
 
 | Variable | Standard | Bedeutung |

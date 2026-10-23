@@ -151,6 +151,16 @@ gets it inline (with an adjusted character limit). ProjectRepository provides re
 manual entry, branch and refresh; project-context.ts formats cache status separately from
 immutable history snapshots. `changes._projects` fingerprints GitHub targets and cache metadata
 (without the large context text), so refreshes reach other devices. Disconnecting keeps cached text and past job snapshots.
+`projectcontext/tokens.py` supports expiring OAuth tokens: encrypt BOTH credentials,
+refresh within 60s of expiry, and serialize rotation + re-read the user under the
+lock (refresh tokens are single-use). Transient errors preserve credentials;
+revocation/disconnect clears access, refresh, expiry and login together. GitHub's
+expiration stays enabled. The onboarding UI (`AiSetupSection`, `ApiKeySection`)
+shares one path for first-time users and the existing owner CLI. `ai-setup.ts`
+validates OAuth return destinations and repository input; `github-connect.ts`
+stores only an internal view/project id in sessionStorage, never credentials.
+After OAuth, App resumes the selected project editor. No external return URL is
+accepted. The board always exposes setup, even before a user has an API key.
 
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).

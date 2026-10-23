@@ -104,6 +104,8 @@ def _migrate(engine: Engine) -> None:
         "ai_models_catalog": "ALTER TABLE user ADD COLUMN ai_models_catalog INTEGER NOT NULL DEFAULT 0",
         "github_token_enc": "ALTER TABLE user ADD COLUMN github_token_enc VARCHAR",
         "github_login": "ALTER TABLE user ADD COLUMN github_login VARCHAR",
+        "github_refresh_token_enc": "ALTER TABLE user ADD COLUMN github_refresh_token_enc VARCHAR",
+        "github_token_expires_at": "ALTER TABLE user ADD COLUMN github_token_expires_at TIMESTAMP",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).

@@ -18,7 +18,7 @@ from ..config import get_settings
 from ..db import get_session
 from ..deps import current_user_id, require_csrf
 from ..models import User
-from ..projectcontext import github
+from ..projectcontext import github, tokens
 from ..schemas import GitHubRepo, GitHubStatus
 from ..security import github_state_user, issue_github_state
 
@@ -35,7 +35,10 @@ def _require_configured() -> None:
 
 def _token(session: Session, uid: int) -> str:
     user = session.get(User, uid)
-    token = secrets_store.decrypt(user.github_token_enc) if user else None
+    try:
+        token = tokens.access_token(session, user)
+    except github.GitHubError as exc:
+        raise HTTPException(status_code=400 if exc.status == 401 else 502, detail=exc.message) from exc
     if not token:
         raise HTTPException(status_code=400, detail="GitHub ist nicht verbunden")
     return token
@@ -98,12 +101,12 @@ def github_callback(
     if user is None or not user.approved:
         return done("github_error=state")
     try:
-        token = github.exchange_code(code)
-        login = github.current_login(token)
+        credentials = github.exchange_credentials(code)
+        login = github.current_login(credentials.access_token)
     except github.GitHubError as exc:
         log.info("github connect failed uid=%s: %s", uid, exc.message)
         return done("github_error=exchange")
-    user.github_token_enc = secrets_store.encrypt(token)
+    tokens.store(user, credentials)
     user.github_login = login or None
     session.add(user)
     session.commit()
@@ -123,8 +126,7 @@ def github_repos(
     except github.GitHubError as exc:
         if exc.status == 401:
             user = session.get(User, uid)
-            user.github_token_enc = None
-            user.github_login = None
+            tokens.clear(user)
             session.add(user)
             session.commit()
             raise HTTPException(status_code=400, detail="GitHub-Zugang ist abgelaufen — bitte neu verbinden") from exc
@@ -150,7 +152,6 @@ def github_disconnect(
         except github.GitHubError as exc:
             log.info("github revoke failed uid=%s: %s", uid, exc.message)
     if user is not None:
-        user.github_token_enc = None
-        user.github_login = None
+        tokens.clear(user)
         session.add(user)
         session.commit()

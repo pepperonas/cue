@@ -49,6 +49,12 @@ nur zum Lesen. Token und Client-Secret erreichen den Browser nie, das Token wird
 wie der Anthropic-Key verschlüsselt gespeichert. Beim Trennen widerruft cue die
 Freigabe bei GitHub und löscht das lokale Token auch bei einem GitHub-Ausfall.
 Gespeicherter Projektkontext und historische Job-Schnappschüsse bleiben erhalten.
+Auch Refresh-Tokens werden pro Nutzer verschlüsselt gespeichert. cue rotiert
+kurzlebige Tokens vor Ablauf und löscht bei Widerruf sämtliche Zugangsdaten;
+ein vorübergehender Netzausfall löscht sie nicht. Die Einmalverwendung eines
+Refresh-Tokens wird im einzelnen Serverprozess serialisiert. Nach dem OAuth-Flow
+akzeptiert die Oberfläche nur die internen Ziele Einstellungen/Projekte und eine
+positive Projekt-ID, keine frei vorgegebene Weiterleitungs-URL.
 
 Der signierte OAuth-State trägt die Nutzer-ID und braucht zusätzlich das passende
 kurzlebige Lax-Cookie; beim Callback wird die Freischaltung erneut geprüft. Die

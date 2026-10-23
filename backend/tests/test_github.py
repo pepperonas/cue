@@ -18,6 +18,10 @@ class FakeGitHub:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
+        self.expiring = False
+        self.refresh_calls = 0
+        self.refresh_error = None
+        self.api_tokens = []
         self.revoked: dict | None = None
         self.fail: dict[str, github.GitHubError] = {}
 
@@ -26,7 +30,17 @@ class FakeGitHub:
         for needle, exc in self.fail.items():
             if needle in url:
                 raise exc
+        if token:
+            self.api_tokens.append(token)
         if url == github.TOKEN_URL:
+            if form.get("grant_type") == "refresh_token":
+                self.refresh_calls += 1
+                assert form["refresh_token"] == "refresh-attrappe-original"
+                if self.refresh_error:
+                    raise self.refresh_error
+                return {"access_token": "token-attrappe-rotated", "refresh_token": "refresh-attrappe-rotated", "expires_in": 28800}
+            if self.expiring:
+                return {"access_token": "token-attrappe-0001", "refresh_token": "refresh-attrappe-original", "expires_in": 28800}
             return {"access_token": "token-attrappe-0001"}  # attrappe: erfunden
         if url.endswith("/user"):
             return {"login": "octo"}

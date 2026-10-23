@@ -26,41 +26,41 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.79.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20146-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.80.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20425-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1862%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-813-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-823-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
-[![frontend tests](https://img.shields.io/badge/frontend%20tests-857-brightgreen.svg)](frontend/src/lib/)
+[![frontend tests](https://img.shields.io/badge/frontend%20tests-864-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
-[![test files](https://img.shields.io/badge/test%20files-88-0A9EDC.svg)](docs/TESTING.md)
+[![test files](https://img.shields.io/badge/test%20files-90-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
-[![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-96%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-18%20213-0A9EDC.svg)](docs/TESTING.md)
+[![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
+[![test LOC](https://img.shields.io/badge/test%20LOC-18%20388-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-13%20917-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-22%20110-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20119-663399.svg)](#)
-[![source files](https://img.shields.io/badge/source%20files-192-blue.svg)](#)
-[![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-43-3178C6.svg)](frontend/src/lib/)
-[![React components](https://img.shields.io/badge/React%20components-58-61DAFB.svg)](frontend/src/components/)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-14%20005-3776AB.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-22%20278-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20142-663399.svg)](#)
+[![source files](https://img.shields.io/badge/source%20files-198-blue.svg)](#)
+[![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-45-3178C6.svg)](frontend/src/lib/)
+[![React components](https://img.shields.io/badge/React%20components-61-61DAFB.svg)](frontend/src/components/)
 [![React hooks](https://img.shields.io/badge/React%20hooks-103-61DAFB.svg)](frontend/src/state/)
 [![API endpoints](https://img.shields.io/badge/API%20endpoints-122-8A2BE2.svg)](docs/API.md)
 [![routers](https://img.shields.io/badge/routers-19-8A2BE2.svg)](backend/app/routers/)
 [![DB tables](https://img.shields.io/badge/DB%20tables-24-003B57.svg)](docs/ARCHITECTURE.md)
-[![migrations](https://img.shields.io/badge/migrations-50-003B57.svg)](backend/app/db.py)
+[![migrations](https://img.shields.io/badge/migrations-52-003B57.svg)](backend/app/db.py)
 [![schemas](https://img.shields.io/badge/schemas-109-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-30-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-99-blue.svg)](CHANGELOG.md)
-[![last release](https://img.shields.io/badge/last%20release-2026--10--23-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-100-blue.svg)](CHANGELOG.md)
+[![last release](https://img.shields.io/badge/last%20release-2026--10--24-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -183,7 +183,7 @@ App einfügen.
 
 ## Features
 
-- **GitHub-Projektkontext**: GitHub in den Einstellungen verbinden und je Projekt ein Repository (auch privat) plus optionalen Branch wählen. Analyse und Optimierung berücksichtigen CLAUDE.md, README, Dateibaum und letzte Commits. Der geladene Stand, Fehler und die Kontextquelle jedes KI-Laufs sind sichtbar. Optional; benötigt eine GitHub-OAuth-App auf dem Server und die bestehende Freigabe für KI-Läufe.
+- **GitHub-Projektkontext**: GitHub in den Einstellungen verbinden und je Projekt ein Repository (auch privat) plus optionalen Branch wählen. Analyse und Optimierung berücksichtigen CLAUDE.md, README, Dateibaum und letzte Commits. Der geladene Stand, Fehler und die Kontextquelle jedes KI-Laufs sind sichtbar. Geführte Einrichtung über „KI einrichten“: eigener Anthropic-Key, GitHub verbinden, Repository auswählen. Die OAuth-App richtet der Betreiber einmalig ein; Nutzer benötigen keine Server-Zugangsdaten. Kurzlebige GitHub-Tokens werden automatisch erneuert.
 
 - **Kanban-Board** mit Drag-zwischen-Spalten (Statuswechsel) + Reorder, optimistisch, Spring-Motion. Nach **Done** verschobene Prompts landen immer **ganz oben**; **neu angelegte Prompts mit Bug-Tag** (`bug`, `bugfix`, …) landen ebenfalls **oben in der Queue**. Pro Spalte sind **max. 10 Karten** sichtbar (Rest aufklappbar über „+N weitere anzeigen"). Das aktive Projekt steht animiert **im Header** neben dem cue-Logo. **Mehrere ausgewählte Prompts wandern gemeinsam**: eine selektierte Karte ziehen nimmt die ganze Auswahl mit (alle mitgezogenen Karten hängen sichtbar am Cursor), oder man nutzt die Ziel-Buttons Queued/Running/Done in der Auswahlleiste — auf dem Handy der bequemere Weg.
 - **Priorität** (gering · mittel · hoch): auf Board und Liste ein **Umschalter** an der Karte (ein Klick von „mittel" macht dringend, der nächste gering, der dritte wieder mittel), im Detail-Dialog ein **Dropdown** — in der Ansicht wie im Bearbeiten-Modus. **Langes Drücken setzt zurück auf „mittel"** (500 ms): der Zyklus taugt schlecht zum Zurücknehmen, weil er von „hoch" durch „gering" hindurchführt. Der Knopf sagt beide Gesten an — das Halten aber nur dort, wo es etwas anderes tut als der Klick. Auf einem Prompt, der schon „mittel" ist, passiert nichts (und er wird insbesondere **nicht** dringend). **In der Queue steht Hohes zuerst**; innerhalb eines Bandes gilt weiter die selbst gezogene Reihenfolge. Der kompakte Umschalter erscheint nur an Prompts in der Queue, weil er nur dort wirkt. Beim **Zusammenführen gewinnt immer die höchste** Priorität der Quellen — eine Regel, keine Wahl im Dialog.
@@ -285,11 +285,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 813 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 823 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
-| Frontend | `frontend/src/lib/` | 857 | 96 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
+| Frontend | `frontend/src/lib/` | 864 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1862** | | |
+| **Gesamt** | | **1879** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
