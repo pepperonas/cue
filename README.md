@@ -33,8 +33,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1879%20passing-brightgreen.svg)](docs/TESTING.md)
-[![backend tests](https://img.shields.io/badge/backend%20tests-823-brightgreen.svg)](backend/tests/)
+[![tests](https://img.shields.io/badge/tests-1880%20passing-brightgreen.svg)](docs/TESTING.md)
+[![backend tests](https://img.shields.io/badge/backend%20tests-824-brightgreen.svg)](backend/tests/)
 [![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-864-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
@@ -42,7 +42,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-18%20388-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-18%20431-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-14%20005-3776AB.svg)](#)
@@ -285,11 +285,11 @@ cd frontend && pnpm typecheck
 <!-- tests:dynamic -->
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
-| Backend | `backend/tests/` | 823 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
+| Backend | `backend/tests/` | 824 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
 | Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
 | Frontend | `frontend/src/lib/` | 864 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1879** | | |
+| **Gesamt** | | **1880** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)
