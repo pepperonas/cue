@@ -51,10 +51,8 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
       ref={setNodeRef}
       className={`list-item project-row ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...attributes}
-      {...listeners}
     >
-      <div className="row project-row-main">
+      <div className="row project-row-main" {...attributes} {...listeners}>
         <span
           className="dot"
           style={{ background: tones.accent, width: 16, height: 16, borderRadius: '50%' }}
