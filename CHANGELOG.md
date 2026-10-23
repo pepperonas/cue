@@ -26,6 +26,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.79.0] - 2026-10-23
+
+### Added
+- **Projektkontext aus GitHub** für Reihenfolgeanalysen und Prompt-Optimierungen:
+  optionales OAuth-Konto in den Einstellungen, Repository und Branch pro Projekt,
+  durchsuchbare Repo-Auswahl (auch privat) und manuelle Aktualisierung mit sichtbarem
+  SHA, Alter, Umfang und Fehlerstatus. Ohne Server-Konfiguration bleibt das Feature verborgen.
+- Kontext aus CLAUDE.md, README, Manifest, Dateibaum und letzten Commits, auf
+  60.000 Zeichen begrenzt und je Projekt zwischengespeichert. Jeder KI-Lauf
+  speichert seinen eigenen Kontextstand; Analyse und Optimierung zeigen dessen Quelle.
+  Die Anthropic-API erhält einen cachefähigen Systemblock, der Mac-Runner den Kontext
+  im Prompt. Eigene API-Keys und die bestehenden Kostengrenzen gelten weiterhin.
+
+### Fixed
+- GitHub-Codeaustausch verarbeitet auch `application/json` als JSON.
+- Ein fehlgeschlagener Repo- oder Branchwechsel übernimmt keinen Kontext des
+  vorherigen Ziels. Bei einem Ausfall am selben Ziel bleibt der letzte gute Stand erhalten.
+
 ## [0.78.0] - 2026-10-04
 
 ### Changed

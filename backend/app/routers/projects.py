@@ -160,6 +160,10 @@ def update_project(
     session.refresh(project)
     service = ProjectContextService(session)
     if changed:
+        # Clear even when switching back to the default branch: the resolved
+        # ref alone cannot tell us which target the previous cache requested.
+        service.delete_for_project(project.id)
+        session.commit()
         # Fetch right away, so the first run after linking already has context.
         service.safe_refresh(uid, project.id)
     count = session.exec(

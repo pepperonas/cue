@@ -1,6 +1,8 @@
 // Typed fetch client. Sends the CSRF double-submit header on mutations by
 // reading the readable `cue_csrf` cookie.
 import type {
+  GitHubStatus,
+  GitHubRepo,
   AdminUser,
   Snippet,
   SnippetGroup,
@@ -148,11 +150,17 @@ export const api = {
   adminSetApproval: (id: number, approved: boolean) =>
     request<AdminUser>('PATCH', `/admin/users/${id}`, { approved }),
 
+  githubStatus: () => request<GitHubStatus>('GET', '/github/status'),
+  githubRepos: () => request<GitHubRepo[]>('GET', '/github/repos'),
+  githubConnectUrl: '/api/github/connect',
+  disconnectGitHub: () => request<void>('DELETE', '/github/connection'),
+  refreshProjectContext: (id: number) => request<Project>('POST', `/projects/${id}/context/refresh`),
+
   // Projects
   listProjects: () => request<Project[]>('GET', '/projects'),
   createProject: (name: string, color: string) =>
     request<Project>('POST', '/projects', { name, color }),
-  updateProject: (id: number, patch: { name?: string; color?: string }) =>
+  updateProject: (id: number, patch: { name?: string; color?: string; github_repo?: string; github_ref?: string }) =>
     request<Project>('PATCH', `/projects/${id}`, patch),
   reorderProjects: (items: { id: number; sort_order: number }[]) =>
     request<Project[]>('POST', '/projects/reorder', { items }),

@@ -312,7 +312,7 @@ export function useCreateProject() {
 export function useUpdateProject() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, patch }: { id: number; patch: { name?: string; color?: string } }) =>
+    mutationFn: ({ id, patch }: { id: number; patch: Parameters<typeof api.updateProject>[1] }) =>
       api.updateProject(id, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: PROJECTS_KEY }),
   })
@@ -961,5 +961,37 @@ export function useSetOptimizeManual() {
       if (ctx?.vorher) qc.setQueryData(PROMPTS_KEY, ctx.vorher)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: PROMPTS_KEY }),
+  })
+}
+
+// GitHub status is shared by settings and project editors; tokens stay server-side.
+export function useGitHubStatus() {
+  return useQuery({ queryKey: ['github'], queryFn: api.githubStatus })
+}
+
+export function useGitHubRepos(enabled: boolean) {
+  return useQuery({ queryKey: ['github', 'repos'], queryFn: api.githubRepos, enabled, staleTime: 60_000 })
+}
+
+export function useDisconnectGitHub() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.disconnectGitHub,
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ['github', 'repos'] })
+      qc.invalidateQueries({ queryKey: ['github'] })
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+    },
+  })
+}
+
+export function useRefreshProjectContext() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.refreshProjectContext,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PROJECTS_KEY })
+      qc.invalidateQueries({ queryKey: ['github'] })
+    },
   })
 }

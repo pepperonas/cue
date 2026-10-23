@@ -24,6 +24,7 @@ import {
 } from '../state/queries'
 import { useToast } from '../state/toast'
 import { Button, Icon, IconButton } from './ui'
+import { ProjectRepository } from './ProjectRepository'
 import { Confirm } from './Confirm'
 import { useDragSensors } from '../lib/dnd'
 
@@ -53,50 +54,53 @@ function ProjectRow({ p, dark, editing, setEditing, onSave, onDelete }: RowProps
       {...attributes}
       {...listeners}
     >
-      <span
-        className="dot"
-        style={{ background: tones.accent, width: 16, height: 16, borderRadius: '50%' }}
-      />
-      {isEdit ? (
-        <input
-          className="input grow"
-          value={editing!.name}
-          autoFocus
-          onPointerDown={stop}
-          onChange={(e) => setEditing({ ...editing!, name: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSave(editing!)
-            if (e.key === 'Escape') setEditing(null)
-          }}
+      <div className="row project-row-main">
+        <span
+          className="dot"
+          style={{ background: tones.accent, width: 16, height: 16, borderRadius: '50%' }}
         />
-      ) : (
-        <div className="grow">
-          <div className="lt">{p.name}</div>
-          <div className="muted" style={{ fontSize: '0.78rem' }}>
-            {p.prompt_count} Prompt{p.prompt_count === 1 ? '' : 's'}
+        {isEdit ? (
+          <input
+            className="input grow"
+            value={editing!.name}
+            autoFocus
+            onPointerDown={stop}
+            onChange={(e) => setEditing({ ...editing!, name: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSave(editing!)
+              if (e.key === 'Escape') setEditing(null)
+            }}
+          />
+        ) : (
+          <div className="grow">
+            <div className="lt">{p.name}</div>
+            <div className="muted" style={{ fontSize: '0.78rem' }}>
+              {p.prompt_count} Prompt{p.prompt_count === 1 ? '' : 's'}
+            </div>
           </div>
-        </div>
-      )}
-      {isEdit ? (
-        <>
-          {PRESET_SEEDS.slice(0, 6).map((s) => (
-            <button
-              key={s}
-              className="swatch"
-              style={{ background: s, width: 24, height: 24 }}
-              data-active={editing!.color === s}
-              onPointerDown={stop}
-              onClick={() => setEditing({ ...editing!, color: s })}
-            />
-          ))}
-          <IconButton icon="check" label="Speichern" onPointerDown={stop} onClick={() => onSave(editing!)} />
-        </>
-      ) : (
-        <>
-          <IconButton icon="edit" label="Bearbeiten" onPointerDown={stop} onClick={() => setEditing(p)} />
-          <IconButton icon="delete" label="Löschen" onPointerDown={stop} onClick={() => onDelete(p)} />
-        </>
-      )}
+        )}
+        {isEdit ? (
+          <>
+            {PRESET_SEEDS.slice(0, 6).map((s) => (
+              <button
+                key={s}
+                className="swatch"
+                style={{ background: s, width: 24, height: 24 }}
+                data-active={editing!.color === s}
+                onPointerDown={stop}
+                onClick={() => setEditing({ ...editing!, color: s })}
+              />
+            ))}
+            <IconButton icon="check" label="Speichern" onPointerDown={stop} onClick={() => onSave(editing!)} />
+          </>
+        ) : (
+          <>
+            <IconButton icon="edit" label="Bearbeiten" onPointerDown={stop} onClick={() => setEditing(p)} />
+            <IconButton icon="delete" label="Löschen" onPointerDown={stop} onClick={() => onDelete(p)} />
+          </>
+        )}
+      </div>
+      <ProjectRepository project={p} />
     </div>
   )
 }

@@ -5155,3 +5155,15 @@ img.logo-xl { border-radius: 18px; }
   align-items: center;
   gap: 4px;
 }
+
+/* Repo controls sit below the sortable project's compact header. */
+.project-row { display: block; }
+.project-row-main { width: 100%; flex-wrap: wrap; }
+.project-repository { margin-top: 10px; padding-left: 28px; cursor: auto; touch-action: pan-y; }
+.repository-editor { display: grid; gap: 8px; margin-top: 12px; max-width: 640px; }
+.repository-editor .field { margin: 0; }
+.context-chip { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--md-on-surface-variant); overflow-wrap: anywhere; }
+.context-chip .material-symbols-rounded { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .project-repository { padding-left: 0; }
+}

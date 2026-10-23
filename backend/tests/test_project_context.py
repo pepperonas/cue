@@ -47,6 +47,8 @@ class FakeRepo:
             raise self.fail
         if url == github.TOKEN_URL:
             return {"access_token": "token-attrappe-0002"}  # attrappe: erfunden
+        if "/applications/" in url:
+            return None
         if url.endswith("/user"):
             return {"login": "octo"}
         if url.endswith("/repos/octo/app"):
@@ -398,3 +400,41 @@ def test_a_github_outage_does_not_stop_an_analysis(client, repo):
     assert res.status_code == 201
     # The last good context still travels; the outage only shows on the project.
     assert res.json()["context_ref"] == f"octo/app@{SHA1[:7]}"
+
+
+def test_changing_branch_during_an_outage_never_sends_the_old_branch(client, repo):
+    csrf = auth(client)
+    connect(client)
+    pid, _ = linked_project(client, csrf)
+    repo.fail = github.GitHubError(502, "Server Error")
+    changed = client.patch(f"/api/projects/{pid}", json={"github_ref": "other-branch"}, headers=hdr(csrf)).json()
+    assert changed["context"]["chars"] == 0
+    assert changed["context"]["head_sha"] == ""
+    prompt_id = mk_prompt(client, csrf, pid)
+    job = client.post("/api/optimizations", json={"prompt_id": prompt_id}, headers=hdr(csrf))
+    assert job.status_code == 201, job.text
+    assert job.json()["context_ref"] == ""
+
+
+def test_changing_repo_without_a_connection_cannot_relabel_old_context(client, repo):
+    csrf = auth(client)
+    connect(client)
+    pid, _ = linked_project(client, csrf)
+    client.delete("/api/github/connection", headers=hdr(csrf))
+    changed = client.patch(f"/api/projects/{pid}", json={"github_repo": "other/app"}, headers=hdr(csrf)).json()
+    assert changed["context"]["repo"] == "other/app"
+    assert changed["context"]["chars"] == 0
+    assert changed["context"]["error"] == "GitHub ist nicht verbunden"
+
+
+
+def test_switching_to_default_branch_during_outage_clears_explicit_branch(client, repo):
+    csrf = auth(client)
+    connect(client)
+    pid, _ = linked_project(client, csrf)
+    selected = client.patch(f"/api/projects/{pid}", json={"github_ref": "feature"}, headers=hdr(csrf))
+    assert selected.json()["context"]["chars"] > 0
+    repo.fail = github.GitHubError(502, "Server Error")
+    changed = client.patch(f"/api/projects/{pid}", json={"github_ref": ""}, headers=hdr(csrf)).json()
+    assert changed["context"]["chars"] == 0
+    assert changed["context"]["head_sha"] == ""

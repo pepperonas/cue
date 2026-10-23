@@ -8,6 +8,7 @@ import { useToast } from '../state/toast'
 import { Button, Icon, IconButton, Switch } from './ui'
 import { Confirm } from './Confirm'
 import { AboutSection } from './AboutSection'
+import { GitHubSection } from './GitHubSection'
 import { DevicesSection } from './DevicesSection'
 import { Select } from './Select'
 
@@ -366,6 +367,7 @@ export function SettingsView({
         </div>
       </div>
 
+      <GitHubSection />
       <DevicesSection />
 
       <div className="section">

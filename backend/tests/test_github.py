@@ -195,3 +195,24 @@ def test_repos_without_a_connection_is_a_clear_400(client, gh):
     res = client.get("/api/github/repos")
     assert res.status_code == 400
     assert "nicht verbunden" in res.json()["detail"]
+
+
+def test_oauth_token_exchange_decodes_the_real_json_response(client, monkeypatch):
+    """Mock HTTP, not request(): OAuth uses application/json, unlike API calls."""
+    import io
+
+    monkeypatch.setattr(github.urllib.request, "urlopen", lambda *args, **kw: io.BytesIO(
+        b'{"access_token":"token-attrappe-json"}'
+    ))
+    assert github.exchange_code("code-attrappe") == "token-attrappe-json"
+
+
+
+def test_context_refresh_shares_one_network_budget(monkeypatch):
+    ticks = iter([100.0, 107.0, 111.0])
+    monkeypatch.setattr(github.time, "monotonic", lambda: next(ticks))
+    with github.time_budget(10):
+        assert github._timeout() == 3
+        with pytest.raises(github.GitHubError, match="rechtzeitig"):
+            github._timeout()
+    assert github._timeout() == github.TIMEOUT_S

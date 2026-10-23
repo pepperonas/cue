@@ -41,6 +41,7 @@ export interface AnalysisResult {
 }
 export type AnalysisStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
 export interface Analysis {
+  context_ref?: string
   id: number
   project_id: number | null
   project_name: string

@@ -41,6 +41,21 @@ es nicht, also auch keine zu verlieren.
   sitzt in `current_user_id`, also greift ein Entzug bei der **nächsten
   Anfrage** — nicht erst beim Ablauf der Sitzung.
 
+### GitHub-Projektkontext
+
+Die optionale GitHub-OAuth-Verbindung verwendet den Scope `repo`, den GitHub für
+private Repositories verlangt. Er erlaubt auch Schreibzugriff; cue verwendet ihn
+nur zum Lesen. Token und Client-Secret erreichen den Browser nie, das Token wird
+wie der Anthropic-Key verschlüsselt gespeichert. Beim Trennen widerruft cue die
+Freigabe bei GitHub und löscht das lokale Token auch bei einem GitHub-Ausfall.
+Gespeicherter Projektkontext und historische Job-Schnappschüsse bleiben erhalten.
+
+Der signierte OAuth-State trägt die Nutzer-ID und braucht zusätzlich das passende
+kurzlebige Lax-Cookie; beim Callback wird die Freischaltung erneut geprüft. Die
+Strict-Sitzung muss beim Rücksprung von GitHub nicht mitgesendet werden.
+Repository-Inhalte werden als Kontext an den vom Nutzer bezahlten KI-Anbieter
+übermittelt. Kein Nutzer kann damit den API-Key eines anderen verwenden.
+
 ### Sitzung und CSRF
 
 Das Sitzungs-Token ist signiert (`itsdangerous`) und trägt die Nutzer-ID sowie

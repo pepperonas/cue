@@ -416,3 +416,19 @@ Zeitablauf und 5xx heißen „später nochmal". Details:
 - [`TESTING.md`](TESTING.md) — wie hier getestet wird und warum so
 - [`../SECURITY.md`](../SECURITY.md) — Sicherheitsmodell
 - [`../CLAUDE.md`](../CLAUDE.md) — die Fallstricke im Detail
+
+## GitHub-Projektkontext
+
+Ist GitHub OAuth konfiguriert, verbinden Nutzer ihr Konto in den Einstellungen
+und wählen unter Projekte ein Repository plus optionalen Branch. Das Backend
+liest CLAUDE.md, README, ein Manifest, den gefilterten Dateibaum und letzte
+Commit-Betreffs über die GitHub-API. `ProjectContext` speichert einen auf 60.000
+Zeichen begrenzten Cache. Analyse und Batch prüfen den HEAD einmal pro Projekt;
+Einzeloptimierungen nutzen einen frischen Cache. Fehler am selben Ziel behalten
+den letzten guten Stand, ein Repo-/Branchwechsel verwirft den alten Kontext.
+
+Jeder Analyse-/Optimierungsjob speichert einen unveränderlichen Kontext-Schnappschuss
+samt `context_ref`. Der API-Executor sendet ihn als cachefähigen Systemblock, der
+Mac-Runner erhält ihn vor dem eigentlichen Prompt. Claims führen keine GitHub-Abfrage
+aus. Das UI zeigt Cache-Zustand und Job-Quelle getrennt. Die bestehende Prüfung des
+eigenen Anthropic-Keys bzw. des Betreiber-Runners bleibt für jeden KI-Lauf zuständig.

@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import base64
 import json
+import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,6 +25,27 @@ TOKEN_URL = "https://github.com/login/oauth/access_token"  # noqa: S105 (URL, no
 #: The scope private repositories need. There is no narrower one in OAuth Apps.
 SCOPE = "repo"
 TIMEOUT_S = 8
+_DEADLINE: ContextVar[float | None] = ContextVar("github_deadline", default=None)
+
+
+@contextmanager
+def time_budget(seconds: float):
+    """A refresh shares one budget across all GitHub requests."""
+    token = _DEADLINE.set(time.monotonic() + seconds)
+    try:
+        yield
+    finally:
+        _DEADLINE.reset(token)
+
+
+def _timeout() -> float:
+    deadline = _DEADLINE.get()
+    if deadline is None:
+        return TIMEOUT_S
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise GitHubError(0, "GitHub-Kontext konnte nicht rechtzeitig geladen werden")
+    return min(TIMEOUT_S, remaining)
 
 JSON = "application/vnd.github+json"
 RAW = "application/vnd.github.raw+json"
@@ -65,7 +89,7 @@ def request(
         data = json.dumps(body).encode()
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, data=data, timeout=TIMEOUT_S) as resp:  # noqa: S310 (fixed GitHub hosts)
+        with urllib.request.urlopen(req, data=data, timeout=_timeout()) as resp:  # noqa: S310 (fixed GitHub hosts)
             raw = resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         detail = ""
@@ -76,7 +100,7 @@ def request(
         raise GitHubError(exc.code, detail or f"GitHub antwortete mit {exc.code}") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise GitHubError(0, "GitHub ist nicht erreichbar") from exc
-    if accept != JSON:
+    if accept in (RAW, SHA):
         return raw
     return json.loads(raw) if raw.strip() else None
 

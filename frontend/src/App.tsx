@@ -250,6 +250,8 @@ function Shell({
   useRefreshOnOptimizationFinish(optimizingIds)
 
   const [view, setView] = useState<View>(() => {
+    const query = new URLSearchParams(window.location.search)
+    if (query.has('github') || query.has('github_error')) return 'settings'
     const saved = localStorage.getItem('cue-view')
     return saved === 'board' ||
       saved === 'list' ||
@@ -265,6 +267,22 @@ function Shell({
       ? saved
       : 'board'
   })
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const error = url.searchParams.get('github_error')
+    if (url.searchParams.has('github') || error) {
+      const messages: Record<string, string> = {
+        config: 'GitHub ist auf dem Server nicht eingerichtet',
+        state: 'GitHub-Verbindung abgelaufen — bitte erneut verbinden',
+        denied: 'GitHub-Verbindung wurde abgebrochen',
+        exchange: 'GitHub-Verbindung fehlgeschlagen — bitte erneut versuchen',
+      }
+      toast.show(error ? messages[error] || 'GitHub-Verbindung fehlgeschlagen' : 'GitHub verbunden', error ? 'error' : 'success')
+      url.searchParams.delete('github')
+      url.searchParams.delete('github_error')
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+    }
+  }, [toast])
   useEffect(() => {
     localStorage.setItem('cue-view', view)
   }, [view])

@@ -30,6 +30,27 @@ export const STATUS_CLASS: Record<Status, string> = {
   archived: 'st-archived',
 }
 
+export interface GitHubStatus {
+  configured: boolean
+  connected: boolean
+  login: string | null
+}
+
+export interface GitHubRepo {
+  full_name: string
+  default_branch: string
+  private: boolean
+}
+
+export interface ProjectContext {
+  repo: string
+  ref: string
+  head_sha: string
+  chars: number
+  fetched_at: string | null
+  error: string | null
+}
+
 export interface Project {
   id: number
   name: string
@@ -37,6 +58,9 @@ export interface Project {
   sort_order: number
   created_at: string
   prompt_count: number
+  github_repo?: string | null
+  github_ref?: string | null
+  context?: ProjectContext | null
 }
 
 export interface Attachment {
@@ -527,6 +551,7 @@ export const OPTIMIZATION_ACTIVE: OptimizationStatus[] = ['queued', 'running']
 
 /** One optimization attempt — a job while it runs, a history entry afterwards. */
 export interface Optimization {
+  context_ref?: string
   id: number
   prompt_id: number
   batch_id: string | null

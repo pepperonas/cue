@@ -12,6 +12,7 @@ import {
   prioritaetsAenderungen,
   type Analysis,
 } from '../../lib/analysis'
+import { contextSnapshot } from '../../lib/project-context'
 import { springs } from '../../lib/motion'
 import type { Prompt } from '../../lib/types'
 import { useBackDismiss } from '../../state/overlays'
@@ -71,6 +72,8 @@ export function AnalysisDialog({
           </h2>
           <IconButton icon="close" label="Schließen" onClick={onClose} />
         </div>
+
+        <p className="context-chip"><Icon name="code" /> {contextSnapshot(analysis.context_ref)}</p>
 
         {laeuft && (
           <div className="analysis-running">

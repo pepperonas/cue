@@ -148,7 +148,8 @@ class ProjectContextService:
     def safe_refresh(self, user_id: int, project_id: int | None, **kw) -> None:  # noqa: ANN003
         """`refresh`, but nothing that goes wrong in it may fail the caller."""
         try:
-            self.refresh(user_id, project_id, **kw)
+            with github.time_budget(10):
+                self.refresh(user_id, project_id, **kw)
         except Exception:  # noqa: BLE001
             log.exception("context refresh crashed project=%s", project_id)
             self.session.rollback()

@@ -10,9 +10,12 @@
 // scrolls past.
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
+import { contextSnapshot, contextStatus } from '../../lib/project-context'
+import { clock } from '../../lib/clock'
+import { useSyncExternalStore } from 'react'
 import { springs } from '../../lib/motion'
 import { isOptimizable, metaChanges, succeededVersions } from '../../lib/optimization'
-import { useOptimizationHistory } from '../../state/queries'
+import { useOptimizationHistory, useProjects } from '../../state/queries'
 import type { Optimization, Prompt } from '../../lib/types'
 import { Icon } from '../ui'
 import { DiffView } from './DiffView'
@@ -69,6 +72,9 @@ export function OptimizationPanel({
   onOpenVersion: (optimization: Optimization) => void
   selectedVersion: number | null
 }) {
+  const { data: projects } = useProjects()
+  const now = useSyncExternalStore(clock.subscribe, clock.now)
+  const project = projects?.find((p) => p.id === prompt.project_id)
   const { data: history } = useOptimizationHistory(prompt.id)
   const versions = useMemo(() => succeededVersions(history), [history])
   const lastFailure = useMemo(
@@ -88,8 +94,9 @@ export function OptimizationPanel({
           <Icon name="auto_awesome" /> Optimieren
         </button>
         <p className="opt-hint">
-          Claude Code CLI schreibt den Prompt um — das Original bleibt unverändert erhalten.
+          Die KI schreibt den Prompt um — das Original bleibt unverändert erhalten.
         </p>
+        <p className="context-chip"><Icon name="code" /> {contextStatus(project ?? {}, now)}</p>
         {lastFailure?.error && (
           <p className="opt-error">
             <Icon name="error" /> Letzter Versuch: {lastFailure.error}
@@ -129,6 +136,8 @@ export function OptimizationPanel({
           )
         )}
       </header>
+
+      <p className="context-chip"><Icon name="code" /> {contextSnapshot((busy ? activeJob : shown)?.context_ref)}</p>
 
       {prompt.optimized && (
         <>

@@ -471,6 +471,7 @@ export function handleDemoRequest(
   if (spends) throw new DemoRefusal(REFUSAL)
 
   // ---- Sitzung ------------------------------------------------------------
+  if (url === '/github/status') return { configured: false, connected: false, login: null }
   if (url === '/auth/me') return DEMO_ME
   if (url === '/auth/logout') return { ok: true }
 

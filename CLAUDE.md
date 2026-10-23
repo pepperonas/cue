@@ -138,6 +138,19 @@ the built frontend (`STATIC_DIR`, default `static/`) as a SPA for all other path
 `index.html` fallback so client-side state survives hard reloads. In dev the two run
 separately and Vite proxies `/api` to `:8000`.
 
+**GitHub project context (0.79.0)**: optional `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
+activate `routers/github.py` and the Settings connection section. Private repos need OAuth's
+`repo` scope; cue only reads, encrypts tokens and revokes the grant on disconnect. The signed
+GitHub state carries the approved user's id because the Strict session cookie is absent on
+GitHub's callback; a matching Lax state cookie is still required. `projectcontext/` fetches
+CLAUDE.md, README, one manifest, a filtered tree and recent commits (60k chars total).
+`ProjectContextService` caches per project; changed targets must clear old text even when
+fetching fails. A failure on the SAME target preserves the last good text. Jobs snapshot
+`context_text` and `context_ref`: the API sends context in a cached system block, the runner
+gets it inline (with an adjusted character limit). ProjectRepository provides repo search,
+manual entry, branch and refresh; project-context.ts formats cache status separately from
+immutable history snapshots. Disconnecting keeps cached text and past job snapshots.
+
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).
 - `config.py` — env-driven `Settings` (cached). `validate()` fails fast (needs `SECRET_KEY` + `GOOGLE_CLIENT_ID`/`SECRET`) unless `CUE_DEV=1`. `is_email_allowed()` enforces the allowlist (empty lists = closed in prod, open in dev). `google_redirect_uri` derives from `ALLOWED_ORIGIN`.
