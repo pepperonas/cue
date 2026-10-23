@@ -142,3 +142,52 @@ def test_another_users_request_never_refreshes_or_uses_the_owners_credentials(cl
     assert client.get("/api/github/status").json()["connected"] is False
     assert gh.refresh_calls == 0
     assert _stored_user().github_refresh_token_enc == original.github_refresh_token_enc
+
+
+def test_simultaneous_requests_do_not_spend_a_refresh_token_twice(client, gh, monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    import app.db as db_module
+    from app.projectcontext import tokens
+    connect_expiring(client, gh)
+    expire_owner()
+    uid = _stored_user().id
+    loaded = threading.Barrier(2)
+    first_refresh = threading.Event()
+    second_started = threading.Event()
+    second_refresh = threading.Event()
+    count_lock = threading.Lock()
+    refresh_count = 0
+
+    def request(method, url, **kw):
+        nonlocal refresh_count
+        if (kw.get("form") or {}).get("grant_type") == "refresh_token":
+            with count_lock:
+                refresh_count += 1
+                number = refresh_count
+            if number == 1:
+                first_refresh.set()
+                assert second_started.wait(3)
+                # A simultaneous API request WOULD enter here immediately if
+                # rotation were unprotected. With serialization it waits for
+                # the first response and then reuses the new credential.
+                second_refresh.wait(0.3)
+            else:
+                second_refresh.set()
+        return gh(method, url, **kw)
+
+    monkeypatch.setattr(github, "request", request)
+
+    def run(index):
+        with Session(db_module.engine) as session:
+            user = session.get(User, uid)
+            loaded.wait(timeout=3)
+            if index == 1:
+                assert first_refresh.wait(3)
+                second_started.set()
+            return tokens.access_token(session, user)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(run, [0, 1]))
+    assert results == ["token-attrappe-rotated", "token-attrappe-rotated"]
+    assert refresh_count == 1, "GitHub refresh tokens are single-use"
