@@ -1,5 +1,7 @@
 <div align="center">
 
+<a href="https://cue.celox.io"><img src="docs/banner.jpg" alt="cue — Queue it. Ship it. Eine Ameise mit Kopfhörern hält eine Prompt-Karte hoch." width="100%" /></a>
+
 <img src="docs/screenshots/board-dark.png" alt="cue — Kanban-Board mit Prompt-Queue, Projektfiltern und Statusspalten" width="820" />
 
 # cue
