@@ -36,6 +36,8 @@ from ..models import (
 )
 from ..optimization import providers
 from ..optimization.service import OptimizationError
+from ..projectcontext.fetch import with_context
+from ..projectcontext.service import ProjectContextService
 from . import schema
 from .meta_prompt import ANALYSIS_PROMPT_VERSION, MAX_ERLEDIGTE, OffenerPrompt, build_analysis_prompt
 
@@ -61,6 +63,9 @@ class AnalyseJob:
     max_chars: int
     max_retries: int
     project_name: str
+    #: Context for the Messages API (system block); empty for the CLI, which
+    #: gets it inline in `prompt`.
+    context: str = ""
 
 
 class ProjectAnalysisService:
@@ -91,6 +96,12 @@ class ProjectAnalysisService:
         if laufend is not None:
             raise OptimizationError("Für dieses Projekt läuft bereits eine Analyse", 409)
 
+        # Network on the user's POST, never in the claim. Always checks the head
+        # sha (cheap); refetches only when the repository moved.
+        kontext = ProjectContextService(self.session)
+        kontext.safe_refresh(user_id, project_id)
+        context_text, context_ref = kontext.snapshot(user_id, project_id)
+
         name = projekt.name if projekt else "Ohne Projekt"
         prompt = build_analysis_prompt(
             projekt=name,
@@ -117,6 +128,8 @@ class ProjectAnalysisService:
             prompt_text=prompt,
             subject_ids=json.dumps([p.id for p in offen]),
             cursor=changes.cursor_for(self.session, user_id),
+            context_text=context_text,
+            context_ref=context_ref,
         )
         self.session.add(lauf)
         self.session.commit()
@@ -260,15 +273,18 @@ class ProjectAnalysisService:
         self.session.commit()
         self.session.refresh(lauf)
         log.info("analysis claimed id=%s by=%s", lauf.id, runner_id)
+        separat = providers.get(lauf.provider).executed_by == "server"
+        text = lauf.prompt_text if separat else with_context(lauf.prompt_text, lauf.context_text)
         return AnalyseJob(
             id=lauf.id,
             provider=lauf.provider,
             model=lauf.model,
-            prompt=lauf.prompt_text,
+            prompt=text,
+            context=lauf.context_text if separat else "",
             timeout_s=self.settings.optimize_timeout,
             # Die Analyse ist absichtlich NICHT an OPTIMIZE_MAX_CHARS gebunden:
             # das ist die Grenze für EINEN Prompt, hier reist ein ganzes Projekt.
-            max_chars=len(lauf.prompt_text) + 1,
+            max_chars=len(text) + 1,
             max_retries=self.settings.optimize_max_retries,
             project_name=lauf.project_name,
         )

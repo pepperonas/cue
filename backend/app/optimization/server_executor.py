@@ -72,6 +72,27 @@ def _usage_cost(model: str, usage) -> tuple[float | None, int, int]:  # noqa: AN
     return cost, input_tokens, output_tokens
 
 
+def _request(model: str, prompt: str, context: str, max_tokens: int, timeout: float) -> dict:
+    """Arguments for `messages.create`.
+
+    Project context goes into its own SYSTEM block marked for prompt caching:
+    every prompt of a project carries the same context, so from the second call
+    on it is billed as a cache read (0.1×) instead of full input. Inline in the
+    user message it would be a new prefix every time and never cache.
+    """
+    kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+        "timeout": timeout,
+    }
+    if context:
+        kwargs["system"] = [
+            {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}}
+        ]
+    return kwargs
+
+
 def _text_of(message) -> str:  # noqa: ANN001
     """The answer, from a content list that is a discriminated union."""
     parts = [
@@ -108,10 +129,7 @@ def run_one(session: Session, *, client_factory=_client_for) -> bool:
 
     try:
         message = client.messages.create(
-            model=model,
-            max_tokens=16000,
-            messages=[{"role": "user", "content": job.prompt}],
-            timeout=float(settings.optimize_timeout),
+            **_request(model, job.prompt, job.context, 16000, float(settings.optimize_timeout))
         )
         text = _text_of(message)
         cost, input_tokens, output_tokens = _usage_cost(model, getattr(message, "usage", None))

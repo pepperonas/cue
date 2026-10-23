@@ -84,6 +84,8 @@ def _migrate(engine: Engine) -> None:
     project_additions = {
         "user_id": "ALTER TABLE project ADD COLUMN user_id INTEGER REFERENCES user(id)",
         "sort_order": "ALTER TABLE project ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+        "github_repo": "ALTER TABLE project ADD COLUMN github_repo VARCHAR",
+        "github_ref": "ALTER TABLE project ADD COLUMN github_ref VARCHAR",
     }
     user_additions = {
         "capture_token": "ALTER TABLE user ADD COLUMN capture_token VARCHAR",
@@ -100,6 +102,8 @@ def _migrate(engine: Engine) -> None:
         # bewusst gelöscht hat, bekäme sie sonst beim nächsten Start zurück.
         "ai_models_seeded": "ALTER TABLE user ADD COLUMN ai_models_seeded BOOLEAN NOT NULL DEFAULT 0",
         "ai_models_catalog": "ALTER TABLE user ADD COLUMN ai_models_catalog INTEGER NOT NULL DEFAULT 0",
+        "github_token_enc": "ALTER TABLE user ADD COLUMN github_token_enc VARCHAR",
+        "github_login": "ALTER TABLE user ADD COLUMN github_login VARCHAR",
     }
     snippet_additions = {
         # Existing snippets start at v1 (DEFAULT covers the backfill).
@@ -119,6 +123,12 @@ def _migrate(engine: Engine) -> None:
         "original_tags": "ALTER TABLE prompt_optimization ADD COLUMN original_tags VARCHAR NOT NULL DEFAULT ''",
         "optimized_title": "ALTER TABLE prompt_optimization ADD COLUMN optimized_title VARCHAR",
         "optimized_tags": "ALTER TABLE prompt_optimization ADD COLUMN optimized_tags VARCHAR",
+        "context_text": "ALTER TABLE prompt_optimization ADD COLUMN context_text VARCHAR NOT NULL DEFAULT ''",
+        "context_ref": "ALTER TABLE prompt_optimization ADD COLUMN context_ref VARCHAR NOT NULL DEFAULT ''",
+    }
+    analysis_additions = {
+        "context_text": "ALTER TABLE project_analysis ADD COLUMN context_text VARCHAR NOT NULL DEFAULT ''",
+        "context_ref": "ALTER TABLE project_analysis ADD COLUMN context_ref VARCHAR NOT NULL DEFAULT ''",
     }
     capture_session_additions = {
         "term_program": "ALTER TABLE capture_session ADD COLUMN term_program VARCHAR NOT NULL DEFAULT ''",
@@ -136,6 +146,7 @@ def _migrate(engine: Engine) -> None:
             ("prompt_optimization", optimization_additions),
             ("capture_session", capture_session_additions),
             ("prompt_merge_part", merge_part_additions),
+            ("project_analysis", analysis_additions),
         ):
             cols = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             for column, ddl in additions.items():

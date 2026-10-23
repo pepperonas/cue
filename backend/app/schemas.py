@@ -60,11 +60,28 @@ class MeResponse(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     color: str = "#6750A4"
+    #: `owner/name` of the GitHub repository that gives the AI its context.
+    github_repo: str | None = None
+    github_ref: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     color: str | None = None
+    #: None = unchanged, "" = remove the link.
+    github_repo: str | None = None
+    github_ref: str | None = None
+
+
+class ProjectContextRead(BaseModel):
+    """What the cache holds — never the text itself (that can be 60 kB)."""
+
+    repo: str
+    ref: str
+    head_sha: str
+    chars: int
+    fetched_at: Utc | None = None
+    error: str | None = None
 
 
 class ProjectRead(BaseModel):
@@ -74,6 +91,21 @@ class ProjectRead(BaseModel):
     sort_order: int = 0
     created_at: Utc
     prompt_count: int = 0
+    github_repo: str | None = None
+    github_ref: str | None = None
+    context: ProjectContextRead | None = None
+
+
+class GitHubStatus(BaseModel):
+    configured: bool
+    connected: bool
+    login: str | None = None
+
+
+class GitHubRepo(BaseModel):
+    full_name: str
+    default_branch: str = ""
+    private: bool = False
 
 
 class ProjectReorderItem(BaseModel):
@@ -710,6 +742,9 @@ class OptimizationRead(BaseModel):
     original_tags: str
     optimized_title: str | None
     optimized_tags: str | None
+    #: `owner/name@sha7` of the project context this attempt saw; "" = none.
+    #: The text itself stays server-side (up to 60 kB per row).
+    context_ref: str = ""
     exit_code: int | None
     duration_ms: int | None
     cost_usd: float | None
@@ -888,6 +923,8 @@ class AnalysisRead(BaseModel):
     #: True, wenn sich die Daten seit dem Lauf geändert haben — der Vorschlag
     #: nennt dann Positionen für einen Stand, den es nicht mehr gibt.
     stale: bool = False
+    #: `owner/name@sha7` des mitgeschickten Projektkontexts; "" = ohne.
+    context_ref: str = ""
     duration_ms: int | None = None
     cost_usd: float | None = None
     input_tokens: int | None = None

@@ -85,3 +85,34 @@ def oauth_state_valid(cookie_value: str | None, returned_value: str | None) -> b
         return False
     except Exception:
         return False
+
+
+# ---- GitHub connect state ----
+# The session cookie is SameSite=Strict, so the browser does NOT send it on
+# GitHub's top-level redirect back to us — the callback cannot learn who is
+# connecting from the session. The signed state carries the user id instead,
+# and the Lax state cookie binds it to the browser that started the dance (an
+# attacker cannot plant their state in a victim's cookie jar).
+_GITHUB_STATE_SALT = "cue.github-state.v1"
+
+
+def _github_state_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(_settings.secret_key, salt=_GITHUB_STATE_SALT)
+
+
+def issue_github_state(user_id: int) -> str:
+    return _github_state_serializer().dumps({"uid": user_id, "n": secrets.token_urlsafe(16)})
+
+
+def github_state_user(cookie_value: str | None, returned_value: str | None) -> int | None:
+    """The user id from a valid state, or None. Cookie and echo must match."""
+    if not cookie_value or not returned_value:
+        return None
+    if not hmac.compare_digest(cookie_value, returned_value):
+        return None
+    try:
+        payload = _github_state_serializer().loads(cookie_value, max_age=_STATE_MAX_AGE)
+    except Exception:  # noqa: BLE001 — bad signature, expired, garbage: all "no"
+        return None
+    uid = payload.get("uid") if isinstance(payload, dict) else None
+    return uid if isinstance(uid, int) else None

@@ -74,6 +74,10 @@ class User(SQLModel, table=True):
     ai_models_seeded: bool = Field(default=False)
     #: Welche `catalog.KATALOG_VERSION` dieses Konto bekommen hat (0 = alt/unbekannt).
     ai_models_catalog: int = Field(default=0)
+    #: GitHub OAuth token (encrypted like the Anthropic key) + the account it
+    #: belongs to. Read-only use: cue fetches repository context, never writes.
+    github_token_enc: str | None = Field(default=None)
+    github_login: str | None = Field(default=None)
 
 
 class Device(SQLModel, table=True):
@@ -107,6 +111,33 @@ class Project(SQLModel, table=True):
     # Manual ordering (drag-sortable); also drives the filter-chip order.
     sort_order: int = Field(default=0, index=True)
     created_at: datetime = Field(default_factory=utcnow)
+    #: GitHub repository as `owner/name` — source of the AI's project context.
+    github_repo: str | None = Field(default=None)
+    #: Branch/tag to read; empty = the repository's default branch.
+    github_ref: str | None = Field(default=None)
+
+
+class ProjectContext(SQLModel, table=True):
+    """Cached repository context for one project (app/projectcontext/).
+
+    A cache, not a source of truth: it is rebuilt from GitHub whenever the head
+    commit moves. No foreign key on `project_id` (like `ProjectAnalysis`) — the
+    project delete path removes it.
+    """
+
+    __tablename__ = "project_context"
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int = Field(index=True, unique=True)
+    user_id: int = Field(index=True)
+    repo: str = Field(default="")
+    ref: str = Field(default="")
+    head_sha: str = Field(default="")
+    text: str = Field(default="")
+    chars: int = Field(default=0)
+    fetched_at: datetime | None = Field(default=None)
+    #: Last failure, shown in the UI. A failure never deletes a good `text`.
+    error: str | None = Field(default=None)
 
 
 class PromptMerge(SQLModel, table=True):
@@ -447,6 +478,10 @@ class PromptOptimization(SQLModel, table=True):
     original_tags: str = Field(default="")
     optimized_title: str | None = Field(default=None)
     optimized_tags: str | None = Field(default=None)
+    #: Project context sent with this attempt (snapshot, see ProjectContext).
+    context_text: str = Field(default="")
+    #: `owner/name@sha7` of that context, empty when none was sent.
+    context_ref: str = Field(default="")
 
     # Telemetry / audit trail.
     exit_code: int | None = Field(default=None)
@@ -502,6 +537,9 @@ class ProjectAnalysis(SQLModel, table=True):
     #: sich die Queue danach, ist der Vorschlag über einen anderen Stand
     #: gerechnet — die Ansicht sagt das, statt falsche Positionen anzubieten.
     cursor: str = Field(default="")
+    #: Projektkontext dieses Laufs (Schnappschuss) und woher er stammt.
+    context_text: str = Field(default="")
+    context_ref: str = Field(default="")
 
     #: Das normalisierte Ergebnis (`analysis.schema.als_dict`).
     result_json: str | None = Field(default=None)

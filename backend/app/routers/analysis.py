@@ -71,6 +71,7 @@ def _read(service: ProjectAnalysisService, lauf: ProjectAnalysis) -> AnalysisRea
         # Nur für einen fertigen, noch nicht entschiedenen Vorschlag relevant:
         # ein laufender Job hat noch nichts zu veralten.
         stale=service.veraltet(lauf) if lauf.result_json else False,
+        context_ref=lauf.context_ref,
         duration_ms=lauf.duration_ms,
         cost_usd=lauf.cost_usd,
         input_tokens=lauf.input_tokens,

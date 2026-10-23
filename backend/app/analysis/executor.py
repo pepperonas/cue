@@ -23,7 +23,7 @@ from sqlmodel import Session
 from ..config import get_settings
 from ..db import engine
 from ..optimization import pricing, providers
-from ..optimization.server_executor import MissingKey, _client_for, _text_of, _usage_cost
+from ..optimization.server_executor import MissingKey, _client_for, _request, _text_of, _usage_cost
 from ..optimization.service import ExecutionResult
 from .service import ProjectAnalysisService
 
@@ -57,10 +57,7 @@ def run_one(session: Session, *, client_factory=_client_for) -> bool:
 
     try:
         message = client.messages.create(
-            model=model,
-            max_tokens=MAX_TOKENS,
-            messages=[{"role": "user", "content": job.prompt}],
-            timeout=float(settings.optimize_timeout),
+            **_request(model, job.prompt, job.context, MAX_TOKENS, float(settings.optimize_timeout))
         )
         text = _text_of(message)
         kosten, ein, aus = _usage_cost(model, getattr(message, "usage", None))

@@ -34,6 +34,13 @@ class Settings:
         self.google_client_id: str = os.environ.get("GOOGLE_CLIENT_ID", "")
         self.google_client_secret: str = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
+        # GitHub OAuth App — optional. Lets a user connect GitHub so cue can read a
+        # project's repository as context for the AI (app/projectcontext/).
+        # Unset = the feature is off and the UI hides it; deliberately NOT part of
+        # validate(), because cue works without it.
+        self.github_client_id: str = os.environ.get("GITHUB_CLIENT_ID", "")
+        self.github_client_secret: str = os.environ.get("GITHUB_CLIENT_SECRET", "")
+
         # Access allowlist. Empty + empty = closed (nobody) in prod; a user may
         # sign in if their email is listed OR their domain is listed.
         self.allowed_emails: set[str] = _csv_set(os.environ.get("GOOGLE_ALLOWED_EMAILS"))
@@ -141,6 +148,15 @@ class Settings:
     def google_redirect_uri(self) -> str:
         """Must exactly match an Authorized redirect URI in the Google console."""
         return f"{self.allowed_origin.rstrip('/')}/api/auth/google/callback"
+
+    @property
+    def github_redirect_uri(self) -> str:
+        """Must exactly match the callback URL of the GitHub OAuth App."""
+        return f"{self.allowed_origin.rstrip('/')}/api/github/callback"
+
+    @property
+    def github_configured(self) -> bool:
+        return bool(self.github_client_id and self.github_client_secret)
 
     def is_owner(self, email: str | None) -> bool:
         """Ob diese Adresse dem Betreiber der Instanz gehört.

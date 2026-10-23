@@ -29,6 +29,10 @@ UNSCOPED_BY_DESIGN: dict[str, str] = {
     "GET /auth/google/login": "pre-authentication: builds the Google redirect",
     "GET /auth/google/callback": "pre-authentication: exchanges the code, creates the session",
     "GET /auth/me": "answers for signed-in AND signed-out visitors",
+    "GET /github/callback": (
+        "GitHub's redirect back carries no Strict session cookie; the user comes "
+        "from the signed state, bound to the browser by a Lax cookie"
+    ),
     "POST /auth/logout": "clears the cookie; guarded by CSRF, needs no tenant",
     "POST /capture": "machine endpoint, Bearer CAPTURE_TOKEN resolved to a user in the body",
     "GET /sync/snippets": "machine endpoint, Bearer snippet_sync_token identifies the tenant",

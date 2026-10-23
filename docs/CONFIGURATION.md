@@ -21,6 +21,18 @@ hochkommt, signiert Sessions mit einem leeren Schlüssel.
 | `GOOGLE_CLIENT_ID` | OAuth-Client der Google Cloud Console (Webanwendung). |
 | `GOOGLE_CLIENT_SECRET` | Zugehöriges Secret. Bleibt serverseitig, erreicht den Browser nie. |
 
+## GitHub (optional)
+
+Verbindet ein Konto mit GitHub, damit cue das Repository eines Projekts als
+**Kontext** für Analyse und Optimierung lesen kann. Ohne beide Werte ist die
+Funktion aus und die Oberfläche blendet sie aus; `validate()` verlangt sie
+bewusst nicht.
+
+| Variable | Bedeutung |
+| --- | --- |
+| `GITHUB_CLIENT_ID` | Client-ID einer GitHub-OAuth-App. Callback-URL: `<ALLOWED_ORIGIN>/api/github/callback`. |
+| `GITHUB_CLIENT_SECRET` | Zugehöriges Secret. Nur serverseitig. Der Scope ist `repo` (GitHub kennt für private Repos keinen reinen Lese-Scope); cue liest nur, speichert das Token verschlüsselt und widerruft es beim Trennen. |
+
 ## Zugang und Sitzung
 
 | Variable | Standard | Bedeutung |

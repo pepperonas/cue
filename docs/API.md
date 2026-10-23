@@ -80,6 +80,23 @@ Ressource.
 | `PATCH` | `/projects/{project_id}` | Name oder Farbe ändern. |
 | `POST` | `/projects/reorder` | Manuelle Reihenfolge setzen. |
 | `DELETE` | `/projects/{project_id}` | Projekt löschen; die Prompts verlieren nur ihre Zuordnung. |
+| `POST` | `/projects/{project_id}/context/refresh` | Das verknüpfte GitHub-Repo neu lesen. Holt nur neu, wenn sich der Head-Commit bewegt hat; ein Fehler steht in `context.error`, nie als 5xx. |
+
+`POST`/`PATCH` nehmen zusätzlich `github_repo` (`owner/name`, `""` löst die
+Verknüpfung) und `github_ref` (leer = Standard-Branch); `GET` liefert
+`context` mit Stand, Größe und letztem Fehler — nie den Text selbst.
+
+### GitHub
+
+<sub>`backend/app/routers/github.py`</sub>
+
+| Methode | Pfad | Beschreibung |
+| --- | --- | --- |
+| `GET` | `/github/status` | `{configured, connected, login}`. |
+| `GET` | `/github/connect` | Startet den OAuth-Flow. Der signierte `state` trägt die Nutzer-ID, weil das `Strict`-Session-Cookie beim Rücksprung von GitHub nicht mitkommt. |
+| `GET` | `/github/callback` | Prüft `state` gegen das `Lax`-Cookie, tauscht den Code, speichert das Token verschlüsselt am Konto aus dem `state`. Leitet nach `/?github=connected` bzw. `/?github_error=<grund>`. |
+| `GET` | `/github/repos` | Lesbare Repos des verbundenen Kontos (für die Auswahl am Projekt). |
+| `DELETE` | `/github/connection` | Widerruft die Freigabe bei GitHub und löscht das Token. Löscht auch dann, wenn GitHub den Widerruf ablehnt. |
 
 ### Prompts
 

@@ -35,6 +35,8 @@ from ..models import (
 )
 from . import pricing, providers
 from .. import secrets_store
+from ..projectcontext.fetch import with_context
+from ..projectcontext.service import FRESH_FOR, ProjectContextService
 from .meta_prompt import META_PROMPT_VERSION, build_meta_prompt, parse_result
 from .repository import OptimizationRepository
 
@@ -63,6 +65,10 @@ class ClaimedJob:
     max_retries: int
     prompt_id: int
     version: int
+    #: Project context for executors that can send it separately (the Messages
+    #: API, as a cached system block). Empty for the CLI, which gets it inline
+    #: in `prompt` — so a runner that does not know this field loses nothing.
+    context: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,6 +110,11 @@ class PromptOptimizationService:
         prompt = self.repo.owned_prompt(prompt_id, uid)
         if prompt is None:
             raise OptimizationError("Prompt not found", 404)
+        # Network here, on the user's POST — never in the executor's claim.
+        # A single optimization trusts a recent cache instead of asking GitHub.
+        ProjectContextService(self.session).safe_refresh(
+            uid, prompt.project_id, max_age=FRESH_FOR
+        )
         return self._queue_for(prompt, uid, provider=provider, batch_id=batch_id)
 
     def provider_for(self, uid: int) -> str:
@@ -177,6 +188,10 @@ class PromptOptimizationService:
 
         spec = providers.get(provider or self.provider_for(uid))
         previous = self.repo.latest_successful(prompt.id, uid)
+        # Cache only: a batch over fifty prompts must not make fifty GitHub calls.
+        context_text, context_ref = ProjectContextService(self.session).snapshot(
+            uid, prompt.project_id
+        )
         job = PromptOptimization(
             user_id=uid,
             prompt_id=prompt.id,
@@ -195,6 +210,8 @@ class PromptOptimizationService:
             # lesbar sein, wenn Titel und Schlagworte laengst andere sind.
             original_title=prompt.title or "",
             original_tags=prompt.tags or "",
+            context_text=context_text,
+            context_ref=context_ref,
         )
         job = self.repo.add(job)
         log.info(
@@ -229,6 +246,10 @@ class PromptOptimizationService:
         candidates = self.repo.prompts_for_batch(uid, project_id=project_id, only_pending=only_pending)
         if not candidates:
             raise OptimizationError("Keine Prompts in der Queue zum Optimieren", 400)
+        # One context check per project, before the loop reads the cache.
+        context = ProjectContextService(self.session)
+        for pid in {p.project_id for p in candidates if p.project_id is not None}:
+            context.safe_refresh(uid, pid)
 
         batch = self.repo.add_batch(
             OptimizationBatch(user_id=uid, provider=spec.id, total=0)
@@ -265,20 +286,26 @@ class PromptOptimizationService:
         log.info(
             "optimization claimed id=%s prompt=%s by=%s", job.id, job.prompt_id, runner_id
         )
+        meta = build_meta_prompt(
+            job.original_text,
+            job.previous_text,
+            universal=job.universal,
+            title=job.original_title,
+            tags=job.original_tags,
+            vocabulary=self._vocabulary(job.user_id),
+        )
+        separate = providers.get(job.provider).executed_by == "server"
         return ClaimedJob(
             id=job.id,
             provider=job.provider,
             model=job.model,
-            prompt=build_meta_prompt(
-                job.original_text,
-                job.previous_text,
-                universal=job.universal,
-                title=job.original_title,
-                tags=job.original_tags,
-                vocabulary=self._vocabulary(job.user_id),
-            ),
+            prompt=meta if separate else with_context(meta, job.context_text),
+            context=job.context_text if separate else "",
             timeout_s=self.settings.optimize_timeout,
-            max_chars=self.settings.optimize_max_chars,
+            # The runner checks the WHOLE text against this; inline context must
+            # not push a prompt that passed the body check over it.
+            max_chars=self.settings.optimize_max_chars
+            + (0 if separate else len(with_context(meta, job.context_text)) - len(meta)),
             max_retries=self.settings.optimize_max_retries,
             prompt_id=job.prompt_id,
             version=job.version,

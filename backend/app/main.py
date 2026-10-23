@@ -35,6 +35,7 @@ from .routers import (
     aimodels,
     analysis,
     devices,
+    github,
     importexport,
     optimize,
     projects,
@@ -210,6 +211,7 @@ api = FastAPI(title="cue-api")
 api.include_router(auth.router)
 api.include_router(admin.router)
 api.include_router(projects.router)
+api.include_router(github.router)
 api.include_router(prompts.router)
 api.include_router(attachments.router)
 api.include_router(runs.router)
