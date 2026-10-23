@@ -36,6 +36,7 @@ from .models import (
     CaptureSession,
     CapturedPrompt,
     Project,
+    ProjectContext,
     Prompt,
     Snippet,
     SnippetGroup,
@@ -82,11 +83,24 @@ def _digest(rows: list[tuple]) -> str:
 
 def _projects(session: Session, user_id: int) -> str:
     rows = session.exec(
-        select(Project.id, Project.name, Project.color, Project.sort_order).where(
+        select(
+            Project.id, Project.name, Project.color, Project.sort_order,
+            Project.github_repo, Project.github_ref,
+        ).where(
             Project.user_id == user_id
         )
     ).all()
-    return _digest([tuple(r) for r in rows])
+    contexts = session.exec(
+        select(
+            ProjectContext.project_id, ProjectContext.repo, ProjectContext.ref,
+            ProjectContext.head_sha, ProjectContext.chars, ProjectContext.fetched_at,
+            ProjectContext.error,
+        ).where(ProjectContext.user_id == user_id)
+    ).all()
+    # Only metadata: hashing 60 kB per project every second would waste work.
+    return _digest(
+        [("project", *r) for r in rows] + [("context", *r) for r in contexts]
+    )
 
 
 def _snippet_groups(session: Session, user_id: int) -> str:

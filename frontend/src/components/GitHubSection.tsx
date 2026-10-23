@@ -42,6 +42,7 @@ export function GitHubSection() {
       </div>
       {confirm && <Confirm
         title="GitHub-Verbindung trennen?"
+        confirmLabel="Trennen"
         message="cue widerruft die GitHub-Freigabe. Gespeicherter Kontext bleibt erhalten, kann aber nicht mehr aktualisiert werden."
         onCancel={() => setConfirm(false)}
         onConfirm={() => disconnect.mutate(undefined, {

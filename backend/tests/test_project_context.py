@@ -438,3 +438,28 @@ def test_switching_to_default_branch_during_outage_clears_explicit_branch(client
     changed = client.patch(f"/api/projects/{pid}", json={"github_ref": ""}, headers=hdr(csrf)).json()
     assert changed["context"]["chars"] == 0
     assert changed["context"]["head_sha"] == ""
+
+
+
+def test_link_and_context_refresh_wake_other_browsers(client, repo):
+    csrf = auth(client)
+    connect(client)
+    pid = client.post("/api/projects", json={"name": "app"}, headers=hdr(csrf)).json()["id"]
+
+    def cursor():
+        return client.get("/api/changes").json()["cursor"]
+
+    def changed(before):
+        return client.get("/api/changes", params={"since": before, "wait": 0}).json()["changed"]
+
+    before = cursor()
+    client.patch(f"/api/projects/{pid}", json={"github_repo": "octo/app"}, headers=hdr(csrf))
+    assert changed(before) == ["projects"]
+    before = cursor()
+    repo.sha = SHA2
+    client.post(f"/api/projects/{pid}/context/refresh", headers=hdr(csrf))
+    assert changed(before) == ["projects"], "a new context SHA must invalidate the project list"
+    before = cursor()
+    repo.fail = github.GitHubError(502, "Server Error")
+    client.post(f"/api/projects/{pid}/context/refresh", headers=hdr(csrf))
+    assert changed(before) == ["projects"], "refresh errors must reach the other browser too"

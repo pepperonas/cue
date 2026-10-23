@@ -149,7 +149,8 @@ fetching fails. A failure on the SAME target preserves the last good text. Jobs 
 `context_text` and `context_ref`: the API sends context in a cached system block, the runner
 gets it inline (with an adjusted character limit). ProjectRepository provides repo search,
 manual entry, branch and refresh; project-context.ts formats cache status separately from
-immutable history snapshots. Disconnecting keeps cached text and past job snapshots.
+immutable history snapshots. `changes._projects` fingerprints GitHub targets and cache metadata
+(without the large context text), so refreshes reach other devices. Disconnecting keeps cached text and past job snapshots.
 
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).
