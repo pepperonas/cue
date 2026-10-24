@@ -26,8 +26,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 <a href="https://www.paypal.com/donate/?business=martin.pfeffer@celox.io&item_name=cue&currency_code=EUR">Kaffee</a> ☕ oder eine <a href="https://g.page/r/CXgdRV3QysvxEBM/review">Bewertung</a>.</em>
 
 <!-- hero:dynamic -->
-[![version](https://img.shields.io/badge/version-v0.80.0-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20425-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![version](https://img.shields.io/badge/version-v0.80.1-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20455-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
@@ -46,8 +46,8 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-44%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
 [![Python LOC](https://img.shields.io/badge/Python%20LOC-14%20005-3776AB.svg)](#)
-[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-22%20278-3178C6.svg)](#)
-[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20142-663399.svg)](#)
+[![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-22%20287-3178C6.svg)](#)
+[![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20163-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-198-blue.svg)](#)
 [![pure lib modules](https://img.shields.io/badge/pure%20lib%20modules-45-3178C6.svg)](frontend/src/lib/)
 [![React components](https://img.shields.io/badge/React%20components-61-61DAFB.svg)](frontend/src/components/)
@@ -59,7 +59,7 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 [![schemas](https://img.shields.io/badge/schemas-109-009688.svg)](backend/app/schemas.py)
 [![env settings](https://img.shields.io/badge/env%20settings-30-4c1.svg)](docs/CONFIGURATION.md)
 [![optimizer providers](https://img.shields.io/badge/optimizer%20providers-2-D97757.svg)](docs/ARCHITECTURE.md)
-[![releases](https://img.shields.io/badge/releases-100-blue.svg)](CHANGELOG.md)
+[![releases](https://img.shields.io/badge/releases-101-blue.svg)](CHANGELOG.md)
 [![last release](https://img.shields.io/badge/last%20release-2026--10--24-blue.svg)](CHANGELOG.md)
 [![docs pages](https://img.shields.io/badge/docs%20pages-12-4c1.svg)](docs/)
 [![docs](https://img.shields.io/badge/docs-test--pinned-4c1.svg)](docs/)
