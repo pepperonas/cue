@@ -77,7 +77,7 @@ Ressource.
 | --- | --- | --- |
 | `GET` | `/projects` | Projekte des Kontos, in der manuellen Reihenfolge. |
 | `POST` | `/projects` | Neues Projekt (Name pro Konto eindeutig). |
-| `PATCH` | `/projects/{project_id}` | Name oder Farbe ändern. |
+| `PATCH` | `/projects/{project_id}` | Name, Farbe oder GitHub-Verknüpfung ändern. Bei geändertem Repo/Branch wird alter Kontext verworfen und der neue Stand geladen. |
 | `POST` | `/projects/reorder` | Manuelle Reihenfolge setzen. |
 | `DELETE` | `/projects/{project_id}` | Projekt löschen; die Prompts verlieren nur ihre Zuordnung. |
 | `POST` | `/projects/{project_id}/context/refresh` | Das verknüpfte GitHub-Repo neu lesen. Holt nur neu, wenn sich der Head-Commit bewegt hat; ein Fehler steht in `context.error`, nie als 5xx. |
@@ -94,9 +94,9 @@ Verknüpfung) und `github_ref` (leer = Standard-Branch); `GET` liefert
 | --- | --- | --- |
 | `GET` | `/github/status` | `{configured, connected, login}`. |
 | `GET` | `/github/connect` | Startet den OAuth-Flow. Der signierte `state` trägt die Nutzer-ID, weil das `Strict`-Session-Cookie beim Rücksprung von GitHub nicht mitkommt. |
-| `GET` | `/github/callback` | Prüft `state` gegen das `Lax`-Cookie, tauscht den Code, speichert das Token verschlüsselt am Konto aus dem `state`. Leitet nach `/?github=connected` bzw. `/?github_error=<grund>`. |
-| `GET` | `/github/repos` | Lesbare Repos des verbundenen Kontos (für die Auswahl am Projekt). |
-| `DELETE` | `/github/connection` | Widerruft die Freigabe bei GitHub und löscht das Token. Löscht auch dann, wenn GitHub den Widerruf ablehnt. |
+| `GET` | `/github/callback` | Prüft `state` gegen das `Lax`-Cookie, tauscht den Code, speichert Access- und gegebenenfalls Refresh-Token verschlüsselt samt Ablaufzeit am Konto aus dem `state`. Leitet nach `/?github=connected` bzw. `/?github_error=<grund>`. |
+| `GET` | `/github/repos` | Bis zu 300 lesbare Repos des verbundenen Kontos, zuletzt gepushte zuerst. Erneuert bei Bedarf den GitHub-Zugang. Die projektbezogene Namenssortierung erfolgt im Frontend. |
+| `DELETE` | `/github/connection` | Widerruft die Freigabe bei GitHub und löscht Access-Token, Refresh-Token, Ablaufzeit und Login. Löscht auch dann lokal, wenn GitHub den Widerruf ablehnt. |
 
 ### Prompts
 

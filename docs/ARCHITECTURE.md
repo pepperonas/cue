@@ -432,3 +432,36 @@ samt `context_ref`. Der API-Executor sendet ihn als cachefähigen Systemblock, d
 Mac-Runner erhält ihn vor dem eigentlichen Prompt. Claims führen keine GitHub-Abfrage
 aus. Das UI zeigt Cache-Zustand und Job-Quelle getrennt. Die bestehende Prüfung des
 eigenen Anthropic-Keys bzw. des Betreiber-Runners bleibt für jeden KI-Lauf zuständig.
+
+### Einrichtung, Repository-Auswahl und Projekt-Badges
+
+`AiSetupSection` führt durch eigenen KI-Zugang, GitHub-Verbindung und
+Repository-Verknüpfung. Der Betreiber behält seinen CLI-Zugang. `github-connect.ts`
+merkt die interne Ansicht und optional die Projekt-ID in `sessionStorage`;
+`ai-setup.ts` akzeptiert nach OAuth nur Einstellungen oder Projekte mit einer
+positiven ganzzahligen ID. So führt auch ein Abbruch zum selben Editor zurück.
+
+`ProjectRepository` verwendet die gemeinsame Repository-Abfrage und sortiert
+Vorschläge im geöffneten Editor mit `lib/repository-match.ts`. Verglichen werden
+der letzte Abschnitt des Projektnamens und der Repository-Name ohne GitHub-Owner.
+Die Normalisierung gleicht Groß-/Kleinschreibung, diakritische Zeichen und
+Trennzeichen an. Die Rangfolge bevorzugt normalisierte exakte Namen, ganze
+Wortfolgen, Präfixe und danach die über Levenshtein-Distanz bewertete Ähnlichkeit.
+Gleichstände behalten die Eingangsreihenfolge. Die Funktion sortiert eine eigene
+Liste und verändert den React-Query-Cache nicht. Die Suche filtert anschließend
+diese Reihenfolge; es entsteht keine zusätzliche KI- oder GitHub-Anfrage.
+
+`ProjectChips` zeichnet bei passendem Repository, vorhandenem Commit-SHA und
+positiver Zeichenanzahl einen grünen Haken rechts oben. Das gilt für Projekte
+mit offenen Prompts ebenso wie für den sortierbaren Rest. Der Haken bezieht sich
+auf gespeicherten Kontext; bei einem Abruffehler am selben Ziel bleibt er sichtbar
+und der Tooltip kennzeichnet den letzten guten Stand. `changes._projects`
+bezieht Repo-/Branch-Zuordnung und Cache-Metadaten in den Fingerprint ein, sodass
+die Anzeige auch auf anderen Geräten aktualisiert wird.
+
+`projectcontext/tokens.py` speichert Access- und Refresh-Token verschlüsselt pro
+Nutzer. Vor Ablauf wird das Token-Paar erneuert. Da Refresh-Tokens nur einmal
+verwendbar sind, serialisiert der einzelne Serverprozess die Rotation und liest
+das Konto unter dem Lock erneut. Ein vorübergehender Netzausfall behält die
+Zugangsdaten; Widerruf und Trennen löschen Access-Token, Refresh-Token, Ablaufzeit
+und GitHub-Login zusammen. Die Token-Erneuerung erweitert keine Zugriffsrechte.

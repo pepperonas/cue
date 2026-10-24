@@ -185,6 +185,34 @@ war** — und das ist etwas anderes als eine unwichtige Zeile:
 Beide sind Beispiele derselben Sache: der Erfolgsfall war getestet, der
 Ausnahmefall nur gedacht.
 
+## GitHub-Kontext und Repository-Vorschläge
+
+- [`test_github.py`](../backend/tests/test_github.py) prüft OAuth-State/Cookie,
+  verschlüsselte Speicherung, Trennen und ungültige Zugangsdaten.
+- [`test_github_refresh.py`](../backend/tests/test_github_refresh.py) prüft die
+  Token-Rotation, gleichzeitige Anfragen, Wiederverwendung bereits erneuerter
+  Zugangsdaten und Mandantentrennung. Netzausfälle behalten die Verbindung;
+  widerrufene oder unlesbare Refresh-Tokens verlangen eine neue Anmeldung.
+- [`test_project_context.py`](../backend/tests/test_project_context.py) prüft
+  Inhaltsbudget, Cache, Zielwechsel, Job-Schnappschüsse und Live-Sync. Ein Ausfall
+  am selben Ziel behält den letzten guten Stand; ein Repo-/Branchwechsel
+  übernimmt den alten Kontext nicht.
+- [`ai-setup.test.ts`](../frontend/src/lib/ai-setup.test.ts) prüft den Fortschritt,
+  Repository-Eingaben und die begrenzten Rückkehrziele des OAuth-Flows.
+- [`repository-match.test.ts`](../frontend/src/lib/repository-match.test.ts)
+  prüft genaue Treffer, vereinheitlichte Namen, Projektpfade, ähnliche
+  Schreibweisen, kurze Namen und stabile Gleichstände. Ein passender Owner mit
+  unpassendem Repo-Namen darf keinen Treffer vortäuschen; die gemeinsame
+  Eingabeliste bleibt unverändert.
+
+Die React-Oberfläche wird im Browser geprüft: Einrichtung eines neuen Nutzers,
+Abbruch und Wiederaufnahme von OAuth, Suchfilter, bewusst gewählte Zuordnung und
+Rückkehr ins Projekt-Board. Für die Projekt-Badges werden geladener, fehlender,
+leerer und zum falschen Repo gehörender Kontext sowie der letzte gute Stand
+geprüft. Der grüne Haken muss in hellen und dunklen Themes sowie in der mobilen
+Projektleiste erkennbar sein. Diese Browserprüfung ergänzt die automatisierten
+Tests; sie ist Teil der manuellen Verifikation.
+
 ## Konventionen
 
 - **Verhalten testen, nicht Implementierung.** Die Backend-Suite spricht HTTP.

@@ -161,6 +161,15 @@ validates OAuth return destinations and repository input; `github-connect.ts`
 stores only an internal view/project id in sessionStorage, never credentials.
 After OAuth, App resumes the selected project editor. No external return URL is
 accepted. The board always exposes setup, even before a user has an API key.
+`lib/repository-match.ts` ranks the fetched repos by the current project's leaf
+name, ignoring the GitHub owner: normalize case/diacritics/separators, then prefer
+exact names, whole phrases, prefixes and edit-distance similarity. Equal scores
+keep the fetched order. Never sort the shared query array in place. Rank only in
+the OPEN editor; search filters the ranked copy. `ProjectChips` shows a green
+corner check when the linked repo matches a cache with a SHA and positive chars.
+A failed refresh at the same target keeps that check (last-good text still works)
+and its tooltip says so. Keep the check visible for both fixed and sortable chips
+and allow its top edge in the mobile horizontal scroller.
 
 **Backend (`backend/app/`)**
 - `main.py` — app assembly, lifespan (`init_db`), security-header + CSP middleware, `/api` mount, SPA static serving (with path-traversal guard).

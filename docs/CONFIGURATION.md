@@ -24,9 +24,10 @@ hochkommt, signiert Sessions mit einem leeren Schlüssel.
 ## GitHub (optional)
 
 Verbindet ein Konto mit GitHub, damit cue das Repository eines Projekts als
-**Kontext** für Analyse und Optimierung lesen kann. Ohne beide Werte ist die
-Funktion aus und die Oberfläche blendet sie aus; `validate()` verlangt sie
-bewusst nicht.
+**Kontext** für Analyse und Optimierung lesen kann. Beide Werte werden einmalig
+vom Betreiber hinterlegt. Ohne sie zeigt die KI-Einrichtung einen Hinweis zur
+fehlenden GitHub-Konfiguration; Nutzer können mit ihrem eigenen API-Key bereits
+ohne Repository arbeiten. `validate()` verlangt die beiden Werte nicht.
 
 | Variable | Bedeutung |
 | --- | --- |
@@ -43,12 +44,41 @@ freigeschalteter Nutzer nur „KI einrichten“ im Board zu öffnen:
 2. „Mit GitHub verbinden“ wählen und auf GitHub freigeben. Bei GitHub-Abbruch
    kommt man zum Ausgangspunkt zurück und kann es erneut versuchen.
 3. Unter Projekte ein Repository auswählen (oder eine GitHub-URL einfügen).
-   „Speichern & Kontext laden“ lädt den Kontext automatisch. Anschließend im
-   Board das Projekt wählen und analysieren oder Prompts optimieren.
+   Die Auswahl zeigt zuerst die Namen, die dem Projektnamen am meisten ähneln.
+   „Speichern & Kontext laden“ lädt den Kontext automatisch. „Zum Projekt-Board“
+   öffnet anschließend das ausgewählte Projekt zum Analysieren und Optimieren.
 
 GitHub ist optional. Ohne Repository bleibt die KI mit dem eigenen API-Key nutzbar.
 Kein Nutzer muss Client-ID, Client-Secret oder Servereinstellungen eingeben.
 Einrichtungsfortschritt und Fehler werden im selben Ablauf angezeigt.
+
+### Repository-Vorschläge und Kontextanzeige
+
+Die Vorschläge vergleichen den Repository-Namen mit dem Projektnamen. Bei
+Projektpfaden wie `celox/celox-portal` zählt der letzte Abschnitt `celox-portal`.
+Genaue Treffer stehen zuerst; danach folgen passende Wortfolgen, Namenspräfixe
+und ähnliche Schreibweisen. Groß-/Kleinschreibung und Trennzeichen werden
+angeglichen. Der GitHub-Kontoname beeinflusst die Bewertung nicht. Gleich gute
+Treffer behalten die von GitHub gelieferte Reihenfolge. Das Suchfeld filtert
+diese sortierte Liste; die Zuordnung wird mit „Speichern & Kontext laden“ bestätigt.
+
+Der grüne Haken rechts oben am Projekt-Badge im Board zeigt gespeicherten
+GitHub-Kontext an, auch bei Projekten ohne offene Prompts. Sein Tooltip nennt
+Repository und Commitstand. Bei einem Abruffehler am selben Ziel bleibt ein
+zuvor erfolgreich geladener Kontext erhalten; der Tooltip bezeichnet ihn als
+letzten gespeicherten Stand. Ein Wechsel von Repository oder Branch verwirft
+den alten Kontext. Die Projektansicht zeigt zusätzlich Alter, Zeichenanzahl
+und Fehler sowie den Knopf „Aktualisieren“.
+
+| Situation | Nächster Schritt |
+| --- | --- |
+| KI-Aktionen noch nicht freigeschaltet | Unter „KI einrichten“ den eigenen Anthropic-Key hinterlegen. |
+| GitHub-Anmeldung abgebrochen oder abgelaufen | Erneut verbinden; die Rückkehr führt zum ausgewählten Projekt. |
+| Repository fehlt in den Vorschlägen | Suche verwenden oder `owner/repository` bzw. die GitHub-URL direkt eingeben. |
+| Repository oder Branch nicht gefunden | Verknüpfung und angemeldetes GitHub-Konto prüfen, dann erneut laden. |
+| Aktualisierung fehlgeschlagen | Fehler am Projekt lesen und „Aktualisieren“ erneut versuchen. Der letzte gute Stand desselben Ziels bleibt nutzbar. |
+
+### Automatische Token-Erneuerung
 
 Apps mit aktivierter Token-Expiration werden unterstützt: Access- und Refresh-Token
 bleiben serverseitig verschlüsselt, und cue erneuert den Zugang vor Ablauf automatisch.
