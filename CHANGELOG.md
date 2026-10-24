@@ -26,6 +26,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.80.2] - 2026-10-24
+
+### Changed
+- Repository-Vorschläge beim Verknüpfen werden nach Übereinstimmung mit dem
+  Projektnamen sortiert: genaue Treffer zuerst, danach passende Namensbestandteile
+  und ähnliche Schreibweisen. Groß-/Kleinschreibung und Trennzeichen werden
+  angeglichen; der GitHub-Kontoname beeinflusst die Bewertung nicht.
+  Gleich gute Treffer behalten ihre bisherige Reihenfolge; die Suche bleibt verfügbar.
+
 ## [0.80.1] - 2026-10-24
 
 ### Added

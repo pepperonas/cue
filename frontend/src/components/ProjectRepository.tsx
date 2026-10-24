@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { rankRepositories } from '../lib/repository-match'
 import { repositoryError } from '../lib/ai-setup'
 import { connectGitHub } from '../lib/github-connect'
 import { clock } from '../lib/clock'
@@ -18,6 +19,8 @@ export function ProjectRepository({ project, onOpenBoard, initiallyOpen = false 
   const [ref, setRef] = useState(project.github_ref ?? '')
   const [search, setSearch] = useState('')
   const repos = useGitHubRepos(editing && !!github?.configured && !!github.connected)
+  const suggestions = useMemo(() => rankRepositories(repos.data ?? [], project.name), [repos.data, project.name])
+  const matches = suggestions.filter((r) => r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
   const update = useUpdateProject()
   const refresh = useRefreshProjectContext()
   const toast = useToast()
@@ -54,10 +57,10 @@ export function ProjectRepository({ project, onOpenBoard, initiallyOpen = false 
             <input id={`repo-search-${project.id}`} className="input" value={search} placeholder="Name filtern …" onChange={(e) => setSearch(e.target.value)} />
           </label>
           <Select value={repo} ariaLabel={`Repository für ${project.name} auswählen`} placeholder={repos.isFetching ? 'Repositories laden …' : 'Repository auswählen'}
-            options={(repos.data ?? []).filter((r) => r.full_name.toLowerCase().includes(search.toLowerCase())).map((r) => ({ value: r.full_name, label: `${r.full_name}${r.private ? ' · privat' : ''}` }))}
+            options={matches.map((r) => ({ value: r.full_name, label: `${r.full_name}${r.private ? ' · privat' : ''}` }))}
             disabled={repos.isFetching || !repos.data?.length}
             onChange={(value) => { setRepo(value); setRef(''); setSaveError('') }} />
-          {!repos.isFetching && repos.data && !repos.data.some((r) => r.full_name.toLowerCase().includes(search.toLowerCase())) && <p className="muted">Kein passendes Repository gefunden. Du kannst die GitHub-URL unten direkt einfügen.</p>}
+          {!repos.isFetching && repos.data && matches.length === 0 && <p className="muted">Kein passendes Repository gefunden. Du kannst die GitHub-URL unten direkt einfügen.</p>}
           {repos.isError && <p className="muted" role="alert">{repos.error.message} — Repository kann auch direkt eingegeben werden. <Button variant="text" onClick={() => repos.refetch()}>Erneut laden</Button></p>}
         </>}
         {github.connected && <>
