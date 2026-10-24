@@ -806,6 +806,7 @@ a {
 
 /* ---- Filter chips ---- */
 .chips {
+  padding-top: 5px;
   display: flex;
   gap: var(--gap-2);
   flex-wrap: wrap;
@@ -821,6 +822,26 @@ a {
   font: var(--label-l);
   color: var(--md-on-surface-variant);
   transition: background var(--dur-short), border-color var(--dur-short);
+}
+/* Loaded GitHub context: a small check anchored to the project's corner. */
+.project-chip { position: relative; }
+.project-context-check {
+  position: absolute;
+  top: -5px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--md-background);
+  color: var(--ok);
+}
+.project-context-check > span { display: flex; }
+.project-context-check .material-symbols-rounded {
+  font-size: 16px;
+  line-height: 1;
+  font-variation-settings: 'FILL' 1;
 }
 /* Only the chips whose order is really the user's can be dragged — the ones
    with open prompts are placed by their count (see ProjectChips). */

@@ -38,11 +38,20 @@ function OpenBadge({ count }: { count: number }) {
 }
 
 function ChipBody({ p, count }: { p: Project; count: number }) {
+  const context = p.context
+  const contextLoaded = !!(p.github_repo && context && context.repo === p.github_repo && context.head_sha && context.chars > 0)
+  const contextLabel = context?.error ? 'GitHub-Projektkontext geladen (letzter gespeicherter Stand)' : 'GitHub-Projektkontext geladen'
   return (
     <>
       <span className="dot" style={{ background: p.color }} />
       {p.name}
       <OpenBadge count={count} />
+      {contextLoaded && (
+        <span className="project-context-check" role="img" aria-label={contextLabel}
+          title={`${contextLabel}: ${p.github_repo} @ ${context!.head_sha.slice(0, 7)}`}>
+          <span aria-hidden="true"><Icon name="check_circle" /></span>
+        </span>
+      )}
     </>
   )
 }
@@ -50,7 +59,7 @@ function ChipBody({ p, count }: { p: Project; count: number }) {
 /** Placed by its open count — dragging it would be undone on the next render. */
 function FixedChip({ p, active, count, running, onClick }: ChipProps) {
   return (
-    <button className="chip" data-active={active} data-running={running} onClick={onClick}>
+    <button className="chip project-chip" data-active={active} data-running={running} onClick={onClick}>
       <ChipBody p={p} count={count} />
     </button>
   )
@@ -64,7 +73,7 @@ function SortableChip({ p, active, count, running, onClick }: ChipProps) {
   return (
     <button
       ref={setNodeRef}
-      className="chip chip--sortable"
+      className="chip project-chip chip--sortable"
       data-active={active}
       data-running={running}
       style={{

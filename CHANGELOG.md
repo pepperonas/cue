@@ -26,6 +26,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
 
+## [0.80.1] - 2026-10-24
+
+### Added
+- Kleiner grüner Haken rechts oben an Projekt-Badges mit geladenem GitHub-Kontext,
+  einschließlich sortierbarer Projekte ohne offene Prompts. Tooltip mit Repository
+  und Kontextstand; auch auf Smartphones und in beiden Themes sichtbar.
+
 ## [0.80.0] - 2026-10-24
 
 ### Added
