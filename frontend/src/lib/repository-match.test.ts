@@ -7,7 +7,7 @@ const names = (repos: GitHubRepo[]) => repos.map((r) => r.full_name)
 
 describe('repository suggestions for a project', () => {
   it('puts an exact repository name first even when it was last fetched', () => {
-    expect(names(rankRepositories([repo('cue/unrelated'), repo('octo/cue-runner'), repo('octo/rescue'), repo('octo/cue')], 'cue'))).toEqual(['octo/cue', 'octo/cue-runner', 'octo/rescue', 'cue/unrelated'])
+    expect(names(rankRepositories([repo('cue/x'), repo('octo/cue-runner'), repo('octo/rescue'), repo('octo/cue')], 'cue'))).toEqual(['octo/cue', 'octo/cue-runner', 'octo/rescue', 'cue/x'])
   })
   it('matches case, separators and domain-style project names', () => {
     const list = [repo('octo/other'), repo('octo/via-tools'), repo('octo/VIA_camp')]

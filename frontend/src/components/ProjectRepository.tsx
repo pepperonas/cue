@@ -19,7 +19,7 @@ export function ProjectRepository({ project, onOpenBoard, initiallyOpen = false 
   const [ref, setRef] = useState(project.github_ref ?? '')
   const [search, setSearch] = useState('')
   const repos = useGitHubRepos(editing && !!github?.configured && !!github.connected)
-  const suggestions = useMemo(() => rankRepositories(repos.data ?? [], project.name), [repos.data, project.name])
+  const suggestions = useMemo(() => editing ? rankRepositories(repos.data ?? [], project.name) : [], [editing, repos.data, project.name])
   const matches = suggestions.filter((r) => r.full_name.toLowerCase().includes(search.trim().toLowerCase()))
   const update = useUpdateProject()
   const refresh = useRefreshProjectContext()
