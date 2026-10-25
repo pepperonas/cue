@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 
 import pytest
 
@@ -81,7 +82,41 @@ def test_argv_has_no_shell_and_carries_the_prompt_as_one_argument():
     assert argv[1] == "-p"
     # The whole payload is ONE element — nothing is ever interpreted by a shell.
     assert argv[2] == 'Text mit "Quotes"; rm -rf / && echo pwned'
-    assert argv[3:] == ["--output-format", "json"]
+    assert argv[3:] == ["--output-format", "json", "--tools", "", "--strict-mcp-config"]
+
+
+def test_the_cli_gets_no_tools_and_no_mcp_servers():
+    """The prompt carries repository text cue does not control (README,
+    CLAUDE.md). With tools, an instruction in there could run commands here."""
+    argv = ClaudeCliService().build_argv("x", "opus")
+    i = argv.index("--tools")
+    assert argv[i + 1] == "", "an empty --tools value disables every built-in tool"
+    assert "--strict-mcp-config" in argv
+    assert "--mcp-config" not in argv
+    assert "--allowedTools" not in argv and "--dangerously-skip-permissions" not in argv
+
+
+def test_it_runs_in_an_empty_directory_not_home():
+    svc = ClaudeCliService()
+    first = svc.workdir()
+    assert first != os.path.expanduser("~")
+    assert os.listdir(first) == []
+    assert svc.workdir() == first, "one directory per process, not one per call"
+
+
+@pytest.mark.asyncio
+async def test_the_real_spawn_uses_that_directory(monkeypatch):
+    seen: dict = {}
+
+    async def fake_exec(*argv, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        seen.update(kwargs)
+        return None
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    svc = ClaudeCliService()
+    await svc._spawn_process(["claude", "-p", "x"])
+    assert seen["cwd"] == svc.workdir()
+    assert seen["cwd"] != os.path.expanduser("~")
 
 
 def test_argv_appends_a_model_but_refuses_flag_lookalikes():
@@ -100,7 +135,7 @@ def test_an_empty_model_omits_the_flag_entirely():
     svc = ClaudeCliService()
     argv = svc.build_argv("x", "")
     assert "--model" not in argv
-    assert "" not in argv[3:]
+    assert argv == ["claude", "-p", "x", "--output-format", "json", *ClaudeCliService.NO_TOOLS]
 
 
 def test_aliases_and_full_names_travel_unchanged():

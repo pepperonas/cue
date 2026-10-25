@@ -13,6 +13,7 @@ import contextlib
 import json
 import logging
 import os
+import tempfile
 import time
 from dataclasses import dataclass
 from typing import Protocol
@@ -77,9 +78,30 @@ class ClaudeCliService:
         self.claude_path = claude_path
         # Injected in tests; defaults to a real subprocess.
         self._spawn = spawn or self._spawn_process
+        self._workdir: str | None = None
+
+    def workdir(self) -> str:
+        """An EMPTY directory to run in, created once per process.
+
+        Not `~`: the CLI loads the CLAUDE.md of its working directory, and the
+        home directory's one is large and about something else entirely — it
+        was being sent along with every rewrite.
+        """
+        if self._workdir is None or not os.path.isdir(self._workdir):
+            self._workdir = tempfile.mkdtemp(prefix="cue-optimize-")
+        return self._workdir
+
+    #: Optimizing and analysing are pure text-in/text-out. The prompt carries
+    #: text cue does not control — prompt bodies and, since 0.79.0, a GitHub
+    #: repository's README/CLAUDE.md, which anyone with push access can write.
+    #: With the user's normal tool permissions an instruction in there could run
+    #: commands on this Mac. So the CLI gets NO tools at all: `--tools ""`
+    #: removes every built-in tool, `--strict-mcp-config` without a config
+    #: loads no MCP server either.
+    NO_TOOLS = ["--tools", "", "--strict-mcp-config"]
 
     def build_argv(self, prompt: str, model: str) -> list[str]:
-        argv = [self.claude_path, "-p", prompt, "--output-format", "json"]
+        argv = [self.claude_path, "-p", prompt, "--output-format", "json", *self.NO_TOOLS]
         # A model must never be able to smuggle extra flags.
         if model and not model.startswith("-"):
             argv += ["--model", model]
@@ -92,7 +114,7 @@ class ClaudeCliService:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=child_env(),
-            cwd=os.path.expanduser("~"),
+            cwd=self.workdir(),
             start_new_session=True,  # own process group -> kill the whole tree
         )
 

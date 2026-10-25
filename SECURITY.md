@@ -104,6 +104,11 @@ Deshalb:
 - **Runner-Geheimnisse werden aus der Kindumgebung entfernt**, Modellnamen, die
   wie Flags aussehen, verworfen; Größen-, Zeit- und Ausgabegrenzen gelten auf
   beiden Seiten.
+- **Optimierung und Analyse laufen ohne Werkzeuge.** Die CLI bekommt
+  `--tools "" --strict-mcp-config` und ein leeres Arbeitsverzeichnis. Der Prompt
+  enthält Text, den cue nicht kontrolliert — Prompt-Texte und den Projektkontext
+  aus GitHub (README, CLAUDE.md), den jeder mit Schreibrechten am Repo ändern
+  kann. Eine Anweisung darin findet damit nichts, das sie ausführen könnte.
 
 ### Fremde API-Schlüssel
 

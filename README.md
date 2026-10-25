@@ -27,25 +27,25 @@ Textdatei voller halb vergessener Prompts erspart hat, freue ich mich über eine
 
 <!-- hero:dynamic -->
 [![version](https://img.shields.io/badge/version-v0.80.2-7c5cff.svg?style=for-the-badge&labelColor=1a1c22)](CHANGELOG.md)
-[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20495-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
+[![lines of code](https://img.shields.io/badge/lines%20of%20code-41%20514-0A9EDC.svg?style=for-the-badge&labelColor=1a1c22)](#)
 <!-- /hero:dynamic -->
 
 </div>
 
 <!-- badges:dynamic -->
-[![tests](https://img.shields.io/badge/tests-1887%20passing-brightgreen.svg)](docs/TESTING.md)
+[![tests](https://img.shields.io/badge/tests-1890%20passing-brightgreen.svg)](docs/TESTING.md)
 [![backend tests](https://img.shields.io/badge/backend%20tests-824-brightgreen.svg)](backend/tests/)
-[![runner tests](https://img.shields.io/badge/runner%20tests-130-brightgreen.svg)](cue-runner/tests/)
+[![runner tests](https://img.shields.io/badge/runner%20tests-133-brightgreen.svg)](cue-runner/tests/)
 [![frontend tests](https://img.shields.io/badge/frontend%20tests-871-brightgreen.svg)](frontend/src/lib/)
 [![script tests](https://img.shields.io/badge/script%20tests-62-brightgreen.svg)](scripts/tests/)
 [![test files](https://img.shields.io/badge/test%20files-91-0A9EDC.svg)](docs/TESTING.md)
 [![coverage backend](https://img.shields.io/badge/coverage%20backend-96%25-brightgreen.svg)](backend/tests/)
 [![coverage runner](https://img.shields.io/badge/coverage%20runner-91%25-brightgreen.svg)](cue-runner/tests/)
 [![coverage frontend-lib](https://img.shields.io/badge/coverage%20frontend--lib-95%25-brightgreen.svg)](frontend/src/lib/)
-[![test LOC](https://img.shields.io/badge/test%20LOC-18%20470-0A9EDC.svg)](docs/TESTING.md)
+[![test LOC](https://img.shields.io/badge/test%20LOC-18%20497-0A9EDC.svg)](docs/TESTING.md)
 [![test:code ratio](https://img.shields.io/badge/test%3Acode%20ratio-45%25-0A9EDC.svg)](docs/TESTING.md)
 [![guards](https://img.shields.io/badge/guards-mutation--checked-brightgreen.svg)](docs/TESTING.md)
-[![Python LOC](https://img.shields.io/badge/Python%20LOC-14%20005-3776AB.svg)](#)
+[![Python LOC](https://img.shields.io/badge/Python%20LOC-14%20024-3776AB.svg)](#)
 [![TypeScript LOC](https://img.shields.io/badge/TypeScript%20LOC-22%20327-3178C6.svg)](#)
 [![CSS LOC](https://img.shields.io/badge/CSS%20LOC-5%20163-663399.svg)](#)
 [![source files](https://img.shields.io/badge/source%20files-199-blue.svg)](#)
@@ -312,10 +312,10 @@ cd frontend && pnpm typecheck
 | Suite | Ort | Tests | Coverage | Prüft |
 | --- | --- | --: | --: | --- |
 | Backend | `backend/tests/` | 824 | 96 % | HTTP-Verhalten end-to-end gegen echtes tmp-SQLite: Auth/OAuth, Mandantentrennung, CRUD, Runs, Capture, Snippets, CSP |
-| Runner | `cue-runner/tests/` | 130 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
+| Runner | `cue-runner/tests/` | 133 | 91 % | Executor, Orchestrierungs-Schleifen, Stream-Parser, CLI-Delivery, API-Client — Subprozesse und Netz gemockt |
 | Frontend | `frontend/src/lib/` | 871 | 95 % | die reinen Module: Markdown-XSS, Tags, Tastenlogik, Titel-Vervollständigung, Sortierung, Live-Sync, Farben |
 | Skripte | `scripts/tests/` | 62 | — | die Parser des Badge-Generators — damit kein Werkzeug-Output still danebenparst |
-| **Gesamt** | | **1887** | | |
+| **Gesamt** | | **1890** | | |
 <!-- /tests:dynamic -->
 
 Gemeinsame Backend-Fixtures (Client mit tmp-SQLite, User-/Session-Helpers)

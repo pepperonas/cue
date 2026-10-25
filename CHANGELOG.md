@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Der Runner startet die Claude-CLI für Optimierung und Analyse ohne
+  Werkzeuge** (`--tools "" --strict-mcp-config`) und in einem leeren
+  Arbeitsverzeichnis statt im Home-Ordner. Seit dem Projektkontext (0.79.0)
+  reist Text aus einem GitHub-Repository mit — README und CLAUDE.md kann jeder
+  mit Schreibrechten am Repo ändern. Mit den normalen Werkzeugrechten hätte eine
+  Anweisung darin Befehle auf dem Runner-Mac auslösen können. Nebenbei geht die
+  `CLAUDE.md` des Home-Ordners nicht mehr bei jedem Umschreiben mit.
+
 ### Added
 - **Android-App 0.1.0 — veröffentlicht als `android-v0.1.0` (2026-09-26)**,
   signierte APK am GitHub-Release (`android/`): eine kleine native App zum Lesen,
