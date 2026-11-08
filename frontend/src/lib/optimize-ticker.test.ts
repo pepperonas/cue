@@ -36,13 +36,13 @@ describe('optimizeTicker', () => {
     const s = optimizeTicker([], [job({ status: 'running', context_ref: 'octo/app@abc1234' })], prompts, projects)
     expect(s?.phase).toBe('running')
     expect(s?.text).toBe('Wird optimiert')
-    expect(s?.detail).toBe('Sortierung umbauen · mit Kontext octo/app@abc1234')
+    expect(s?.detail).toBe('mit Kontext octo/app@abc1234 · Sortierung umbauen')
   })
 
   it('says so when a job runs without context', () => {
     const s = optimizeTicker([], [job({ prompt_id: 2 })], prompts, projects)
     expect(s?.phase).toBe('queued')
-    expect(s?.detail).toBe('Prompt 2 · ohne Projektkontext')
+    expect(s?.detail).toBe('ohne Projektkontext · Prompt 2')
   })
 
   it('leaves batch jobs to the batch ticker', () => {

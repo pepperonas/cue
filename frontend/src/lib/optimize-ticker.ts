@@ -60,6 +60,6 @@ export function optimizeTicker(
   return {
     phase: job.status === 'running' ? 'running' : 'queued',
     text: job.status === 'running' ? 'Wird optimiert' : 'Wartet auf Ausführung',
-    detail: title ? `${title} · ${context}` : context,
+    detail: title ? `${context} · ${title}` : context,
   }
 }
