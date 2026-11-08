@@ -12,6 +12,17 @@ services:
     # graceful shutdown at 2 s (see the Dockerfile), so anything beyond this is
     # a hung process, not a slow request.
     stop_grace_period: 5s
+    # uvicorn is PID 1 and does not reap children: every finished healthcheck
+    # probe stayed behind as a zombie (1504 of them on 2026-10-08). tini reaps.
+    init: true
+    # Override the image's check so this takes effect without rebuilding it.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status == 200 else 1)"]
+      interval: 60s
+      timeout: 10s
+      start_period: 30s
+      start_interval: 5s
+      retries: 3
     env_file:
       - .env
     volumes:

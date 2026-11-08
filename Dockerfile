@@ -53,9 +53,13 @@ VOLUME ["/data"]
 EXPOSE 8000
 
 # Healthcheck hits the API health endpoint.
-# Tight interval so `docker compose up --wait` learns the new container is
-# serving within a second or two instead of idling until the next probe.
-HEALTHCHECK --interval=5s --timeout=3s --start-period=2s --retries=3 \
+# Fast only while starting (--start-interval=1s inside --start-period), so
+# `docker compose up --wait` still learns within a second or two that the new
+# container is serving. Afterwards once a minute: every probe starts a fresh
+# Python interpreter, and at 5 s that was ~half a CPU core on an idle app —
+# on 2026-10-08 the VPS got CPU-limited by the host and this churn starved
+# everything (probes overran the 3 s timeout and piled up as zombies).
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --start-interval=1s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)"
 
 # --timeout-graceful-shutdown: on SIGTERM uvicorn waits for in-flight requests
