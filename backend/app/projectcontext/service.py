@@ -9,7 +9,7 @@ stored on the cache row so the project view can say why.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
@@ -18,11 +18,6 @@ from ..models import Project, ProjectContext, User
 from . import fetch, github, tokens
 
 log = logging.getLogger("cue.projectcontext")
-
-#: How long a single optimization trusts the cache without asking GitHub.
-#: An analysis and a batch always ask (one cheap sha lookup).
-FRESH_FOR = timedelta(hours=6)
-
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -67,14 +62,11 @@ class ProjectContextService:
         self,
         user_id: int,
         project_id: int | None,
-        *,
-        max_age: timedelta | None = None,
     ) -> ProjectContext | None:
         """Bring the cache up to date. Returns the row, or None if not applicable.
 
-        `max_age`: skip the network entirely when the cache for the same repo
-        is younger than this. None = always check the head sha (cheap) and
-        refetch only when it moved.
+        Always checks the head sha (cheap) and refetches the content only when
+        it moved.
         """
         if project_id is None or not self.settings.github_configured:
             return None
@@ -86,10 +78,6 @@ class ProjectContextService:
         same_target = row is not None and row.repo == project.github_repo and row.ref == (
             project.github_ref or row.ref
         )
-        if max_age is not None and same_target and row.text and row.fetched_at:
-            if _now() - _aware(row.fetched_at) < max_age:
-                return row
-
         if row is None:
             row = ProjectContext(project_id=project_id, user_id=user_id)
         user = self.session.get(User, user_id)
@@ -142,11 +130,11 @@ class ProjectContextService:
         self.session.refresh(row)
         return row
 
-    def safe_refresh(self, user_id: int, project_id: int | None, **kw) -> None:  # noqa: ANN003
+    def safe_refresh(self, user_id: int, project_id: int | None) -> None:
         """`refresh`, but nothing that goes wrong in it may fail the caller."""
         try:
             with github.time_budget(10):
-                self.refresh(user_id, project_id, **kw)
+                self.refresh(user_id, project_id)
         except Exception:  # noqa: BLE001
             log.exception("context refresh crashed project=%s", project_id)
             self.session.rollback()

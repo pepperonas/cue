@@ -654,9 +654,14 @@ export function useOptimizeBatch(enabled: boolean) {
   })
 }
 
+/** Lets the status pill see an optimization POST in flight (that is where the
+ *  GitHub context is fetched). */
+export const OPTIMIZE_PROMPT_KEY = ['optimize-prompt'] as const
+
 export function useOptimizePrompt() {
   const qc = useQueryClient()
   return useMutation({
+    mutationKey: OPTIMIZE_PROMPT_KEY,
     mutationFn: ({ promptId, provider }: { promptId: number; provider?: string }) =>
       api.optimizePrompt(promptId, provider),
     onSuccess: (job) => {

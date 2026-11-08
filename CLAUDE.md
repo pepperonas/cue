@@ -144,7 +144,7 @@ activate `routers/github.py` and the Settings connection section. Private repos 
 GitHub state carries the approved user's id because the Strict session cookie is absent on
 GitHub's callback; a matching Lax state cookie is still required. `projectcontext/` fetches
 CLAUDE.md, README, one manifest, a filtered tree and recent commits (60k chars total).
-`ProjectContextService` caches per project; changed targets must clear old text even when
+`ProjectContextService` caches per project; every refresh (single optimization, batch, analysis) asks GitHub for the head sha and refetches content only when it moved — there is no time-based trust window any more (0.81.0; a push must reach the very next rewrite). The `OptimizeTicker` pill shows the POST phase ("Projektkontext wird von GitHub geholt…", seen via the `OPTIMIZE_PROMPT_KEY` mutation key) and then the job with its `context_ref`; rules in `lib/optimize-ticker.ts`. changed targets must clear old text even when
 fetching fails. A failure on the SAME target preserves the last good text. Jobs snapshot
 `context_text` and `context_ref`: the API sends context in a cached system block, the runner
 gets it inline (with an adjusted character limit). ProjectRepository provides repo search,

@@ -3900,6 +3900,43 @@ img.logo-xl { border-radius: 18px; }
   color: var(--md-primary);
   font: var(--label-l);
 }
+/* Single optimization: quieter than the batch pill — no shadow, small type,
+   same slot (the batch pill hides it while a batch runs). */
+.opt-ticker {
+  position: fixed;
+  left: var(--gap-4);
+  bottom: calc(var(--gap-4) + 64px);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  max-width: min(420px, calc(100vw - 2 * var(--gap-4)));
+  padding: 8px 14px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-outline-variant);
+  color: var(--md-primary);
+  font: var(--label-m);
+  pointer-events: none;
+}
+.opt-ticker .spinner { width: 14px; height: 14px; }
+.opt-ticker-icon { font-size: 18px; animation: opt-ticker-pulse 1.4s ease-in-out infinite; }
+@keyframes opt-ticker-pulse { 50% { opacity: 0.45; } }
+.opt-ticker-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.opt-ticker-main { color: var(--md-on-surface); white-space: nowrap; }
+.opt-ticker-detail {
+  color: var(--md-on-surface-variant);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt-ticker-icon { animation: none; }
+}
+@media (max-width: 640px) {
+  .opt-ticker { left: var(--gap-3); right: var(--gap-3); bottom: calc(var(--gap-3) + 72px); max-width: none; }
+}
 .batch-count {
   color: var(--md-on-surface);
   font-variant-numeric: tabular-nums;

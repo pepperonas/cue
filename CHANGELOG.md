@@ -6,15 +6,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Security
-- **Der Runner startet die Claude-CLI für Optimierung und Analyse ohne
-  Werkzeuge** (`--tools "" --strict-mcp-config`) und in einem leeren
-  Arbeitsverzeichnis statt im Home-Ordner. Seit dem Projektkontext (0.79.0)
-  reist Text aus einem GitHub-Repository mit — README und CLAUDE.md kann jeder
-  mit Schreibrechten am Repo ändern. Mit den normalen Werkzeugrechten hätte eine
-  Anweisung darin Befehle auf dem Runner-Mac auslösen können. Nebenbei geht die
-  `CLAUDE.md` des Home-Ordners nicht mehr bei jedem Umschreiben mit.
-
 ### Added
 - **Android-App 0.1.0 — veröffentlicht als `android-v0.1.0` (2026-09-26)**,
   signierte APK am GitHub-Release (`android/`): eine kleine native App zum Lesen,
@@ -34,6 +25,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `backend/tests/test_app_api_contract.py` und `AppApiContractTest.kt` —
   ein neuer Wert auf nur einer Seite macht eine Suite rot, statt dass die App
   jeden Abruf als unlesbar verwirft.
+
+## [0.81.0] - 2026-11-08
+
+### Security
+- **Der Runner startet die Claude-CLI für Optimierung und Analyse ohne
+  Werkzeuge** (`--tools "" --strict-mcp-config`) und in einem leeren
+  Arbeitsverzeichnis statt im Home-Ordner. Seit dem Projektkontext (0.79.0)
+  reist Text aus einem GitHub-Repository mit — README und CLAUDE.md kann jeder
+  mit Schreibrechten am Repo ändern. Mit den normalen Werkzeugrechten hätte eine
+  Anweisung darin Befehle auf dem Runner-Mac auslösen können. Nebenbei geht die
+  `CLAUDE.md` des Home-Ordners nicht mehr bei jedem Umschreiben mit.
+
+### Changed
+- **Eine Einzeloptimierung holt immer den aktuellen GitHub-Stand.** Bisher
+  vertraute sie bis zu 6 Stunden lang dem gespeicherten Projektkontext — ein
+  Push von eben kam erst nach Ablauf oder nach „Aktualisieren“ an. Jetzt fragt
+  jede Optimierung kurz nach dem aktuellen Commit (ein billiger Aufruf) und lädt
+  den Inhalt nur neu, wenn er sich bewegt hat.
+
+### Added
+- **Dezente Statusanzeige für eine laufende Optimierung** (unten links, an der
+  Stelle der Sammel-Anzeige): erst „Projektkontext wird von GitHub geholt…“
+  mit dem Repo, dann „Wartet auf Ausführung“ bzw. „Wird optimiert“ mit Titel
+  und dem Stand, den der Lauf tatsächlich mitnimmt („mit Kontext repo@sha“
+  oder „ohne Projektkontext“). Während einer Sammel-Optimierung bleibt sie aus.
 
 ## [0.80.2] - 2026-10-24
 

@@ -305,6 +305,31 @@ def test_an_optimization_on_the_cli_gets_the_context_inline(client, repo):
     assert claimed["max_chars"] > len(claimed["prompt"]), "inline context must not trip the runner's limit"
 
 
+def test_a_single_optimization_picks_up_a_fresh_push(client, repo):
+    """Right after a push the next rewrite must see the new head, not a cached one."""
+    csrf = auth(client)
+    connect(client)
+    pid, _ = linked_project(client, csrf)
+    prompt_id = mk_prompt(client, csrf, pid)
+
+    repo.sha = SHA2
+    job = client.post("/api/optimizations", json={"prompt_id": prompt_id}, headers=hdr(csrf)).json()
+    assert job["context_ref"] == f"octo/app@{SHA2[:7]}"
+    assert repo.fetches() == 2
+
+
+def test_an_unchanged_head_costs_a_single_optimization_only_the_sha_probe(client, repo):
+    csrf = auth(client)
+    connect(client)
+    pid, _ = linked_project(client, csrf)
+    prompt_id = mk_prompt(client, csrf, pid)
+    repo.calls.clear()
+
+    client.post("/api/optimizations", json={"prompt_id": prompt_id}, headers=hdr(csrf))
+    assert repo.fetches() == 0, repo.calls
+    assert len(repo.calls) == 2, repo.calls  # default branch + head sha
+
+
 def test_a_prompt_without_a_linked_project_is_optimized_without_context(client, repo):
     csrf = auth(client)
     prompt_id = client.post("/api/prompts", json={"body": "Ohne Projekt"}, headers=hdr(csrf)).json()["id"]

@@ -74,6 +74,7 @@ import { SendToSessionDialog } from './components/SendToSessionDialog'
 import { RunsView } from './components/RunsView'
 import { RunTicker } from './components/RunTicker'
 import { BatchTicker } from './components/optimize/BatchTicker'
+import { OptimizeTicker } from './components/optimize/OptimizeTicker'
 import { SessionsView } from './components/SessionsView'
 import { SnippetsView } from './components/SnippetsView'
 import { DetailSheet } from './components/DetailSheet'
@@ -1191,6 +1192,7 @@ function Shell({
 
       <RunTicker enabled={canRun && view !== 'runs'} onOpen={() => setView('runs')} />
       <BatchTicker enabled={canOptimize} />
+      <OptimizeTicker enabled={canOptimize} />
 
       {(view === 'board' || view === 'list' || view === 'bookmarks') &&
         !composerOpen &&

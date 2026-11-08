@@ -36,7 +36,7 @@ from ..models import (
 from . import pricing, providers
 from .. import secrets_store
 from ..projectcontext.fetch import with_context
-from ..projectcontext.service import FRESH_FOR, ProjectContextService
+from ..projectcontext.service import ProjectContextService
 from .meta_prompt import META_PROMPT_VERSION, build_meta_prompt, parse_result
 from .repository import OptimizationRepository
 
@@ -111,10 +111,9 @@ class PromptOptimizationService:
         if prompt is None:
             raise OptimizationError("Prompt not found", 404)
         # Network here, on the user's POST — never in the executor's claim.
-        # A single optimization trusts a recent cache instead of asking GitHub.
-        ProjectContextService(self.session).safe_refresh(
-            uid, prompt.project_id, max_age=FRESH_FOR
-        )
+        # Always ask for the head sha (one cheap call): a push made a minute ago
+        # must reach the very next rewrite. Content is refetched only if it moved.
+        ProjectContextService(self.session).safe_refresh(uid, prompt.project_id)
         return self._queue_for(prompt, uid, provider=provider, batch_id=batch_id)
 
     def provider_for(self, uid: int) -> str:
