@@ -1794,6 +1794,11 @@ kbd {
   flex-wrap: wrap;
 }
 .swatch {
+  /* Containing block for the hidden colour <input> inside the picker swatch.
+     Without it the absolutely positioned input attaches to <html>, escapes the
+     scrolling <body> and stretches the document — a second scrollbar and a
+     394 px empty band below the footer on the Settings page. */
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: var(--shape-s);

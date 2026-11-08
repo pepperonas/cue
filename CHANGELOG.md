@@ -28,6 +28,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.81.0] - 2026-11-08
 
+### Fixed
+- **Leere Fläche unter dem Footer in den Einstellungen.** Der versteckte
+  Farbwähler (`<input type="color">`, absolut positioniert) hatte kein
+  positioniertes Elternelement, hing sich an `<html>` statt an den scrollenden
+  `<body>` und verlängerte das Dokument um ~400 px — ein zweiter Scrollbalken
+  und ein schwarzes Band unter dem Footer. `.swatch` ist jetzt der Bezugsrahmen.
+
 ### Security
 - **Der Runner startet die Claude-CLI für Optimierung und Analyse ohne
   Werkzeuge** (`--tools "" --strict-mcp-config`) und in einem leeren
